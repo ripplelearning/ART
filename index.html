@@ -3,29 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ART - Accessibility Reporting Tool</title>
+    <title>ART - Workspace</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="app-container">
-    <nav id="sidebar" role="tablist" aria-label="Main Navigation">
-        <button role="tab" aria-selected="true" aria-controls="panel-main" id="tab-dashboard">Dashboard</button>
-        <button role="tab" aria-selected="false" aria-controls="panel-main" id="tab-reports">Report Builder</button>
-    </nav>
+    <header id="top-tabs" role="tablist" aria-label="Main Application Tabs">
+        <button role="tab" aria-selected="true" id="tab-builder">Report Builder</button>
+        <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
+        <button role="tab" aria-selected="false" id="tab-view">View Report</button>
+    </header>
 
-    <div class="resizer" id="resizer-1"></div>
+    <section id="dashboard" tabindex="-1">
+        <h2>Dashboard</h2>
+        <p>Sidebar content goes here.</p>
+    </section>
+    
+    <div class="resizer" id="resizer-left"></div>
 
-    <main id="panel-main" role="tabpanel" aria-labelledby="tab-dashboard" tabindex="-1">
-        <div id="panel-content">
-            <h1>Dashboard</h1>
-            <p>Welcome to the Dashboard.</p>
+    <main id="main-content" tabindex="-1">
+        <div id="main-inner">
+            <h1>Report Builder</h1>
+            <p>Configure your reports here.</p>
         </div>
     </main>
 
-    <div class="resizer" id="resizer-2"></div>
+    <div class="resizer" id="resizer-right"></div>
 
-    <aside id="panel-lookup" aria-label="WCAG Lookup Tool" tabindex="-1">
+    <aside id="lookup-tool" tabindex="-1">
         <h2>WCAG Lookup</h2>
         <div class="tool-content">
             <div id="container">Loading criteria...</div>
