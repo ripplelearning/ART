@@ -1,32 +1,22 @@
-:root {
-    --dashboard-width: 20%;
-    --lookup-width: 20%;
-}
-
+:root { --dashboard-width: 20%; --lookup-width: 20%; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body, html { height: 100vh; overflow: hidden; font-family: sans-serif; }
 
 .app-container {
     display: grid;
-    grid-template-areas: 
-        "tabs tabs tabs tabs tabs"
-        "dash res1 main res2 look";
+    grid-template-areas: "tabs tabs tabs tabs tabs" "dash res1 main res2 look";
     grid-template-columns: var(--dashboard-width) 6px 1fr 6px var(--lookup-width);
     grid-template-rows: 50px 1fr;
     height: 100vh;
 }
-
-.app-container.focus-mode {
-    grid-template-columns: 0px 0px 1fr 0px 0px;
-}
+.app-container.focus-mode { grid-template-columns: 0px 0px 1fr 0px 0px; }
 
 #top-tabs { grid-area: tabs; background: #2c3e50; display: flex; align-items: center; padding: 0 10px; }
-#top-tabs button { padding: 10px 20px; background: #34495e; color: white; border: none; cursor: pointer; transition: 0.2s; }
+#top-tabs button { padding: 10px 20px; background: #34495e; color: white; border: none; cursor: pointer; }
 #top-tabs button[aria-selected="true"] { background: #1abc9c; }
 
-#dashboard { grid-area: dash; background: #f0f3f4; padding: 20px; border-right: 1px solid #ddd; overflow-y: auto; }
-#main-content { grid-area: main; padding: 40px; background: #fff; overflow-y: auto; }
-#lookup-tool { grid-area: look; background: #ecf0f1; padding: 20px; overflow-y: auto; border-left: 1px solid #bdc3c7; }
+#dashboard { grid-area: dash; background: #f0f3f4; padding: 20px; outline: none; }
+#main-content { grid-area: main; padding: 40px; outline: none; overflow-y: auto; }
+#lookup-tool { grid-area: look; background: #ecf0f1; padding: 20px; outline: none; overflow-y: auto; }
 
 .resizer { background: #bdc3c7; cursor: col-resize; z-index: 10; }
-.tool-content { word-wrap: break-word; max-width: 100%; }
