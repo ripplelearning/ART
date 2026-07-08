@@ -66,3 +66,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderBuilder();
 });
+
+// Global Keyboard Navigation
+window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'F6') {
+        e.preventDefault();
+        const regions = [
+            document.getElementById('top-tabs'),
+            document.getElementById('dashboard'),
+            document.getElementById('main-content'),
+            document.getElementById('lookup-tool')
+        ].filter(r => r !== null); // Ensure elements exist before processing
+
+        let activeIndex = regions.findIndex(r => r.contains(document.activeElement));
+        let nextIndex = (activeIndex === -1 || activeIndex === regions.length - 1) ? 0 : activeIndex + 1;
+        
+        const nextRegion = regions[nextIndex];
+        nextRegion.focus();
+        
+        const firstInput = nextRegion.querySelector('button, input, select, textarea');
+        if (firstInput) firstInput.focus();
+    }
+});
