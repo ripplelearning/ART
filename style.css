@@ -12,23 +12,15 @@ body, html { height: 100vh; overflow: hidden; font-family: sans-serif; }
     height: 100vh;
 }
 
-/* Sidebar and Panels */
 #sidebar { background: #2c3e50; color: white; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+#sidebar [role="tab"] { background: #34495e; color: white; border: none; padding: 10px; cursor: pointer; text-align: left; }
+#sidebar [role="tab"][aria-selected="true"] { background: #1abc9c; font-weight: bold; }
+
 #panel-main { overflow-y: auto; padding: 40px; background: #f4f7f6; }
 #panel-lookup { background: #ecf0f1; padding: 20px; overflow-y: auto; border-left: 1px solid #bdc3c7; }
 
-/* RESIZER */
 .resizer { background: #bdc3c7; cursor: col-resize; }
 
-/* CONTENT PROTECTION (Crucial for reflow) */
-.tool-content, #panel-main {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-img, table {
-    max-width: 100% !important;
-    height: auto;
-}
-
-[hidden] { display: none; }
+/* Reflow protection */
+#panel-content, .tool-content { word-wrap: break-word; overflow-wrap: break-word; }
+img, table { max-width: 100% !important; height: auto; }
