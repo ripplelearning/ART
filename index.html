@@ -9,19 +9,19 @@
 <body>
 
 <div class="app-container" id="app">
-    <header id="top-tabs" role="tablist" aria-label="Main Application Tabs">
+    <header id="top-tabs" role="tablist" aria-label="Main Application Tabs" tabindex="0">
         <button role="tab" aria-selected="true" id="tab-builder">Report Builder</button>
         <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
         <button role="tab" aria-selected="false" id="tab-view">View Report</button>
     </header>
 
-    <section id="dashboard" tabindex="-1">
+    <section id="dashboard" tabindex="0">
         <h2>Dashboard</h2>
     </section>
     
     <div class="resizer" id="resizer-left"></div>
 
-    <main id="main-content" tabindex="-1">
+    <main id="main-content" tabindex="0">
         <div id="main-inner">
             <h1>Report Builder</h1>
             <p>Configure your report here.</p>
