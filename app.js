@@ -67,24 +67,33 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBuilder();
 });
 
-// Global Keyboard Navigation
+// Global Keyboard Navigation (Cycles through landmarks)
 window.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'F6') {
         e.preventDefault();
-        const regions = [
-            document.getElementById('top-tabs'),
-            document.getElementById('dashboard'),
-            document.getElementById('main-content'),
-            document.getElementById('lookup-tool')
-        ].filter(r => r !== null); // Ensure elements exist before processing
 
+        // Target the specific landmarks by role or tag name
+        const regions = [
+            document.querySelector('nav'),           // Tablist / Navigation
+            document.getElementById('dashboard'),    // Sidebar Landmark
+            document.querySelector('main'),          // Active Content Landmark
+            document.querySelector('aside')          // Lookup Tool Landmark
+        ].filter(r => r !== null);
+
+        // Find the region containing the current focus
         let activeIndex = regions.findIndex(r => r.contains(document.activeElement));
-        let nextIndex = (activeIndex === -1 || activeIndex === regions.length - 1) ? 0 : activeIndex + 1;
+        
+        // Wrap to the start if at the end or nothing focused
+        let nextIndex = (activeIndex === -1 || activeIndex >= regions.length - 1) ? 0 : activeIndex + 1;
         
         const nextRegion = regions[nextIndex];
-        nextRegion.focus();
         
-        const firstInput = nextRegion.querySelector('button, input, select, textarea');
-        if (firstInput) firstInput.focus();
+        // Focus the first interactive element or the container itself
+        const target = nextRegion.querySelector('button, input, select, textarea, [tabindex]') || nextRegion;
+        
+        // Ensure focusable
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        
+        target.focus();
     }
 });
