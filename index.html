@@ -10,29 +10,30 @@
 
 <div class="app-container">
     <nav id="sidebar" role="tablist" aria-label="Main Navigation">
-        <button role="tab" aria-selected="true" aria-controls="panel-main" id="tab-dashboard">Dashboard</button>
+        <button role="tab" aria-selected="true" aria-controls="panel-main" id="tab-dashboard">Overview</button>
         <button role="tab" aria-selected="false" aria-controls="panel-main" id="tab-reports">Report Builder</button>
     </nav>
 
     <div class="resizer" id="resizer-1"></div>
 
     <main id="panel-main" role="tabpanel" aria-labelledby="tab-dashboard" tabindex="-1">
-        <h1>Dashboard</h1>
-        <p>Your workspace content will load here.</p>
+        <div id="panel-content">
+            <h1>Overview</h1>
+            <p>Welcome to the Dashboard.</p>
+        </div>
     </main>
 
     <div class="resizer" id="resizer-2"></div>
 
     <aside id="panel-lookup" aria-label="WCAG Lookup Tool" tabindex="-1">
-        <h2>WCAG Lookup Tool</h2>
+        <h2>WCAG Lookup</h2>
         <div class="tool-content">
             <div id="container">Loading criteria...</div>
-    
-            </div>
+        </div>
     </aside>
 </div>
 
 <script src="app.js"></script>
-    <script src="loader.js"></script>
+<script src="loader.js"></script>
 </body>
 </html>
