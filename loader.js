@@ -76,7 +76,6 @@ const style = document.createElement('style');
         document.getElementById('lvl-f').value = '';
         document.getElementById('cat-f').value = '';
         document.getElementById('s').dispatchEvent(new Event('input'));
-        document.getElementById('s').focus();
     };
 
     try {
@@ -206,7 +205,7 @@ const style = document.createElement('style');
         });
  
         render(data);
-        document.getElementById('s').focus();
+        
     } catch (e) { container.innerHTML = 'Error loading data: ' + e.message; }
 }
 initTool();
