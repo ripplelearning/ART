@@ -3,37 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ART - Workspace</title>
+    <title>ART - Accessibility Reporting Tool</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
-<div class="app-container" id="app">
-    <header id="top-tabs" role="tablist" aria-label="Main Application Tabs" tabindex="0">
-        <button role="tab" aria-selected="true" id="tab-builder">Report Builder</button>
+<div class="app-container">
+    <header id="top-tabs" role="tablist">
+        <button role="tab" aria-selected="true" id="tab-builder">Builder</button>
         <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
-        <button role="tab" aria-selected="false" id="tab-view">View Report</button>
+        <button role="tab" aria-selected="false" id="tab-view">View/Export</button>
     </header>
 
-    <section id="dashboard" tabindex="0">
+    <section id="dashboard">
         <h2>Dashboard</h2>
+        <p>Current Project: <span id="dash-title">Untitled</span></p>
     </section>
-    
-    <div class="resizer" id="resizer-left"></div>
 
     <main id="main-content" tabindex="0">
-        <div id="main-inner">
-            <h1>Report Builder</h1>
-            <p>Configure your report here.</p>
-        </div>
+        <div id="main-inner"></div>
     </main>
 
-    <div class="resizer" id="resizer-right"></div>
-
-    <aside id="lookup-tool" tabindex="-1">
+    <aside id="lookup-tool">
         <h2>WCAG Lookup</h2>
-        <div class="tool-content">
-            <div id="container">Loading criteria...</div>
+        <div id="container">
+            <input type="search" placeholder="Search criteria...">
         </div>
     </aside>
 </div>
