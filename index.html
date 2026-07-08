@@ -10,26 +10,25 @@
 <body>
 
 <div class="app-container">
-    <header id="top-tabs" role="tablist">
+    <nav id="top-tabs" role="tablist">
         <button role="tab" aria-selected="true" id="tab-builder">Builder</button>
         <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
         <button role="tab" aria-selected="false" id="tab-view">View/Export</button>
-    </header>
+    </nav>
 
-    <section id="dashboard">
+    <section id="dashboard" role="complementary">
         <h2>Dashboard</h2>
         <p>Current Project: <span id="dash-title">Untitled</span></p>
     </section>
 
-    <main id="main-content" tabindex="0">
+    <main id="main-content">
         <div id="main-inner"></div>
     </main>
 
     <aside id="lookup-tool">
         <h2>WCAG Lookup</h2>
         <div id="container">
-            <input type="search" placeholder="Search criteria...">
-        </div>
+            </div>
     </aside>
 </div>
 
