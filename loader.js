@@ -20,6 +20,7 @@ async function initTool() {
     const container = document.getElementById('container');
     container.innerHTML = 'Loading criteria...';
 
+    // ... (All formatting logic remains here)
     const resetTool = () => {
         document.getElementById('s').value = '';
         document.getElementById('ver-f').value = '';
