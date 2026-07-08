@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ART - Accessibility Reporting Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-container">
+    <nav id="sidebar" role="tablist" aria-label="Main Navigation">
+        <button role="tab" aria-selected="true" aria-controls="panel-main" id="tab-dashboard">Dashboard</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-main" id="tab-reports">Report Builder</button>
+    </nav>
+
+    <div class="resizer" id="resizer-1"></div>
+
+    <main id="panel-main" role="tabpanel" aria-labelledby="tab-dashboard" tabindex="-1">
+        <h1>Dashboard</h1>
+        <p>Your workspace content will load here.</p>
+    </main>
+
+    <div class="resizer" id="resizer-2"></div>
+
+    <aside id="panel-lookup" aria-label="WCAG Lookup Tool" tabindex="-1">
+        <h2>WCAG Lookup Tool</h2>
+        <div class="tool-content">
+            </div>
+    </aside>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
