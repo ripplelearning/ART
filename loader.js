@@ -206,7 +206,7 @@ const style = document.createElement('style');
         });
  
         render(data);
-        document.getElementById('s').focus();
+        
     } catch (e) { container.innerHTML = 'Error loading data: ' + e.message; }
 }
 initTool();
