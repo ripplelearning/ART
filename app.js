@@ -1,53 +1,49 @@
 const tabs = document.querySelectorAll('[role="tab"]');
-const mainPanel = document.getElementById('panel-main');
-const contentDiv = document.getElementById('panel-content');
-const lookupPanel = document.getElementById('panel-lookup');
-const container = document.querySelector('.app-container');
+const mainInner = document.getElementById('main-inner');
+const elements = [
+    document.getElementById('top-tabs'),
+    document.getElementById('dashboard'),
+    document.getElementById('main-content'),
+    document.getElementById('lookup-tool')
+];
 
-function activateTab(tabId) {
-    // 1. Update Tab selection state
-    tabs.forEach(tab => {
-        tab.setAttribute('aria-selected', tab.id === tabId);
-    });
-
-    // 2. Update Panel content and ARIA label
-    mainPanel.setAttribute('aria-labelledby', tabId);
-    if (tabId === 'tab-dashboard') {
-        contentDiv.innerHTML = '<h1>Overview</h1><p>Welcome to the Dashboard.</p>';
-    } else if (tabId === 'tab-reports') {
-        contentDiv.innerHTML = '<h1>Report Builder</h1><p>Start building your report here.</p>';
-    }
+// Content switching logic
+function switchTab(tabId) {
+    tabs.forEach(tab => tab.setAttribute('aria-selected', tab.id === tabId));
     
-    mainPanel.focus();
+    if (tabId === 'tab-builder') {
+        mainInner.innerHTML = '<h1>Report Builder</h1><p>Configure your report fields and options.</p>';
+    } else if (tabId === 'tab-editor') {
+        mainInner.innerHTML = '<h1>Editor</h1><p>Fill in your report data here.</p>';
+    } else if (tabId === 'tab-view') {
+        mainInner.innerHTML = '<h1>View Report</h1><p>Preview and export your final report.</p>';
+    }
 }
 
-// Click events
-tabs.forEach(tab => {
-    tab.addEventListener('click', () => activateTab(tab.id));
-});
+tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.id)));
 
-// Shortcuts & Navigation
 document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'F6') {
         e.preventDefault();
         const active = document.activeElement;
-        if (active.closest('#sidebar')) mainPanel.focus();
-        else if (active.closest('#panel-main')) lookupPanel.focus();
-        else document.querySelector('#sidebar [role="tab"]').focus();
+        let index = elements.findIndex(el => el.contains(active));
+        let nextIndex = (index + 1) % elements.length;
+        elements[nextIndex].focus();
     }
-    if (e.ctrlKey && e.key === 'l') { e.preventDefault(); lookupPanel.focus(); }
-    if (e.ctrlKey && e.key === '1') activateTab('tab-dashboard');
-    if (e.ctrlKey && e.key === '2') activateTab('tab-reports');
+    if (e.ctrlKey && e.key === 'm') {
+        document.querySelector('.app-container').classList.toggle('focus-mode');
+    }
 });
 
-// Panel Resizing Logic
+// Resizing logic
 let isResizing = false;
-document.querySelectorAll('.resizer').forEach(resizer => {
-    resizer.addEventListener('mousedown', () => isResizing = true);
-});
+let activeResizer = null;
+document.querySelectorAll('.resizer').forEach(r => r.addEventListener('mousedown', (e) => { isResizing = true; activeResizer = e.target.id; }));
 document.addEventListener('mousemove', (e) => {
     if (!isResizing) return;
-    const newSidebarWidth = (e.clientX / container.offsetWidth) * 100;
-    container.style.setProperty('--sidebar-width', `${newSidebarWidth}%`);
+    const container = document.querySelector('.app-container');
+    const width = (e.clientX / container.offsetWidth) * 100;
+    if (activeResizer === 'resizer-left') container.style.setProperty('--dashboard-width', `${width}%`);
+    else container.style.setProperty('--lookup-width', `${100 - width}%`);
 });
 document.addEventListener('mouseup', () => isResizing = false);
