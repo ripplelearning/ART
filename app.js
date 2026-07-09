@@ -76,8 +76,8 @@ const renderView = () => {
     const mainInner = document.getElementById('main-inner');
     mainInner.innerHTML = `<h1>View/Export</h1>
         <p><strong>Title:</strong> ${appState.reportTitle}</p>
-        <button onclick="exportReport('txt')">Export TXT Bundle</button>
-        <button onclick="exportReport('html')">Export HTML Bundle</button>
+        <button onclick="exportReport('txt')" id="btn-export-txt">Export TXT Bundle</button>
+        <button onclick="exportReport('html')" id="btn-export-html">Export HTML Bundle</button>
         <label>Import JSON: <input type="file" id="import-input" accept=".json"></label>`;
     document.getElementById('import-input').onchange = (e) => {
         const reader = new FileReader();
@@ -140,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global Keyboard Navigation
     window.addEventListener('keydown', (e) => {
+        // Ctrl+F6: Region Cycling
         if (e.ctrlKey && e.key === 'F6') {
             e.preventDefault();
             const regions = [document.querySelector('nav'), document.getElementById('dashboard'), document.querySelector('main'), document.querySelector('aside')].filter(r => r !== null);
@@ -150,6 +151,23 @@ document.addEventListener('DOMContentLoaded', () => {
             target = target || nextRegion;
             if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
             target.focus();
+        }
+
+        // Ctrl+O: Open Existing Report
+        if (e.ctrlKey && e.key === 'o') {
+            e.preventDefault();
+            document.getElementById('btn-open-report').click();
+        }
+
+        // Ctrl+S: Export Open Report (Trigger first available export button)
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            const exportBtn = document.getElementById('btn-export-txt') || document.getElementById('btn-export-html');
+            if (exportBtn) {
+                exportBtn.click();
+            } else {
+                alert("Please navigate to the View/Export tab to save/export.");
+            }
         }
     });
 });
