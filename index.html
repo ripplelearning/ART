@@ -11,16 +11,39 @@
 
 <div class="app-container">
     <nav aria-label="panel selector">
-    <div id="top-tabs" role="tablist">
-        <button role="tab" aria-selected="true" id="tab-builder">Builder</button>
-        <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
-        <button role="tab" aria-selected="false" id="tab-view">View/Export</button>
-    </div>
-</nav>
+        <div id="top-tabs" role="tablist">
+            <button role="tab" aria-selected="true" id="tab-builder">Builder</button>
+            <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
+            <button role="tab" aria-selected="false" id="tab-view">View/Export</button>
+        </div>
+    </nav>
 
-    <section id="dashboard" role="complementary" aria-label="dashboard">
-        <h2>Dashboard</h2>
-        <p>Current Project: <span id="dash-title">Untitled</span></p>
+    <section id="dashboard" role="complementary" aria-labelledby="dash-heading">
+        <h2 id="dash-heading">Dashboard</h2>
+        
+        <div class="action-group">
+            <button id="btn-new-report">New Report</button>
+            <button id="btn-open-report">Open Existing Report</button>
+        </div>
+        
+        <div id="new-report-options" hidden>
+            <label for="template-dropdown">Choose a starting point:</label>
+            <select id="template-dropdown">
+                <option value="none">Start from Scratch</option>
+            </select>
+            <button id="btn-build-report">Build Report</button>
+        </div>
+
+        <div id="recent-reports-container" hidden>
+            <label for="recent-reports-select">Select a Recent Report:</label>
+            <select id="recent-reports-select"></select>
+            
+            <div class="report-actions" role="group" aria-label="Actions for selected report">
+                <button id="btn-manage-recent">Manage Structure</button>
+                <button id="btn-edit-recent">Edit Content</button>
+                <button id="btn-view-recent">View/Export</button>
+            </div>
+        </div>
     </section>
 
     <main id="main-content" aria-label="main content">
@@ -29,8 +52,7 @@
 
     <aside id="lookup-tool" aria-label="WCAG Lookup Tool">
         <h2>WCAG Lookup Tool</h2>
-        <div id="container">
-            </div>
+        <div id="container"></div>
     </aside>
 </div>
 
