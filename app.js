@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('art-state'); if (saved) appState = JSON.parse(saved);
     const mainInner = document.getElementById('main-inner');
 
-    // RE-USABLE RENDER FUNCTIONS
     const renderBuilder = () => {
         mainInner.innerHTML = `<h1>Builder</h1><p><small>Last Sync: ${new Date(appState.lastModified).toLocaleString()}</small></p>
             <label>Type: <select id="type-select"><option value="audit-log" ${appState.reportType==='audit-log'?'selected':''}>Audit Log</option><option value="exec-summary" ${appState.reportType==='exec-summary'?'selected':''}>Exec Summary</option></select></label>
@@ -58,40 +57,41 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Tab Navigation Logic
-    document.querySelectorAll('[role="tab"]').forEach(tab => tab.onclick = (e) => {
-        if (e.target.id === 'tab-builder') renderBuilder();
-        else if (e.target.id === 'tab-editor') renderEditor();
+    document.querySelector('[role="tablist"]').addEventListener('click', (e) => {
+        const tab = e.target.closest('[role="tab"]');
+        if (!tab) return;
+
+        document.querySelectorAll('[role="tab"]').forEach(t => t.setAttribute('aria-selected', t === tab ? 'true' : 'false'));
+
+        if (tab.id === 'tab-builder') renderBuilder();
+        else if (tab.id === 'tab-editor') renderEditor();
         else renderView();
     });
 
     renderBuilder();
 });
 
-// Global Keyboard Navigation (Cycles through landmarks)
+// Global Keyboard Navigation
 window.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'F6') {
         e.preventDefault();
 
-        // Target the specific landmarks by role or tag name
         const regions = [
-            document.querySelector('nav'),           // Tablist / Navigation
-            document.getElementById('dashboard'),    // Sidebar Landmark
-            document.querySelector('main'),          // Active Content Landmark
-            document.querySelector('aside')          // Lookup Tool Landmark
+            document.querySelector('nav'),
+            document.getElementById('dashboard'),
+            document.querySelector('main'),
+            document.querySelector('aside')
         ].filter(r => r !== null);
 
-        // Find the region containing the current focus
         let activeIndex = regions.findIndex(r => r.contains(document.activeElement));
-        
-        // Wrap to the start if at the end or nothing focused
         let nextIndex = (activeIndex === -1 || activeIndex >= regions.length - 1) ? 0 : activeIndex + 1;
-        
         const nextRegion = regions[nextIndex];
+
+        let target = nextRegion.tagName === 'NAV' 
+            ? nextRegion.querySelector('[role="tab"]') 
+            : nextRegion.querySelector('button, input, select, textarea, [tabindex]');
         
-        // Focus the first interactive element or the container itself
-        const target = nextRegion.querySelector('button, input, select, textarea, [tabindex]') || nextRegion;
-        
-        // Ensure focusable
+        target = target || nextRegion;
         if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
         
         target.focus();
