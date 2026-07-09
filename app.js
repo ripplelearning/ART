@@ -34,7 +34,6 @@ function updateRecentReports() {
     const container = document.getElementById('recent-reports-container');
     const select = document.getElementById('recent-reports-select');
     const recent = JSON.parse(localStorage.getItem('art-recent-reports') || '[]');
-
     if (recent.length > 0) {
         container.hidden = false;
         select.innerHTML = recent.map(r => `<option value="${r.id}">${r.title}</option>`).join('');
@@ -90,44 +89,29 @@ const renderView = () => {
 document.addEventListener('DOMContentLoaded', () => {
     updateRecentReports();
 
-    // Dashboard: New Report Toggle
-    document.getElementById('btn-new-report').onclick = () => {
-        const opts = document.getElementById('new-report-options');
-        opts.hidden = !opts.hidden;
+    document.getElementById('btn-new-report').onclick = () => document.getElementById('new-report-options').hidden = !document.getElementById('new-report-options').hidden;
+
+    document.getElementById('btn-open-report').onclick = () => {
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = '.json';
+        input.onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => { appState = JSON.parse(ev.target.result); saveState(); renderBuilder(); switchToTab('tab-builder'); };
+            reader.readAsText(e.target.files[0]);
+        };
+        input.click();
     };
 
-    // Dashboard: Build Report Action
     document.getElementById('btn-build-report').onclick = () => {
         const template = document.getElementById('template-dropdown').value;
-        appState = { 
-            id: Date.now().toString(), 
-            reportTitle: "New Report", 
-            templateId: template === 'none' ? 'basic' : template,
-            fields: {}, editorContent: "", lastModified: Date.now() 
-        };
-        saveState();
-        renderBuilder();
-        switchToTab('tab-builder');
+        appState = { id: Date.now().toString(), reportTitle: "New Report", templateId: template === 'none' ? 'basic' : template, fields: {}, editorContent: "", lastModified: Date.now() };
+        saveState(); renderBuilder(); switchToTab('tab-builder');
     };
 
-    // Dashboard: Manage/Edit/View Actions
-    document.getElementById('btn-manage-recent').onclick = () => {
-        loadReport(document.getElementById('recent-reports-select').value);
-        renderBuilder();
-        switchToTab('tab-builder');
-    };
-    document.getElementById('btn-edit-recent').onclick = () => {
-        loadReport(document.getElementById('recent-reports-select').value);
-        renderEditor();
-        switchToTab('tab-editor');
-    };
-    document.getElementById('btn-view-recent').onclick = () => {
-        loadReport(document.getElementById('recent-reports-select').value);
-        renderView();
-        switchToTab('tab-view');
-    };
+    document.getElementById('btn-manage-recent').onclick = () => { loadReport(document.getElementById('recent-reports-select').value); renderBuilder(); switchToTab('tab-builder'); };
+    document.getElementById('btn-edit-recent').onclick = () => { loadReport(document.getElementById('recent-reports-select').value); renderEditor(); switchToTab('tab-editor'); };
+    document.getElementById('btn-view-recent').onclick = () => { loadReport(document.getElementById('recent-reports-select').value); renderView(); switchToTab('tab-view'); };
 
-    // Tab Navigation Logic
     const tablist = document.querySelector('[role="tablist"]');
     tablist.addEventListener('click', (e) => {
         const clickedTab = e.target.closest('[role="tab"]');
@@ -138,9 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (clickedTab.id === 'tab-view') renderView();
     });
 
-    // Global Keyboard Navigation
     window.addEventListener('keydown', (e) => {
-        // Ctrl+F6: Region Cycling
         if (e.ctrlKey && e.key === 'F6') {
             e.preventDefault();
             const regions = [document.querySelector('nav'), document.getElementById('dashboard'), document.querySelector('main'), document.querySelector('aside')].filter(r => r !== null);
@@ -152,22 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
             target.focus();
         }
-
-        // Ctrl+O: Open Existing Report
-        if (e.ctrlKey && e.key === 'o') {
-            e.preventDefault();
-            document.getElementById('btn-open-report').click();
-        }
-
-        // Ctrl+S: Export Open Report (Trigger first available export button)
-        if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
-            const exportBtn = document.getElementById('btn-export-txt') || document.getElementById('btn-export-html');
-            if (exportBtn) {
-                exportBtn.click();
-            } else {
-                alert("Please navigate to the View/Export tab to save/export.");
-            }
-        }
+        if (e.ctrlKey && e.key === 'o') { e.preventDefault(); document.getElementById('btn-open-report').click(); }
+        if (e.ctrlKey && e.key === 's') { e.preventDefault(); (document.getElementById('btn-export-txt') || document.getElementById('btn-export-html'))?.click(); }
     });
 });
