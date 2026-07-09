@@ -87,6 +87,8 @@ function loadReport(id) {
 // --- Renderers ---
 const renderBuilder = () => {
     const mainInner = document.getElementById('main-inner');
+    if (!mainInner) return;
+    
     mainInner.innerHTML = `
         <h1>Manage Report Structure</h1>
         <section id="header-config" aria-labelledby="header-heading">
@@ -97,16 +99,16 @@ const renderBuilder = () => {
                     <option value="exec-summary" ${appState.reportType === 'exec-summary' ? 'selected' : ''}>Executive Summary</option>
                 </select>
             </label>
-            <label>Report Title: <input type="text" value="${appState.reportTitle}" oninput="updateHeader('reportTitle', this.value)"></label>
-            <label>Project / Application Name: <input type="text" value="${appState.projectName}" oninput="updateHeader('projectName', this.value)"></label>
+            <label>Report Title: <input type="text" value="${appState.reportTitle || ''}" oninput="updateHeader('reportTitle', this.value)"></label>
+            <label>Project / Application Name: <input type="text" value="${appState.projectName || ''}" oninput="updateHeader('projectName', this.value)"></label>
             <label>Environment:
                 <select onchange="updateHeader('environment', this.value)">
                     ${['Production', 'Staging', 'QA', 'Development'].map(env => `<option value="${env}" ${appState.environment === env ? 'selected' : ''}>${env}</option>`).join('')}
                 </select>
             </label>
-            <label>URL / Scope: <input type="text" value="${appState.scopeUrl}" oninput="updateHeader('scopeUrl', this.value)"></label>
-            <label>Audit Date(s): <input type="date" value="${appState.auditDate}" oninput="updateHeader('auditDate', this.value)"></label>
-            <label>Auditor(s): <input type="text" value="${appState.auditors}" oninput="updateHeader('auditors', this.value)"></label>
+            <label>URL / Scope: <input type="text" value="${appState.scopeUrl || ''}" oninput="updateHeader('scopeUrl', this.value)"></label>
+            <label>Audit Date(s): <input type="date" value="${appState.auditDate || ''}" oninput="updateHeader('auditDate', this.value)"></label>
+            <label>Auditor(s): <input type="text" value="${appState.auditors || ''}" oninput="updateHeader('auditors', this.value)"></label>
             <label>Accessibility Standard:
                 <select onchange="updateHeader('standard', this.value)">
                     <option value="WCAG 2.2" ${appState.standard === 'WCAG 2.2' ? 'selected' : ''}>WCAG 2.2</option>
@@ -163,7 +165,10 @@ const renderView = () => {
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     updateRecentReports();
+    renderBuilder(); // Ensure view is populated on load
+
     document.getElementById('btn-new-report').onclick = () => document.getElementById('new-report-options').hidden = !document.getElementById('new-report-options').hidden;
+    
     document.getElementById('btn-open-report').onclick = () => {
         const input = document.createElement('input');
         input.type = 'file'; input.accept = '.json';
