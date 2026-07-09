@@ -1,11 +1,16 @@
 let appState = { 
-    id: null, reportTitle: "Untitled", reportType: 'audit-log', templateId: 'basic', 
-    fields: {}, editorContent: "", lastModified: Date.now() 
-};
-
-const templates = {
-    basic: [{ id: 'auditor', label: 'Auditor', type: 'text' }],
-    full: [{ id: 'auditor', label: 'Auditor', type: 'text' }, { id: 'scope', label: 'Scope', type: 'textarea' }]
+    id: null, 
+    reportType: 'audit-log',
+    reportTitle: "",
+    projectName: "",
+    environment: "Production",
+    scopeUrl: "",
+    auditDate: new Date().toISOString().split('T')[0],
+    auditors: "",
+    standard: "WCAG 2.2",
+    fields: [], 
+    editorContent: "", 
+    lastModified: Date.now() 
 };
 
 // --- Helpers ---
@@ -13,6 +18,11 @@ function saveState() {
     appState.lastModified = Date.now(); 
     localStorage.setItem('art-state', JSON.stringify(appState)); 
     updateRecentReports();
+}
+
+function updateHeader(key, val) {
+    appState[key] = val;
+    saveState();
 }
 
 function switchToTab(tabId) {
@@ -28,6 +38,32 @@ async function exportReport(format) {
     const blob = await zip.generateAsync({ type: "blob" });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "report-bundle.zip"; a.click();
 }
+
+// --- Builder Structural Functions ---
+function addField() {
+    appState.fields.push({ id: Date.now().toString(), label: 'New Field', type: 'text' });
+    saveState();
+    renderBuilder();
+}
+
+function removeField(index) {
+    appState.fields.splice(index, 1);
+    saveState();
+    renderBuilder();
+}
+
+function moveField(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= appState.fields.length) return;
+    const temp = appState.fields[index];
+    appState.fields[index] = appState.fields[newIndex];
+    appState.fields[newIndex] = temp;
+    saveState();
+    renderBuilder();
+}
+
+function updateFieldLabel(index, val) { appState.fields[index].label = val; saveState(); }
+function updateFieldType(index, val) { appState.fields[index].type = val; saveState(); }
 
 // --- Dashboard Logic ---
 function updateRecentReports() {
@@ -51,18 +87,57 @@ function loadReport(id) {
 // --- Renderers ---
 const renderBuilder = () => {
     const mainInner = document.getElementById('main-inner');
-    mainInner.innerHTML = `<h1>Builder</h1><p><small>Last Sync: ${new Date(appState.lastModified).toLocaleString()}</small></p>
-        <label>Type: <select id="type-select"><option value="audit-log" ${appState.reportType==='audit-log'?'selected':''}>Audit Log</option><option value="exec-summary" ${appState.reportType==='exec-summary'?'selected':''}>Exec Summary</option></select></label>
-        <label>Template: <select id="template-select"><option value="basic" ${appState.templateId==='basic'?'selected':''}>Basic</option><option value="full" ${appState.templateId==='full'?'selected':''}>Full</option></select></label>
-        <div id="fields"></div>`;
-    document.getElementById('type-select').onchange = (e) => { appState.reportType = e.target.value; saveState(); renderBuilder(); };
-    document.getElementById('template-select').onchange = (e) => { appState.templateId = e.target.value; appState.fields = {}; saveState(); renderBuilder(); };
-    templates[appState.templateId].forEach(f => {
-        const el = f.type === 'textarea' ? document.createElement('textarea') : document.createElement('input');
-        el.placeholder = f.label; el.value = appState.fields[f.id] || '';
-        el.oninput = (e) => { appState.fields[f.id] = e.target.value; saveState(); };
-        document.getElementById('fields').appendChild(el);
+    mainInner.innerHTML = `
+        <h1>Manage Report Structure</h1>
+        <section id="header-config" aria-labelledby="header-heading">
+            <h2 id="header-heading">Report Metadata</h2>
+            <label>Report Type:
+                <select onchange="updateHeader('reportType', this.value)">
+                    <option value="audit-log" ${appState.reportType === 'audit-log' ? 'selected' : ''}>Audit Log</option>
+                    <option value="exec-summary" ${appState.reportType === 'exec-summary' ? 'selected' : ''}>Executive Summary</option>
+                </select>
+            </label>
+            <label>Report Title: <input type="text" value="${appState.reportTitle}" oninput="updateHeader('reportTitle', this.value)"></label>
+            <label>Project / Application Name: <input type="text" value="${appState.projectName}" oninput="updateHeader('projectName', this.value)"></label>
+            <label>Environment:
+                <select onchange="updateHeader('environment', this.value)">
+                    ${['Production', 'Staging', 'QA', 'Development'].map(env => `<option value="${env}" ${appState.environment === env ? 'selected' : ''}>${env}</option>`).join('')}
+                </select>
+            </label>
+            <label>URL / Scope: <input type="text" value="${appState.scopeUrl}" oninput="updateHeader('scopeUrl', this.value)"></label>
+            <label>Audit Date(s): <input type="date" value="${appState.auditDate}" oninput="updateHeader('auditDate', this.value)"></label>
+            <label>Auditor(s): <input type="text" value="${appState.auditors}" oninput="updateHeader('auditors', this.value)"></label>
+            <label>Accessibility Standard:
+                <select onchange="updateHeader('standard', this.value)">
+                    <option value="WCAG 2.2" ${appState.standard === 'WCAG 2.2' ? 'selected' : ''}>WCAG 2.2</option>
+                    <option value="WCAG 2.1" ${appState.standard === 'WCAG 2.1' ? 'selected' : ''}>WCAG 2.1</option>
+                </select>
+            </label>
+        </section>
+        <section id="fields-config" aria-labelledby="fields-heading">
+            <h2 id="fields-heading">Report Fields</h2>
+            <div id="fields-list"></div>
+            <button id="add-field-btn">Add New Field</button>
+        </section>`;
+
+    const fieldsList = document.getElementById('fields-list');
+    appState.fields.forEach((field, index) => {
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <input type="text" value="${field.label}" onchange="updateFieldLabel(${index}, this.value)">
+            <select onchange="updateFieldType(${index}, this.value)">
+                <option value="text" ${field.type==='text'?'selected':''}>Text</option>
+                <option value="textarea" ${field.type==='textarea'?'selected':''}>Textarea</option>
+                <option value="select" ${field.type==='select'?'selected':''}>Select (Dropdown)</option>
+                <option value="link" ${field.type==='link'?'selected':''}>Link/URL</option>
+            </select>
+            <button onclick="moveField(${index}, -1)">↑</button>
+            <button onclick="moveField(${index}, 1)">↓</button>
+            <button onclick="removeField(${index})">Delete</button>
+        `;
+        fieldsList.appendChild(div);
     });
+    document.getElementById('add-field-btn').onclick = addField;
 };
 
 const renderEditor = () => {
@@ -88,9 +163,7 @@ const renderView = () => {
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     updateRecentReports();
-
     document.getElementById('btn-new-report').onclick = () => document.getElementById('new-report-options').hidden = !document.getElementById('new-report-options').hidden;
-
     document.getElementById('btn-open-report').onclick = () => {
         const input = document.createElement('input');
         input.type = 'file'; input.accept = '.json';
@@ -103,8 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     document.getElementById('btn-build-report').onclick = () => {
-        const template = document.getElementById('template-dropdown').value;
-        appState = { id: Date.now().toString(), reportTitle: "New Report", templateId: template === 'none' ? 'basic' : template, fields: {}, editorContent: "", lastModified: Date.now() };
+        appState = { id: Date.now().toString(), reportTitle: "New Report", auditorName: "", reportType: 'audit-log', templateId: 'basic', fields: [], editorContent: "", lastModified: Date.now() };
         saveState(); renderBuilder(); switchToTab('tab-builder');
     };
 
