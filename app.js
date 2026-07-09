@@ -57,19 +57,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Tab Navigation Logic
-    document.querySelector('[role="tablist"]').addEventListener('click', (e) => {
-        const tab = e.target.closest('[role="tab"]');
-        if (!tab) return;
+    const tablist = document.querySelector('[role="tablist"]');
+    tablist.addEventListener('click', (e) => {
+        const clickedTab = e.target.closest('[role="tab"]');
+        if (!clickedTab) return;
 
-        document.querySelectorAll('[role="tab"]').forEach(t => t.setAttribute('aria-selected', t === tab ? 'true' : 'false'));
+        // 1. Update aria-selected for ALL tabs in this list
+        const allTabs = tablist.querySelectorAll('[role="tab"]');
+        allTabs.forEach(tab => {
+            tab.setAttribute('aria-selected', tab === clickedTab ? 'true' : 'false');
+        });
 
-        if (tab.id === 'tab-builder') renderBuilder();
-        else if (tab.id === 'tab-editor') renderEditor();
-        else renderView();
+        // 2. Trigger the correct render function
+        if (clickedTab.id === 'tab-builder') renderBuilder();
+        else if (clickedTab.id === 'tab-editor') renderEditor();
+        else if (clickedTab.id === 'tab-view') renderView();
     });
-
-    renderBuilder();
-});
 
 // Global Keyboard Navigation
 window.addEventListener('keydown', (e) => {
