@@ -1,17 +1,23 @@
 // dashboard.js
-import { renderBuilder } from './reportBuilder.js';
 
+/**
+ * Initializes the dashboard buttons.
+ * This is called by loader.js once the DOM is ready.
+ */
 export function renderDashboard() {
     const btnNew = document.getElementById('btn-new-report');
     
-    // Add event listener to the "New Report" button
-    btnNew.addEventListener('click', () => {
-        // 1. Find the Builder tab
+    // Safety check to prevent errors if the button is missing
+    if (!btnNew) return;
+
+    // Remove existing listeners if necessary (if renderDashboard is called multiple times)
+    btnNew.replaceWith(btnNew.cloneNode(true));
+    const newBtn = document.getElementById('btn-new-report');
+
+    newBtn.addEventListener('click', () => {
         const builderTab = document.getElementById('tab-builder');
-        
         if (builderTab) {
-            // 2. Programmatically click the tab to trigger the navigation logic
-            // defined in navigation.js (which handles rendering and aria-selection)
+            // This triggers the tab click, which calls navigation.js's rendering logic
             builderTab.click();
         }
     });
