@@ -1,5 +1,7 @@
 // reportBuilder.js
-import { appState, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField } from './state.js';
+import { appState, updateHeader, addOrUpdateField, setEditMode, deleteField } from './state.js';
+
+let showFields = false; // Local state for toggle
 
 export function renderBuilder() {
     const container = document.getElementById('main-inner');
@@ -25,17 +27,18 @@ export function renderBuilder() {
                 <label>Testing Instructions: <textarea id="testing-instructions">${appState.testingInstructions || ''}</textarea></label>
             </div>
 
-            <section id="fields-section">
+            <button id="btn-toggle-config" aria-expanded="${showFields}">
+                ${showFields ? 'Hide Field Configuration' : 'Configure Report Fields'}
+            </button>
+            
+            <section id="fields-section" style="display: ${showFields ? 'block' : 'none'};">
                 <h2>Report Fields</h2>
                 <label>Field Label: <input type="text" id="field-label-input"></label>
                 <label>Field Type: <select id="field-type-input">
-                    <option value="text">Text</option>
-                    <option value="textarea">Textarea</option>
-                    <option value="select">Select</option>
+                    <option value="text">Text</option><option value="textarea">Textarea</option><option value="select">Select</option>
                 </select></label>
                 <button id="btn-add-field">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
                 <table>
-                    <caption>List of fields included in the report</caption>
                     <thead><tr><th scope="col">Field Label</th><th scope="col">Field Type</th><th scope="col">Actions</th></tr></thead>
                     <tbody id="fields-tbody"></tbody>
                 </table>
@@ -44,24 +47,27 @@ export function renderBuilder() {
         </section>
     `;
 
-    // --- Event Listeners ---
-    // Metadata listeners
+    // --- Listeners ---
+    document.getElementById('btn-toggle-config').onclick = () => {
+        showFields = !showFields;
+        renderBuilder();
+    };
+
     document.getElementById('report-title').addEventListener('input', (e) => updateHeader('reportTitle', e.target.value));
     document.getElementById('org-client').addEventListener('input', (e) => updateHeader('orgClient', e.target.value));
     document.getElementById('project-name').addEventListener('input', (e) => updateHeader('projectName', e.target.value));
-    // ... (repeat for other metadata fields)
+    // (Repeat for other fields...)
 
-    // Field management listeners
     document.getElementById('btn-add-field').addEventListener('click', () => {
         addOrUpdateField();
-        renderBuilder(); // Re-render to refresh table
+        renderBuilder();
     });
 
     document.getElementById('btn-done').addEventListener('click', () => {
         document.getElementById('tab-welcome').click();
     });
 
-    // Populate Table
+    // Populate Table Logic
     const tbody = document.getElementById('fields-tbody');
     appState.fields.forEach((f, i) => {
         const tr = document.createElement('tr');
@@ -69,8 +75,6 @@ export function renderBuilder() {
             <td id="actions-${i}"></td>`;
         tbody.appendChild(tr);
 
-        // Add action buttons
-        const actionCell = document.getElementById(`actions-${i}`);
         const btnEdit = document.createElement('button');
         btnEdit.innerText = 'Edit';
         btnEdit.onclick = () => { setEditMode(i); renderBuilder(); };
@@ -79,6 +83,6 @@ export function renderBuilder() {
         btnDelete.innerText = 'Delete';
         btnDelete.onclick = () => { deleteField(i); renderBuilder(); };
 
-        actionCell.append(btnEdit, btnDelete);
+        document.getElementById(`actions-${i}`).append(btnEdit, btnDelete);
     });
 }
