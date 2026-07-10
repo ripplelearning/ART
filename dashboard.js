@@ -1,8 +1,18 @@
 // dashboard.js
-import { switchView } from './navigation.js';
-import { appState } from './state.js';
+import { renderBuilder } from './reportBuilder.js';
 
 export function renderDashboard() {
-    // Logic for your "New Report" and "Open File" buttons
-    // Call switchView('builder') when "New Report" is clicked
+    const btnNew = document.getElementById('btn-new-report');
+    
+    // Add event listener to the "New Report" button
+    btnNew.addEventListener('click', () => {
+        // 1. Find the Builder tab
+        const builderTab = document.getElementById('tab-builder');
+        
+        if (builderTab) {
+            // 2. Programmatically click the tab to trigger the navigation logic
+            // defined in navigation.js (which handles rendering and aria-selection)
+            builderTab.click();
+        }
+    });
 }
