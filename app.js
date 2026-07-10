@@ -1,10 +1,12 @@
 let appState = { 
     id: null, reportType: 'audit-log', reportTitle: "", projectName: "", environment: "Production",
-    scopeUrl: "", auditDate: new Date().toISOString().split('T')[0], auditors: "", standard: "WCAG 2.2",
-    fields: [], editingIndex: -1, editorContent: "", lastModified: Date.now() 
+    scopeUrl: "", auditDateStart: new Date().toISOString().split('T')[0], 
+    auditDateEnd: new Date().toISOString().split('T')[0], auditors: "", 
+    standard: "WCAG 2.2", testingInstructions: "",
+    fields: [], editingIndex: -1, lastModified: Date.now() 
 };
 
-// --- Helpers ---
+// --- Core Helpers ---
 function saveState() { 
     appState.lastModified = Date.now(); 
     localStorage.setItem('art-state', JSON.stringify(appState)); 
@@ -15,7 +17,44 @@ function announce(msg) {
     if (announcer) announcer.textContent = msg;
 }
 
-// --- Field Management Logic ---
+function updateHeader(key, val) {
+    appState[key] = val;
+    saveState();
+}
+
+function navigateTo(view) {
+    if (view === 'dashboard') renderDashboard();
+    else renderBuilder();
+}
+
+// --- Dashboard Logic ---
+function renderDashboard() {
+    const mainInner = document.getElementById('main-inner');
+    mainInner.innerHTML = `
+        <h1>Dashboard</h1>
+        <section id="dashboard">
+            <button onclick="createNewReport()">New Report</button>
+            <button onclick="document.getElementById('file-picker').click()">Open Existing Report JSON File</button>
+            <input type="file" id="file-picker" style="display:none" accept=".json" onchange="handleFileUpload(event)">
+        </section>`;
+}
+
+function createNewReport() {
+    appState = { ...appState, fields: [], reportTitle: "", projectName: "", testingInstructions: "" };
+    renderBuilder();
+}
+
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        appState = JSON.parse(e.target.result);
+        renderBuilder();
+    };
+    reader.readAsText(file);
+}
+
+// --- Builder Logic (Metadata + Table) ---
 function addOrUpdateField() {
     const labelInput = document.getElementById('field-label-input');
     const typeInput = document.getElementById('field-type-input');
@@ -32,6 +71,7 @@ function addOrUpdateField() {
     labelInput.value = "";
     saveState(); 
     renderBuilder();
+    document.getElementById('field-label-input').focus();
 }
 
 function deleteField(index, label) {
@@ -60,44 +100,45 @@ function moveField(index, direction) {
     announce(`${appState.fields[newIdx].label} moved.`);
 }
 
-// --- Renderers ---
 function renderBuilder() {
     const mainInner = document.getElementById('main-inner');
-    if (!mainInner) return;
-
     mainInner.innerHTML = `
         <h1>Manage Report Structure</h1>
         <div role="status" aria-live="polite" id="announcer" class="sr-only"></div>
-        <section>
+        <section id="metadata-section">
             <h2>Report Metadata</h2>
-            <label>Field Label: <input type="text" id="field-label-input"></label>
-            <label>Field Type: 
-                <select id="field-type-input">
-                    <option value="text">Text</option>
-                    <option value="textarea">Textarea</option>
-                    <option value="select">Select</option>
+            <label>Report Title: <input type="text" value="${appState.reportTitle || ''}" oninput="updateHeader('reportTitle', this.value)"></label>
+            <label>Project Name: <input type="text" value="${appState.projectName || ''}" oninput="updateHeader('projectName', this.value)"></label>
+            <label>URL / Scope: <input type="text" value="${appState.scopeUrl || ''}" oninput="updateHeader('scopeUrl', this.value)"></label>
+            <label>Audit Start: <input type="date" value="${appState.auditDateStart || ''}" oninput="updateHeader('auditDateStart', this.value)"></label>
+            <label>Audit End: <input type="date" value="${appState.auditDateEnd || ''}" oninput="updateHeader('auditDateEnd', this.value)"></label>
+            <label>Auditor(s): <input type="text" value="${appState.auditors || ''}" oninput="updateHeader('auditors', this.value)"></label>
+            <label>Accessibility Standard:
+                <select onchange="updateHeader('standard', this.value)">
+                    <option value="WCAG 2.2" ${appState.standard === 'WCAG 2.2' ? 'selected' : ''}>WCAG 2.2</option>
+                    <option value="WCAG 2.1" ${appState.standard === 'WCAG 2.1' ? 'selected' : ''}>WCAG 2.1</option>
+                    <option value="WCAG 2.0" ${appState.standard === 'WCAG 2.0' ? 'selected' : ''}>WCAG 2.0</option>
                 </select>
             </label>
-            <button id="btn-add-field">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
+            <label>Testing Instructions: <textarea oninput="updateHeader('testingInstructions', this.value)">${appState.testingInstructions || ''}</textarea></label>
         </section>
-        <table>
-            <caption>List of fields included in the report</caption>
-            <thead>
-                <tr>
-                    <th scope="col">Field Label</th>
-                    <th scope="col">Field Type</th>
-                    <th scope="col">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="fields-tbody"></tbody>
-        </table>
-        <button id="btn-done">Done</button>`;
+        <section id="fields-section">
+            <h2>Report Fields</h2>
+            <label>Field Label: <input type="text" id="field-label-input"></label>
+            <label>Field Type: <select id="field-type-input"><option value="text">Text</option><option value="textarea">Textarea</option><option value="select">Select</option></select></label>
+            <button id="btn-add-field">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
+            <table>
+                <caption>List of fields included in the report</caption>
+                <thead><tr><th scope="col">Field Label</th><th scope="col">Field Type</th><th scope="col">Actions</th></tr></thead>
+                <tbody id="fields-tbody"></tbody>
+            </table>
+        </section>
+        <button id="btn-done" onclick="navigateTo('dashboard')">Done</button>`;
 
     const tbody = document.getElementById('fields-tbody');
     appState.fields.forEach((f, i) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${f.label}</td><td>${f.type}</td>
+        tr.innerHTML = `<td>${f.label}</td><td>${f.type}</td>
             <td>
                 <button aria-label="Edit ${f.label} field" onclick="setEditMode(${i})">Edit</button>
                 <button aria-label="Delete ${f.label} field" onclick="deleteField(${i}, '${f.label}')">Delete</button>
@@ -106,7 +147,6 @@ function renderBuilder() {
             </td>`;
         tbody.appendChild(tr);
     });
-
     document.getElementById('btn-add-field').onclick = addOrUpdateField;
 }
 
@@ -114,5 +154,16 @@ function renderBuilder() {
 document.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('art-state');
     if (saved) appState = JSON.parse(saved);
-    renderBuilder();
+    renderDashboard();
+
+    window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'F6') {
+            e.preventDefault();
+            const regions = [document.querySelector('nav'), document.getElementById('dashboard'), document.querySelector('main')].filter(r => r !== null);
+            let activeIndex = regions.findIndex(r => r.contains(document.activeElement));
+            let nextIndex = (activeIndex === -1 || activeIndex >= regions.length - 1) ? 0 : activeIndex + 1;
+            const target = regions[nextIndex].querySelector('button, input, select, textarea, [tabindex]') || regions[nextIndex];
+            target.focus();
+        }
+    });
 });
