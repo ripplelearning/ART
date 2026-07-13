@@ -1,5 +1,12 @@
 // navigation.js
+import { renderBuilder } from './reportBuilder.js';
+import { renderWelcome } from './welcome.js';
+
 const landmarks = ['nav', 'dashboard', 'main-content', 'lookup-tool'];
+const renderMap = {
+    'tab-welcome': renderWelcome,
+    'tab-builder': renderBuilder
+};
 
 export function initNavigation() {
     window.addEventListener('keydown', (e) => {
@@ -11,16 +18,33 @@ export function initNavigation() {
     });
 }
 
+export function initNavListener() {
+    initNavigation();
+}
+
+export function setupTabs() {
+    const tabs = document.querySelectorAll('#top-tabs button[role="tab"]');
+
+    tabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+            tabs.forEach((btn) => btn.setAttribute('aria-selected', 'false'));
+            tab.setAttribute('aria-selected', 'true');
+
+            const renderFn = renderMap[tab.id];
+            if (renderFn) {
+                renderFn();
+            }
+        });
+    });
+}
+
 function navigateLandmarks(direction) {
     const activeEl = document.activeElement;
     let currentIndex = landmarks.findIndex(id => activeEl.closest(`#${id}`));
 
-    // Default to the first landmark if no landmark is currently focused
     if (currentIndex === -1) currentIndex = 0;
 
     let nextIndex = currentIndex + direction;
-
-    // Handle circular navigation
     if (nextIndex >= landmarks.length) nextIndex = 0;
     if (nextIndex < 0) nextIndex = landmarks.length - 1;
 

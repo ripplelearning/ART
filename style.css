@@ -2,6 +2,18 @@
 .app-container { display: flex; flex-direction: column; padding: 20px; font-family: sans-serif; }
 #main-inner { min-height: 300px; border: 1px solid #ddd; padding: 20px; margin-top: 10px; }
 
+#builder-view { display: flex; flex-direction: column; gap: 12px; }
+.metadata-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.metadata-grid label,
+.template-config label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.metadata-grid input,
+.metadata-grid select,
+.metadata-grid textarea,
+.template-config input,
+.template-config select,
+.template-config textarea { padding: 8px; font: inherit; }
+.template-config { display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid #ddd; background: #fafafa; }
+
 /* Table Styling */
 table { width: 100%; border-collapse: collapse; margin: 20px 0; }
 th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }

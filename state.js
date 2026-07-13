@@ -1,7 +1,6 @@
 // state.js
 
-// Initializing the application state from local storage or defaults
-export let appState = JSON.parse(localStorage.getItem('art-state')) || {
+const defaultState = {
     reportTitle: "",
     orgClient: "",
     projectName: "",
@@ -11,9 +10,18 @@ export let appState = JSON.parse(localStorage.getItem('art-state')) || {
     auditors: "",
     standard: "WCAG 2.2",
     testingInstructions: "",
+    reportType: "",
+    reportLayout: "",
+    fieldsExpanded: false,
+    templateOption: "",
+    templateName: "",
+    templateDescription: "",
     fields: [],
     editingIndex: -1
 };
+
+// Initializing the application state from local storage or defaults
+export let appState = { ...defaultState, ...(JSON.parse(localStorage.getItem('art-state')) || {}) };
 
 /**
  * Persists current state to local browser storage.
