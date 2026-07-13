@@ -8,6 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
+<h1 class="sr-only">Accessibility Reporting Tool</h1>
+<div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="app-container">
     <nav aria-label="panel selector">
@@ -25,12 +27,38 @@
             <button id="btn-open-report" title="Ctrl+O">Open Existing Report JSON File</button>
         </div>
         
-        <div id="new-report-options" hidden>
-            <label for="template-dropdown">Choose a starting point:</label>
-            <select id="template-dropdown">
-                <option value="none">Start from Scratch</option>
+        <div id="new-report-options">
+            <label for="template-selection">Template Selection</label>
+            <p id="template-selection-help" class="sr-only">Use Up and Down arrow keys to move through templates, then activate a template action button.</p>
+            <select id="template-selection" aria-label="Template Selection" aria-describedby="template-selection-help">
+                <option value="scratch">Start from Scratch</option>
             </select>
-            <button id="btn-build-report">Build Report</button>
+            <div class="template-actions" role="group" aria-label="Template actions">
+                <button id="btn-template-create" type="button">Create Template</button>
+                <button id="btn-template-use" type="button" hidden>Use Template</button>
+                <button id="btn-template-open" type="button" hidden>View Template</button>
+                <button id="btn-template-edit" type="button" hidden>Edit Template</button>
+                <button id="btn-template-delete" type="button" hidden>Delete Template</button>
+            </div>
+            <div id="template-create-dialog" role="dialog" aria-modal="true" aria-labelledby="template-create-heading" hidden>
+                <h3 id="template-create-heading">Create Template</h3>
+                <label for="template-create-name">Template Name</label>
+                <input id="template-create-name" type="text">
+                <button id="btn-template-create-save" type="button">Create Template</button>
+                <button id="btn-template-create-cancel" type="button">Cancel</button>
+            </div>
+            <div id="template-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-delete-heading" aria-describedby="template-delete-message" hidden>
+                <h3 id="template-delete-heading">Delete Template?</h3>
+                <p id="template-delete-message"></p>
+                <button id="btn-template-delete-yes" type="button">Delete</button>
+                <button id="btn-template-delete-no" type="button">Cancel</button>
+            </div>
+            <div id="template-edit-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-edit-confirm-heading" aria-describedby="template-edit-confirm-message" hidden>
+                <h3 id="template-edit-confirm-heading">Edit Template?</h3>
+                <p id="template-edit-confirm-message"></p>
+                <button id="btn-template-edit-yes" type="button">Create editable copy</button>
+                <button id="btn-template-edit-no" type="button">Cancel</button>
+            </div>
         </div>
 
         <div id="recent-reports-container" hidden>

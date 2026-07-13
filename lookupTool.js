@@ -70,13 +70,20 @@ export async function initLookupTool() {
         const data = await fetchJsonWithFallback(dataUrlCandidates);
 
         container.innerHTML = `
-            <input id="s" type="search" placeholder="Search... e.g. 1.1.1, buttons, tables" style="width:90%; padding:10px;">
-            <div style="margin:15px 0;">
-                <select id="ver-f"><option value="">Version: All</option><option value="2.1">2.1</option><option value="2.2">2.2</option></select>
-                <select id="lvl-f"><option value="">Level: All</option><option value="A">A</option><option value="AA">AA</option><option value="AAA">AAA</option></select>
-                <select id="cat-f"><option value="">Category: All</option>${Object.keys(categoryMap).sort().map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>
-                <button id="reset-btn">Reset (Alt+Shift+D)</button>
-            </div>
+            <fieldset style="margin:0; padding:0; border:0;">
+                <legend>Search and filter criteria</legend>
+                <label for="s">Search criteria</label>
+                <input id="s" type="search" placeholder="Search... e.g. 1.1.1, buttons, tables" style="width:90%; padding:10px;">
+                <div style="margin:15px 0; display:grid; gap:10px;">
+                    <label for="ver-f">Version</label>
+                    <select id="ver-f"><option value="">Version: All</option><option value="2.1">2.1</option><option value="2.2">2.2</option></select>
+                    <label for="lvl-f">Level</label>
+                    <select id="lvl-f"><option value="">Level: All</option><option value="A">A</option><option value="AA">AA</option><option value="AAA">AAA</option></select>
+                    <label for="cat-f">Category</label>
+                    <select id="cat-f"><option value="">Category: All</option>${Object.keys(categoryMap).sort().map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>
+                    <button id="reset-btn">Reset (Alt+Shift+D)</button>
+                </div>
+            </fieldset>
             <h2 id="count" aria-live="polite">Found 0 results</h2>
             <div id="list-container"></div>
             <footer style="margin-top:40px; border-top:1px solid #ccc; padding-top:10px;">

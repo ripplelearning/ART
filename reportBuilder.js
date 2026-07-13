@@ -1,8 +1,115 @@
 // reportBuilder.js
-import { appState, updateHeader, addOrUpdateField, setEditMode, deleteField, saveState } from './state.js';
+import { announce, appState, createUserTemplate, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState } from './state.js';
+
+let pendingFocus = null;
+let pendingDelete = null;
+
+function normalizeFieldType(type) {
+    return type === 'select' ? 'dropdown' : type || 'text';
+}
+
+function getFieldTypeLabel(type) {
+    const normalizedType = normalizeFieldType(type);
+    if (normalizedType === 'textarea') return 'Textarea';
+    if (normalizedType === 'dropdown') return 'Dropdown';
+    return 'Text';
+}
+
+function getFieldOptionsText(field) {
+    return Array.isArray(field?.dropdownOptions) ? field.dropdownOptions.join('\n') : '';
+}
+
+function getEditField() {
+    return appState.editingIndex >= 0 ? appState.fields[appState.editingIndex] : null;
+}
+
+function focusAfterRender() {
+    if (!pendingFocus) return;
+
+    const { index, action } = pendingFocus;
+    pendingFocus = null;
+
+    if (action === 'template-name-input' || action === 'choose-template-select' || action === 'template-file-input' || action === 'btn-toggle-config') {
+        const target = document.getElementById(action);
+        if (target) target.focus();
+        return;
+    }
+
+    if (action === 'field-label-input') {
+        const fieldLabelInput = document.getElementById('field-label-input');
+        if (fieldLabelInput) fieldLabelInput.focus();
+        return;
+    }
+
+    if (action === 'btn-add-field') {
+        const addButton = document.getElementById('btn-add-field');
+        if (addButton) addButton.focus();
+        return;
+    }
+
+    const selector = `[data-field-action="${action}"][data-field-index="${index}"]`;
+    const button = document.querySelector(selector);
+    if (button) button.focus();
+}
+
+function showDeleteDialog(index) {
+    pendingDelete = {
+        index,
+        field: appState.fields[index],
+        trigger: document.getElementById(`btn-delete-${index}`)
+    };
+
+    const dialog = document.getElementById('delete-confirm-dialog');
+    const message = document.getElementById('delete-confirm-message');
+    if (!dialog || !message || !pendingDelete.field) return;
+
+    message.textContent = `Are you sure you want to delete ${pendingDelete.field.label} from this report?`;
+    dialog.hidden = false;
+    const yesButton = document.getElementById('btn-delete-yes');
+    if (yesButton) yesButton.focus();
+}
+
+function hideDeleteDialog(restoreFocus = true) {
+    const dialog = document.getElementById('delete-confirm-dialog');
+    if (dialog) dialog.hidden = true;
+
+    if (restoreFocus && pendingDelete?.trigger) {
+        pendingDelete.trigger.focus();
+    }
+
+    pendingDelete = null;
+}
+
+function handleDialogKeydown(event) {
+    if (event.key === 'Escape' && !document.getElementById('delete-confirm-dialog')?.hidden) {
+        event.preventDefault();
+        hideDeleteDialog(true);
+    }
+}
+
+function setupSelectAnnouncement(selectElement, label) {
+    if (!selectElement) return;
+
+    const announceCurrentOption = () => {
+        const currentOption = selectElement.options[selectElement.selectedIndex];
+        if (currentOption) {
+            announce(`${label} ${currentOption.text}`);
+        }
+    };
+
+    selectElement.addEventListener('focus', announceCurrentOption);
+    selectElement.addEventListener('change', announceCurrentOption);
+    selectElement.addEventListener('input', announceCurrentOption);
+    selectElement.addEventListener('keydown', (event) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) return;
+        window.setTimeout(announceCurrentOption, 20);
+    });
+}
 
 export function renderBuilder() {
     const container = document.getElementById('main-inner');
+    const editField = getEditField();
+    const editType = normalizeFieldType(editField?.type);
     const reportLayouts = {
         'Audit Log': ['Paragraphs', 'Tabular', 'Template'],
         'Executive Summary': ['Paragraphs', 'Bullets', 'Template']
@@ -17,8 +124,9 @@ export function renderBuilder() {
 
     container.innerHTML = `
         <section id="builder-view">
-            <h2>Report Builder</h2>
-            <h3>Report Metadata</h3>
+            <h2 id="builder-heading" tabindex="-1">Report Builder</h2>
+            <h3 id="builder-metadata-heading" tabindex="-1">Report Metadata</h3>
+            <p id="builder-select-help" class="sr-only">Use Up and Down arrow keys to review options, then Enter to confirm.</p>
             <div class="metadata-grid">
                 <label>Report Title: <input type="text" id="report-title" value="${appState.reportTitle || ''}"></label>
                 <label>Organization/Client: <input type="text" id="org-client" value="${appState.orgClient || ''}"></label>
@@ -28,32 +136,34 @@ export function renderBuilder() {
                 <label>Audit End: <input type="date" id="date-end" value="${appState.auditDateEnd || ''}"></label>
                 <label>Auditor(s): <input type="text" id="auditors" value="${appState.auditors || ''}"></label>
                 <label>Accessibility Standard:
-                    <select id="standard-select">
+                    <select id="standard-select" aria-label="Accessibility Standard" aria-describedby="builder-select-help">
                         <option value="WCAG 2.2" ${appState.standard === 'WCAG 2.2' ? 'selected' : ''}>WCAG 2.2</option>
                         <option value="WCAG 2.1" ${appState.standard === 'WCAG 2.1' ? 'selected' : ''}>WCAG 2.1</option>
                         <option value="WCAG 2.0" ${appState.standard === 'WCAG 2.0' ? 'selected' : ''}>WCAG 2.0</option>
                     </select>
                 </label>
                 <label>Testing Instructions: <textarea id="testing-instructions">${appState.testingInstructions || ''}</textarea></label>
-                <label>Report Type:
-                    <select id="report-type-select">
+                <div>
+                    <label for="report-type-select">Report Type</label>
+                    <select id="report-type-select" aria-label="Report Type" aria-describedby="builder-select-help">
                         <option value="" ${!appState.reportType ? 'selected' : ''}>Select Report Type</option>
                         <option value="Audit Log" ${appState.reportType === 'Audit Log' ? 'selected' : ''}>Audit Log</option>
                         <option value="Executive Summary" ${appState.reportType === 'Executive Summary' ? 'selected' : ''}>Executive Summary</option>
                     </select>
-                </label>
-                <label>Report Layout:
-                    <select id="report-layout-select" ${appState.reportType ? '' : 'disabled'}>
+                </div>
+                <div>
+                    <label for="report-layout-select">Report Layout</label>
+                    <select id="report-layout-select" aria-label="Report Layout" aria-describedby="builder-select-help" ${appState.reportType ? '' : 'disabled'}>
                         <option value="" ${!appState.reportLayout ? 'selected' : ''}>Select Report Layout</option>
                         ${selectedLayouts.map((layout) => `<option value="${layout}" ${appState.reportLayout === layout ? 'selected' : ''}>${layout}</option>`).join('')}
                     </select>
-                </label>
+                </div>
             </div>
 
             ${showTemplateSection ? `
                 <div id="template-config-section" class="template-config">
                     <label>Template Option:
-                        <select id="template-option-select">
+                        <select id="template-option-select" aria-label="Template Option" aria-describedby="builder-select-help">
                             <option value="" ${!appState.templateOption ? 'selected' : ''}>Select Option</option>
                             ${templateOptions.map((option) => `<option value="${option.value}" ${appState.templateOption === option.value ? 'selected' : ''}>${option.label}</option>`).join('')}
                         </select>
@@ -63,7 +173,7 @@ export function renderBuilder() {
                         <label>Template Description: <textarea id="template-description-input">${appState.templateDescription || ''}</textarea></label>
                     ` : ''}
                     ${appState.templateOption === 'Choose Template' ? `
-                        <label>Choose Template: <select id="choose-template-select"><option value="">Choose Template</option></select></label>
+                        <label>Choose Template: <select id="choose-template-select" aria-label="Choose Template" aria-describedby="builder-select-help"><option value="">Choose Template</option></select></label>
                     ` : ''}
                     ${appState.templateOption === 'Upload from File' ? `
                         <label>Upload from File: <input type="file" id="template-file-input"></label>
@@ -77,16 +187,31 @@ export function renderBuilder() {
             
             <section id="fields-section" ${appState.fieldsExpanded ? '' : 'hidden'}>
                 <h3>Report Fields</h3>
-                <label>Field Label: <input type="text" id="field-label-input"></label>
-                <label>Field Type: <select id="field-type-input">
-                    <option value="text">Text</option><option value="textarea">Textarea</option><option value="select">Select</option>
-                </select></label>
+                <label for="field-label-input">Field Name</label>
+                <input type="text" id="field-label-input" value="${editField?.label || ''}">
+                <label for="field-type-input">Field Type</label>
+                <select id="field-type-input" aria-label="Field Type" aria-describedby="builder-select-help">
+                    <option value="text" ${editType === 'text' ? 'selected' : ''}>Text</option>
+                    <option value="textarea" ${editType === 'textarea' ? 'selected' : ''}>Textarea</option>
+                    <option value="dropdown" ${editType === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                </select>
+                <div id="dropdown-options-container" ${editType === 'dropdown' ? '' : 'hidden'}>
+                    <label for="field-dropdown-options-input">Dropdown Options</label>
+                    <p id="dropdown-options-help">Type each entry for the dropdown on a new line.</p>
+                    <textarea id="field-dropdown-options-input" aria-describedby="dropdown-options-help">${getFieldOptionsText(editField)}</textarea>
+                </div>
                 <button id="btn-add-field" type="button">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
                 <table>
                     <thead><tr><th scope="col">Field Label</th><th scope="col">Field Type</th><th scope="col">Actions</th></tr></thead>
                     <tbody id="fields-tbody"></tbody>
                 </table>
+                <div id="delete-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-message" hidden>
+                    <p id="delete-confirm-message"></p>
+                    <button id="btn-delete-yes" type="button">Yes</button>
+                    <button id="btn-delete-no" type="button">No</button>
+                </div>
             </section>
+            ${appState.templateEditingId ? '<button id="btn-save-template-changes" type="button">Apply Template Changes</button>' : ''}
             <button id="btn-done" type="button">Done</button>
         </section>
     `;
@@ -126,6 +251,7 @@ export function renderBuilder() {
 
     const reportTypeSelect = document.getElementById('report-type-select');
     if (reportTypeSelect) {
+        setupSelectAnnouncement(reportTypeSelect, 'Report Type');
         reportTypeSelect.addEventListener('change', (e) => {
             appState.reportType = e.target.value;
             appState.reportLayout = '';
@@ -133,26 +259,37 @@ export function renderBuilder() {
             appState.templateName = '';
             appState.templateDescription = '';
             saveState();
-            renderBuilder();
+        });
+        reportTypeSelect.addEventListener('blur', () => renderBuilder());
+        reportTypeSelect.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                window.setTimeout(() => renderBuilder(), 0);
+            }
         });
     }
 
     const reportLayoutSelect = document.getElementById('report-layout-select');
     if (reportLayoutSelect) {
+        setupSelectAnnouncement(reportLayoutSelect, 'Report Layout');
         reportLayoutSelect.addEventListener('change', (e) => {
             appState.reportLayout = e.target.value;
-            if (e.target.value !== 'Template') {
+            saveState();
+        });
+        const commitReportLayout = () => {
+            if (appState.reportLayout !== 'Template') {
                 appState.templateOption = '';
                 appState.templateName = '';
                 appState.templateDescription = '';
             }
             saveState();
             renderBuilder();
-        });
+        };
+        reportLayoutSelect.addEventListener('blur', commitReportLayout);
     }
 
     const templateOptionSelect = document.getElementById('template-option-select');
     if (templateOptionSelect) {
+        setupSelectAnnouncement(templateOptionSelect, 'Template Option');
         templateOptionSelect.addEventListener('change', (e) => {
             appState.templateOption = e.target.value;
             if (e.target.value !== 'Create Template' && e.target.value !== 'Create New') {
@@ -160,8 +297,20 @@ export function renderBuilder() {
                 appState.templateDescription = '';
             }
             saveState();
-            renderBuilder();
         });
+        const commitTemplateOption = () => {
+            if (appState.templateOption === 'Create Template' || appState.templateOption === 'Create New') {
+                pendingFocus = { index: null, action: 'template-name-input' };
+            } else if (appState.templateOption === 'Choose Template') {
+                pendingFocus = { index: null, action: 'choose-template-select' };
+            } else if (appState.templateOption === 'Upload from File') {
+                pendingFocus = { index: null, action: 'template-file-input' };
+            } else {
+                pendingFocus = { index: null, action: 'btn-toggle-config' };
+            }
+            renderBuilder();
+        };
+        templateOptionSelect.addEventListener('blur', commitTemplateOption);
     }
 
     const templateNameInput = document.getElementById('template-name-input');
@@ -180,15 +329,107 @@ export function renderBuilder() {
         });
     }
 
+    const fieldTypeInput = document.getElementById('field-type-input');
+    const dropdownOptionsContainer = document.getElementById('dropdown-options-container');
+    if (fieldTypeInput && dropdownOptionsContainer) {
+        setupSelectAnnouncement(fieldTypeInput, 'Field Type');
+        fieldTypeInput.addEventListener('change', (e) => {
+            appState.fieldsExpanded = true;
+            saveState();
+        });
+        const commitFieldType = () => {
+            dropdownOptionsContainer.hidden = fieldTypeInput.value !== 'dropdown';
+        };
+        fieldTypeInput.addEventListener('blur', commitFieldType);
+    }
+
     document.getElementById('btn-add-field').addEventListener('click', () => {
+        const isAdding = appState.editingIndex === -1;
         addOrUpdateField();
+        if (isAdding) {
+            pendingFocus = { index: null, action: 'field-label-input' };
+        }
         renderBuilder();
     });
+
+    const deleteDialog = document.getElementById('delete-confirm-dialog');
+    if (deleteDialog) {
+        deleteDialog.addEventListener('keydown', handleDialogKeydown);
+    }
+
+    const deleteYesButton = document.getElementById('btn-delete-yes');
+    if (deleteYesButton) {
+        deleteYesButton.addEventListener('click', () => {
+            if (!pendingDelete) return;
+
+            const deleteIndex = pendingDelete.index;
+            const nextIndex = deleteIndex < appState.fields.length - 1 ? deleteIndex : deleteIndex - 1;
+            deleteField(deleteIndex);
+            hideDeleteDialog(false);
+            if (nextIndex >= 0) {
+                pendingFocus = { index: nextIndex, action: 'delete' };
+            } else {
+                pendingFocus = { index: null, action: 'btn-add-field' };
+            }
+            renderBuilder();
+        });
+    }
+
+    const deleteNoButton = document.getElementById('btn-delete-no');
+    if (deleteNoButton) {
+        deleteNoButton.addEventListener('click', () => hideDeleteDialog(true));
+    }
 
     const doneButton = document.getElementById('btn-done');
     if (doneButton) {
         doneButton.addEventListener('click', () => {
-            document.getElementById('tab-welcome').click();
+            if (appState.templateCreateMode) {
+                const baseName = (appState.templateName || appState.reportTitle || 'Untitled Template').trim();
+                const existing = new Set((appState.userTemplates || []).map((t) => String(t.name || '').toLowerCase()));
+                let resolvedName = baseName || 'Untitled Template';
+                let suffix = 2;
+                while (existing.has(resolvedName.toLowerCase())) {
+                    resolvedName = `${baseName || 'Untitled Template'} ${suffix}`;
+                    suffix += 1;
+                }
+
+                const created = createUserTemplate(resolvedName);
+                if (created) {
+                    appState.lastCreatedTemplateId = created.id;
+                    appState.templateCreateMode = false;
+                    announce(`${created.name} template created`);
+                    window.dispatchEvent(new Event('art-templates-updated'));
+                }
+            }
+
+            if (appState.templateEditingId && appState.templateEditingId.startsWith('user-')) {
+                const updated = saveCurrentReportToUserTemplate(appState.templateEditingId);
+                if (updated) {
+                    appState.lastCreatedTemplateId = updated.id;
+                    window.dispatchEvent(new Event('art-templates-updated'));
+                }
+            }
+            appState.editorUsesReportTitle = true;
+            appState.editorReadOnly = false;
+            appState.templateEditingId = null;
+            saveState();
+            const editorTab = document.getElementById('tab-editor');
+            if (editorTab) editorTab.click();
+            const editorHeading = document.getElementById('editor-heading');
+            if (editorHeading) editorHeading.focus();
+        });
+    }
+
+    const saveTemplateChangesButton = document.getElementById('btn-save-template-changes');
+    if (saveTemplateChangesButton) {
+        saveTemplateChangesButton.addEventListener('click', () => {
+            if (!appState.templateEditingId) return;
+            const updated = saveCurrentReportToUserTemplate(appState.templateEditingId);
+            if (!updated) return;
+            appState.lastCreatedTemplateId = updated.id;
+            saveState();
+            window.dispatchEvent(new Event('art-templates-updated'));
+            announce(`${updated.name} template changes saved`);
         });
     }
 
@@ -197,19 +438,57 @@ export function renderBuilder() {
     if (tbody) {
         appState.fields.forEach((f, i) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${f.label}</td><td>${f.type}</td>
+            tr.innerHTML = `<td>${f.label}</td><td>${getFieldTypeLabel(f.type)}</td>
                 <td id="actions-${i}"></td>`;
             tbody.appendChild(tr);
 
             const btnEdit = document.createElement('button');
             btnEdit.innerText = 'Edit';
-            btnEdit.onclick = () => { setEditMode(i); renderBuilder(); };
+            btnEdit.id = `btn-edit-${i}`;
+            btnEdit.dataset.fieldAction = 'edit';
+            btnEdit.dataset.fieldIndex = String(i);
+            btnEdit.setAttribute('aria-label', `Edit ${f.label}`);
+            btnEdit.onclick = () => { setEditMode(i); pendingFocus = { index: null, action: 'field-label-input' }; renderBuilder(); };
+
+            const btnMoveUp = document.createElement('button');
+            btnMoveUp.innerText = 'Move Up';
+            btnMoveUp.id = `btn-move-up-${i}`;
+            btnMoveUp.dataset.fieldAction = 'move-edit';
+            btnMoveUp.dataset.fieldIndex = String(i - 1 >= 0 ? i - 1 : i);
+            btnMoveUp.setAttribute('aria-label', `Move ${f.label} Up`);
+            btnMoveUp.disabled = i === 0;
+            btnMoveUp.onclick = () => {
+                const newIndex = moveField(i, -1);
+                if (newIndex === undefined) return;
+                pendingFocus = { index: newIndex, action: 'edit' };
+                renderBuilder();
+            };
+
+            const btnMoveDown = document.createElement('button');
+            btnMoveDown.innerText = 'Move Down';
+            btnMoveDown.id = `btn-move-down-${i}`;
+            btnMoveDown.dataset.fieldAction = 'move-edit';
+            btnMoveDown.dataset.fieldIndex = String(i + 1 < appState.fields.length ? i + 1 : i);
+            btnMoveDown.setAttribute('aria-label', `Move ${f.label} Down`);
+            btnMoveDown.disabled = i === appState.fields.length - 1;
+            btnMoveDown.onclick = () => {
+                const newIndex = moveField(i, 1);
+                if (newIndex === undefined) return;
+                pendingFocus = { index: newIndex, action: 'edit' };
+                renderBuilder();
+            };
             
             const btnDelete = document.createElement('button');
             btnDelete.innerText = 'Delete';
-            btnDelete.onclick = () => { deleteField(i); renderBuilder(); };
+            btnDelete.id = `btn-delete-${i}`;
+            btnDelete.dataset.fieldAction = 'delete';
+            btnDelete.dataset.fieldIndex = String(i);
+            btnDelete.setAttribute('aria-label', `Delete ${f.label}`);
+            btnDelete.onclick = () => { showDeleteDialog(i); };
 
-            document.getElementById(`actions-${i}`).append(btnEdit, btnDelete);
+            document.getElementById(`actions-${i}`).append(btnMoveUp, btnMoveDown, btnEdit, btnDelete);
         });
     }
+
+    focusAfterRender();
 }
