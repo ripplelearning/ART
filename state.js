@@ -24,7 +24,16 @@ const defaultState = {
     userTemplates: [],
     templateEditingId: null,
     templateCreateMode: false,
-    lastCreatedTemplateId: ""
+    lastCreatedTemplateId: "",
+    branding: {
+        enabled: false,
+        headerText: "",
+        primaryColor: "#005a9c",
+        logoDataUrl: "",
+        logoAltText: "",
+        logoDecorative: false,
+        logoFileName: ""
+    }
 };
 
 const reportDefaults = {
@@ -43,8 +52,26 @@ const reportDefaults = {
     templateOption: defaultState.templateOption,
     templateName: defaultState.templateName,
     templateDescription: defaultState.templateDescription,
-    fields: defaultState.fields
+    fields: defaultState.fields,
+    branding: defaultState.branding
 };
+
+function normalizeBranding(branding) {
+    const rawColor = String(branding?.primaryColor || defaultState.branding.primaryColor);
+    const safeColor = /^#[0-9a-fA-F]{6}$/.test(rawColor) ? rawColor : defaultState.branding.primaryColor;
+
+    return {
+        ...defaultState.branding,
+        ...(branding && typeof branding === 'object' ? branding : {}),
+        enabled: Boolean(branding?.enabled),
+        headerText: String(branding?.headerText || ''),
+        primaryColor: safeColor,
+        logoDataUrl: String(branding?.logoDataUrl || ''),
+        logoAltText: String(branding?.logoAltText || ''),
+        logoDecorative: Boolean(branding?.logoDecorative),
+        logoFileName: String(branding?.logoFileName || '')
+    };
+}
 
 const builtInTemplates = [
     {
@@ -94,6 +121,30 @@ function normalizeField(field) {
     };
 }
 
+function normalizeEditorFieldValue(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    if (!('identifier' in value) && !('number' in value) && !('title' in value)) return value;
+
+    return {
+        standard: String(value.standard || ''),
+        identifier: String(value.identifier || ''),
+        number: String(value.number || ''),
+        title: String(value.title || ''),
+        level: String(value.level || ''),
+        understandingUrl: String(value.understandingUrl || ''),
+        recommendationUrl: String(value.recommendationUrl || '')
+    };
+}
+
+function normalizeEditorFieldValues(values) {
+    if (!values || typeof values !== 'object') return {};
+    const normalized = {};
+    Object.entries(values).forEach(([key, value]) => {
+        normalized[key] = normalizeEditorFieldValue(value);
+    });
+    return normalized;
+}
+
 function normalizeTemplate(template) {
     return {
         id: template?.id || `user-${Date.now()}`,
@@ -101,6 +152,7 @@ function normalizeTemplate(template) {
         data: {
             ...reportDefaults,
             ...(template?.data || {}),
+            branding: normalizeBranding(template?.data?.branding),
             fields: Array.isArray(template?.data?.fields)
                 ? template.data.fields.map(normalizeField)
                 : []
@@ -113,7 +165,9 @@ const storedState = JSON.parse(localStorage.getItem('art-state')) || {};
 export let appState = {
     ...defaultState,
     ...storedState,
+    branding: normalizeBranding(storedState.branding),
     fields: Array.isArray(storedState.fields) ? storedState.fields.map(normalizeField) : [],
+    editorFieldValues: normalizeEditorFieldValues(storedState.editorFieldValues),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
         : []
@@ -150,6 +204,7 @@ function captureCurrentReportData() {
         templateOption: appState.templateOption,
         templateName: appState.templateName,
         templateDescription: appState.templateDescription,
+        branding: normalizeBranding(appState.branding),
         fields: appState.fields.map((field) => normalizeField(field))
     };
 }
@@ -158,6 +213,7 @@ function applyReportData(data) {
     const normalized = {
         ...reportDefaults,
         ...(data || {}),
+        branding: normalizeBranding(data?.branding),
         fields: Array.isArray(data?.fields) ? data.fields.map(normalizeField) : []
     };
 
@@ -228,6 +284,109 @@ export function saveCurrentReportToUserTemplate(templateId) {
     appState.userTemplates[idx] = updatedTemplate;
     saveState();
     return updatedTemplate;
+}
+
+const ART_JSON_VERSION = '1.0';
+const ART_JSON_WARNING = 'Warning: Do not edit. This file is used for importing your report back into ART and will not work if modified.';
+
+function cloneDeep(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
+function computeFNV1a32(text) {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = (hash >>> 0) * 0x01000193;
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+export function cloneCurrentAppState() {
+    return cloneDeep(appState);
+}
+
+export function computeArtStateChecksum(reportState) {
+    return computeFNV1a32(JSON.stringify(reportState));
+}
+
+export function createArtJsonPayload(reportState = cloneCurrentAppState()) {
+    const safeState = cloneDeep(reportState);
+    return {
+        artVersion: ART_JSON_VERSION,
+        _warning: ART_JSON_WARNING,
+        integrity: {
+            algorithm: 'fnv1a-32',
+            reportStateChecksum: computeArtStateChecksum(safeState)
+        },
+        reportState: safeState
+    };
+}
+
+export function serializeArtJsonPayload(reportState) {
+    return JSON.stringify(createArtJsonPayload(reportState), null, 2);
+}
+
+export function validateArtJsonPayload(input) {
+    let payload;
+    if (typeof input === 'string') {
+        try {
+            payload = JSON.parse(input);
+        } catch (error) {
+            return { isValid: false, reason: 'invalid-json' };
+        }
+    } else {
+        payload = input;
+    }
+
+    if (!payload || typeof payload !== 'object') {
+        return { isValid: false, reason: 'invalid-payload' };
+    }
+
+    if (payload.artVersion !== ART_JSON_VERSION || typeof payload._warning !== 'string') {
+        return { isValid: false, reason: 'missing-required-header' };
+    }
+
+    const integrity = payload.integrity;
+    if (
+        !integrity
+        || integrity.algorithm !== 'fnv1a-32'
+        || typeof integrity.reportStateChecksum !== 'string'
+    ) {
+        return { isValid: false, reason: 'missing-integrity' };
+    }
+
+    if (!payload.reportState || typeof payload.reportState !== 'object') {
+        return { isValid: false, reason: 'missing-report-state' };
+    }
+
+    const actualChecksum = computeArtStateChecksum(payload.reportState);
+    if (actualChecksum !== integrity.reportStateChecksum) {
+        return { isValid: false, reason: 'checksum-mismatch' };
+    }
+
+    return { isValid: true, reason: 'ok', payload };
+}
+
+export function importArtJsonPayload(input) {
+    const validation = validateArtJsonPayload(input);
+    if (!validation.isValid) return validation;
+
+    const rawState = validation.payload.reportState || {};
+
+    appState = {
+        ...defaultState,
+        ...rawState,
+        branding: normalizeBranding(rawState.branding),
+        fields: Array.isArray(rawState.fields) ? rawState.fields.map(normalizeField) : [],
+        editorFieldValues: normalizeEditorFieldValues(rawState.editorFieldValues),
+        userTemplates: Array.isArray(rawState.userTemplates)
+            ? rawState.userTemplates.map(normalizeTemplate)
+            : []
+    };
+
+    saveState();
+    return validation;
 }
 
 /**

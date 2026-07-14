@@ -8,9 +8,11 @@ import {
     getBuiltInTemplates,
     getTemplateById,
     getUserTemplates,
+    importArtJsonPayload,
     loadTemplate,
     resetReportToBlank,
-    saveState
+    saveState,
+    validateArtJsonPayload
 } from './state.js';
 
 function moveFocusToBuilderMetadataHeading() {
@@ -79,8 +81,10 @@ function getDialogFocusableElements(dialog) {
  */
 export function renderDashboard() {
     const btnNew = document.getElementById('btn-new-report');
+    const btnOpenReport = document.getElementById('btn-open-report');
     const builderTab = document.getElementById('tab-builder');
     const editorTab = document.getElementById('tab-editor');
+    const viewerTab = document.getElementById('tab-view');
     const templateSelect = document.getElementById('template-selection');
     const btnCreate = document.getElementById('btn-template-create');
     const btnUse = document.getElementById('btn-template-use');
@@ -101,11 +105,82 @@ export function renderDashboard() {
     const btnEditNo = document.getElementById('btn-template-edit-no');
 
     if (
-        !btnNew || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete
+        !btnNew || !btnOpenReport || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete
         || !deleteDialog || !deleteMessage || !btnDeleteYes || !btnDeleteNo
         || !createDialog || !createNameInput || !btnCreateSave || !btnCreateCancel
         || !editConfirmDialog || !editConfirmMessage || !btnEditYes || !btnEditNo
     ) return;
+
+    const openReportInput = document.createElement('input');
+    openReportInput.type = 'file';
+    openReportInput.accept = '.json,application/json';
+    openReportInput.hidden = true;
+    openReportInput.tabIndex = -1;
+    openReportInput.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(openReportInput);
+
+    const openStatus = document.createElement('p');
+    openStatus.id = 'open-report-status';
+    openStatus.className = 'open-report-status';
+    openStatus.setAttribute('role', 'status');
+    openStatus.setAttribute('aria-live', 'polite');
+    const actionGroup = btnOpenReport.parentElement;
+    if (actionGroup && actionGroup.parentElement) {
+        actionGroup.parentElement.insertBefore(openStatus, actionGroup.nextSibling);
+    }
+
+    const reasonMap = {
+        'invalid-json': 'File is not valid JSON.',
+        'invalid-payload': 'JSON payload is not in ART format.',
+        'missing-required-header': 'ART header is missing or invalid.',
+        'missing-integrity': 'ART integrity metadata is missing.',
+        'missing-report-state': 'ART report data is missing.',
+        'checksum-mismatch': 'ART file appears modified or corrupted.',
+        'ok': 'ART JSON precheck passed.'
+    };
+
+    const reportPrecheckStatus = (text) => {
+        openStatus.textContent = text;
+        announce(text);
+    };
+
+    btnOpenReport.addEventListener('click', () => {
+        openReportInput.value = '';
+        openReportInput.click();
+    });
+
+    openReportInput.addEventListener('change', async () => {
+        const selectedFile = openReportInput.files && openReportInput.files[0];
+        if (!selectedFile) return;
+
+        try {
+            const fileText = await selectedFile.text();
+            const precheck = validateArtJsonPayload(fileText);
+            if (!precheck.isValid) {
+                const detail = reasonMap[precheck.reason] || 'Unknown validation error.';
+                reportPrecheckStatus(`Precheck failed for ${selectedFile.name}. ${detail}`);
+                return;
+            }
+
+            const importResult = importArtJsonPayload(fileText);
+            if (importResult.isValid) {
+                window.dispatchEvent(new Event('art-templates-updated'));
+                reportPrecheckStatus(`Imported ${selectedFile.name} successfully.`);
+                if (viewerTab) {
+                    viewerTab.click();
+                    window.setTimeout(() => {
+                        const viewerHeading = document.getElementById('viewer-heading');
+                        if (viewerHeading) viewerHeading.focus();
+                    }, 0);
+                }
+            } else {
+                const detail = reasonMap[importResult.reason] || 'Unknown import validation error.';
+                reportPrecheckStatus(`Import failed for ${selectedFile.name}. ${detail}`);
+            }
+        } catch (error) {
+            reportPrecheckStatus(`Precheck failed for ${selectedFile.name}. Could not read file.`);
+        }
+    });
 
     const buttons = {
         create: btnCreate,

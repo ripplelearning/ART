@@ -1,13 +1,15 @@
 // navigation.js
 import { renderBuilder } from './reportBuilder.js';
 import { renderEditor } from './reportEditor.js';
+import { renderViewer } from './reportViewer.js';
 import { renderWelcome } from './welcome.js';
 
 const landmarks = ['nav', 'dashboard', 'main-content', 'lookup-tool'];
 const renderMap = {
     'tab-welcome': renderWelcome,
     'tab-builder': renderBuilder,
-    'tab-editor': renderEditor
+    'tab-editor': renderEditor,
+    'tab-view': renderViewer
 };
 
 export function initNavigation() {

@@ -1,5 +1,6 @@
 // reportBuilder.js
 import { announce, appState, createUserTemplate, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState } from './state.js';
+import { getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let pendingFocus = null;
 let pendingDelete = null;
@@ -12,6 +13,7 @@ function getFieldTypeLabel(type) {
     const normalizedType = normalizeFieldType(type);
     if (normalizedType === 'textarea') return 'Textarea';
     if (normalizedType === 'dropdown') return 'Dropdown';
+    if (isWcagCriterionFieldType(normalizedType)) return 'WCAG Success Criterion';
     return 'Text';
 }
 
@@ -21,6 +23,49 @@ function getFieldOptionsText(field) {
 
 function getEditField() {
     return appState.editingIndex >= 0 ? appState.fields[appState.editingIndex] : null;
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getBrandingState() {
+    return {
+        enabled: Boolean(appState.branding?.enabled),
+        headerText: String(appState.branding?.headerText || ''),
+        primaryColor: String(appState.branding?.primaryColor || '#005a9c'),
+        logoDataUrl: String(appState.branding?.logoDataUrl || ''),
+        logoAltText: String(appState.branding?.logoAltText || ''),
+        logoDecorative: Boolean(appState.branding?.logoDecorative),
+        logoFileName: String(appState.branding?.logoFileName || '')
+    };
+}
+
+function validateBrandingInputs(shouldAnnounce = true) {
+    const branding = getBrandingState();
+    const errorEl = document.getElementById('branding-logo-alt-error');
+    const altInput = document.getElementById('branding-logo-alt');
+
+    const hasError = branding.enabled && branding.logoDataUrl && !branding.logoDecorative && !branding.logoAltText.trim();
+    if (!hasError) {
+        if (errorEl) errorEl.textContent = '';
+        if (altInput) altInput.removeAttribute('aria-invalid');
+        return true;
+    }
+
+    const msg = 'Logo alternative text is required when logo is not decorative.';
+    if (errorEl) errorEl.textContent = msg;
+    if (altInput) altInput.setAttribute('aria-invalid', 'true');
+    if (shouldAnnounce) {
+        announce(msg);
+        if (altInput) altInput.focus();
+    }
+    return false;
 }
 
 function focusAfterRender() {
@@ -106,10 +151,11 @@ function setupSelectAnnouncement(selectElement, label) {
     });
 }
 
-export function renderBuilder() {
+export async function renderBuilder() {
     const container = document.getElementById('main-inner');
     const editField = getEditField();
     const editType = normalizeFieldType(editField?.type);
+    const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
     const reportLayouts = {
         'Audit Log': ['Paragraphs', 'Tabular', 'Template'],
         'Executive Summary': ['Paragraphs', 'Bullets', 'Template']
@@ -121,6 +167,7 @@ export function renderBuilder() {
             ? [{ value: 'Create New', label: 'Create New' }, { value: 'Upload from File', label: 'Upload from File' }]
             : [];
     const showTemplateSection = appState.reportLayout === 'Template' && !!appState.reportType;
+    const branding = getBrandingState();
 
     container.innerHTML = `
         <section id="builder-view">
@@ -160,6 +207,32 @@ export function renderBuilder() {
                 </div>
             </div>
 
+            <section class="branding-config" aria-labelledby="branding-config-heading">
+                <h3 id="branding-config-heading">Report Branding</h3>
+                <label class="branding-toggle">
+                    <input type="checkbox" id="branding-enabled" ${branding.enabled ? 'checked' : ''}>
+                    Enable branding
+                </label>
+
+                <div id="branding-controls" ${branding.enabled ? '' : 'hidden'}>
+                    <label>Brand Header Text: <input type="text" id="branding-header-text" value="${escapeHtml(branding.headerText)}"></label>
+                    <label>Primary Brand Color: <input type="color" id="branding-primary-color" value="${escapeHtml(branding.primaryColor)}"></label>
+                    <label>Brand Logo: <input type="file" id="branding-logo-file" accept="image/*"></label>
+                    <p id="branding-logo-file-name">${branding.logoFileName ? `Selected logo: ${escapeHtml(branding.logoFileName)}` : 'No logo selected'}</p>
+                    ${branding.logoDataUrl ? '<button id="branding-remove-logo" type="button">Remove Logo</button>' : ''}
+                    <label class="branding-toggle">
+                        <input type="checkbox" id="branding-logo-decorative" ${branding.logoDecorative ? 'checked' : ''} ${branding.logoDataUrl ? '' : 'disabled'}>
+                        Logo is decorative
+                    </label>
+                    <label>Logo Alternative Text:
+                        <input type="text" id="branding-logo-alt" value="${escapeHtml(branding.logoAltText)}" aria-describedby="branding-logo-alt-help branding-logo-alt-error" ${branding.logoDataUrl && !branding.logoDecorative ? '' : 'disabled'}>
+                    </label>
+                    <p id="branding-logo-alt-help">Use concise text such as Apple logo when the logo conveys brand identity.</p>
+                    <p id="branding-logo-alt-error" class="branding-error" role="status" aria-live="polite"></p>
+                    ${branding.logoDataUrl ? `<img class="branding-preview" src="${escapeHtml(branding.logoDataUrl)}" ${branding.logoDecorative ? 'alt=""' : `alt="${escapeHtml(branding.logoAltText || 'Brand logo')}"`} />` : ''}
+                </div>
+            </section>
+
             ${showTemplateSection ? `
                 <div id="template-config-section" class="template-config">
                     <label>Template Option:
@@ -194,11 +267,19 @@ export function renderBuilder() {
                     <option value="text" ${editType === 'text' ? 'selected' : ''}>Text</option>
                     <option value="textarea" ${editType === 'textarea' ? 'selected' : ''}>Textarea</option>
                     <option value="dropdown" ${editType === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                    <option value="wcag-success-criterion" ${isWcagCriterionFieldType(editType) ? 'selected' : ''}>WCAG Success Criterion</option>
                 </select>
                 <div id="dropdown-options-container" ${editType === 'dropdown' ? '' : 'hidden'}>
                     <label for="field-dropdown-options-input">Dropdown Options</label>
                     <p id="dropdown-options-help">Type each entry for the dropdown on a new line.</p>
                     <textarea id="field-dropdown-options-input" aria-describedby="dropdown-options-help">${getFieldOptionsText(editField)}</textarea>
+                </div>
+                <div id="wcag-options-container" ${isWcagCriterionFieldType(editType) ? '' : 'hidden'}>
+                    <label for="wcag-options-preview">WCAG Success Criteria Preview</label>
+                    <p id="wcag-options-help">The Report Editor will provide a searchable combobox using the currently selected accessibility standard.</p>
+                    <select id="wcag-options-preview" size="6" aria-describedby="wcag-options-help" disabled>
+                        ${wcagCriteria.map((criterion) => `<option>${escapeHtml(`${criterion.number} ${criterion.title}`)}</option>`).join('')}
+                    </select>
                 </div>
                 <button id="btn-add-field" type="button">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
                 <table>
@@ -246,8 +327,120 @@ export function renderBuilder() {
 
     const standardSelect = document.getElementById('standard-select');
     if (standardSelect) {
-        standardSelect.addEventListener('change', (e) => updateHeader('standard', e.target.value));
+        standardSelect.addEventListener('change', (e) => {
+            updateHeader('standard', e.target.value);
+            window.dispatchEvent(new CustomEvent('art-standard-changed', {
+                detail: { standard: e.target.value }
+            }));
+            if (isWcagCriterionFieldType(document.getElementById('field-type-input')?.value)) {
+                renderBuilder();
+            }
+        });
     }
+
+    const brandingEnabled = document.getElementById('branding-enabled');
+    if (brandingEnabled) {
+        brandingEnabled.addEventListener('change', (e) => {
+            appState.branding = {
+                ...getBrandingState(),
+                enabled: e.target.checked
+            };
+            saveState();
+            renderBuilder();
+        });
+    }
+
+    const brandingHeaderText = document.getElementById('branding-header-text');
+    if (brandingHeaderText) {
+        brandingHeaderText.addEventListener('input', (e) => {
+            appState.branding = {
+                ...getBrandingState(),
+                headerText: e.target.value
+            };
+            saveState();
+        });
+    }
+
+    const brandingPrimaryColor = document.getElementById('branding-primary-color');
+    if (brandingPrimaryColor) {
+        brandingPrimaryColor.addEventListener('input', (e) => {
+            appState.branding = {
+                ...getBrandingState(),
+                primaryColor: e.target.value
+            };
+            saveState();
+        });
+    }
+
+    const brandingLogoDecorative = document.getElementById('branding-logo-decorative');
+    if (brandingLogoDecorative) {
+        brandingLogoDecorative.addEventListener('change', (e) => {
+            appState.branding = {
+                ...getBrandingState(),
+                logoDecorative: e.target.checked
+            };
+            saveState();
+            renderBuilder();
+        });
+    }
+
+    const brandingLogoAlt = document.getElementById('branding-logo-alt');
+    if (brandingLogoAlt) {
+        brandingLogoAlt.addEventListener('input', (e) => {
+            appState.branding = {
+                ...getBrandingState(),
+                logoAltText: e.target.value
+            };
+            saveState();
+            validateBrandingInputs(false);
+        });
+    }
+
+    const brandingLogoFile = document.getElementById('branding-logo-file');
+    if (brandingLogoFile) {
+        brandingLogoFile.addEventListener('change', async (e) => {
+            const selectedFile = e.target.files && e.target.files[0];
+            if (!selectedFile) return;
+
+            try {
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ''));
+                    reader.onerror = () => reject(new Error('read-failed'));
+                    reader.readAsDataURL(selectedFile);
+                });
+
+                appState.branding = {
+                    ...getBrandingState(),
+                    logoDataUrl: dataUrl,
+                    logoFileName: selectedFile.name
+                };
+                saveState();
+                announce('Logo selected. Add alternative text or mark as decorative.');
+                renderBuilder();
+            } catch (error) {
+                announce('Could not read logo file.');
+            }
+        });
+    }
+
+    const brandingRemoveLogo = document.getElementById('branding-remove-logo');
+    if (brandingRemoveLogo) {
+        brandingRemoveLogo.addEventListener('click', () => {
+            appState.branding = {
+                ...getBrandingState(),
+                logoDataUrl: '',
+                logoFileName: '',
+                logoAltText: '',
+                logoDecorative: false
+            };
+            saveState();
+            announce('Logo removed.');
+            renderBuilder();
+        });
+    }
+
+    validateBrandingInputs(false);
 
     const reportTypeSelect = document.getElementById('report-type-select');
     if (reportTypeSelect) {
@@ -331,16 +524,20 @@ export function renderBuilder() {
 
     const fieldTypeInput = document.getElementById('field-type-input');
     const dropdownOptionsContainer = document.getElementById('dropdown-options-container');
-    if (fieldTypeInput && dropdownOptionsContainer) {
+    const wcagOptionsContainer = document.getElementById('wcag-options-container');
+    if (fieldTypeInput && dropdownOptionsContainer && wcagOptionsContainer) {
         setupSelectAnnouncement(fieldTypeInput, 'Field Type');
+        const commitFieldType = () => {
+            dropdownOptionsContainer.hidden = fieldTypeInput.value !== 'dropdown';
+            wcagOptionsContainer.hidden = !isWcagCriterionFieldType(fieldTypeInput.value);
+        };
         fieldTypeInput.addEventListener('change', (e) => {
             appState.fieldsExpanded = true;
             saveState();
+            commitFieldType();
         });
-        const commitFieldType = () => {
-            dropdownOptionsContainer.hidden = fieldTypeInput.value !== 'dropdown';
-        };
         fieldTypeInput.addEventListener('blur', commitFieldType);
+        commitFieldType();
     }
 
     document.getElementById('btn-add-field').addEventListener('click', () => {
@@ -383,6 +580,8 @@ export function renderBuilder() {
     const doneButton = document.getElementById('btn-done');
     if (doneButton) {
         doneButton.addEventListener('click', () => {
+            if (!validateBrandingInputs(true)) return;
+
             if (appState.templateCreateMode) {
                 const baseName = (appState.templateName || appState.reportTitle || 'Untitled Template').trim();
                 const existing = new Set((appState.userTemplates || []).map((t) => String(t.name || '').toLowerCase()));
@@ -423,6 +622,7 @@ export function renderBuilder() {
     const saveTemplateChangesButton = document.getElementById('btn-save-template-changes');
     if (saveTemplateChangesButton) {
         saveTemplateChangesButton.addEventListener('click', () => {
+            if (!validateBrandingInputs(true)) return;
             if (!appState.templateEditingId) return;
             const updated = saveCurrentReportToUserTemplate(appState.templateEditingId);
             if (!updated) return;

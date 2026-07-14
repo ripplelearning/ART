@@ -1,22 +1,8 @@
 // lookupTool.js
-const LOADER_SRC = document.currentScript && document.currentScript.src;
-
-async function fetchJsonWithFallback(urls) {
-    let lastError = null;
-    for (const url of urls) {
-        try {
-            const response = await fetch(url, { cache: 'no-cache' });
-            if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
-            return await response.json();
-        } catch (err) { lastError = err; }
-    }
-    throw lastError || new Error('Unable to load JSON data from all sources.');
-}
+import { appState } from './state.js';
+import { getAvailableWcagStandards, loadWcagCatalog } from './wcagCatalog.js';
 
 export async function initLookupTool() {
-    const dataUrlCandidates = LOADER_SRC ? [new URL('wcag_data.js', LOADER_SRC).toString()] : [];
-    dataUrlCandidates.push('wcag_data.js');
-
     const container = document.getElementById('container');
     if (!container) return;
     container.innerHTML = 'Loading criteria...';
@@ -67,7 +53,8 @@ export async function initLookupTool() {
     };
 
     try {
-        const data = await fetchJsonWithFallback(dataUrlCandidates);
+        const data = await loadWcagCatalog();
+        const standards = await getAvailableWcagStandards();
 
         container.innerHTML = `
             <fieldset style="margin:0; padding:0; border:0;">
@@ -76,7 +63,7 @@ export async function initLookupTool() {
                 <input id="s" type="search" placeholder="Search... e.g. 1.1.1, buttons, tables" style="width:90%; padding:10px;">
                 <div style="margin:15px 0; display:grid; gap:10px;">
                     <label for="ver-f">Version</label>
-                    <select id="ver-f"><option value="">Version: All</option><option value="2.1">2.1</option><option value="2.2">2.2</option></select>
+                    <select id="ver-f"><option value="">Version: All</option>${standards.map((standard) => `<option value="${standard}">${standard}</option>`).join('')}</select>
                     <label for="lvl-f">Level</label>
                     <select id="lvl-f"><option value="">Level: All</option><option value="A">A</option><option value="AA">AA</option><option value="AAA">AAA</option></select>
                     <label for="cat-f">Category</label>
@@ -102,16 +89,18 @@ export async function initLookupTool() {
             const listContainer = document.getElementById('list-container');
             listContainer.innerHTML = '';
             // Restored Version Headings:
-            ['2.2', '2.1'].forEach(ver => {
-                const filteredVer = list.filter(i => i.ver == ver);
+            const presentStandards = [...new Set(list.map((item) => item.standard))];
+            presentStandards.forEach((ver) => {
+                const filteredVer = list.filter(i => i.standard === ver);
                 if (filteredVer.length === 0) return;
                 const h3 = document.createElement('h3');
-                h3.textContent = `WCAG ${ver} Success Criteria`;
+                h3.textContent = `${ver} Success Criteria`;
                 listContainer.appendChild(h3);
                 
                 filteredVer.forEach(i => {
+                    const displayName = `${i.number} ${i.title}`;
                     const div = document.createElement('div');
-                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${i.name} (Level ${i.level})</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Description:</dt><dd>${formatParagraphs(i.desc)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Fixes:</dt><dd>${formatAsList(i.fixes)}</dd><dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>Link:</dt><dd><a href="${i.Link || '#'}" target="_blank">Open W3C documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-text="${i.name}\n\nDescription:\n${(i.desc || '').replace(/\|/g, ' ')}\n\nFailures:\n${(i.failures || '').replace(/\|/g, '\n')}\n\nFixes:\n${(i.fixes || '').replace(/\|/g, '\n')}\n\nDisabilities: ${formatAsCommaList(i.disabilitie)}\n\nLink: ${i.Link || 'N/A'}">Copy Full Entry</button></li><li><button class="copy-btn" data-text="${cleanForCopy(i.name)}">Copy Name</button></li><li><button class="copy-btn" data-text="${cleanForCopy(i.desc)}">Copy Desc</button></li><li><button class="copy-btn" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-text="${cleanForCopy(i.fixes)}">Copy Fixes</button></li><li><button class="copy-btn" data-text="${i.Link || ''}">Copy Link</button></li></ul></fieldset></details>`;
+                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName} (Level ${i.level})</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Description:</dt><dd>${formatParagraphs(i.desc)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Fixes:</dt><dd>${formatAsList(i.fixes)}</dd><dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>Link:</dt><dd><a href="${i.understandingUrl || '#'}" target="_blank">Open W3C documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-text="${displayName}\n\nDescription:\n${(i.desc || '').replace(/\|/g, ' ')}\n\nFailures:\n${(i.failures || '').replace(/\|/g, '\n')}\n\nFixes:\n${(i.fixes || '').replace(/\|/g, '\n')}\n\nDisabilities: ${formatAsCommaList(i.disabilitie)}\n\nLink: ${i.understandingUrl || 'N/A'}">Copy Full Entry</button></li><li><button class="copy-btn" data-text="${cleanForCopy(displayName)}">Copy Name</button></li><li><button class="copy-btn" data-text="${cleanForCopy(i.desc)}">Copy Desc</button></li><li><button class="copy-btn" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-text="${cleanForCopy(i.fixes)}">Copy Fixes</button></li><li><button class="copy-btn" data-text="${i.understandingUrl || ''}">Copy Link</button></li></ul></fieldset></details>`;
                     div.querySelectorAll('.copy-btn').forEach(b => {
                         b.onclick = () => {
                             navigator.clipboard.writeText(b.getAttribute('data-text'));
@@ -134,12 +123,25 @@ export async function initLookupTool() {
             const l = document.getElementById('lvl-f').value;
             const c = document.getElementById('cat-f').value;
             const regex = c ? new RegExp(categoryMap[c], 'i') : null;
-            render(data.filter(i => (i.name.toLowerCase().includes(q) || (i.desc && i.desc.toLowerCase().includes(q))) && (v === "" || i.ver == v) && (l === "" || i.level === l) && (!c || ((Array.isArray(i.tags) ? i.tags : String(i.tags || '').split('|')).some(t => regex.test(t))) || (regex && (regex.test(i.name) || (i.desc && regex.test(i.desc)))))));
+            render(data.filter(i => (i.searchText.includes(q) || (i.desc && i.desc.toLowerCase().includes(q))) && (v === "" || i.standard === v) && (l === "" || i.level === l) && (!c || ((Array.isArray(i.tags) ? i.tags : String(i.tags || '').split('|')).some(t => regex.test(t))) || (regex && (regex.test(i.title) || (i.desc && regex.test(i.desc)))))));
         };
 
         ['s', 'ver-f', 'lvl-f', 'cat-f'].forEach(id => document.getElementById(id).onchange = applyFilters);
         document.getElementById('s').oninput = applyFilters;
         document.getElementById('reset-btn').onclick = resetTool;
+
+        const syncLookupVersion = (standard) => {
+            const versionFilter = document.getElementById('ver-f');
+            if (!versionFilter) return;
+            if ([...versionFilter.options].some((option) => option.value === standard)) {
+                versionFilter.value = standard;
+                applyFilters();
+            }
+        };
+
+        window.addEventListener('art-standard-changed', (event) => {
+            syncLookupVersion(event.detail?.standard || '');
+        });
 
         window.addEventListener('keydown', (e) => {
             if (e.altKey && e.shiftKey && e.key === 'A') { window.resizeTo(800, 600); window.focus(); document.getElementById('s').focus(); }
@@ -147,5 +149,6 @@ export async function initLookupTool() {
             if (e.key === 'Escape') { window.resizeTo(0, 0); }
         });
         render(data);
+        syncLookupVersion(appState.standard);
     } catch (e) { container.innerHTML = 'Error loading data: ' + e.message; }
 }
