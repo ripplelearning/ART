@@ -1,5 +1,27 @@
-import { appState, saveState, updateEditorFieldValue } from './state.js';
+import {
+    applyMetadataDraft,
+    addAuditEntry,
+    appState,
+    buildMetadataDraftFromValues,
+    clearReportContentOnly,
+    clearReportEverythingInSession,
+    deleteAuditEntry,
+    ensureAuditEntries,
+    getAuditEntries,
+    getAuditEntryDisplayName,
+    getMetadataDescriptors,
+    moveAuditEntry,
+    validateMetadataDraft,
+    updateAuditEntryFieldValue,
+    updateEditorFieldValue
+} from './state.js';
 import { formatWcagCriterionDisplay, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
+
+let pendingEntryFocus = null;
+let pendingDeleteEntry = null;
+let activeModalDialog = null;
+let areModalListenersBound = false;
+let pendingEditorFocusTargetId = '';
 
 function normalizeFieldType(type) {
     return type === 'select' ? 'dropdown' : type || 'text';
@@ -52,46 +74,53 @@ function renderMetadataPlainText() {
     `;
 }
 
-function renderFieldControl(field, index) {
+function getEntryFieldValue(entry, fieldIndex) {
+    return entry?.fieldValues?.[fieldIndex] ?? '';
+}
+
+function renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly) {
+    const displayValue = typeof storedValue === 'object' ? formatWcagCriterionDisplay(storedValue) : String(storedValue || '');
+    const inputId = `editor-field-${entryIndex}-${fieldIndex}`;
+    if (readOnly) {
+        return `<input type="text" id="${inputId}" value="${escapeHtml(displayValue)}" readonly aria-readonly="true">`;
+    }
+
+    return `
+        <div class="wcag-combobox" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}">
+            <input
+                type="text"
+                id="${inputId}"
+                class="wcag-combobox-input"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-haspopup="listbox"
+                aria-controls="${inputId}-listbox"
+                aria-describedby="editor-select-help"
+                autocomplete="off"
+                value="${escapeHtml(displayValue)}"
+            >
+            <button type="button" class="wcag-combobox-toggle" aria-label="Show WCAG Success Criterion options for ${escapeHtml(field.label)}">Show options</button>
+            <ul id="${inputId}-listbox" class="wcag-combobox-listbox" role="listbox" hidden></ul>
+        </div>
+    `;
+}
+
+function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly) {
     const type = normalizeFieldType(field.type);
-    const storedValue = appState.editorFieldValues[index] ?? '';
-    const readOnlyAttrs = appState.editorReadOnly ? ' readonly aria-readonly="true"' : '';
 
     if (isWcagCriterionFieldType(type)) {
-        const displayValue = typeof storedValue === 'object' ? formatWcagCriterionDisplay(storedValue) : String(storedValue || '');
-        if (appState.editorReadOnly) {
-            return `<input type="text" id="editor-field-${index}" value="${escapeHtml(displayValue)}" readonly aria-readonly="true">`;
-        }
-
-        return `
-            <div class="wcag-combobox" data-editor-field-index="${index}">
-                <input
-                    type="text"
-                    id="editor-field-${index}"
-                    class="wcag-combobox-input"
-                    role="combobox"
-                    aria-autocomplete="list"
-                    aria-expanded="false"
-                    aria-haspopup="listbox"
-                    aria-controls="editor-field-${index}-listbox"
-                    aria-describedby="editor-select-help"
-                    autocomplete="off"
-                    value="${escapeHtml(displayValue)}"
-                >
-                <button type="button" class="wcag-combobox-toggle" aria-label="Show WCAG Success Criterion options for ${escapeHtml(field.label)}">Show options</button>
-                <ul id="editor-field-${index}-listbox" class="wcag-combobox-listbox" role="listbox" hidden></ul>
-            </div>
-        `;
+        return renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly);
     }
 
     if (type === 'textarea') {
-        return `<textarea id="editor-field-${index}" data-editor-field-index="${index}"${readOnlyAttrs}>${escapeHtml(storedValue)}</textarea>`;
+        return `<textarea id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}"${readOnly ? ' readonly aria-readonly="true"' : ''}>${escapeHtml(storedValue)}</textarea>`;
     }
 
     if (type === 'dropdown') {
         const options = Array.isArray(field.dropdownOptions) ? field.dropdownOptions : [];
         return `
-            <select id="editor-field-${index}" data-editor-field-index="${index}" aria-label="${escapeHtml(field.label)}" aria-describedby="editor-select-help" ${appState.editorReadOnly ? 'disabled aria-disabled="true"' : ''}>
+            <select id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-label="${escapeHtml(field.label)}" aria-describedby="editor-select-help" ${readOnly ? 'disabled aria-disabled="true"' : ''}>
                 <option value="">Select an option</option>
                 ${options.map((option) => {
                     const selected = String(storedValue) === String(option) ? 'selected' : '';
@@ -101,10 +130,10 @@ function renderFieldControl(field, index) {
         `;
     }
 
-    return `<input type="text" id="editor-field-${index}" data-editor-field-index="${index}" value="${escapeHtml(storedValue)}"${readOnlyAttrs}>`;
+    return `<input type="text" id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" value="${escapeHtml(storedValue)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>`;
 }
 
-function attachWcagCombobox(control, criteria, index) {
+function attachWcagCombobox(control, criteria, entryIndex, fieldIndex) {
     const input = control.querySelector('.wcag-combobox-input');
     const toggle = control.querySelector('.wcag-combobox-toggle');
     const listbox = control.querySelector('.wcag-combobox-listbox');
@@ -124,7 +153,11 @@ function attachWcagCombobox(control, criteria, index) {
             recommendationUrl: criterion.recommendationUrl
         };
         input.value = `${criterion.number} ${criterion.title}`;
-        updateEditorFieldValue(index, structuredValue);
+        if (appState.reportType === 'Audit Log') {
+            updateAuditEntryFieldValue(entryIndex, fieldIndex, structuredValue);
+        } else {
+            updateEditorFieldValue(fieldIndex, structuredValue);
+        }
         closeListbox();
     };
 
@@ -232,54 +265,515 @@ function attachWcagCombobox(control, criteria, index) {
     });
 }
 
+function getFocusableElements(dialog) {
+    return Array.from(dialog.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => element.offsetParent !== null);
+}
+
+function closeModalDialog(restoreFocus = true) {
+    if (!activeModalDialog) return;
+    const { dialog, trigger } = activeModalDialog;
+    dialog.hidden = true;
+    activeModalDialog = null;
+    if (restoreFocus && trigger) trigger.focus();
+}
+
+function openModalDialog(dialog, focusTarget, trigger) {
+    activeModalDialog = { dialog, trigger };
+    dialog.hidden = false;
+    window.setTimeout(() => {
+        if (focusTarget) {
+            focusTarget.focus();
+            return;
+        }
+        getFocusableElements(dialog)[0]?.focus();
+    }, 0);
+}
+
+function trapModalFocus(event) {
+    if (!activeModalDialog || activeModalDialog.dialog.hidden) return;
+    const dialog = activeModalDialog.dialog;
+
+    if (event.type === 'focusin') {
+        if (!dialog.contains(event.target)) {
+            getFocusableElements(dialog)[0]?.focus();
+        }
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        closeModalDialog(true);
+        return;
+    }
+
+    if (event.key !== 'Tab') return;
+    const focusables = getFocusableElements(dialog);
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && event.target === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && event.target === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+
+function renderMetadataEditDialog() {
+    const descriptors = getMetadataDescriptors();
+    const isBrandingEnabled = Boolean(appState.branding?.enabled);
+    const groups = descriptors.reduce((acc, descriptor) => {
+        const group = descriptor.groupLabel || 'Report Metadata';
+        if (!acc[group]) acc[group] = [];
+        acc[group].push(descriptor);
+        return acc;
+    }, {});
+
+    const renderField = (descriptor) => {
+        const id = `metadata-field-${descriptor.keyPath.replace(/\./g, '-')}`;
+        const isBrandingExtra = descriptor.keyPath.startsWith('branding.') && descriptor.keyPath !== 'branding.enabled';
+        const containerAttrs = isBrandingExtra
+            ? ` data-branding-extra="true" ${isBrandingEnabled ? '' : 'hidden'}`
+            : '';
+        if (descriptor.inputType === 'textarea') {
+            return `
+                <div${containerAttrs}>
+                    <label for="${id}">${escapeHtml(descriptor.label)}</label>
+                    <textarea id="${id}" data-metadata-key="${descriptor.keyPath}">${escapeHtml(descriptor.value || '')}</textarea>
+                </div>
+            `;
+        }
+        if (descriptor.inputType === 'select') {
+            return `
+                <div${containerAttrs}>
+                    <label for="${id}">${escapeHtml(descriptor.label)}</label>
+                    <select id="${id}" data-metadata-key="${descriptor.keyPath}">
+                        ${(descriptor.options || []).map((option) => `<option value="${escapeHtml(option)}" ${String(option) === String(descriptor.value) ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }
+        if (descriptor.inputType === 'checkbox') {
+            return `
+                <div${containerAttrs}>
+                    <label>
+                        <input type="checkbox" id="${id}" data-metadata-key="${descriptor.keyPath}" ${descriptor.value ? 'checked' : ''}>
+                        ${escapeHtml(descriptor.label)}
+                    </label>
+                </div>
+            `;
+        }
+        return `
+            <div${containerAttrs}>
+                <label for="${id}">${escapeHtml(descriptor.label)}</label>
+                <input type="${descriptor.inputType}" id="${id}" data-metadata-key="${descriptor.keyPath}" value="${escapeHtml(descriptor.value || '')}">
+            </div>
+        `;
+    };
+
+    return `
+        <div id="editor-metadata-dialog" role="dialog" aria-modal="true" aria-labelledby="editor-metadata-dialog-heading" aria-describedby="editor-metadata-dialog-desc" hidden>
+            <h3 id="editor-metadata-dialog-heading">Edit Metadata</h3>
+            <p id="editor-metadata-dialog-desc">Update report metadata values. Report fields, report type, layout, and templates are not changed here.</p>
+            <div class="editor-metadata-dialog-grid">
+                ${Object.entries(groups).map(([groupName, items]) => `
+                    <fieldset>
+                        <legend>${escapeHtml(groupName)}</legend>
+                        ${items.map(renderField).join('')}
+                    </fieldset>
+                `).join('')}
+            </div>
+            <p id="editor-metadata-dialog-error" class="branding-error" role="status" aria-live="polite"></p>
+            <div class="viewer-dialog-actions">
+                <button id="btn-editor-metadata-confirm" type="button">Confirm</button>
+                <button id="btn-editor-metadata-cancel" type="button">Cancel</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderClearDialog() {
+    return `
+        <div id="editor-clear-dialog" role="dialog" aria-modal="true" aria-labelledby="editor-clear-dialog-heading" aria-describedby="editor-clear-dialog-desc" hidden>
+            <h3 id="editor-clear-dialog-heading">Clear Report</h3>
+            <p id="editor-clear-dialog-desc">What would you like to clear?</p>
+
+            <fieldset>
+                <legend class="sr-only">Clear options</legend>
+                <label>
+                    <input type="radio" name="editor-clear-option" value="content" checked>
+                    Clear report content only (recommended)
+                </label>
+                <p class="editor-clear-help">Removes all audit entries and entered field values while preserving report metadata, fields, report type, report layout, and template configuration.</p>
+
+                <label>
+                    <input type="radio" name="editor-clear-option" value="everything">
+                    Clear everything
+                </label>
+                <p class="editor-clear-help">Removes report metadata, configured fields, report content, report type, and report layout, then returns to a blank configuration state.</p>
+            </fieldset>
+
+            <div class="viewer-dialog-actions">
+                <button id="btn-editor-clear-confirm" type="button">Clear</button>
+                <button id="btn-editor-clear-cancel" type="button">Cancel</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderAuditTable(criteria) {
+    ensureAuditEntries();
+    const entries = getAuditEntries();
+    const fields = appState.fields || [];
+
+    return `
+        <section aria-labelledby="audit-table-heading">
+            <h3 id="audit-table-heading">Audit Entries</h3>
+            <div class="editor-table-wrapper">
+                <table class="editor-audit-table">
+                    <thead>
+                        <tr>
+                            ${fields.map((field, fieldIndex) => `<th scope="col" id="audit-col-${fieldIndex}">${escapeHtml(field.label)}</th>`).join('')}
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${entries.map((entry, entryIndex) => {
+                            const entryName = getAuditEntryDisplayName(entryIndex);
+                            const actionsPanelId = `entry-actions-${entryIndex}`;
+                            return `
+                                <tr>
+                                    ${fields.map((field, fieldIndex) => `
+                                        <td headers="audit-col-${fieldIndex}">
+                                            ${renderFieldControl(field, entryIndex, fieldIndex, getEntryFieldValue(entry, fieldIndex), appState.editorReadOnly)}
+                                        </td>
+                                    `).join('')}
+                                    <td>
+                                        <button
+                                            type="button"
+                                            class="btn-entry-toggle"
+                                            data-entry-index="${entryIndex}"
+                                            aria-expanded="false"
+                                            aria-controls="${actionsPanelId}"
+                                        >Edit ${escapeHtml(entryName)}</button>
+                                        <div id="${actionsPanelId}" class="entry-actions-menu" hidden>
+                                            <button type="button" class="btn-entry-up" data-entry-index="${entryIndex}" ${entryIndex === 0 ? 'disabled' : ''}>Move Up</button>
+                                            <button type="button" class="btn-entry-down" data-entry-index="${entryIndex}" ${entryIndex === entries.length - 1 ? 'disabled' : ''}>Move Down</button>
+                                            <button type="button" class="btn-entry-delete" data-entry-index="${entryIndex}">Delete Entry</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <button id="btn-add-entry" type="button">Add Entry</button>
+
+            <div id="entry-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="entry-delete-heading" aria-describedby="entry-delete-message" hidden>
+                <h3 id="entry-delete-heading">Delete Entry?</h3>
+                <p id="entry-delete-message"></p>
+                <button id="btn-entry-delete-confirm" type="button">Confirm</button>
+                <button id="btn-entry-delete-cancel" type="button">Cancel</button>
+            </div>
+        </section>
+    `;
+}
+
+function renderSingleEntryEditor() {
+    return `
+        <div class="editor-fields-grid">
+            ${appState.fields.map((field, index) => {
+                const labelAttrs = isWcagCriterionFieldType(field.type)
+                    ? `id="editor-field-label-${index}"`
+                    : `for="editor-field-0-${index}"`;
+                return `
+                    <label ${labelAttrs}>${escapeHtml(field.label)}</label>
+                    ${renderFieldControl(field, 0, index, appState.editorFieldValues[index] ?? '', appState.editorReadOnly)}
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+function focusPendingEntryControl() {
+    if (!pendingEntryFocus) return false;
+    const { entryIndex, fieldIndex } = pendingEntryFocus;
+    pendingEntryFocus = null;
+    const target = document.getElementById(`editor-field-${entryIndex}-${fieldIndex}`);
+    if (target) {
+        target.focus();
+        return true;
+    }
+    return false;
+}
+
+function bindAuditTableEvents(criteria) {
+    const container = document.getElementById('main-inner');
+    if (!container) return;
+
+    const addEntryButton = document.getElementById('btn-add-entry');
+    if (addEntryButton) {
+        addEntryButton.addEventListener('click', () => {
+            const newIndex = addAuditEntry();
+            pendingEntryFocus = { entryIndex: newIndex, fieldIndex: 0 };
+            renderEditor();
+        });
+    }
+
+    container.querySelectorAll('.btn-entry-toggle').forEach((button) => {
+        button.addEventListener('click', () => {
+            const entryIndex = button.getAttribute('data-entry-index');
+            const panel = document.getElementById(button.getAttribute('aria-controls'));
+            if (!panel) return;
+            const expanded = button.getAttribute('aria-expanded') === 'true';
+            button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            panel.hidden = expanded;
+            if (!expanded) {
+                panel.querySelector('button:not([disabled])')?.focus();
+            }
+        });
+    });
+
+    container.querySelectorAll('.btn-entry-up').forEach((button) => {
+        button.addEventListener('click', () => {
+            const index = Number(button.getAttribute('data-entry-index'));
+            const movedTo = moveAuditEntry(index, -1);
+            if (movedTo === null) return;
+            const movedLabel = getAuditEntryDisplayName(movedTo);
+            pendingEntryFocus = { entryIndex: movedTo, fieldIndex: 0 };
+            renderEditor();
+            const announcer = document.getElementById('announcer');
+            if (announcer) announcer.textContent = `Moved before ${movedLabel}`;
+        });
+    });
+
+    container.querySelectorAll('.btn-entry-down').forEach((button) => {
+        button.addEventListener('click', () => {
+            const index = Number(button.getAttribute('data-entry-index'));
+            const movedTo = moveAuditEntry(index, 1);
+            if (movedTo === null) return;
+            const movedLabel = getAuditEntryDisplayName(movedTo);
+            pendingEntryFocus = { entryIndex: movedTo, fieldIndex: 0 };
+            renderEditor();
+            const announcer = document.getElementById('announcer');
+            if (announcer) announcer.textContent = `Moved after ${movedLabel}`;
+        });
+    });
+
+    const deleteDialog = document.getElementById('entry-delete-dialog');
+    const deleteMessage = document.getElementById('entry-delete-message');
+    const deleteConfirm = document.getElementById('btn-entry-delete-confirm');
+    const deleteCancel = document.getElementById('btn-entry-delete-cancel');
+
+    container.querySelectorAll('.btn-entry-delete').forEach((button) => {
+        button.addEventListener('click', () => {
+            const index = Number(button.getAttribute('data-entry-index'));
+            pendingDeleteEntry = { index, triggerId: `entry-delete-trigger-${index}` };
+            button.id = pendingDeleteEntry.triggerId;
+            if (deleteMessage) {
+                deleteMessage.innerHTML = `Are you sure you want to delete the <strong>${escapeHtml(getAuditEntryDisplayName(index))}</strong> entry?<br>This action cannot be undone.`;
+            }
+            if (deleteDialog) {
+                openModalDialog(deleteDialog, deleteConfirm, button);
+            }
+        });
+    });
+
+    const closeDeleteDialog = (restoreFocus) => {
+        closeModalDialog(restoreFocus);
+        pendingDeleteEntry = null;
+    };
+
+    deleteCancel?.addEventListener('click', () => closeDeleteDialog(true));
+
+    deleteConfirm?.addEventListener('click', () => {
+        if (!pendingDeleteEntry) return;
+        const deletedIndex = pendingDeleteEntry.index;
+        deleteAuditEntry(deletedIndex);
+        closeDeleteDialog(false);
+        renderEditor();
+        const nextIndex = Math.min(deletedIndex, Math.max(0, getAuditEntries().length - 1));
+        window.setTimeout(() => {
+            const nextDeleteButton = document.querySelector(`.btn-entry-delete[data-entry-index="${nextIndex}"]`);
+            if (nextDeleteButton) nextDeleteButton.focus();
+        }, 0);
+    });
+
+    container.querySelectorAll('[data-entry-index][data-field-index]').forEach((control) => {
+        if (control.classList.contains('wcag-combobox')) {
+            const entryIndex = Number(control.getAttribute('data-entry-index'));
+            const fieldIndex = Number(control.getAttribute('data-field-index'));
+            attachWcagCombobox(control, criteria, entryIndex, fieldIndex);
+            return;
+        }
+        const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';
+        control.addEventListener(eventName, (event) => {
+            const entryIndex = Number(event.target.getAttribute('data-entry-index'));
+            const fieldIndex = Number(event.target.getAttribute('data-field-index'));
+            updateAuditEntryFieldValue(entryIndex, fieldIndex, event.target.value);
+        });
+    });
+}
+
+function bindEditorDialogEvents() {
+    const editMetadataButton = document.getElementById('btn-edit-metadata');
+    const clearReportButton = document.getElementById('btn-clear-report-data');
+    const metadataDialog = document.getElementById('editor-metadata-dialog');
+    const clearDialog = document.getElementById('editor-clear-dialog');
+    const metadataConfirm = document.getElementById('btn-editor-metadata-confirm');
+    const metadataCancel = document.getElementById('btn-editor-metadata-cancel');
+    const clearConfirm = document.getElementById('btn-editor-clear-confirm');
+    const clearCancel = document.getElementById('btn-editor-clear-cancel');
+    const metadataError = document.getElementById('editor-metadata-dialog-error');
+    const brandingEnabledField = document.getElementById('metadata-field-branding-enabled');
+
+    if (!editMetadataButton || !clearReportButton || !metadataDialog || !clearDialog || !metadataConfirm || !metadataCancel || !clearConfirm || !clearCancel) return;
+
+    const syncMetadataBrandingVisibility = () => {
+        const enabled = Boolean(brandingEnabledField?.checked);
+        metadataDialog.querySelectorAll('[data-branding-extra="true"]').forEach((section) => {
+            section.hidden = !enabled;
+            section.querySelectorAll('input, select, textarea, button').forEach((input) => {
+                input.disabled = !enabled;
+            });
+        });
+    };
+
+    brandingEnabledField?.addEventListener('change', syncMetadataBrandingVisibility);
+    syncMetadataBrandingVisibility();
+
+    editMetadataButton.addEventListener('click', () => {
+        const firstField = metadataDialog.querySelector('[data-metadata-key]');
+        openModalDialog(metadataDialog, firstField, editMetadataButton);
+    });
+
+    clearReportButton.addEventListener('click', () => {
+        const firstRadio = clearDialog.querySelector('input[name="editor-clear-option"]');
+        openModalDialog(clearDialog, firstRadio, clearReportButton);
+    });
+
+    metadataCancel.addEventListener('click', () => closeModalDialog(true));
+    clearCancel.addEventListener('click', () => closeModalDialog(true));
+
+    metadataConfirm.addEventListener('click', () => {
+        const values = {};
+        metadataDialog.querySelectorAll('[data-metadata-key]').forEach((field) => {
+            const key = field.getAttribute('data-metadata-key');
+            if (!key) return;
+            if (field.type === 'checkbox') {
+                values[key] = field.checked;
+                return;
+            }
+            values[key] = field.value;
+        });
+        const draft = buildMetadataDraftFromValues(values);
+        const validation = validateMetadataDraft(draft);
+        if (!validation.isValid) {
+            if (metadataError) metadataError.textContent = validation.message;
+            const altField = metadataDialog.querySelector('[data-metadata-key="branding.logoAltText"]');
+            altField?.focus();
+            return;
+        }
+        applyMetadataDraft(draft);
+        closeModalDialog(false);
+        pendingEditorFocusTargetId = 'btn-edit-metadata';
+        renderEditor();
+    });
+
+    clearConfirm.addEventListener('click', () => {
+        const selected = clearDialog.querySelector('input[name="editor-clear-option"]:checked')?.value || 'content';
+        if (selected === 'everything') {
+            clearReportEverythingInSession();
+            closeModalDialog(false);
+            const builderTab = document.getElementById('tab-builder');
+            if (builderTab) builderTab.click();
+            window.setTimeout(() => {
+                document.getElementById('builder-heading')?.focus();
+            }, 0);
+            return;
+        }
+
+        clearReportContentOnly();
+        closeModalDialog(false);
+        pendingEntryFocus = { entryIndex: 0, fieldIndex: 0 };
+        renderEditor();
+    });
+
+    if (!areModalListenersBound) {
+        document.addEventListener('keydown', trapModalFocus);
+        document.addEventListener('focusin', trapModalFocus);
+        areModalListenersBound = true;
+    }
+}
+
 export async function renderEditor() {
     const container = document.getElementById('main-inner');
     const editorHeading = getEditorHeadingText();
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
+
+    const isAuditLog = appState.reportType === 'Audit Log';
+    if (isAuditLog) ensureAuditEntries();
 
     container.innerHTML = `
         <section id="editor-view">
             <h2 id="editor-heading" tabindex="-1">${escapeHtml(editorHeading)}</h2>
             <p id="editor-select-help" class="sr-only">Use Up and Down arrow keys to review options, then Enter to confirm.</p>
             ${renderMetadataPlainText()}
-            <div class="editor-fields-grid">
-                ${appState.fields.map((field, index) => {
-                    const labelAttrs = isWcagCriterionFieldType(field.type)
-                        ? `id="editor-field-label-${index}"`
-                        : `for="editor-field-${index}"`;
-                    return `
-                        <label ${labelAttrs}>${escapeHtml(field.label)}</label>
-                        ${renderFieldControl(field, index)}
-                    `;
-                }).join('')}
-            </div>
+            <button id="btn-edit-metadata" type="button">Edit Metadata...</button>
+            ${isAuditLog ? renderAuditTable(wcagCriteria) : renderSingleEntryEditor()}
+            <button id="btn-clear-report-data" type="button">Clear Report Data...</button>
+            ${renderMetadataEditDialog()}
+            ${renderClearDialog()}
         </section>
     `;
 
-    container.querySelectorAll('[data-editor-field-index]').forEach((control) => {
-        if (control.classList.contains('wcag-combobox')) {
-            const index = Number(control.getAttribute('data-editor-field-index'));
-            const input = control.querySelector('.wcag-combobox-input');
-            const label = document.getElementById(`editor-field-label-${index}`);
-            if (input && label) {
-                input.setAttribute('aria-labelledby', label.id);
-            }
-            attachWcagCombobox(control, wcagCriteria, index);
-            return;
-        }
-        const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';
-        control.addEventListener(eventName, (event) => {
-            const index = Number(event.target.getAttribute('data-editor-field-index'));
-            updateEditorFieldValue(index, event.target.value);
-        });
-    });
+    const headingAfterRender = document.getElementById('editor-heading');
 
-    const heading = document.getElementById('editor-heading');
-    if (heading) {
+    if (isAuditLog) {
+        bindAuditTableEvents(wcagCriteria);
+        const focusedPending = focusPendingEntryControl();
+        if (headingAfterRender && !focusedPending) {
+            window.setTimeout(() => {
+                headingAfterRender.focus();
+            }, 0);
+        }
+    } else {
+        container.querySelectorAll('[data-entry-index][data-field-index]').forEach((control) => {
+            if (control.classList.contains('wcag-combobox')) {
+                const entryIndex = Number(control.getAttribute('data-entry-index'));
+                const fieldIndex = Number(control.getAttribute('data-field-index'));
+                const label = document.getElementById(`editor-field-label-${fieldIndex}`);
+                const input = control.querySelector('.wcag-combobox-input');
+                if (input && label) input.setAttribute('aria-labelledby', label.id);
+                attachWcagCombobox(control, wcagCriteria, entryIndex, fieldIndex);
+                return;
+            }
+            const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';
+            control.addEventListener(eventName, (event) => {
+                const fieldIndex = Number(event.target.getAttribute('data-field-index'));
+                updateEditorFieldValue(fieldIndex, event.target.value);
+            });
+        });
+    }
+
+    bindEditorDialogEvents();
+
+    if (pendingEditorFocusTargetId) {
+        const target = document.getElementById(pendingEditorFocusTargetId);
+        pendingEditorFocusTargetId = '';
+        if (target) {
+            window.setTimeout(() => {
+                target.focus();
+            }, 0);
+        }
+    } else if (!isAuditLog && headingAfterRender && !pendingEntryFocus) {
         window.setTimeout(() => {
-            heading.focus();
+            headingAfterRender.focus();
         }, 0);
     }
 
-    saveState();
 }

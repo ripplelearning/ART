@@ -1,5 +1,5 @@
 // reportBuilder.js
-import { announce, appState, createUserTemplate, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState } from './state.js';
+import { announce, appState, createUserTemplate, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport } from './state.js';
 import { getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let pendingFocus = null;
@@ -74,7 +74,16 @@ function focusAfterRender() {
     const { index, action } = pendingFocus;
     pendingFocus = null;
 
-    if (action === 'template-name-input' || action === 'choose-template-select' || action === 'template-file-input' || action === 'btn-toggle-config') {
+    if (
+        action === 'template-name-input'
+        || action === 'choose-template-select'
+        || action === 'template-file-input'
+        || action === 'template-option-select'
+        || action === 'report-type-select'
+        || action === 'btn-toggle-config'
+        || action === 'report-layout-select'
+        || action === 'branding-enabled'
+    ) {
         const target = document.getElementById(action);
         if (target) target.focus();
         return;
@@ -186,13 +195,12 @@ export async function renderBuilder() {
                     <select id="standard-select" aria-label="Accessibility Standard" aria-describedby="builder-select-help">
                         <option value="WCAG 2.2" ${appState.standard === 'WCAG 2.2' ? 'selected' : ''}>WCAG 2.2</option>
                         <option value="WCAG 2.1" ${appState.standard === 'WCAG 2.1' ? 'selected' : ''}>WCAG 2.1</option>
-                        <option value="WCAG 2.0" ${appState.standard === 'WCAG 2.0' ? 'selected' : ''}>WCAG 2.0</option>
                     </select>
                 </label>
                 <label>Testing Instructions: <textarea id="testing-instructions">${appState.testingInstructions || ''}</textarea></label>
                 <div>
                     <label for="report-type-select">Report Type</label>
-                    <select id="report-type-select" aria-label="Report Type" aria-describedby="builder-select-help">
+                    <select id="report-type-select" aria-describedby="builder-select-help">
                         <option value="" ${!appState.reportType ? 'selected' : ''}>Select Report Type</option>
                         <option value="Audit Log" ${appState.reportType === 'Audit Log' ? 'selected' : ''}>Audit Log</option>
                         <option value="Executive Summary" ${appState.reportType === 'Executive Summary' ? 'selected' : ''}>Executive Summary</option>
@@ -200,7 +208,7 @@ export async function renderBuilder() {
                 </div>
                 <div>
                     <label for="report-layout-select">Report Layout</label>
-                    <select id="report-layout-select" aria-label="Report Layout" aria-describedby="builder-select-help" ${appState.reportType ? '' : 'disabled'}>
+                    <select id="report-layout-select" aria-describedby="builder-select-help" ${appState.reportType ? '' : 'disabled'}>
                         <option value="" ${!appState.reportLayout ? 'selected' : ''}>Select Report Layout</option>
                         ${selectedLayouts.map((layout) => `<option value="${layout}" ${appState.reportLayout === layout ? 'selected' : ''}>${layout}</option>`).join('')}
                     </select>
@@ -281,11 +289,11 @@ export async function renderBuilder() {
                         ${wcagCriteria.map((criterion) => `<option>${escapeHtml(`${criterion.number} ${criterion.title}`)}</option>`).join('')}
                     </select>
                 </div>
-                <button id="btn-add-field" type="button">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
                 <table>
                     <thead><tr><th scope="col">Field Label</th><th scope="col">Field Type</th><th scope="col">Actions</th></tr></thead>
                     <tbody id="fields-tbody"></tbody>
                 </table>
+                <button id="btn-add-field" type="button">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
                 <div id="delete-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-message" hidden>
                     <p id="delete-confirm-message"></p>
                     <button id="btn-delete-yes" type="button">Yes</button>
@@ -452,12 +460,8 @@ export async function renderBuilder() {
             appState.templateName = '';
             appState.templateDescription = '';
             saveState();
-        });
-        reportTypeSelect.addEventListener('blur', () => renderBuilder());
-        reportTypeSelect.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === 'Tab') {
-                window.setTimeout(() => renderBuilder(), 0);
-            }
+            pendingFocus = { index: null, action: 'report-type-select' };
+            renderBuilder();
         });
     }
 
@@ -466,18 +470,19 @@ export async function renderBuilder() {
         setupSelectAnnouncement(reportLayoutSelect, 'Report Layout');
         reportLayoutSelect.addEventListener('change', (e) => {
             appState.reportLayout = e.target.value;
-            saveState();
-        });
-        const commitReportLayout = () => {
             if (appState.reportLayout !== 'Template') {
                 appState.templateOption = '';
                 appState.templateName = '';
                 appState.templateDescription = '';
+                saveState();
+                pendingFocus = { index: null, action: 'report-layout-select' };
+                renderBuilder();
+                return;
             }
             saveState();
+            pendingFocus = { index: null, action: 'report-layout-select' };
             renderBuilder();
-        };
-        reportLayoutSelect.addEventListener('blur', commitReportLayout);
+        });
     }
 
     const templateOptionSelect = document.getElementById('template-option-select');
@@ -490,20 +495,9 @@ export async function renderBuilder() {
                 appState.templateDescription = '';
             }
             saveState();
-        });
-        const commitTemplateOption = () => {
-            if (appState.templateOption === 'Create Template' || appState.templateOption === 'Create New') {
-                pendingFocus = { index: null, action: 'template-name-input' };
-            } else if (appState.templateOption === 'Choose Template') {
-                pendingFocus = { index: null, action: 'choose-template-select' };
-            } else if (appState.templateOption === 'Upload from File') {
-                pendingFocus = { index: null, action: 'template-file-input' };
-            } else {
-                pendingFocus = { index: null, action: 'btn-toggle-config' };
-            }
+            pendingFocus = { index: null, action: 'template-option-select' };
             renderBuilder();
-        };
-        templateOptionSelect.addEventListener('blur', commitTemplateOption);
+        });
     }
 
     const templateNameInput = document.getElementById('template-name-input');
@@ -611,7 +605,9 @@ export async function renderBuilder() {
             appState.editorUsesReportTitle = true;
             appState.editorReadOnly = false;
             appState.templateEditingId = null;
-            saveState();
+            saveState({ action: 'Completed report configuration' });
+            upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
+            window.dispatchEvent(new Event('art-reports-updated'));
             const editorTab = document.getElementById('tab-editor');
             if (editorTab) editorTab.click();
             const editorHeading = document.getElementById('editor-heading');

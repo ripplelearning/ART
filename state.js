@@ -21,6 +21,10 @@ const defaultState = {
     editorUsesReportTitle: false,
     editorReadOnly: false,
     editorFieldValues: {},
+    auditEntries: [],
+    activeAuditEntryIndex: 0,
+    reports: [],
+    selectedReportId: '',
     userTemplates: [],
     templateEditingId: null,
     templateCreateMode: false,
@@ -57,20 +61,34 @@ const reportDefaults = {
 };
 
 function normalizeBranding(branding) {
+    const toBool = (value) => {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (normalized === 'true') return true;
+            if (normalized === 'false') return false;
+        }
+        return Boolean(value);
+    };
+
     const rawColor = String(branding?.primaryColor || defaultState.branding.primaryColor);
     const safeColor = /^#[0-9a-fA-F]{6}$/.test(rawColor) ? rawColor : defaultState.branding.primaryColor;
 
     return {
         ...defaultState.branding,
         ...(branding && typeof branding === 'object' ? branding : {}),
-        enabled: Boolean(branding?.enabled),
+        enabled: toBool(branding?.enabled),
         headerText: String(branding?.headerText || ''),
         primaryColor: safeColor,
         logoDataUrl: String(branding?.logoDataUrl || ''),
         logoAltText: String(branding?.logoAltText || ''),
-        logoDecorative: Boolean(branding?.logoDecorative),
+        logoDecorative: toBool(branding?.logoDecorative),
         logoFileName: String(branding?.logoFileName || '')
     };
+}
+
+function normalizeStandardValue(value) {
+    return value === 'WCAG 2.1' ? 'WCAG 2.1' : 'WCAG 2.2';
 }
 
 const builtInTemplates = [
@@ -145,6 +163,58 @@ function normalizeEditorFieldValues(values) {
     return normalized;
 }
 
+function createBlankFieldValues(fields) {
+    const values = {};
+    (fields || []).forEach((field, index) => {
+        values[index] = '';
+    });
+    return values;
+}
+
+function normalizeAuditEntry(entry, fields, fallbackId) {
+    const fieldValues = normalizeEditorFieldValues(entry?.fieldValues);
+    const normalizedFieldValues = { ...createBlankFieldValues(fields), ...fieldValues };
+    return {
+        id: String(entry?.id || fallbackId || `entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`),
+        fieldValues: normalizedFieldValues
+    };
+}
+
+function normalizeAuditEntries(entries, fields, legacyEditorValues) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (list.length === 0) {
+        return [normalizeAuditEntry({ fieldValues: normalizeEditorFieldValues(legacyEditorValues) }, fields, 'entry-1')];
+    }
+    return list.map((entry, index) => normalizeAuditEntry(entry, fields, `entry-${index + 1}`));
+}
+
+function normalizeSavedReport(report, index) {
+    const rawData = report?.data && typeof report.data === 'object' ? report.data : {};
+    const fields = Array.isArray(rawData.fields) ? rawData.fields.map(normalizeField) : [];
+    const editorFieldValues = normalizeEditorFieldValues(rawData.editorFieldValues);
+    const auditEntries = normalizeAuditEntries(rawData.auditEntries, fields, editorFieldValues);
+
+    return {
+        id: String(report?.id || `report-${Date.now()}-${index}`),
+        name: String(report?.name || rawData.reportTitle || `Untitled Report ${index + 1}`),
+        updatedAt: Number(report?.updatedAt || Date.now()),
+        data: {
+            ...reportDefaults,
+            ...rawData,
+            branding: normalizeBranding(rawData.branding),
+            fields,
+            editorFieldValues,
+            auditEntries,
+            activeAuditEntryIndex: Number(rawData.activeAuditEntryIndex || 0)
+        }
+    };
+}
+
+function normalizeReports(reports) {
+    if (!Array.isArray(reports)) return [];
+    return reports.map(normalizeSavedReport);
+}
+
 function normalizeTemplate(template) {
     return {
         id: template?.id || `user-${Date.now()}`,
@@ -162,16 +232,219 @@ function normalizeTemplate(template) {
 
 // Initializing the application state from local storage or defaults
 const storedState = JSON.parse(localStorage.getItem('art-state')) || {};
+const normalizedInitialFields = Array.isArray(storedState.fields) ? storedState.fields.map(normalizeField) : [];
+const normalizedInitialEditorValues = normalizeEditorFieldValues(storedState.editorFieldValues);
 export let appState = {
     ...defaultState,
     ...storedState,
+    standard: normalizeStandardValue(storedState.standard),
     branding: normalizeBranding(storedState.branding),
-    fields: Array.isArray(storedState.fields) ? storedState.fields.map(normalizeField) : [],
-    editorFieldValues: normalizeEditorFieldValues(storedState.editorFieldValues),
+    fields: normalizedInitialFields,
+    editorFieldValues: normalizedInitialEditorValues,
+    auditEntries: normalizeAuditEntries(storedState.auditEntries, normalizedInitialFields, normalizedInitialEditorValues),
+    reports: normalizeReports(storedState.reports),
+    selectedReportId: String(storedState.selectedReportId || ''),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
         : []
 };
+
+function normalizeStateSnapshot(rawState) {
+    const base = {
+        ...defaultState,
+        ...(rawState || {})
+    };
+    const fields = Array.isArray(base.fields) ? base.fields.map(normalizeField) : [];
+    const editorFieldValues = normalizeEditorFieldValues(base.editorFieldValues);
+    return {
+        ...base,
+        branding: normalizeBranding(base.branding),
+        standard: normalizeStandardValue(base.standard),
+        fields,
+        editorFieldValues,
+        auditEntries: normalizeAuditEntries(base.auditEntries, fields, editorFieldValues),
+        reports: normalizeReports(base.reports),
+        selectedReportId: String(base.selectedReportId || ''),
+        userTemplates: Array.isArray(base.userTemplates)
+            ? base.userTemplates.map(normalizeTemplate)
+            : []
+    };
+}
+
+let isHistoryRestoreInProgress = false;
+let pendingHistoryAction = 'Updated report state';
+let lastSavedSnapshot = JSON.stringify(appState);
+const undoStack = [];
+const redoStack = [];
+const MAX_HISTORY_ENTRIES = 100;
+
+function pushUndoSnapshot(previousSnapshot) {
+    undoStack.push({
+        snapshot: previousSnapshot,
+        action: pendingHistoryAction
+    });
+    if (undoStack.length > MAX_HISTORY_ENTRIES) undoStack.shift();
+}
+
+function persistCurrentState() {
+    localStorage.setItem('art-state', JSON.stringify(appState));
+}
+
+function setAppStateFromSnapshot(snapshot) {
+    const parsed = typeof snapshot === 'string' ? JSON.parse(snapshot) : snapshot;
+    appState = normalizeStateSnapshot(parsed);
+    lastSavedSnapshot = JSON.stringify(appState);
+    persistCurrentState();
+    window.dispatchEvent(new CustomEvent('art-state-restored'));
+}
+
+function getCurrentReportSnapshotData() {
+    return {
+        reportTitle: appState.reportTitle,
+        orgClient: appState.orgClient,
+        projectName: appState.projectName,
+        scopeUrl: appState.scopeUrl,
+        auditDateStart: appState.auditDateStart,
+        auditDateEnd: appState.auditDateEnd,
+        auditors: appState.auditors,
+        standard: appState.standard,
+        testingInstructions: appState.testingInstructions,
+        reportType: appState.reportType,
+        reportLayout: appState.reportLayout,
+        templateOption: appState.templateOption,
+        templateName: appState.templateName,
+        templateDescription: appState.templateDescription,
+        branding: normalizeBranding(appState.branding),
+        fields: appState.fields.map((field) => normalizeField(field)),
+        editorFieldValues: normalizeEditorFieldValues(appState.editorFieldValues),
+        auditEntries: normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues),
+        activeAuditEntryIndex: Number(appState.activeAuditEntryIndex || 0)
+    };
+}
+
+function getUniqueReportName(baseName) {
+    const safeBase = String(baseName || 'Untitled Report').trim() || 'Untitled Report';
+    const existing = new Set((appState.reports || []).map((report) => String(report.name || '').toLowerCase()));
+    if (!existing.has(safeBase.toLowerCase())) return safeBase;
+    let suffix = 2;
+    let candidate = `${safeBase} (${suffix})`;
+    while (existing.has(candidate.toLowerCase())) {
+        suffix += 1;
+        candidate = `${safeBase} (${suffix})`;
+    }
+    return candidate;
+}
+
+function getReportDisplayName() {
+    return String(appState.reportTitle || appState.templateName || 'Untitled Report').trim() || 'Untitled Report';
+}
+
+function getDefaultMetadataObject() {
+    return {
+        reportTitle: defaultState.reportTitle,
+        orgClient: defaultState.orgClient,
+        projectName: defaultState.projectName,
+        scopeUrl: defaultState.scopeUrl,
+        auditDateStart: defaultState.auditDateStart,
+        auditDateEnd: defaultState.auditDateEnd,
+        auditors: defaultState.auditors,
+        standard: defaultState.standard,
+        testingInstructions: defaultState.testingInstructions,
+        branding: normalizeBranding(defaultState.branding)
+    };
+}
+
+function keyToLabel(key) {
+    const map = {
+        reportTitle: 'Report Title',
+        orgClient: 'Organization/Client',
+        projectName: 'Project Name',
+        scopeUrl: 'URL / Scope',
+        auditDateStart: 'Audit Start',
+        auditDateEnd: 'Audit End',
+        auditors: 'Auditor(s)',
+        standard: 'Accessibility Standard',
+        testingInstructions: 'Testing Instructions',
+        branding: 'Branding',
+        enabled: 'Enable Branding',
+        headerText: 'Brand Header Text',
+        primaryColor: 'Primary Brand Color',
+        logoDataUrl: 'Brand Logo (Data URL)',
+        logoAltText: 'Logo Alternative Text',
+        logoDecorative: 'Logo Is Decorative',
+        logoFileName: 'Logo File Name'
+    };
+    if (map[key]) return map[key];
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+}
+
+function flattenMetadataObject(value, path = []) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return [{ path, value }];
+    }
+    return Object.entries(value).flatMap(([key, next]) => flattenMetadataObject(next, [...path, key]));
+}
+
+function setObjectPath(target, path, value) {
+    if (path.length === 0) return;
+    let ref = target;
+    for (let i = 0; i < path.length - 1; i += 1) {
+        const segment = path[i];
+        if (!ref[segment] || typeof ref[segment] !== 'object') ref[segment] = {};
+        ref = ref[segment];
+    }
+    ref[path[path.length - 1]] = value;
+}
+
+function castMetadataValue(path, value) {
+    const key = path.join('.');
+    if (key === 'standard') return normalizeStandardValue(String(value || defaultState.standard));
+    if (key === 'branding.enabled' || key === 'branding.logoDecorative') {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (normalized === 'true') return true;
+            if (normalized === 'false') return false;
+        }
+        return Boolean(value);
+    }
+    if (key === 'auditDateStart' || key === 'auditDateEnd') return String(value || '');
+    return String(value || '');
+}
+
+function syncSelectedReportSnapshot() {
+    if (!appState.selectedReportId) return;
+    const index = (appState.reports || []).findIndex((report) => report.id === appState.selectedReportId);
+    if (index < 0) return;
+    appState.reports[index] = {
+        ...appState.reports[index],
+        name: getReportDisplayName(),
+        updatedAt: Date.now(),
+        data: getCurrentReportSnapshotData()
+    };
+}
+
+function syncEditorValuesFromActiveEntry() {
+    const activeEntry = appState.auditEntries[appState.activeAuditEntryIndex] || appState.auditEntries[0];
+    appState.editorFieldValues = normalizeEditorFieldValues(activeEntry?.fieldValues || createBlankFieldValues(appState.fields));
+}
+
+function syncAuditEntriesFromEditorValues() {
+    if (!Array.isArray(appState.auditEntries) || appState.auditEntries.length === 0) {
+        appState.auditEntries = normalizeAuditEntries([], appState.fields, appState.editorFieldValues);
+    }
+    if (appState.activeAuditEntryIndex < 0 || appState.activeAuditEntryIndex >= appState.auditEntries.length) {
+        appState.activeAuditEntryIndex = 0;
+    }
+    const activeEntry = appState.auditEntries[appState.activeAuditEntryIndex];
+    if (activeEntry) {
+        activeEntry.fieldValues = {
+            ...createBlankFieldValues(appState.fields),
+            ...normalizeEditorFieldValues(activeEntry.fieldValues),
+            ...normalizeEditorFieldValues(appState.editorFieldValues)
+        };
+    }
+}
 
 export function getBuiltInTemplates() {
     return builtInTemplates.map(normalizeTemplate);
@@ -220,15 +493,17 @@ function applyReportData(data) {
     Object.assign(appState, normalized, {
         editingIndex: -1,
         editorReadOnly: false,
-        editorFieldValues: {}
+        editorFieldValues: {},
+        auditEntries: normalizeAuditEntries([], normalized.fields, {}),
+        activeAuditEntryIndex: 0
     });
-    saveState();
+    saveState({ action: 'Applied report configuration' });
 }
 
 export function resetReportToBlank() {
     applyReportData(reportDefaults);
     appState.templateEditingId = null;
-    saveState();
+    saveState({ action: 'Reset report to blank' });
 }
 
 export function loadTemplate(templateId) {
@@ -236,7 +511,7 @@ export function loadTemplate(templateId) {
     if (!template) return null;
     applyReportData(template.data);
     appState.templateEditingId = null;
-    saveState();
+    saveState({ action: `Loaded template ${template.name}` });
     return template;
 }
 
@@ -250,7 +525,7 @@ export function createUserTemplate(name, templateData) {
         data: templateData || captureCurrentReportData()
     });
     appState.userTemplates.push(template);
-    saveState();
+    saveState({ action: `Created template ${template.name}` });
     return template;
 }
 
@@ -264,7 +539,7 @@ export function deleteUserTemplate(templateId) {
     const idx = appState.userTemplates.findIndex((template) => template.id === templateId);
     if (idx < 0) return null;
     const removed = appState.userTemplates.splice(idx, 1)[0];
-    saveState();
+    saveState({ action: `Deleted template ${removed.name}` });
     return removed;
 }
 
@@ -282,7 +557,7 @@ export function saveCurrentReportToUserTemplate(templateId) {
         data: captureCurrentReportData()
     });
     appState.userTemplates[idx] = updatedTemplate;
-    saveState();
+    saveState({ action: `Saved template ${updatedTemplate.name}` });
     return updatedTemplate;
 }
 
@@ -374,26 +649,401 @@ export function importArtJsonPayload(input) {
 
     const rawState = validation.payload.reportState || {};
 
-    appState = {
-        ...defaultState,
-        ...rawState,
-        branding: normalizeBranding(rawState.branding),
-        fields: Array.isArray(rawState.fields) ? rawState.fields.map(normalizeField) : [],
-        editorFieldValues: normalizeEditorFieldValues(rawState.editorFieldValues),
-        userTemplates: Array.isArray(rawState.userTemplates)
-            ? rawState.userTemplates.map(normalizeTemplate)
-            : []
-    };
-
-    saveState();
+    appState = normalizeStateSnapshot(rawState);
+    saveState({ action: `Imported report ${appState.reportTitle || 'Untitled Report'}` });
     return validation;
 }
 
 /**
  * Persists current state to local browser storage.
  */
-export function saveState() {
-    localStorage.setItem('art-state', JSON.stringify(appState));
+export function saveState(options = {}) {
+    const action = String(options.action || pendingHistoryAction || 'Updated report state');
+    const shouldRecordHistory = options.recordHistory !== false;
+    syncSelectedReportSnapshot();
+    const nextSnapshot = JSON.stringify(appState);
+
+    if (shouldRecordHistory && !isHistoryRestoreInProgress && nextSnapshot !== lastSavedSnapshot) {
+        pendingHistoryAction = action;
+        pushUndoSnapshot(lastSavedSnapshot);
+        redoStack.length = 0;
+    }
+
+    lastSavedSnapshot = nextSnapshot;
+    persistCurrentState();
+}
+
+export function setHistoryAction(action) {
+    pendingHistoryAction = String(action || 'Updated report state');
+}
+
+export function undoState() {
+    if (undoStack.length === 0) {
+        announce('Nothing to undo.');
+        return false;
+    }
+
+    const currentSnapshot = JSON.stringify(appState);
+    const item = undoStack.pop();
+    redoStack.push({ snapshot: currentSnapshot, action: item.action });
+
+    isHistoryRestoreInProgress = true;
+    try {
+        setAppStateFromSnapshot(item.snapshot);
+    } finally {
+        isHistoryRestoreInProgress = false;
+    }
+
+    announce(`Undo: ${item.action}.`);
+    return true;
+}
+
+export function redoState() {
+    if (redoStack.length === 0) {
+        announce('Nothing to redo.');
+        return false;
+    }
+
+    const currentSnapshot = JSON.stringify(appState);
+    const item = redoStack.pop();
+    undoStack.push({ snapshot: currentSnapshot, action: item.action });
+
+    isHistoryRestoreInProgress = true;
+    try {
+        setAppStateFromSnapshot(item.snapshot);
+    } finally {
+        isHistoryRestoreInProgress = false;
+    }
+
+    announce(`Redo: ${item.action}.`);
+    return true;
+}
+
+export function getRecentReports() {
+    return [...(appState.reports || [])].sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+}
+
+export function getMetadataDescriptors() {
+    const metadata = getDefaultMetadataObject();
+    return flattenMetadataObject(metadata)
+        .filter((item) => item.path[0] !== 'branding' || item.path.length <= 2)
+        .map((item) => {
+            const keyPath = item.path.join('.');
+            const currentValue = item.path.reduce((acc, part) => acc?.[part], appState);
+            const inputType = keyPath === 'auditDateStart' || keyPath === 'auditDateEnd'
+                ? 'date'
+                : keyPath === 'testingInstructions'
+                    ? 'textarea'
+                    : keyPath === 'standard'
+                        ? 'select'
+                        : keyPath === 'branding.enabled' || keyPath === 'branding.logoDecorative'
+                            ? 'checkbox'
+                            : keyPath === 'branding.primaryColor'
+                                ? 'color'
+                                : 'text';
+
+            return {
+                keyPath,
+                path: item.path,
+                label: keyToLabel(item.path[item.path.length - 1]),
+                groupLabel: item.path.length > 1 ? keyToLabel(item.path[0]) : 'Report Metadata',
+                inputType,
+                value: currentValue ?? item.value,
+                options: keyPath === 'standard'
+                    ? ['WCAG 2.2', 'WCAG 2.1']
+                    : []
+            };
+        });
+}
+
+export function validateMetadataDraft(draft) {
+    const brandingDraft = normalizeBranding(draft?.branding || appState.branding);
+    if (brandingDraft.enabled && brandingDraft.logoDataUrl && !brandingDraft.logoDecorative && !String(brandingDraft.logoAltText || '').trim()) {
+        return {
+            isValid: false,
+            message: 'Logo alternative text is required when logo is not decorative.'
+        };
+    }
+    return { isValid: true, message: '' };
+}
+
+export function applyMetadataDraft(draft) {
+    const normalizedDraft = {
+        ...getDefaultMetadataObject(),
+        ...(draft || {}),
+        branding: normalizeBranding(draft?.branding || appState.branding)
+    };
+
+    appState.reportTitle = String(normalizedDraft.reportTitle || '');
+    appState.orgClient = String(normalizedDraft.orgClient || '');
+    appState.projectName = String(normalizedDraft.projectName || '');
+    appState.scopeUrl = String(normalizedDraft.scopeUrl || '');
+    appState.auditDateStart = String(normalizedDraft.auditDateStart || '');
+    appState.auditDateEnd = String(normalizedDraft.auditDateEnd || '');
+    appState.auditors = String(normalizedDraft.auditors || '');
+    appState.standard = normalizeStandardValue(normalizedDraft.standard || defaultState.standard);
+    appState.testingInstructions = String(normalizedDraft.testingInstructions || '');
+    appState.branding = normalizeBranding(normalizedDraft.branding);
+
+    saveState({ action: 'Updated report metadata' });
+    window.dispatchEvent(new CustomEvent('art-standard-changed', {
+        detail: { standard: appState.standard }
+    }));
+    window.dispatchEvent(new Event('art-reports-updated'));
+}
+
+export function buildMetadataDraftFromValues(values) {
+    const draft = getDefaultMetadataObject();
+    Object.entries(values || {}).forEach(([keyPath, rawValue]) => {
+        const path = keyPath.split('.').filter(Boolean);
+        if (path.length === 0) return;
+        setObjectPath(draft, path, castMetadataValue(path, rawValue));
+    });
+    draft.branding = normalizeBranding(draft.branding);
+    return draft;
+}
+
+export function clearReportContentOnly() {
+    appState.editorFieldValues = {};
+    appState.auditEntries = [];
+    appState.activeAuditEntryIndex = 0;
+    saveState({ action: 'Cleared report content' });
+    window.dispatchEvent(new Event('art-reports-updated'));
+}
+
+export function clearReportEverythingInSession() {
+    const metadataDefaults = getDefaultMetadataObject();
+    appState.reportTitle = metadataDefaults.reportTitle;
+    appState.orgClient = metadataDefaults.orgClient;
+    appState.projectName = metadataDefaults.projectName;
+    appState.scopeUrl = metadataDefaults.scopeUrl;
+    appState.auditDateStart = metadataDefaults.auditDateStart;
+    appState.auditDateEnd = metadataDefaults.auditDateEnd;
+    appState.auditors = metadataDefaults.auditors;
+    appState.standard = metadataDefaults.standard;
+    appState.testingInstructions = metadataDefaults.testingInstructions;
+    appState.reportType = defaultState.reportType;
+    appState.reportLayout = defaultState.reportLayout;
+    appState.templateOption = defaultState.templateOption;
+    appState.templateName = defaultState.templateName;
+    appState.templateDescription = defaultState.templateDescription;
+    appState.fields = [];
+    appState.editorFieldValues = {};
+    appState.auditEntries = [];
+    appState.activeAuditEntryIndex = 0;
+    appState.fieldsExpanded = false;
+    appState.branding = normalizeBranding(defaultState.branding);
+    appState.editingIndex = -1;
+
+    saveState({ action: 'Cleared report configuration and content' });
+    window.dispatchEvent(new Event('art-reports-updated'));
+}
+
+export function getReportById(reportId) {
+    return (appState.reports || []).find((report) => report.id === reportId) || null;
+}
+
+export function upsertCurrentReport(options = {}) {
+    const preferredName = String(options.name || getReportDisplayName()).trim();
+    const reportName = preferredName || 'Untitled Report';
+    const reportData = getCurrentReportSnapshotData();
+    const selected = appState.selectedReportId ? getReportById(appState.selectedReportId) : null;
+    const reportId = selected?.id || `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const existingIndex = (appState.reports || []).findIndex((report) => report.id === reportId);
+
+    const snapshot = {
+        id: reportId,
+        name: reportName,
+        updatedAt: Date.now(),
+        data: reportData
+    };
+
+    if (existingIndex >= 0) {
+        appState.reports[existingIndex] = snapshot;
+    } else {
+        appState.reports.push(snapshot);
+    }
+
+    appState.selectedReportId = reportId;
+    saveState({ action: `Saved report ${reportName}` });
+    window.dispatchEvent(new Event('art-reports-updated'));
+    return snapshot;
+}
+
+export function loadReportById(reportId) {
+    const report = getReportById(reportId);
+    if (!report) return null;
+
+    const mergedState = normalizeStateSnapshot({
+        ...appState,
+        ...report.data,
+        selectedReportId: report.id
+    });
+    appState = mergedState;
+    syncEditorValuesFromActiveEntry();
+    saveState({ action: `Loaded report ${report.name}`, recordHistory: false });
+    return report;
+}
+
+export function deleteReportById(reportId) {
+    const index = (appState.reports || []).findIndex((report) => report.id === reportId);
+    if (index < 0) return null;
+    const [removed] = appState.reports.splice(index, 1);
+    if (appState.selectedReportId === removed.id) {
+        appState.selectedReportId = appState.reports[0]?.id || '';
+    }
+    saveState({ action: `Deleted report ${removed.name}` });
+    window.dispatchEvent(new Event('art-reports-updated'));
+    return removed;
+}
+
+export function reportNameExists(name) {
+    const normalized = String(name || '').trim().toLowerCase();
+    if (!normalized) return false;
+    return (appState.reports || []).some((report) => String(report.name || '').trim().toLowerCase() === normalized);
+}
+
+export function importReportWithConflictStrategy(reportState, strategy) {
+    const normalizedImport = normalizeStateSnapshot(reportState);
+    const importName = String(normalizedImport.reportTitle || 'Untitled Report').trim() || 'Untitled Report';
+    const reports = appState.reports || [];
+    const sameNameIndex = reports.findIndex((report) => String(report.name || '').trim().toLowerCase() === importName.toLowerCase());
+
+    let targetName = importName;
+    let targetId = '';
+
+    if (sameNameIndex >= 0) {
+        if (strategy === 'replace') {
+            targetId = reports[sameNameIndex].id;
+        } else if (strategy === 'copy') {
+            targetName = getUniqueReportName(importName);
+        } else {
+            return null;
+        }
+    }
+
+    const snapshot = {
+        id: targetId || `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: targetName,
+        updatedAt: Date.now(),
+        data: getCurrentReportSnapshotData()
+    };
+
+    const mergedState = normalizeStateSnapshot({
+        ...appState,
+        ...normalizedImport,
+        reportTitle: targetName,
+        selectedReportId: snapshot.id
+    });
+    appState = mergedState;
+    syncEditorValuesFromActiveEntry();
+
+    const existingIndex = reports.findIndex((report) => report.id === snapshot.id);
+    const savedSnapshot = {
+        ...snapshot,
+        data: getCurrentReportSnapshotData()
+    };
+
+    if (existingIndex >= 0) {
+        appState.reports[existingIndex] = savedSnapshot;
+    } else {
+        appState.reports.push(savedSnapshot);
+    }
+
+    saveState({ action: `Imported report ${targetName}` });
+    window.dispatchEvent(new Event('art-reports-updated'));
+    return savedSnapshot;
+}
+
+export function ensureAuditEntries() {
+    appState.auditEntries = normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues);
+    if (appState.activeAuditEntryIndex < 0 || appState.activeAuditEntryIndex >= appState.auditEntries.length) {
+        appState.activeAuditEntryIndex = 0;
+    }
+    syncEditorValuesFromActiveEntry();
+}
+
+export function addAuditEntry() {
+    ensureAuditEntries();
+    const newEntry = normalizeAuditEntry({ fieldValues: createBlankFieldValues(appState.fields) }, appState.fields);
+    appState.auditEntries.push(newEntry);
+    appState.activeAuditEntryIndex = appState.auditEntries.length - 1;
+    syncEditorValuesFromActiveEntry();
+    saveState({ action: 'Added audit entry' });
+    return appState.activeAuditEntryIndex;
+}
+
+export function setActiveAuditEntryIndex(index) {
+    if (!Array.isArray(appState.auditEntries) || appState.auditEntries.length === 0) {
+        ensureAuditEntries();
+    }
+    const safeIndex = Math.max(0, Math.min(Number(index || 0), appState.auditEntries.length - 1));
+    appState.activeAuditEntryIndex = safeIndex;
+    syncEditorValuesFromActiveEntry();
+    saveState({ action: 'Changed active audit entry', recordHistory: false });
+}
+
+export function updateAuditEntryFieldValue(entryIndex, fieldIndex, value) {
+    ensureAuditEntries();
+    const entry = appState.auditEntries[entryIndex];
+    if (!entry) return;
+    entry.fieldValues[fieldIndex] = normalizeEditorFieldValue(value);
+    if (entryIndex === appState.activeAuditEntryIndex) {
+        appState.editorFieldValues[fieldIndex] = normalizeEditorFieldValue(value);
+    }
+    saveState({ action: 'Updated audit entry content' });
+}
+
+export function moveAuditEntry(entryIndex, direction) {
+    ensureAuditEntries();
+    const from = Number(entryIndex);
+    const to = from + Number(direction);
+    if (from < 0 || from >= appState.auditEntries.length || to < 0 || to >= appState.auditEntries.length) return null;
+
+    const moved = appState.auditEntries.splice(from, 1)[0];
+    appState.auditEntries.splice(to, 0, moved);
+    if (appState.activeAuditEntryIndex === from) {
+        appState.activeAuditEntryIndex = to;
+    } else if (from < appState.activeAuditEntryIndex && to >= appState.activeAuditEntryIndex) {
+        appState.activeAuditEntryIndex -= 1;
+    } else if (from > appState.activeAuditEntryIndex && to <= appState.activeAuditEntryIndex) {
+        appState.activeAuditEntryIndex += 1;
+    }
+    syncEditorValuesFromActiveEntry();
+    saveState({ action: 'Moved audit entry' });
+    return to;
+}
+
+export function deleteAuditEntry(entryIndex) {
+    ensureAuditEntries();
+    const index = Number(entryIndex);
+    if (index < 0 || index >= appState.auditEntries.length) return null;
+    const [removed] = appState.auditEntries.splice(index, 1);
+    if (appState.auditEntries.length === 0) {
+        appState.auditEntries = normalizeAuditEntries([], appState.fields, {});
+    }
+    if (appState.activeAuditEntryIndex >= appState.auditEntries.length) {
+        appState.activeAuditEntryIndex = appState.auditEntries.length - 1;
+    }
+    syncEditorValuesFromActiveEntry();
+    saveState({ action: 'Deleted audit entry' });
+    return removed;
+}
+
+export function getAuditEntries() {
+    ensureAuditEntries();
+    return appState.auditEntries;
+}
+
+export function getAuditEntryDisplayName(entryIndex) {
+    ensureAuditEntries();
+    const entry = appState.auditEntries[entryIndex];
+    if (!entry) return `Entry ${entryIndex + 1}`;
+    const firstField = appState.fields?.[0];
+    const firstValue = String(entry.fieldValues?.[0] || '').trim();
+    if (firstValue) return firstValue;
+    if (firstField?.label) return `${firstField.label} ${entryIndex + 1}`;
+    return `Entry ${entryIndex + 1}`;
 }
 
 /**
@@ -415,7 +1065,7 @@ export function announce(msg) {
  */
 export function updateHeader(key, val) {
     appState[key] = val;
-    saveState();
+    saveState({ action: `Updated ${key}` });
 }
 
 /**
@@ -423,7 +1073,10 @@ export function updateHeader(key, val) {
  */
 export function updateEditorFieldValue(index, value) {
     appState.editorFieldValues[index] = value;
-    saveState();
+    if (appState.reportType === 'Audit Log') {
+        syncAuditEntriesFromEditorValues();
+    }
+    saveState({ action: 'Updated report content' });
 }
 
 // --- Field Management Logic ---
@@ -451,15 +1104,17 @@ export function addOrUpdateField() {
     if (appState.editingIndex === -1) {
         // Add new field
         appState.fields.push(fieldData);
+        appState.auditEntries = normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues);
         announce(`Added field ${labelInput.value}`);
     } else {
         // Update existing field
         appState.fields[appState.editingIndex] = fieldData;
         appState.editingIndex = -1; // Reset mode
+        appState.auditEntries = normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues);
         announce("Field updated");
     }
     
-    saveState();
+    saveState({ action: `Updated report field ${labelInput.value}` });
 }
 
 /**
@@ -477,7 +1132,8 @@ export function setEditMode(index) {
  */
 export function deleteField(index) {
     const removed = appState.fields.splice(index, 1);
-    saveState();
+    appState.auditEntries = normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues);
+    saveState({ action: `Deleted report field ${removed[0].label}` });
     announce(`Deleted ${removed[0].label}`);
 }
 
@@ -493,7 +1149,8 @@ export function moveField(index, direction) {
     
     const field = appState.fields.splice(index, 1)[0];
     appState.fields.splice(newIdx, 0, field);
-    saveState();
+    appState.auditEntries = normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues);
+    saveState({ action: `Moved report field ${field.label}` });
     announce(`Moved ${direction < 0 ? 'before' : 'after'} ${referenceLabel}`);
     return newIdx;
 }

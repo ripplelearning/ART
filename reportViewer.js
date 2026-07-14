@@ -61,10 +61,17 @@ function getFieldRows() {
     return getResolvedFieldEntries(false).map((entry) => [entry.label, entry.exportText]);
 }
 
-function getResolvedFieldEntries(hideEmpty = true) {
+function getAuditEntriesList() {
+    if (Array.isArray(appState.auditEntries) && appState.auditEntries.length > 0) {
+        return appState.auditEntries;
+    }
+    return [{ id: 'entry-1', fieldValues: appState.editorFieldValues || {} }];
+}
+
+function getResolvedFieldEntriesForValues(fieldValues, hideEmpty = true) {
     return (appState.fields || []).map((field, index) => {
         const type = normalizeFieldType(field.type);
-        const rawValue = appState.editorFieldValues?.[index] ?? '';
+        const rawValue = fieldValues?.[index] ?? '';
         const label = String(field.label || `Field ${index + 1}`);
 
         if (isWcagCriterionFieldType(type)) {
@@ -98,18 +105,38 @@ function getResolvedFieldEntries(hideEmpty = true) {
     }).filter((entry) => !hideEmpty || !entry.isEmpty);
 }
 
+function getAuditEntryGroups(hideEmpty = true) {
+    return getAuditEntriesList().map((auditEntry, entryIndex) => ({
+        entryIndex,
+        title: String(auditEntry?.fieldValues?.[0] || '').trim() || `Entry ${entryIndex + 1}`,
+        entries: getResolvedFieldEntriesForValues(auditEntry?.fieldValues || {}, hideEmpty)
+    }));
+}
+
+function getResolvedFieldEntries(hideEmpty = true) {
+    return getResolvedFieldEntriesForValues(appState.editorFieldValues || {}, hideEmpty);
+}
+
 function buildTextSummary() {
     const metadataRows = getMetadataRows();
     const brandingText = getBrandingTextLines().join('\n');
 
     const brandingSection = brandingText ? `${brandingText}\n\n` : '';
     const metadataText = metadataRows.map(([label, value]) => `${label}: ${value}`).join('\n');
-    const fieldsText = getResolvedFieldEntries(false).map((entry) => {
-        if (entry.url) {
-            return `${entry.label}: ${entry.displayText}\n${entry.url}`;
-        }
-        return `${entry.label}: ${entry.exportText}`;
-    }).join('\n');
+    const fieldsText = appState.reportType === 'Audit Log'
+        ? getAuditEntryGroups(false).map((group) => {
+            const content = group.entries.map((entry) => {
+                if (entry.url) return `${entry.label}: ${entry.displayText}\n${entry.url}`;
+                return `${entry.label}: ${entry.exportText}`;
+            }).join('\n');
+            return `${group.title}\n${content}`;
+        }).join('\n\n')
+        : getResolvedFieldEntries(false).map((entry) => {
+            if (entry.url) {
+                return `${entry.label}: ${entry.displayText}\n${entry.url}`;
+            }
+            return `${entry.label}: ${entry.exportText}`;
+        }).join('\n');
 
     return `${brandingSection}${metadataText}\n\nFields\n${fieldsText}`.trim();
 }
@@ -122,12 +149,17 @@ function buildMarkdownSummary() {
         ? `## Branding\n${brandingLines.map((line) => `- ${line}`).join('\n')}\n\n`
         : '';
     const metadataMd = metadataRows.map(([label, value]) => `- **${label}:** ${String(value)}`).join('\n');
-    const fieldsMd = getResolvedFieldEntries(false).map((entry) => {
-        if (entry.url) {
-            return `- **${entry.label}:** [${entry.displayText}](${entry.url})`;
-        }
-        return `- **${entry.label}:** ${entry.exportText}`;
-    }).join('\n');
+    const fieldsMd = appState.reportType === 'Audit Log'
+        ? getAuditEntryGroups(false).map((group) => `### ${group.title}\n${group.entries.map((entry) => {
+            if (entry.url) return `- **${entry.label}:** [${entry.displayText}](${entry.url})`;
+            return `- **${entry.label}:** ${entry.exportText}`;
+        }).join('\n')}`).join('\n\n')
+        : getResolvedFieldEntries(false).map((entry) => {
+            if (entry.url) {
+                return `- **${entry.label}:** [${entry.displayText}](${entry.url})`;
+            }
+            return `- **${entry.label}:** ${entry.exportText}`;
+        }).join('\n');
 
     return `# ${appState.reportTitle || 'Report'}\n\n${brandingMd}## Metadata\n${metadataMd}\n\n## Fields\n${fieldsMd}`;
 }
@@ -140,14 +172,21 @@ function buildHtmlSummary() {
     const metadataItems = metadataRows
         .map(([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`)
         .join('');
-    const fieldItems = getResolvedFieldEntries(false)
-        .map((entry) => {
+    const fieldItems = appState.reportType === 'Audit Log'
+        ? getAuditEntryGroups(false).map((group) => `<li><strong>${escapeHtml(group.title)}</strong><ul>${group.entries.map((entry) => {
             if (entry.url) {
                 return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener">${escapeHtml(entry.displayText)}</a></li>`;
             }
             return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
-        })
-        .join('');
+        }).join('')}</ul></li>`).join('')
+        : getResolvedFieldEntries(false)
+            .map((entry) => {
+                if (entry.url) {
+                    return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener">${escapeHtml(entry.displayText)}</a></li>`;
+                }
+                return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
+            })
+            .join('');
         const brandingBlock = branding.enabled ? `
     <section aria-label="Branding">
         <h2>Branding</h2>
@@ -183,12 +222,22 @@ function buildRtfSummary() {
     const branding = getBrandingTextLines().map((line) => escapeRtf(line)).join('\\line ');
     const brandingBlock = branding ? `Branding\\line ${branding}\\line\\line ` : '';
     const metadata = getMetadataRows().map(([label, value]) => `${escapeRtf(label)}: ${escapeRtf(value)}`).join('\\line ');
-    const fields = getResolvedFieldEntries(false).map((entry) => {
-        if (entry.url) {
-            return `${escapeRtf(entry.label)}: {\\field{\\*\\fldinst HYPERLINK "${escapeRtf(entry.url)}"}{\\fldrslt ${escapeRtf(entry.displayText)}}}`;
-        }
-        return `${escapeRtf(entry.label)}: ${escapeRtf(entry.exportText)}`;
-    }).join('\\line ');
+    const fields = appState.reportType === 'Audit Log'
+        ? getAuditEntryGroups(false).map((group) => {
+            const fieldText = group.entries.map((entry) => {
+                if (entry.url) {
+                    return `${escapeRtf(entry.label)}: {\\field{\\*\\fldinst HYPERLINK "${escapeRtf(entry.url)}"}{\\fldrslt ${escapeRtf(entry.displayText)}}}`;
+                }
+                return `${escapeRtf(entry.label)}: ${escapeRtf(entry.exportText)}`;
+            }).join('\\line ');
+            return `${escapeRtf(group.title)}\\line ${fieldText}`;
+        }).join('\\line \\line ')
+        : getResolvedFieldEntries(false).map((entry) => {
+            if (entry.url) {
+                return `${escapeRtf(entry.label)}: {\\field{\\*\\fldinst HYPERLINK "${escapeRtf(entry.url)}"}{\\fldrslt ${escapeRtf(entry.displayText)}}}`;
+            }
+            return `${escapeRtf(entry.label)}: ${escapeRtf(entry.exportText)}`;
+        }).join('\\line ');
 
     return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\f0\\fs22\\b ${title}\\b0\\line\\line ${brandingBlock}Metadata\\line ${metadata}\\line\\line Fields\\line ${fields}}`;
 }
@@ -258,14 +307,27 @@ function buildDocxDocumentXml() {
     paragraphs.push(metadataTable);
     paragraphs.push(makeParagraph('', 'Normal'));
     paragraphs.push(makeParagraph('Fields', 'Heading1'));
-    getResolvedFieldEntries(false).forEach((entry) => {
-        paragraphs.push(makeParagraph(entry.label, 'Heading2'));
-        if (entry.url) {
-            paragraphs.push(makeParagraph(`${entry.displayText} (${entry.url})`, 'Normal'));
-        } else {
-            paragraphs.push(makeParagraph(entry.exportText || 'No value entered', 'Normal'));
-        }
-    });
+    if (appState.reportType === 'Audit Log') {
+        getAuditEntryGroups(false).forEach((group) => {
+            paragraphs.push(makeParagraph(group.title, 'Heading2'));
+            group.entries.forEach((entry) => {
+                if (entry.url) {
+                    paragraphs.push(makeParagraph(`${entry.label}: ${entry.displayText} (${entry.url})`, 'Normal'));
+                } else {
+                    paragraphs.push(makeParagraph(`${entry.label}: ${entry.exportText || 'No value entered'}`, 'Normal'));
+                }
+            });
+        });
+    } else {
+        getResolvedFieldEntries(false).forEach((entry) => {
+            paragraphs.push(makeParagraph(entry.label, 'Heading2'));
+            if (entry.url) {
+                paragraphs.push(makeParagraph(`${entry.displayText} (${entry.url})`, 'Normal'));
+            } else {
+                paragraphs.push(makeParagraph(entry.exportText || 'No value entered', 'Normal'));
+            }
+        });
+    }
 
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" mc:Ignorable="w14 wp14">
@@ -592,16 +654,16 @@ function getVisibleFieldEntries() {
 }
 
 function renderAuditParagraphLayout() {
-    const entries = getVisibleFieldEntries();
-    if (entries.length === 0) return '<p>No populated fields are available for this report.</p>';
+    const groups = getAuditEntryGroups(true);
+    if (groups.every((group) => group.entries.length === 0)) return '<p>No populated fields are available for this report.</p>';
 
     return `
         <section aria-labelledby="viewer-content-heading">
             <h3 id="viewer-content-heading">Audit Findings</h3>
-            ${entries.map((entry) => `
+            ${groups.map((group) => `
                 <article class="viewer-paragraph-item">
-                    <h4>${escapeHtml(entry.label)}</h4>
-                    <p>${entry.url ? renderWcagViewerLink(entry, entry.value) : escapeHtml(entry.value)}</p>
+                    <h4>${escapeHtml(group.title)}</h4>
+                    ${group.entries.map((entry) => `<p><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.displayText) : escapeHtml(entry.displayText)}</p>`).join('')}
                 </article>
             `).join('')}
         </section>
@@ -626,8 +688,9 @@ function renderExecutiveParagraphLayout() {
 }
 
 function renderAuditTabularLayout() {
-    const entries = getVisibleFieldEntries();
-    if (entries.length === 0) return '<p>No populated fields are available for this report.</p>';
+    const fields = appState.fields || [];
+    const groups = getAuditEntryGroups(false);
+    if (fields.length === 0 || groups.length === 0) return '<p>No populated fields are available for this report.</p>';
 
     return `
         <section aria-labelledby="viewer-content-heading">
@@ -637,13 +700,11 @@ function renderAuditTabularLayout() {
                     <caption class="sr-only">Audit log report values</caption>
                     <thead>
                         <tr>
-                            ${entries.map((entry) => `<th id="field-col-${entry.index}" scope="col">${escapeHtml(entry.label)}</th>`).join('')}
+                            ${fields.map((field, index) => `<th id="field-col-${index}" scope="col">${escapeHtml(field.label)}</th>`).join('')}
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            ${entries.map((entry) => `<td headers="field-col-${entry.index}">${entry.url ? renderWcagViewerLink(entry, entry.value) : escapeHtml(entry.value)}</td>`).join('')}
-                        </tr>
+                        ${groups.map((group) => `<tr>${(group.entries.length > 0 ? group.entries : getResolvedFieldEntriesForValues({}, false)).map((entry, index) => `<td headers="field-col-${index}">${entry.url ? renderWcagViewerLink(entry, entry.displayText) : escapeHtml(entry.displayText || '')}</td>`).join('')}</tr>`).join('')}
                     </tbody>
                 </table>
             </div>

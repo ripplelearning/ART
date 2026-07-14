@@ -122,9 +122,20 @@
 #new-report-options { display: grid; gap: 10px; margin-top: 12px; }
 .open-report-status { margin: 8px 0 0; min-height: 1.25rem; }
 .template-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#recent-reports-container { display: grid; gap: 10px; margin-top: 16px; }
+#report-metrics { border: 1px solid #ddd; background: #fafafa; padding: 10px; }
+#report-metrics h3 { margin: 0 0 8px; }
+#report-metrics-list { margin: 0; display: grid; gap: 6px; }
+#report-metrics-list div { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 8px; }
+#report-metrics-list dt { font-weight: 700; }
+#report-metrics-list dd { margin: 0; }
 #template-create-dialog,
 #template-delete-dialog,
-#template-edit-confirm-dialog {
+#template-edit-confirm-dialog,
+#report-delete-dialog,
+#import-conflict-dialog,
+#entry-delete-dialog {
     border: 1px solid #ccc;
     background: #fff;
     padding: 12px;
@@ -138,6 +149,45 @@ table { width: 100%; border-collapse: collapse; margin: 20px 0; }
 th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
 th { background-color: #f4f4f4; }
 
+.editor-table-wrapper { overflow-x: auto; }
+.editor-audit-table { table-layout: fixed; width: 100%; }
+.editor-audit-table td { vertical-align: top; }
+.entry-actions-menu { display: grid; gap: 6px; margin-top: 6px; }
+
+#editor-metadata-dialog,
+#editor-clear-dialog {
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+    max-width: 720px;
+}
+
+.editor-metadata-dialog-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.editor-metadata-dialog-grid fieldset {
+    border: 1px solid #ddd;
+    padding: 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.editor-metadata-dialog-grid label { font-weight: 600; }
+
+.editor-metadata-dialog-grid input,
+.editor-metadata-dialog-grid select,
+.editor-metadata-dialog-grid textarea {
+    width: 100%;
+    padding: 8px;
+    font: inherit;
+}
+
+.editor-clear-help { margin: 0 0 8px 22px; }
+
 /* Accessibility helper class */
 .sr-only { 
     position: absolute; width: 1px; height: 1px; padding: 0; 
@@ -146,3 +196,30 @@ th { background-color: #f4f4f4; }
 
 /* Ensure focus indicators are visible */
 button:focus, input:focus, select:focus { outline: 3px solid #005a9c; }
+
+.shortcut-tooltip {
+    position: relative;
+}
+
+.shortcut-tooltip::after {
+    content: attr(data-shortcut-hint);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #111;
+    color: #fff;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 20;
+}
+
+.shortcut-tooltip:hover::after,
+.shortcut-tooltip:focus-visible::after {
+    opacity: 1;
+}

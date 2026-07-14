@@ -61,14 +61,35 @@
             </div>
         </div>
 
-        <div id="recent-reports-container" hidden>
-            <label for="recent-reports-select">Select a Recent Report:</label>
-            <select id="recent-reports-select"></select>
-            
-            <div class="report-actions" role="group" aria-label="Actions for selected report">
-                <button id="btn-manage-recent">Manage Structure</button>
-                <button id="btn-edit-recent">Edit Content</button>
-                <button id="btn-view-recent" title="View/Export (Ctrl+S)">View/Export</button>
+        <div id="recent-reports-container">
+            <label for="recent-reports-select">Recent Reports</label>
+            <select id="recent-reports-select" aria-label="Recent reports"></select>
+
+            <div class="report-actions" role="group" aria-label="Report actions">
+                <button id="btn-configure-report" type="button">Configure Report</button>
+                <button id="btn-edit-report-dashboard" type="button">Edit Report</button>
+                <button id="btn-view-report-dashboard" type="button">View Report</button>
+                <button id="btn-delete-report-dashboard" type="button">Delete Report</button>
+            </div>
+
+            <section id="report-metrics" aria-labelledby="report-metrics-heading">
+                <h3 id="report-metrics-heading">Report Metrics</h3>
+                <dl id="report-metrics-list"></dl>
+            </section>
+
+            <div id="report-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="report-delete-heading" aria-describedby="report-delete-message" hidden>
+                <h3 id="report-delete-heading">Delete Report?</h3>
+                <p id="report-delete-message"></p>
+                <button id="btn-report-delete-confirm" type="button">Delete</button>
+                <button id="btn-report-delete-cancel" type="button">Cancel</button>
+            </div>
+
+            <div id="import-conflict-dialog" role="alertdialog" aria-modal="true" aria-labelledby="import-conflict-heading" aria-describedby="import-conflict-message" hidden>
+                <h3 id="import-conflict-heading">Import Conflict</h3>
+                <p id="import-conflict-message"></p>
+                <button id="btn-import-replace" type="button">Replace existing report</button>
+                <button id="btn-import-copy" type="button">Create a copy</button>
+                <button id="btn-import-cancel" type="button">Cancel</button>
             </div>
         </div>
     </section>
