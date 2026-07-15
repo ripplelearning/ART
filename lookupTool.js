@@ -4,6 +4,7 @@ import { getAvailableWcagStandards, loadWcagCatalog } from './wcagCatalog.js';
 
 export async function initLookupTool() {
     const container = document.getElementById('container');
+    const lookupRegion = document.getElementById('lookup-tool');
     if (!container) return;
     container.innerHTML = 'Loading criteria...';
 
@@ -17,6 +18,20 @@ export async function initLookupTool() {
     announcer.setAttribute('aria-live', 'polite');
     announcer.style.cssText = "position:absolute; left:-9999px;";
     document.body.appendChild(announcer);
+
+    const syncLookupLiveAnnouncements = () => {
+        const isLookupInteraction = Boolean(lookupRegion && lookupRegion.contains(document.activeElement));
+        const liveMode = isLookupInteraction ? 'polite' : 'off';
+        announcer.setAttribute('aria-live', liveMode);
+        const countEl = document.getElementById('count');
+        if (countEl) countEl.setAttribute('aria-live', liveMode);
+    };
+
+    const enableLookupAnnouncements = () => {
+        announcer.setAttribute('aria-live', 'polite');
+        const countEl = document.getElementById('count');
+        if (countEl) countEl.setAttribute('aria-live', 'polite');
+    };
 
     const categoryMap = {
         "ARIA & Live Regions": "ARIA|Live|Region|Role|State",
@@ -143,6 +158,10 @@ export async function initLookupTool() {
             syncLookupVersion(event.detail?.standard || '');
         });
 
+        document.addEventListener('focusin', syncLookupLiveAnnouncements);
+        lookupRegion?.addEventListener('focusin', enableLookupAnnouncements);
+        lookupRegion?.addEventListener('focusout', () => window.setTimeout(syncLookupLiveAnnouncements, 0));
+
         window.addEventListener('keydown', (e) => {
             if (e.altKey && e.shiftKey && e.key === 'A') { window.resizeTo(800, 600); window.focus(); document.getElementById('s').focus(); }
             if (e.altKey && e.shiftKey && e.key === 'D') { resetTool(); }
@@ -150,5 +169,6 @@ export async function initLookupTool() {
         });
         render(data);
         syncLookupVersion(appState.standard);
+        syncLookupLiveAnnouncements();
     } catch (e) { container.innerHTML = 'Error loading data: ' + e.message; }
 }

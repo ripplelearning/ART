@@ -25,6 +25,8 @@
 .branding-preview { max-height: 72px; width: auto; border: 1px solid #ddd; padding: 4px; background: #fff; }
 
 #editor-view { display: flex; flex-direction: column; gap: 16px; }
+.editor-instructions { display: grid; gap: 4px; padding: 8px 10px; border-left: 3px solid #005a9c; background: #f7fbff; }
+.editor-instructions p { margin: 0; }
 .editor-metadata-list { margin: 0; padding: 0; display: grid; gap: 8px; }
 .editor-metadata-item { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 8px; }
 .editor-metadata-item dt { font-weight: 700; }

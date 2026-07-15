@@ -1,0 +1,5 @@
+[33mccd1640[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: add report templates, export workflows, viewer enhancements, and WCAG success criterion support
+[33m174ba5f[m feat: add report template management
+[33mb1c0f12[m feat: enhance dashboard and report builder functionality with new event listeners and layout options
+[33md3bc04a[m Updated the metadata input, the toggle-field configuration, and the dynamic rendering.Update reportBuilder.js
+[33mfc10ced[m Fixing ctrl-f6 navigation Update navigation.js

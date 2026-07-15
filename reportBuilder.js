@@ -1,5 +1,5 @@
 // reportBuilder.js
-import { announce, appState, createUserTemplate, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport } from './state.js';
+import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport } from './state.js';
 import { getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let pendingFocus = null;
@@ -69,7 +69,7 @@ function validateBrandingInputs(shouldAnnounce = true) {
 }
 
 function focusAfterRender() {
-    if (!pendingFocus) return;
+    if (!pendingFocus) return false;
 
     const { index, action } = pendingFocus;
     pendingFocus = null;
@@ -85,25 +85,62 @@ function focusAfterRender() {
         || action === 'branding-enabled'
     ) {
         const target = document.getElementById(action);
-        if (target) target.focus();
-        return;
+        if (target) {
+            target.focus();
+            return true;
+        }
+        return false;
     }
 
     if (action === 'field-label-input') {
         const fieldLabelInput = document.getElementById('field-label-input');
-        if (fieldLabelInput) fieldLabelInput.focus();
-        return;
+        if (fieldLabelInput) {
+            fieldLabelInput.focus();
+            return true;
+        }
+        return false;
     }
 
     if (action === 'btn-add-field') {
         const addButton = document.getElementById('btn-add-field');
-        if (addButton) addButton.focus();
-        return;
+        if (addButton) {
+            addButton.focus();
+            return true;
+        }
+        return false;
     }
 
     const selector = `[data-field-action="${action}"][data-field-index="${index}"]`;
     const button = document.querySelector(selector);
-    if (button) button.focus();
+    if (button) {
+        button.focus();
+        return true;
+    }
+    return false;
+}
+
+function buildTemplateSelectionMarkup() {
+    const builtIns = getBuiltInTemplates();
+    const users = getUserTemplates();
+    const sections = ['<option value="">Choose Template</option>'];
+
+    if (builtIns.length > 0) {
+        sections.push(`
+            <optgroup label="Built-in templates">
+                ${builtIns.map((template) => `<option value="${template.id}">${escapeHtml(template.name)}</option>`).join('')}
+            </optgroup>
+        `);
+    }
+
+    if (users.length > 0) {
+        sections.push(`
+            <optgroup label="User templates">
+                ${users.map((template) => `<option value="${template.id}">${escapeHtml(template.name)}</option>`).join('')}
+            </optgroup>
+        `);
+    }
+
+    return sections.join('');
 }
 
 function showDeleteDialog(index) {
@@ -162,6 +199,13 @@ function setupSelectAnnouncement(selectElement, label) {
 
 export async function renderBuilder() {
     const container = document.getElementById('main-inner');
+    const activeElementBeforeRender = document.activeElement;
+    const preserveFocusId = !pendingFocus
+        && activeElementBeforeRender
+        && container?.contains(activeElementBeforeRender)
+        && activeElementBeforeRender.id
+        ? activeElementBeforeRender.id
+        : '';
     const editField = getEditField();
     const editType = normalizeFieldType(editField?.type);
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
@@ -254,7 +298,7 @@ export async function renderBuilder() {
                         <label>Template Description: <textarea id="template-description-input">${appState.templateDescription || ''}</textarea></label>
                     ` : ''}
                     ${appState.templateOption === 'Choose Template' ? `
-                        <label>Choose Template: <select id="choose-template-select" aria-label="Choose Template" aria-describedby="builder-select-help"><option value="">Choose Template</option></select></label>
+                        <label>Choose Template: <select id="choose-template-select" aria-label="Choose Template" aria-describedby="builder-select-help">${buildTemplateSelectionMarkup()}</select></label>
                     ` : ''}
                     ${appState.templateOption === 'Upload from File' ? `
                         <label>Upload from File: <input type="file" id="template-file-input"></label>
@@ -500,6 +544,11 @@ export async function renderBuilder() {
         });
     }
 
+    const chooseTemplateSelect = document.getElementById('choose-template-select');
+    if (chooseTemplateSelect) {
+        setupSelectAnnouncement(chooseTemplateSelect, 'Choose Template');
+    }
+
     const templateNameInput = document.getElementById('template-name-input');
     if (templateNameInput) {
         templateNameInput.addEventListener('input', (e) => {
@@ -608,10 +657,13 @@ export async function renderBuilder() {
             saveState({ action: 'Completed report configuration' });
             upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
             window.dispatchEvent(new Event('art-reports-updated'));
+            announce('Report moved to Editor.');
             const editorTab = document.getElementById('tab-editor');
             if (editorTab) editorTab.click();
-            const editorHeading = document.getElementById('editor-heading');
-            if (editorHeading) editorHeading.focus();
+            window.setTimeout(() => {
+                const editorHeading = document.getElementById('editor-heading');
+                if (editorHeading) editorHeading.focus();
+            }, 30);
         });
     }
 
@@ -686,5 +738,9 @@ export async function renderBuilder() {
         });
     }
 
-    focusAfterRender();
+    const didApplyPendingFocus = focusAfterRender();
+    if (!didApplyPendingFocus && preserveFocusId) {
+        const focusTarget = document.getElementById(preserveFocusId);
+        if (focusTarget) focusTarget.focus();
+    }
 }

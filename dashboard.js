@@ -459,7 +459,6 @@ export function renderDashboard() {
         appState.templateEditingId = templateId;
         saveState();
         builderTab.click();
-        moveFocusToBuilderHeading();
     };
 
     const continueCreateFromTemplate = (templateId, templateName) => {
@@ -473,7 +472,6 @@ export function renderDashboard() {
         appState.templateName = templateName;
         saveState();
         builderTab.click();
-        moveFocusToBuilderHeading();
     };
 
     buildTemplateOptions(templateSelect);
@@ -626,7 +624,7 @@ export function renderDashboard() {
         buildTemplateOptions(templateSelect);
         templateSelect.value = editableCopy.id;
         updateTemplateButtons(templateSelect, buttons);
-        closeEditConfirmDialog(false);
+        closeEditConfirmDialog(true);
         announce(`${editableCopy.name} created for editing`);
         continueEditTemplate(editableCopy.id);
     });

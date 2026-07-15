@@ -78,11 +78,11 @@ function getEntryFieldValue(entry, fieldIndex) {
     return entry?.fieldValues?.[fieldIndex] ?? '';
 }
 
-function renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly) {
+function renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly, labelledBy) {
     const displayValue = typeof storedValue === 'object' ? formatWcagCriterionDisplay(storedValue) : String(storedValue || '');
     const inputId = `editor-field-${entryIndex}-${fieldIndex}`;
     if (readOnly) {
-        return `<input type="text" id="${inputId}" value="${escapeHtml(displayValue)}" readonly aria-readonly="true">`;
+        return `<input type="text" id="${inputId}" value="${escapeHtml(displayValue)}" aria-labelledby="${escapeHtml(labelledBy)}" readonly aria-readonly="true">`;
     }
 
     return `
@@ -96,6 +96,7 @@ function renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly)
                 aria-expanded="false"
                 aria-haspopup="listbox"
                 aria-controls="${inputId}-listbox"
+                aria-labelledby="${escapeHtml(labelledBy)}"
                 aria-describedby="editor-select-help"
                 autocomplete="off"
                 value="${escapeHtml(displayValue)}"
@@ -106,21 +107,21 @@ function renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly)
     `;
 }
 
-function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly) {
+function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly, labelledBy) {
     const type = normalizeFieldType(field.type);
 
     if (isWcagCriterionFieldType(type)) {
-        return renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly);
+        return renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly, labelledBy);
     }
 
     if (type === 'textarea') {
-        return `<textarea id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}"${readOnly ? ' readonly aria-readonly="true"' : ''}>${escapeHtml(storedValue)}</textarea>`;
+        return `<textarea id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>${escapeHtml(storedValue)}</textarea>`;
     }
 
     if (type === 'dropdown') {
         const options = Array.isArray(field.dropdownOptions) ? field.dropdownOptions : [];
         return `
-            <select id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-label="${escapeHtml(field.label)}" aria-describedby="editor-select-help" ${readOnly ? 'disabled aria-disabled="true"' : ''}>
+            <select id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" aria-describedby="editor-select-help" ${readOnly ? 'disabled aria-disabled="true"' : ''}>
                 <option value="">Select an option</option>
                 ${options.map((option) => {
                     const selected = String(storedValue) === String(option) ? 'selected' : '';
@@ -130,7 +131,23 @@ function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly
         `;
     }
 
-    return `<input type="text" id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" value="${escapeHtml(storedValue)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>`;
+    return `<input type="text" id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" value="${escapeHtml(storedValue)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>`;
+}
+
+function updateEntryActionLabels(entryIndex) {
+    const entryName = getAuditEntryDisplayName(entryIndex);
+    const toggle = document.querySelector(`.btn-entry-toggle[data-entry-index="${entryIndex}"]`);
+    const moveUp = document.querySelector(`.btn-entry-up[data-entry-index="${entryIndex}"]`);
+    const moveDown = document.querySelector(`.btn-entry-down[data-entry-index="${entryIndex}"]`);
+    const remove = document.querySelector(`.btn-entry-delete[data-entry-index="${entryIndex}"]`);
+
+    if (toggle) {
+        toggle.textContent = `Edit ${entryName}`;
+        toggle.setAttribute('aria-label', `Edit ${entryName}`);
+    }
+    if (moveUp) moveUp.setAttribute('aria-label', `Move ${entryName} Up`);
+    if (moveDown) moveDown.setAttribute('aria-label', `Move ${entryName} Down`);
+    if (remove) remove.setAttribute('aria-label', `Delete ${entryName}`);
 }
 
 function attachWcagCombobox(control, criteria, entryIndex, fieldIndex) {
@@ -155,6 +172,7 @@ function attachWcagCombobox(control, criteria, entryIndex, fieldIndex) {
         input.value = `${criterion.number} ${criterion.title}`;
         if (appState.reportType === 'Audit Log') {
             updateAuditEntryFieldValue(entryIndex, fieldIndex, structuredValue);
+            if (fieldIndex === 0) updateEntryActionLabels(entryIndex);
         } else {
             updateEditorFieldValue(fieldIndex, structuredValue);
         }
@@ -448,7 +466,7 @@ function renderAuditTable(criteria) {
                                 <tr>
                                     ${fields.map((field, fieldIndex) => `
                                         <td headers="audit-col-${fieldIndex}">
-                                            ${renderFieldControl(field, entryIndex, fieldIndex, getEntryFieldValue(entry, fieldIndex), appState.editorReadOnly)}
+                                            ${renderFieldControl(field, entryIndex, fieldIndex, getEntryFieldValue(entry, fieldIndex), appState.editorReadOnly, `audit-col-${fieldIndex}`)}
                                         </td>
                                     `).join('')}
                                     <td>
@@ -456,13 +474,14 @@ function renderAuditTable(criteria) {
                                             type="button"
                                             class="btn-entry-toggle"
                                             data-entry-index="${entryIndex}"
+                                            aria-label="Edit ${escapeHtml(entryName)}"
                                             aria-expanded="false"
                                             aria-controls="${actionsPanelId}"
                                         >Edit ${escapeHtml(entryName)}</button>
                                         <div id="${actionsPanelId}" class="entry-actions-menu" hidden>
-                                            <button type="button" class="btn-entry-up" data-entry-index="${entryIndex}" ${entryIndex === 0 ? 'disabled' : ''}>Move Up</button>
-                                            <button type="button" class="btn-entry-down" data-entry-index="${entryIndex}" ${entryIndex === entries.length - 1 ? 'disabled' : ''}>Move Down</button>
-                                            <button type="button" class="btn-entry-delete" data-entry-index="${entryIndex}">Delete Entry</button>
+                                            <button type="button" class="btn-entry-up" data-entry-index="${entryIndex}" aria-label="Move ${escapeHtml(entryName)} Up" ${entryIndex === 0 ? 'disabled' : ''}>Move Up</button>
+                                            <button type="button" class="btn-entry-down" data-entry-index="${entryIndex}" aria-label="Move ${escapeHtml(entryName)} Down" ${entryIndex === entries.length - 1 ? 'disabled' : ''}>Move Down</button>
+                                            <button type="button" class="btn-entry-delete" data-entry-index="${entryIndex}" aria-label="Delete ${escapeHtml(entryName)}">Delete Entry</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -487,12 +506,13 @@ function renderSingleEntryEditor() {
     return `
         <div class="editor-fields-grid">
             ${appState.fields.map((field, index) => {
+                const labelId = `editor-field-label-${index}`;
                 const labelAttrs = isWcagCriterionFieldType(field.type)
-                    ? `id="editor-field-label-${index}"`
-                    : `for="editor-field-0-${index}"`;
+                    ? `id="${labelId}"`
+                    : `id="${labelId}" for="editor-field-0-${index}"`;
                 return `
                     <label ${labelAttrs}>${escapeHtml(field.label)}</label>
-                    ${renderFieldControl(field, 0, index, appState.editorFieldValues[index] ?? '', appState.editorReadOnly)}
+                    ${renderFieldControl(field, 0, index, appState.editorFieldValues[index] ?? '', appState.editorReadOnly, labelId)}
                 `;
             }).join('')}
         </div>
@@ -615,6 +635,7 @@ function bindAuditTableEvents(criteria) {
             const entryIndex = Number(event.target.getAttribute('data-entry-index'));
             const fieldIndex = Number(event.target.getAttribute('data-field-index'));
             updateAuditEntryFieldValue(entryIndex, fieldIndex, event.target.value);
+            if (fieldIndex === 0) updateEntryActionLabels(entryIndex);
         });
     });
 }
@@ -712,6 +733,10 @@ function bindEditorDialogEvents() {
 
 export async function renderEditor() {
     const container = document.getElementById('main-inner');
+    const activeElementBeforeRender = document.activeElement;
+    const preserveFocusId = activeElementBeforeRender && container?.contains(activeElementBeforeRender)
+        ? String(activeElementBeforeRender.id || '')
+        : '';
     const editorHeading = getEditorHeadingText();
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
 
@@ -721,7 +746,12 @@ export async function renderEditor() {
     container.innerHTML = `
         <section id="editor-view">
             <h2 id="editor-heading" tabindex="-1">${escapeHtml(editorHeading)}</h2>
-            <p id="editor-select-help" class="sr-only">Use Up and Down arrow keys to review options, then Enter to confirm.</p>
+            <div id="editor-instructions" class="editor-instructions">
+                <p>Fill in the audit report fields in the table.</p>
+                <p>Use Add Entry to create another audit entry.</p>
+                <p>Use Edit Entry to open options for moving or deleting entries.</p>
+            </div>
+            <p id="editor-select-help" class="sr-only">Use arrow keys to review select options.</p>
             ${renderMetadataPlainText()}
             <button id="btn-edit-metadata" type="button">Edit Metadata...</button>
             ${isAuditLog ? renderAuditTable(wcagCriteria) : renderSingleEntryEditor()}
@@ -735,12 +765,7 @@ export async function renderEditor() {
 
     if (isAuditLog) {
         bindAuditTableEvents(wcagCriteria);
-        const focusedPending = focusPendingEntryControl();
-        if (headingAfterRender && !focusedPending) {
-            window.setTimeout(() => {
-                headingAfterRender.focus();
-            }, 0);
-        }
+        focusPendingEntryControl();
     } else {
         container.querySelectorAll('[data-entry-index][data-field-index]').forEach((control) => {
             if (control.classList.contains('wcag-combobox')) {
@@ -770,7 +795,17 @@ export async function renderEditor() {
                 target.focus();
             }, 0);
         }
-    } else if (!isAuditLog && headingAfterRender && !pendingEntryFocus) {
+    } else if (preserveFocusId) {
+        const preserved = document.getElementById(preserveFocusId);
+        if (preserved) {
+            window.setTimeout(() => {
+                preserved.focus();
+            }, 0);
+            return;
+        }
+    }
+
+    if (headingAfterRender && !pendingEntryFocus) {
         window.setTimeout(() => {
             headingAfterRender.focus();
         }, 0);
