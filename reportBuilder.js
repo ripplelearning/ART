@@ -223,7 +223,7 @@ export async function renderBuilder() {
     const branding = getBrandingState();
 
     container.innerHTML = `
-        <section id="builder-view">
+        <section id="builder-view" aria-labelledby="builder-heading">
             <h2 id="builder-heading" tabindex="-1">Report Builder</h2>
             <h3 id="builder-metadata-heading" tabindex="-1">Report Metadata</h3>
             <p id="builder-select-help" class="sr-only">Use Up and Down arrow keys to review options, then Enter to confirm.</p>

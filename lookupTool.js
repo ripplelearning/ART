@@ -5,6 +5,11 @@ import { getAvailableWcagStandards, loadWcagCatalog } from './wcagCatalog.js';
 export async function initLookupTool() {
     const container = document.getElementById('container');
     const lookupRegion = document.getElementById('lookup-tool');
+    const notifyLookupPanel = () => {
+        window.dispatchEvent(new CustomEvent('art-panel-changed', {
+            detail: { panel: 'WCAG Lookup Tool' }
+        }));
+    };
     if (!container) return;
     container.innerHTML = 'Loading criteria...';
 
@@ -60,6 +65,7 @@ export async function initLookupTool() {
     const cleanForCopy = (val) => (val || '').toString().replace(/\|/g, '\n');
 
     const resetTool = () => {
+        notifyLookupPanel();
         document.getElementById('s').value = '';
         document.getElementById('ver-f').value = '';
         document.getElementById('lvl-f').value = '';
@@ -143,7 +149,10 @@ export async function initLookupTool() {
 
         ['s', 'ver-f', 'lvl-f', 'cat-f'].forEach(id => document.getElementById(id).onchange = applyFilters);
         document.getElementById('s').oninput = applyFilters;
+        document.getElementById('s').addEventListener('focus', notifyLookupPanel);
         document.getElementById('reset-btn').onclick = resetTool;
+        lookupRegion?.addEventListener('focusin', notifyLookupPanel);
+        lookupRegion?.addEventListener('click', notifyLookupPanel);
 
         const syncLookupVersion = (standard) => {
             const versionFilter = document.getElementById('ver-f');

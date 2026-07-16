@@ -39,13 +39,29 @@
                 <button id="btn-template-open" type="button" hidden>View Template</button>
                 <button id="btn-template-edit" type="button" hidden>Edit Template</button>
                 <button id="btn-template-delete" type="button" hidden>Delete Template</button>
+                <button id="btn-template-import" type="button">Import Template...</button>
+                <button id="btn-template-export" type="button" hidden>Export Template...</button>
             </div>
+            <p id="template-status" class="open-report-status" role="status" aria-live="polite"></p>
             <div id="template-create-dialog" role="dialog" aria-modal="true" aria-labelledby="template-create-heading" hidden>
                 <h3 id="template-create-heading">Create Template</h3>
                 <label for="template-create-name">Template Name</label>
                 <input id="template-create-name" type="text">
                 <button id="btn-template-create-save" type="button">Create Template</button>
                 <button id="btn-template-create-cancel" type="button">Cancel</button>
+            </div>
+            <div id="template-import-conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="template-import-conflict-heading" aria-describedby="template-import-conflict-description" hidden>
+                <h3 id="template-import-conflict-heading">Template already exists</h3>
+                <p id="template-import-conflict-description"></p>
+                <fieldset>
+                    <legend class="sr-only">Import conflict actions</legend>
+                    <label><input type="radio" name="template-import-conflict" id="template-import-option-replace" value="replace" checked> Replace existing template</label>
+                    <label><input type="radio" name="template-import-conflict" id="template-import-option-copy" value="copy"> Create a copy</label>
+                </fieldset>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-template-import-confirm" type="button">Confirm</button>
+                    <button id="btn-template-import-cancel" type="button">Cancel</button>
+                </div>
             </div>
             <div id="template-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-delete-heading" aria-describedby="template-delete-message" hidden>
                 <h3 id="template-delete-heading">Delete Template?</h3>
@@ -63,7 +79,10 @@
 
         <div id="recent-reports-container">
             <label for="recent-reports-select">Recent Reports</label>
-            <select id="recent-reports-select" aria-label="Recent reports"></select>
+            <div class="recent-reports-row">
+                <select id="recent-reports-select" aria-label="Recent reports"></select>
+                <button id="btn-close-active-report" type="button">Close Report</button>
+            </div>
 
             <div class="report-actions" role="group" aria-label="Report actions">
                 <button id="btn-configure-report" type="button">Configure Report</button>
@@ -98,8 +117,8 @@
         <div id="main-inner"></div>
     </main>
 
-    <aside id="lookup-tool" aria-label="WCAG Lookup Tool">
-        <h2>WCAG Lookup Tool</h2>
+    <aside id="lookup-tool" aria-labelledby="lookup-heading">
+        <h2 id="lookup-heading">WCAG Lookup Tool</h2>
         <div id="container"></div>
     </aside>
 </div>

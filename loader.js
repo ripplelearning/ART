@@ -3,6 +3,7 @@ import { setupTabs, initNavListener } from './navigation.js';
 import { renderDashboard } from './dashboard.js';
 import { initLookupTool } from './lookupTool.js';
 import { renderWelcome } from './welcome.js';
+import { initApplicationIdentity } from './appIdentity.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize global navigation and keyboard shortcuts
     initNavListener();
     setupTabs();
+    initApplicationIdentity();
     
     // 2. Initialize side-panel tools
     initLookupTool();

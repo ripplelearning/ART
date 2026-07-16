@@ -1,7 +1,7 @@
 // navigation.js
-import { announce, redoState, undoState } from './state.js';
+import { announce, appState, redoState, saveState, undoState } from './state.js';
 import { renderBuilder } from './reportBuilder.js';
-import { renderEditor } from './reportEditor.js';
+import { activateAddEntryWorkflow, renderEditor } from './reportEditor.js';
 import { renderViewer } from './reportViewer.js';
 import { renderWelcome } from './welcome.js';
 
@@ -16,9 +16,17 @@ const renderMap = {
 let lastLandmarkAnnouncement = '';
 let shortcutObserver = null;
 
+const panelNameMap = {
+    'tab-welcome': 'Welcome',
+    'tab-builder': 'Report Builder',
+    'tab-editor': 'Report Editor',
+    'tab-view': 'Report Viewer'
+};
+
 const shortcutControlMap = [
     { id: 'tab-builder', shortcut: 'Alt+Shift+U', label: 'Builder tab' },
     { id: 'tab-editor', shortcut: 'Alt+Shift+E', label: 'Editor tab' },
+    { id: 'btn-add-entry', shortcut: 'Alt+Shift+A', label: 'Add entry' },
     { id: 'btn-add-field', shortcut: 'Alt+Shift+F', label: 'Add field' },
     { id: 'btn-done', shortcut: 'Alt+Shift+O', label: 'Done' },
     { id: 's', shortcut: 'Alt+Shift+L', label: 'WCAG search' },
@@ -26,12 +34,31 @@ const shortcutControlMap = [
     { id: 'btn-open-report', shortcut: 'Ctrl+O', label: 'Open existing report JSON file' }
 ];
 
+function ensureShortcutDescription(element, shortcut) {
+    const describedById = `shortcut-desc-${element.id || Math.random().toString(36).slice(2)}`;
+    let description = document.getElementById(describedById);
+    if (!description) {
+        description = document.createElement('span');
+        description.id = describedById;
+        description.className = 'sr-only';
+        description.textContent = shortcut;
+        element.insertAdjacentElement('afterend', description);
+    }
+    const describedBy = element.getAttribute('aria-describedby') || '';
+    const tokens = describedBy.split(/\s+/).filter(Boolean);
+    if (!tokens.includes(describedById)) {
+        tokens.push(describedById);
+        element.setAttribute('aria-describedby', tokens.join(' '));
+    }
+}
+
 function applyShortcutTooltip(element, shortcut, label) {
     if (!element || element.dataset.shortcutTooltipBound === 'true') return;
     element.classList.add('shortcut-tooltip');
-    element.dataset.shortcutHint = `Shortcut: ${shortcut}`;
-    element.setAttribute('title', `Shortcut: ${shortcut}`);
+    element.dataset.shortcutHint = shortcut;
+    element.setAttribute('title', shortcut);
     element.setAttribute('aria-keyshortcuts', shortcut);
+    ensureShortcutDescription(element, shortcut);
     if (!element.getAttribute('aria-label') && label) {
         element.setAttribute('aria-label', `${label}. Shortcut: ${shortcut}`);
     }
@@ -43,6 +70,12 @@ function applyShortcutTooltips() {
         const element = document.getElementById(id);
         if (element) applyShortcutTooltip(element, shortcut, label);
     });
+}
+
+function notifyPanelChanged(panel) {
+    window.dispatchEvent(new CustomEvent('art-panel-changed', {
+        detail: { panel }
+    }));
 }
 
 function watchShortcutTargets() {
@@ -114,6 +147,7 @@ function activateTabAndFocusHeading(tabId, headingId, fallbackLabel) {
     const tab = document.getElementById(tabId);
     if (!tab) return;
     tab.click();
+    notifyPanelChanged(panelNameMap[tabId] || fallbackLabel || 'Welcome');
     window.setTimeout(() => {
         const heading = document.getElementById(headingId);
         if (heading) {
@@ -171,6 +205,7 @@ export function initNavigation() {
         if (key === 's') {
             e.preventDefault();
             focusElementWithLabel(document.getElementById('dashboard'), 'Dashboard');
+            notifyPanelChanged('Dashboard');
             return;
         }
         if (key === 'u') {
@@ -187,6 +222,7 @@ export function initNavigation() {
             e.preventDefault();
             const search = document.getElementById('s');
             if (search) search.focus();
+            notifyPanelChanged('WCAG Lookup Tool');
             return;
         }
         if (key === 'f') {
@@ -203,6 +239,15 @@ export function initNavigation() {
                 }
                 document.getElementById('btn-add-field')?.click();
             }, 0);
+            return;
+        }
+        if (key === 'a') {
+            e.preventDefault();
+            if (!activateAddEntryWorkflow()) return;
+            appState.editorReadOnly = false;
+            saveState({ action: 'Opened add entry workflow', recordHistory: false });
+            const tab = document.getElementById('tab-editor');
+            if (tab) tab.click();
             return;
         }
         if (key === 'o') {
@@ -228,8 +273,15 @@ export function setupTabs() {
             tabs.forEach((btn) => btn.setAttribute('aria-selected', 'false'));
             tab.setAttribute('aria-selected', 'true');
 
+            notifyPanelChanged(panelNameMap[tab.id] || 'Welcome');
+
             const renderFn = renderMap[tab.id];
             if (renderFn) renderFn();
         });
     });
+
+    const selected = document.querySelector('#top-tabs button[role="tab"][aria-selected="true"]');
+    if (selected) {
+        notifyPanelChanged(panelNameMap[selected.id] || 'Welcome');
+    }
 }

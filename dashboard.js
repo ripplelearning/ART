@@ -5,6 +5,8 @@ import {
     announce,
     appState,
     createUserTemplateFromSelection,
+    closeCurrentReportSession,
+    computeReportMetrics,
     deleteUserTemplate,
     deleteReportById,
     getAuditEntries,
@@ -14,14 +16,18 @@ import {
     getTemplateById,
     getUserTemplates,
     importReportWithConflictStrategy,
+    importTemplateWithConflictStrategy,
     importArtJsonPayload,
     loadReportById,
     loadTemplate,
     reportNameExists,
     resetReportToBlank,
     saveState,
+    serializeTemplateJsonPayload,
+    templateNameExists,
     upsertCurrentReport,
-    validateArtJsonPayload
+    validateArtJsonPayload,
+    validateTemplateJsonPayload
 } from './state.js';
 
 function moveFocusToBuilderMetadataHeading() {
@@ -37,82 +43,6 @@ function moveFocusToBuilderHeading() {
 function moveFocusToEditorHeading() {
     const editorHeading = document.getElementById('editor-heading');
     if (editorHeading) editorHeading.focus();
-}
-
-function getReportDataFromSnapshot(report) {
-    return report?.data && typeof report.data === 'object' ? report.data : null;
-}
-
-function computeReportMetrics(report) {
-    const reportData = getReportDataFromSnapshot(report);
-    if (!reportData) {
-        return {
-            totalIssues: 0,
-            pagesTested: 0,
-            issuesBySeverity: 'None',
-            wcagCriteria: 0,
-            totalAuditEntries: 0
-        };
-    }
-
-    const fields = Array.isArray(reportData.fields) ? reportData.fields : [];
-    const entries = Array.isArray(reportData.auditEntries) && reportData.auditEntries.length > 0
-        ? reportData.auditEntries
-        : [{ fieldValues: reportData.editorFieldValues || {} }];
-
-    const pageFieldIndexes = fields
-        .map((field, index) => ({ field, index }))
-        .filter((item) => /page|url|scope/i.test(String(item.field?.label || '')))
-        .map((item) => item.index);
-
-    const severityFieldIndexes = fields
-        .map((field, index) => ({ field, index }))
-        .filter((item) => /severity|risk/i.test(String(item.field?.label || '')))
-        .map((item) => item.index);
-
-    const wcagFieldIndexes = fields
-        .map((field, index) => ({ field, index }))
-        .filter((item) => String(item.field?.type || '') === 'wcag-success-criterion')
-        .map((item) => item.index);
-
-    const pages = new Set();
-    const wcagSet = new Set();
-    const severityCounts = new Map();
-
-    entries.forEach((entry) => {
-        const values = entry?.fieldValues || {};
-        pageFieldIndexes.forEach((fieldIndex) => {
-            const value = String(values[fieldIndex] || '').trim();
-            if (value) pages.add(value);
-        });
-        severityFieldIndexes.forEach((fieldIndex) => {
-            const value = String(values[fieldIndex] || '').trim();
-            if (!value) return;
-            severityCounts.set(value, Number(severityCounts.get(value) || 0) + 1);
-        });
-        wcagFieldIndexes.forEach((fieldIndex) => {
-            const value = values[fieldIndex];
-            if (value && typeof value === 'object' && value.identifier) {
-                wcagSet.add(String(value.identifier));
-                return;
-            }
-            const rawText = String(value || '');
-            const match = rawText.match(/\b\d+\.\d+\.\d+\b/);
-            if (match) wcagSet.add(match[0]);
-        });
-    });
-
-    const issuesBySeverity = [...severityCounts.entries()]
-        .map(([label, count]) => `${label}: ${count}`)
-        .join(', ') || 'None';
-
-    return {
-        totalIssues: entries.length,
-        pagesTested: pages.size,
-        issuesBySeverity,
-        wcagCriteria: wcagSet.size,
-        totalAuditEntries: entries.length
-    };
 }
 
 function buildTemplateOptions(selectEl) {
@@ -152,6 +82,7 @@ function updateTemplateButtons(selectEl, buttons) {
     buttons.open.hidden = isScratch;
     buttons.edit.hidden = isScratch;
     buttons.delete.hidden = !isUserTemplate;
+    buttons.export.hidden = isScratch;
 }
 
 function getDialogFocusableElements(dialog) {
@@ -176,6 +107,9 @@ export function renderDashboard() {
     const btnOpen = document.getElementById('btn-template-open');
     const btnEdit = document.getElementById('btn-template-edit');
     const btnDelete = document.getElementById('btn-template-delete');
+    const btnTemplateImport = document.getElementById('btn-template-import');
+    const btnTemplateExport = document.getElementById('btn-template-export');
+    const templateStatus = document.getElementById('template-status');
     const deleteDialog = document.getElementById('template-delete-dialog');
     const deleteMessage = document.getElementById('template-delete-message');
     const btnDeleteYes = document.getElementById('btn-template-delete-yes');
@@ -189,6 +123,7 @@ export function renderDashboard() {
     const btnEditYes = document.getElementById('btn-template-edit-yes');
     const btnEditNo = document.getElementById('btn-template-edit-no');
     const recentReportsSelect = document.getElementById('recent-reports-select');
+    const btnCloseActiveReport = document.getElementById('btn-close-active-report');
     const btnConfigureReport = document.getElementById('btn-configure-report');
     const btnEditReportDashboard = document.getElementById('btn-edit-report-dashboard');
     const btnViewReportDashboard = document.getElementById('btn-view-report-dashboard');
@@ -203,15 +138,21 @@ export function renderDashboard() {
     const btnImportReplace = document.getElementById('btn-import-replace');
     const btnImportCopy = document.getElementById('btn-import-copy');
     const btnImportCancel = document.getElementById('btn-import-cancel');
+    const templateImportConflictDialog = document.getElementById('template-import-conflict-dialog');
+    const templateImportConflictDescription = document.getElementById('template-import-conflict-description');
+    const templateImportOptionReplace = document.getElementById('template-import-option-replace');
+    const templateImportConfirm = document.getElementById('btn-template-import-confirm');
+    const templateImportCancel = document.getElementById('btn-template-import-cancel');
 
     if (
-        !btnNew || !btnOpenReport || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete
+        !btnNew || !btnOpenReport || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateImport || !btnTemplateExport || !templateStatus
         || !deleteDialog || !deleteMessage || !btnDeleteYes || !btnDeleteNo
         || !createDialog || !createNameInput || !btnCreateSave || !btnCreateCancel
         || !editConfirmDialog || !editConfirmMessage || !btnEditYes || !btnEditNo
-        || !recentReportsSelect || !btnConfigureReport || !btnEditReportDashboard || !btnViewReportDashboard || !btnDeleteReportDashboard
+        || !recentReportsSelect || !btnCloseActiveReport || !btnConfigureReport || !btnEditReportDashboard || !btnViewReportDashboard || !btnDeleteReportDashboard
         || !reportMetricsList || !reportDeleteDialog || !reportDeleteMessage || !btnReportDeleteConfirm || !btnReportDeleteCancel
         || !importConflictDialog || !importConflictMessage || !btnImportReplace || !btnImportCopy || !btnImportCancel
+        || !templateImportConflictDialog || !templateImportConflictDescription || !templateImportOptionReplace || !templateImportConfirm || !templateImportCancel
     ) return;
 
     const openReportInput = document.createElement('input');
@@ -221,6 +162,15 @@ export function renderDashboard() {
     openReportInput.tabIndex = -1;
     openReportInput.setAttribute('aria-hidden', 'true');
     document.body.appendChild(openReportInput);
+
+    const importTemplateInput = document.createElement('input');
+    importTemplateInput.type = 'file';
+    importTemplateInput.accept = '.json,application/json';
+    importTemplateInput.hidden = true;
+    importTemplateInput.tabIndex = -1;
+    importTemplateInput.setAttribute('aria-hidden', 'true');
+    importTemplateInput.id = 'template-import-file-input';
+    document.body.appendChild(importTemplateInput);
 
     const openStatus = document.createElement('p');
     openStatus.id = 'open-report-status';
@@ -244,6 +194,21 @@ export function renderDashboard() {
 
     const reportPrecheckStatus = (text) => {
         openStatus.textContent = text;
+        announce(text);
+    };
+
+    const templateReasonMap = {
+        'invalid-json': 'Template file is not valid JSON.',
+        'invalid-payload': 'Template payload is not in ART Template format.',
+        'missing-template-header': 'Template version metadata is missing or unsupported.',
+        'missing-template': 'Template object is missing from the file.',
+        'missing-template-name': 'Template name is required.',
+        'missing-template-data': 'Template data is missing from the file.',
+        'ok': 'Template file validated.'
+    };
+
+    const reportTemplateStatus = (text) => {
+        templateStatus.textContent = text;
         announce(text);
     };
 
@@ -299,12 +264,83 @@ export function renderDashboard() {
         }
     });
 
+    const finalizeTemplateImport = (templatePayload, strategy) => {
+        const imported = importTemplateWithConflictStrategy(templatePayload, strategy);
+        if (!imported) return null;
+        window.dispatchEvent(new Event('art-templates-updated'));
+        return imported;
+    };
+
+    btnTemplateImport.addEventListener('click', () => {
+        importTemplateInput.value = '';
+        importTemplateInput.click();
+    });
+
+    importTemplateInput.addEventListener('change', async () => {
+        const selectedFile = importTemplateInput.files && importTemplateInput.files[0];
+        if (!selectedFile) return;
+
+        try {
+            const fileText = await selectedFile.text();
+            const validation = validateTemplateJsonPayload(fileText);
+            if (!validation.isValid) {
+                const detail = templateReasonMap[validation.reason] || 'Unknown template validation error.';
+                reportTemplateStatus(`Template import failed for ${selectedFile.name}. ${detail}`);
+                return;
+            }
+
+            const templatePayload = validation.payload.template;
+            if (templateNameExists(templatePayload.name)) {
+                pendingTemplateImportPayload = templatePayload;
+                pendingTemplateImportFileName = selectedFile.name;
+                templateImportConflictDescription.innerHTML = `A template named <strong>${templatePayload.name}</strong> already exists.`;
+                templateImportOptionReplace.checked = true;
+                openDialog(templateImportConflictDialog, templateImportOptionReplace, btnTemplateImport);
+                return;
+            }
+
+            const imported = finalizeTemplateImport(templatePayload, 'copy');
+            if (!imported) return;
+
+            buildTemplateOptions(templateSelect);
+            templateSelect.value = imported.id;
+            updateTemplateButtons(templateSelect, buttons);
+            reportTemplateStatus(`Imported template ${imported.name} successfully.`);
+            templateSelect.focus();
+        } catch (error) {
+            reportTemplateStatus(`Template import failed for ${selectedFile.name}. Could not read file.`);
+        }
+    });
+
+    btnTemplateExport.addEventListener('click', () => {
+        const selected = getTemplateById(templateSelect.value);
+        if (!selected) {
+            reportTemplateStatus('Select a template to export.');
+            templateSelect.focus();
+            return;
+        }
+
+        const safeName = String(selected.name || 'Template').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Template';
+        const payload = serializeTemplateJsonPayload(selected);
+        const blob = new Blob([payload], { type: 'application/json' });
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = `${safeName}.template.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+        reportTemplateStatus(`Exported template ${selected.name}.`);
+    });
+
     const buttons = {
         create: btnCreate,
         use: btnUse,
         open: btnOpen,
         edit: btnEdit,
-        delete: btnDelete
+        delete: btnDelete,
+        export: btnTemplateExport
     };
     let pendingDeleteTemplateId = null;
     let pendingCreateSourceTemplateId = null;
@@ -312,10 +348,18 @@ export function renderDashboard() {
     let pendingDeleteReportId = null;
     let pendingImportPayload = null;
     let pendingImportFileName = '';
+    let pendingTemplateImportPayload = null;
+    let pendingTemplateImportFileName = '';
     let activeDialog = null;
 
     const refreshReportMetrics = () => {
         const selectedReport = getReportById(recentReportsSelect.value);
+        if (!selectedReport) {
+            reportMetricsList.innerHTML = `
+                <div><dd>There are no open reports to show metrics for.</dd></div>
+            `;
+            return;
+        }
         const metrics = computeReportMetrics(selectedReport);
         reportMetricsList.innerHTML = `
             <div><dt>Total Issues</dt><dd>${metrics.totalIssues}</dd></div>
@@ -328,23 +372,26 @@ export function renderDashboard() {
 
     const rebuildRecentReports = () => {
         const reports = getRecentReports();
-        const currentSelection = recentReportsSelect.value || appState.selectedReportId;
+        const currentSelection = appState.selectedReportId;
         recentReportsSelect.innerHTML = reports.length > 0
-            ? reports.map((report) => `<option value="${report.id}">${report.name}</option>`).join('')
+            ? `<option value="">No report selected</option>${reports.map((report) => `<option value="${report.id}">${report.name}</option>`).join('')}`
             : '<option value="">No saved reports</option>';
 
         if (reports.length > 0) {
             const hasCurrent = reports.some((report) => report.id === currentSelection);
-            recentReportsSelect.value = hasCurrent ? currentSelection : reports[0].id;
-            appState.selectedReportId = recentReportsSelect.value;
+            recentReportsSelect.value = hasCurrent ? currentSelection : '';
+            appState.selectedReportId = recentReportsSelect.value || '';
             saveState({ action: 'Selected report from dashboard', recordHistory: false });
+        } else {
+            appState.selectedReportId = '';
         }
 
-        const hasSelection = reports.length > 0;
+        const hasSelection = Boolean(recentReportsSelect.value);
         btnConfigureReport.disabled = !hasSelection;
         btnEditReportDashboard.disabled = !hasSelection;
         btnViewReportDashboard.disabled = !hasSelection;
         btnDeleteReportDashboard.disabled = !hasSelection;
+        btnCloseActiveReport.disabled = !hasSelection;
         refreshReportMetrics();
     };
 
@@ -426,6 +473,13 @@ export function renderDashboard() {
                 pendingImportFileName = '';
                 closeDialog(activeDialog.dialog, true);
                 btnOpenReport.focus();
+                return;
+            }
+            if (activeDialog.dialog.id === 'template-import-conflict-dialog') {
+                pendingTemplateImportPayload = null;
+                pendingTemplateImportFileName = '';
+                closeDialog(activeDialog.dialog, true);
+                btnTemplateImport.focus();
             }
             return;
         }
@@ -459,6 +513,7 @@ export function renderDashboard() {
         appState.templateEditingId = templateId;
         saveState();
         builderTab.click();
+        window.setTimeout(() => moveFocusToBuilderHeading(), 0);
     };
 
     const continueCreateFromTemplate = (templateId, templateName) => {
@@ -503,7 +558,7 @@ export function renderDashboard() {
         appState.editorReadOnly = false;
         saveState();
         builderTab.click();
-        moveFocusToBuilderMetadataHeading();
+        window.setTimeout(() => moveFocusToBuilderHeading(), 0);
     });
 
     templateSelect.addEventListener('change', () => {
@@ -589,7 +644,7 @@ export function renderDashboard() {
         appState.templateEditingId = null;
         saveState();
         builderTab.click();
-        moveFocusToBuilderMetadataHeading();
+        window.setTimeout(() => moveFocusToBuilderHeading(), 0);
     });
 
     btnEdit.addEventListener('click', () => {
@@ -671,9 +726,36 @@ export function renderDashboard() {
     };
 
     recentReportsSelect.addEventListener('change', () => {
-        appState.selectedReportId = recentReportsSelect.value;
+        appState.selectedReportId = recentReportsSelect.value || '';
         saveState({ action: 'Selected dashboard report', recordHistory: false });
+        const hasSelection = Boolean(recentReportsSelect.value);
+        btnConfigureReport.disabled = !hasSelection;
+        btnEditReportDashboard.disabled = !hasSelection;
+        btnViewReportDashboard.disabled = !hasSelection;
+        btnDeleteReportDashboard.disabled = !hasSelection;
+        btnCloseActiveReport.disabled = !hasSelection;
         refreshReportMetrics();
+    });
+
+    btnCloseActiveReport.addEventListener('click', () => {
+        if (!recentReportsSelect.value) return;
+        closeCurrentReportSession();
+        recentReportsSelect.value = '';
+        btnConfigureReport.disabled = true;
+        btnEditReportDashboard.disabled = true;
+        btnViewReportDashboard.disabled = true;
+        btnDeleteReportDashboard.disabled = true;
+        btnCloseActiveReport.disabled = true;
+        refreshReportMetrics();
+        announce('Closed active report.');
+        const welcomeTab = document.getElementById('tab-welcome');
+        welcomeTab?.click();
+        window.setTimeout(() => {
+            const heading = document.getElementById('dash-heading');
+            if (!heading) return;
+            if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+            heading.focus();
+        }, 0);
     });
 
     btnConfigureReport.addEventListener('click', () => {
@@ -737,6 +819,10 @@ export function renderDashboard() {
         reportPrecheckStatus(`Imported ${pendingImportFileName} successfully.`);
         pendingImportFileName = '';
         viewerTab?.click();
+        window.setTimeout(() => {
+            const viewerHeading = document.getElementById('viewer-heading');
+            if (viewerHeading) viewerHeading.focus();
+        }, 0);
     });
 
     btnImportCopy.addEventListener('click', () => {
@@ -749,6 +835,10 @@ export function renderDashboard() {
         reportPrecheckStatus(`Imported ${pendingImportFileName} successfully.`);
         pendingImportFileName = '';
         viewerTab?.click();
+        window.setTimeout(() => {
+            const viewerHeading = document.getElementById('viewer-heading');
+            if (viewerHeading) viewerHeading.focus();
+        }, 0);
     });
 
     btnImportCancel.addEventListener('click', () => {
@@ -756,6 +846,34 @@ export function renderDashboard() {
         pendingImportFileName = '';
         closeDialog(importConflictDialog, true);
         btnOpenReport.focus();
+    });
+
+    templateImportConfirm.addEventListener('click', () => {
+        if (!pendingTemplateImportPayload) return;
+
+        const strategy = templateImportConflictDialog.querySelector('input[name="template-import-conflict"]:checked')?.value || 'replace';
+        const imported = finalizeTemplateImport(pendingTemplateImportPayload, strategy);
+        const sourceName = pendingTemplateImportFileName;
+        pendingTemplateImportPayload = null;
+        pendingTemplateImportFileName = '';
+        closeDialog(templateImportConflictDialog, false);
+        if (!imported) {
+            reportTemplateStatus(`Template import failed for ${sourceName}.`);
+            return;
+        }
+
+        buildTemplateOptions(templateSelect);
+        templateSelect.value = imported.id;
+        updateTemplateButtons(templateSelect, buttons);
+        reportTemplateStatus(`Imported template ${imported.name} successfully.`);
+        templateSelect.focus();
+    });
+
+    templateImportCancel.addEventListener('click', () => {
+        pendingTemplateImportPayload = null;
+        pendingTemplateImportFileName = '';
+        closeDialog(templateImportConflictDialog, true);
+        btnTemplateImport.focus();
     });
 
     deleteDialog.addEventListener('keydown', (event) => {
@@ -795,6 +913,15 @@ export function renderDashboard() {
         pendingImportFileName = '';
         closeDialog(importConflictDialog, true);
         btnOpenReport.focus();
+    });
+
+    templateImportConflictDialog.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        pendingTemplateImportPayload = null;
+        pendingTemplateImportFileName = '';
+        closeDialog(templateImportConflictDialog, true);
+        btnTemplateImport.focus();
     });
 
     window.addEventListener('art-reports-updated', rebuildRecentReports);

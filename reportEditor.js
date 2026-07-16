@@ -1,27 +1,44 @@
 import {
     applyMetadataDraft,
     addAuditEntry,
+    announce,
     appState,
     buildMetadataDraftFromValues,
     clearReportContentOnly,
     clearReportEverythingInSession,
+    currentReportSupportsAuditEntries,
     deleteAuditEntry,
     ensureAuditEntries,
     getAuditEntries,
     getAuditEntryDisplayName,
+    getCurrentReportMetrics,
     getMetadataDescriptors,
     moveAuditEntry,
+    upsertCurrentReport,
+    validateCurrentReport,
     validateMetadataDraft,
     updateAuditEntryFieldValue,
     updateEditorFieldValue
 } from './state.js';
 import { formatWcagCriterionDisplay, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { requestViewerExportDialog, requestViewerPrintPreview } from './reportViewer.js';
 
 let pendingEntryFocus = null;
 let pendingDeleteEntry = null;
 let activeModalDialog = null;
 let areModalListenersBound = false;
 let pendingEditorFocusTargetId = '';
+export function activateAddEntryWorkflow() {
+    if (!currentReportSupportsAuditEntries()) {
+        announce('Add Entry is unavailable for the current report type.');
+        return false;
+    }
+
+    const newIndex = addAuditEntry();
+    pendingEntryFocus = { entryIndex: newIndex, fieldIndex: 0 };
+    announce(`Added audit entry ${getAuditEntries().length}.`);
+    return true;
+}
 
 function normalizeFieldType(type) {
     return type === 'select' ? 'dropdown' : type || 'text';
@@ -442,6 +459,101 @@ function renderClearDialog() {
     `;
 }
 
+function renderValidationDialog() {
+    return `
+        <div id="editor-validation-dialog" role="dialog" aria-modal="true" aria-labelledby="editor-validation-heading" aria-describedby="editor-validation-desc" hidden>
+            <h3 id="editor-validation-heading">Validate Report</h3>
+            <p id="editor-validation-desc">Review validation issues and activate an item to move to the related field.</p>
+            <div id="editor-validation-results"></div>
+            <div class="viewer-dialog-actions">
+                <button id="btn-editor-validation-close" type="button">Close</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderStatisticsDialog(metrics) {
+    return `
+        <div id="editor-statistics-dialog" role="dialog" aria-modal="true" aria-labelledby="editor-statistics-heading" aria-describedby="editor-statistics-desc" hidden>
+            <h3 id="editor-statistics-heading">Report Statistics</h3>
+            <p id="editor-statistics-desc">Summary statistics for the current report.</p>
+            <ul class="editor-statistics-list">
+                <li>Total Audit Entries: ${metrics.totalAuditEntries}</li>
+                <li>Total Issues: ${metrics.totalIssues}</li>
+                <li>Issues by Severity: ${escapeHtml(metrics.issuesBySeverity)}</li>
+                <li>Unique Pages Tested: ${metrics.pagesTested}</li>
+                <li>WCAG Success Criteria Referenced: ${metrics.wcagCriteria}</li>
+            </ul>
+            <div class="viewer-dialog-actions">
+                <button id="btn-editor-statistics-close" type="button">Close</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderEditorActionBar() {
+    const addEntryDisabled = !currentReportSupportsAuditEntries();
+    return `
+        <div class="editor-action-bar" role="group" aria-label="Report editor actions">
+            <button id="btn-add-entry" type="button" ${addEntryDisabled ? 'disabled aria-disabled="true"' : ''}>Add Entry</button>
+            <button id="btn-editor-configure-report" type="button">Configure Report</button>
+            <button id="btn-editor-validate-report" type="button">Validate Report</button>
+            <button id="btn-editor-report-statistics" type="button">Report Statistics</button>
+            <button id="btn-editor-view-report" type="button">View Report</button>
+            <button id="btn-editor-print-preview" type="button">Print Preview</button>
+            <button id="btn-editor-export-report" type="button">Export Report...</button>
+            <button id="btn-editor-close-report" type="button">Close Report</button>
+        </div>
+    `;
+}
+
+function renderValidationResults(issues) {
+    const results = document.getElementById('editor-validation-results');
+    if (!results) return;
+    if (!issues.length) {
+        results.innerHTML = '<p>No validation issues found.</p>';
+        return;
+    }
+
+    results.innerHTML = `
+        <ul class="editor-validation-list">
+            ${issues.map((issue, index) => `
+                <li>
+                    <button type="button" class="btn-validation-issue" data-issue-index="${index}">${escapeHtml(issue.message)}</button>
+                </li>
+            `).join('')}
+        </ul>
+    `;
+}
+
+function focusValidationTarget(issue) {
+    if (!issue) return;
+    if (issue.targetType === 'metadata') {
+        const editMetadataButton = document.getElementById('btn-edit-metadata');
+        editMetadataButton?.click();
+        window.setTimeout(() => {
+            const target = document.querySelector(`[data-metadata-key="${issue.target}"]`);
+            target?.focus();
+        }, 0);
+        return;
+    }
+
+    if (issue.targetType === 'builder') {
+        const builderTab = document.getElementById('tab-builder');
+        builderTab?.click();
+        window.setTimeout(() => {
+            const target = document.getElementById(issue.target || 'builder-heading');
+            target?.focus();
+        }, 0);
+        return;
+    }
+
+    const target = document.getElementById(issue.target);
+    if (target) {
+        target.focus();
+    }
+}
+
 function renderAuditTable(criteria) {
     ensureAuditEntries();
     const entries = getAuditEntries();
@@ -490,8 +602,6 @@ function renderAuditTable(criteria) {
                     </tbody>
                 </table>
             </div>
-            <button id="btn-add-entry" type="button">Add Entry</button>
-
             <div id="entry-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="entry-delete-heading" aria-describedby="entry-delete-message" hidden>
                 <h3 id="entry-delete-heading">Delete Entry?</h3>
                 <p id="entry-delete-message"></p>
@@ -522,10 +632,17 @@ function renderSingleEntryEditor() {
 function focusPendingEntryControl() {
     if (!pendingEntryFocus) return false;
     const { entryIndex, fieldIndex } = pendingEntryFocus;
+    let target = document.getElementById(`editor-field-${entryIndex}-${fieldIndex}`);
+    if (!target) {
+        target = document.querySelector('.editor-audit-table tbody tr:last-child [data-field-index="0"]')
+            || document.querySelector('.editor-audit-table tbody tr:last-child .wcag-combobox-input')
+            || document.querySelector('.editor-audit-table tbody tr:last-child .btn-entry-toggle');
+    }
     pendingEntryFocus = null;
-    const target = document.getElementById(`editor-field-${entryIndex}-${fieldIndex}`);
     if (target) {
-        target.focus();
+        window.setTimeout(() => {
+            target.focus();
+        }, 0);
         return true;
     }
     return false;
@@ -538,8 +655,7 @@ function bindAuditTableEvents(criteria) {
     const addEntryButton = document.getElementById('btn-add-entry');
     if (addEntryButton) {
         addEntryButton.addEventListener('click', () => {
-            const newIndex = addAuditEntry();
-            pendingEntryFocus = { entryIndex: newIndex, fieldIndex: 0 };
+            if (!activateAddEntryWorkflow()) return;
             renderEditor();
         });
     }
@@ -643,16 +759,27 @@ function bindAuditTableEvents(criteria) {
 function bindEditorDialogEvents() {
     const editMetadataButton = document.getElementById('btn-edit-metadata');
     const clearReportButton = document.getElementById('btn-clear-report-data');
+    const configureReportButton = document.getElementById('btn-editor-configure-report');
+    const validateReportButton = document.getElementById('btn-editor-validate-report');
+    const reportStatisticsButton = document.getElementById('btn-editor-report-statistics');
+    const viewReportButton = document.getElementById('btn-editor-view-report');
+    const printPreviewButton = document.getElementById('btn-editor-print-preview');
+    const exportReportButton = document.getElementById('btn-editor-export-report');
+    const closeReportButton = document.getElementById('btn-editor-close-report');
     const metadataDialog = document.getElementById('editor-metadata-dialog');
     const clearDialog = document.getElementById('editor-clear-dialog');
+    const validationDialog = document.getElementById('editor-validation-dialog');
+    const statisticsDialog = document.getElementById('editor-statistics-dialog');
     const metadataConfirm = document.getElementById('btn-editor-metadata-confirm');
     const metadataCancel = document.getElementById('btn-editor-metadata-cancel');
     const clearConfirm = document.getElementById('btn-editor-clear-confirm');
     const clearCancel = document.getElementById('btn-editor-clear-cancel');
+    const validationClose = document.getElementById('btn-editor-validation-close');
+    const statisticsClose = document.getElementById('btn-editor-statistics-close');
     const metadataError = document.getElementById('editor-metadata-dialog-error');
     const brandingEnabledField = document.getElementById('metadata-field-branding-enabled');
 
-    if (!editMetadataButton || !clearReportButton || !metadataDialog || !clearDialog || !metadataConfirm || !metadataCancel || !clearConfirm || !clearCancel) return;
+    if (!editMetadataButton || !clearReportButton || !metadataDialog || !clearDialog || !metadataConfirm || !metadataCancel || !clearConfirm || !clearCancel || !validationDialog || !statisticsDialog || !validationClose || !statisticsClose) return;
 
     const syncMetadataBrandingVisibility = () => {
         const enabled = Boolean(brandingEnabledField?.checked);
@@ -677,8 +804,67 @@ function bindEditorDialogEvents() {
         openModalDialog(clearDialog, firstRadio, clearReportButton);
     });
 
+    configureReportButton?.addEventListener('click', () => {
+        upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
+        const builderTab = document.getElementById('tab-builder');
+        builderTab?.click();
+        window.setTimeout(() => {
+            document.getElementById('builder-heading')?.focus();
+        }, 0);
+    });
+
+    validateReportButton?.addEventListener('click', () => {
+        const issues = validateCurrentReport();
+        renderValidationResults(issues);
+        validationDialog.querySelectorAll('.btn-validation-issue').forEach((button) => {
+            button.addEventListener('click', () => {
+                const index = Number(button.getAttribute('data-issue-index'));
+                const issue = issues[index];
+                closeModalDialog(false);
+                window.setTimeout(() => focusValidationTarget(issue), 0);
+            });
+        });
+        openModalDialog(validationDialog, validationClose, validateReportButton);
+    });
+
+    reportStatisticsButton?.addEventListener('click', () => {
+        openModalDialog(statisticsDialog, statisticsClose, reportStatisticsButton);
+    });
+
+    viewReportButton?.addEventListener('click', () => {
+        const viewerTab = document.getElementById('tab-view');
+        viewerTab?.click();
+        window.setTimeout(() => document.getElementById('viewer-heading')?.focus(), 0);
+    });
+
+    printPreviewButton?.addEventListener('click', () => {
+        requestViewerPrintPreview();
+        const viewerTab = document.getElementById('tab-view');
+        viewerTab?.click();
+    });
+
+    exportReportButton?.addEventListener('click', () => {
+        requestViewerExportDialog();
+        const viewerTab = document.getElementById('tab-view');
+        viewerTab?.click();
+    });
+
+    closeReportButton?.addEventListener('click', () => {
+        upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
+        const welcomeTab = document.getElementById('tab-welcome');
+        welcomeTab?.click();
+        window.setTimeout(() => {
+            const heading = document.getElementById('dash-heading');
+            if (!heading) return;
+            if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+            heading.focus();
+        }, 0);
+    });
+
     metadataCancel.addEventListener('click', () => closeModalDialog(true));
     clearCancel.addEventListener('click', () => closeModalDialog(true));
+    validationClose.addEventListener('click', () => closeModalDialog(true));
+    statisticsClose.addEventListener('click', () => closeModalDialog(true));
 
     metadataConfirm.addEventListener('click', () => {
         const values = {};
@@ -744,7 +930,7 @@ export async function renderEditor() {
     if (isAuditLog) ensureAuditEntries();
 
     container.innerHTML = `
-        <section id="editor-view">
+        <section id="editor-view" aria-labelledby="editor-heading">
             <h2 id="editor-heading" tabindex="-1">${escapeHtml(editorHeading)}</h2>
             <div id="editor-instructions" class="editor-instructions">
                 <p>Fill in the audit report fields in the table.</p>
@@ -755,17 +941,22 @@ export async function renderEditor() {
             ${renderMetadataPlainText()}
             <button id="btn-edit-metadata" type="button">Edit Metadata...</button>
             ${isAuditLog ? renderAuditTable(wcagCriteria) : renderSingleEntryEditor()}
+            ${renderEditorActionBar()}
             <button id="btn-clear-report-data" type="button">Clear Report Data...</button>
             ${renderMetadataEditDialog()}
             ${renderClearDialog()}
+            ${renderValidationDialog()}
+            ${renderStatisticsDialog(getCurrentReportMetrics())}
         </section>
     `;
 
     const headingAfterRender = document.getElementById('editor-heading');
 
+    let didApplyPendingEntryFocus = false;
+
     if (isAuditLog) {
         bindAuditTableEvents(wcagCriteria);
-        focusPendingEntryControl();
+        didApplyPendingEntryFocus = focusPendingEntryControl();
     } else {
         container.querySelectorAll('[data-entry-index][data-field-index]').forEach((control) => {
             if (control.classList.contains('wcag-combobox')) {
@@ -795,7 +986,7 @@ export async function renderEditor() {
                 target.focus();
             }, 0);
         }
-    } else if (preserveFocusId) {
+    } else if (preserveFocusId && !didApplyPendingEntryFocus) {
         const preserved = document.getElementById(preserveFocusId);
         if (preserved) {
             window.setTimeout(() => {
@@ -805,7 +996,7 @@ export async function renderEditor() {
         }
     }
 
-    if (headingAfterRender && !pendingEntryFocus) {
+    if (headingAfterRender && !pendingEntryFocus && !didApplyPendingEntryFocus) {
         window.setTimeout(() => {
             headingAfterRender.focus();
         }, 0);

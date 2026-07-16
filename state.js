@@ -216,9 +216,18 @@ function normalizeReports(reports) {
 }
 
 function normalizeTemplate(template) {
+    const metadata = template?.metadata && typeof template.metadata === 'object'
+        ? template.metadata
+        : {};
+
     return {
         id: template?.id || `user-${Date.now()}`,
         name: String(template?.name || 'Untitled Template').trim(),
+        metadata: {
+            schemaVersion: String(metadata.schemaVersion || '1.0'),
+            exportedAt: String(metadata.exportedAt || ''),
+            source: String(metadata.source || '')
+        },
         data: {
             ...reportDefaults,
             ...(template?.data || {}),
@@ -326,6 +335,24 @@ function getUniqueReportName(baseName) {
     const safeBase = String(baseName || 'Untitled Report').trim() || 'Untitled Report';
     const existing = new Set((appState.reports || []).map((report) => String(report.name || '').toLowerCase()));
     if (!existing.has(safeBase.toLowerCase())) return safeBase;
+    let suffix = 2;
+    let candidate = `${safeBase} (${suffix})`;
+    while (existing.has(candidate.toLowerCase())) {
+        suffix += 1;
+        candidate = `${safeBase} (${suffix})`;
+    }
+    return candidate;
+}
+
+function getUniqueTemplateName(baseName) {
+    const safeBase = String(baseName || 'Untitled Template').trim() || 'Untitled Template';
+    const existing = new Set([
+        ...getBuiltInTemplates().map((template) => String(template.name || '').toLowerCase()),
+        ...(appState.userTemplates || []).map((template) => String(template.name || '').toLowerCase())
+    ]);
+
+    if (!existing.has(safeBase.toLowerCase())) return safeBase;
+
     let suffix = 2;
     let candidate = `${safeBase} (${suffix})`;
     while (existing.has(candidate.toLowerCase())) {
@@ -522,6 +549,10 @@ export function createUserTemplate(name, templateData) {
     const template = normalizeTemplate({
         id: `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         name: templateName,
+        metadata: {
+            schemaVersion: '1.0',
+            source: 'user'
+        },
         data: templateData || captureCurrentReportData()
     });
     appState.userTemplates.push(template);
@@ -563,6 +594,8 @@ export function saveCurrentReportToUserTemplate(templateId) {
 
 const ART_JSON_VERSION = '1.0';
 const ART_JSON_WARNING = 'Warning: Do not edit. This file is used for importing your report back into ART and will not work if modified.';
+const ART_TEMPLATE_JSON_VERSION = '1.0';
+const ART_TEMPLATE_WARNING = 'Warning: Do not edit. This file is used for importing templates back into ART and may fail validation if modified.';
 
 function cloneDeep(value) {
     return JSON.parse(JSON.stringify(value));
@@ -600,6 +633,87 @@ export function createArtJsonPayload(reportState = cloneCurrentAppState()) {
 
 export function serializeArtJsonPayload(reportState) {
     return JSON.stringify(createArtJsonPayload(reportState), null, 2);
+}
+
+function normalizeTemplatePayloadData(templateData) {
+    const normalized = normalizeTemplate({
+        name: String(templateData?.name || 'Untitled Template'),
+        metadata: templateData?.metadata,
+        data: templateData?.data || {}
+    });
+
+    return {
+        name: normalized.name,
+        metadata: {
+            schemaVersion: String(normalized.metadata?.schemaVersion || '1.0'),
+            exportedAt: String(normalized.metadata?.exportedAt || ''),
+            source: String(normalized.metadata?.source || '')
+        },
+        data: normalized.data
+    };
+}
+
+export function createTemplateJsonPayload(template) {
+    const normalized = normalizeTemplatePayloadData(template);
+    return {
+        artTemplateVersion: ART_TEMPLATE_JSON_VERSION,
+        _warning: ART_TEMPLATE_WARNING,
+        template: {
+            name: normalized.name,
+            metadata: {
+                ...normalized.metadata,
+                exportedAt: new Date().toISOString()
+            },
+            data: normalized.data
+        }
+    };
+}
+
+export function serializeTemplateJsonPayload(template) {
+    return JSON.stringify(createTemplateJsonPayload(template), null, 2);
+}
+
+export function validateTemplateJsonPayload(input) {
+    let payload;
+    if (typeof input === 'string') {
+        try {
+            payload = JSON.parse(input);
+        } catch (error) {
+            return { isValid: false, reason: 'invalid-json' };
+        }
+    } else {
+        payload = input;
+    }
+
+    if (!payload || typeof payload !== 'object') {
+        return { isValid: false, reason: 'invalid-payload' };
+    }
+
+    if (payload.artTemplateVersion !== ART_TEMPLATE_JSON_VERSION || typeof payload._warning !== 'string') {
+        return { isValid: false, reason: 'missing-template-header' };
+    }
+
+    if (!payload.template || typeof payload.template !== 'object') {
+        return { isValid: false, reason: 'missing-template' };
+    }
+
+    if (!String(payload.template.name || '').trim()) {
+        return { isValid: false, reason: 'missing-template-name' };
+    }
+
+    if (!payload.template.data || typeof payload.template.data !== 'object') {
+        return { isValid: false, reason: 'missing-template-data' };
+    }
+
+    const normalizedTemplate = normalizeTemplatePayloadData(payload.template);
+    return {
+        isValid: true,
+        reason: 'ok',
+        payload: {
+            ...payload,
+            template: normalizedTemplate
+        }
+    };
 }
 
 export function validateArtJsonPayload(input) {
@@ -654,6 +768,50 @@ export function importArtJsonPayload(input) {
     return validation;
 }
 
+export function templateNameExists(name) {
+    const normalized = String(name || '').trim().toLowerCase();
+    if (!normalized) return false;
+
+    const allTemplates = [...getBuiltInTemplates(), ...getUserTemplates()];
+    return allTemplates.some((template) => String(template.name || '').trim().toLowerCase() === normalized);
+}
+
+export function importTemplateWithConflictStrategy(templatePayload, strategy = 'copy') {
+    const normalized = normalizeTemplatePayloadData(templatePayload);
+    const importName = normalized.name;
+    const existingIndex = appState.userTemplates.findIndex(
+        (template) => String(template.name || '').trim().toLowerCase() === importName.toLowerCase()
+    );
+
+    let targetName = importName;
+    if (strategy === 'copy' || (strategy === 'replace' && existingIndex < 0 && templateNameExists(importName))) {
+        targetName = getUniqueTemplateName(importName);
+    }
+
+    const importedTemplate = normalizeTemplate({
+        id: existingIndex >= 0 && strategy === 'replace'
+            ? appState.userTemplates[existingIndex].id
+            : `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: targetName,
+        metadata: {
+            schemaVersion: String(normalized.metadata?.schemaVersion || '1.0'),
+            source: 'import',
+            exportedAt: String(normalized.metadata?.exportedAt || '')
+        },
+        data: normalized.data
+    });
+
+    if (existingIndex >= 0 && strategy === 'replace') {
+        appState.userTemplates[existingIndex] = importedTemplate;
+    } else {
+        appState.userTemplates.push(importedTemplate);
+    }
+
+    appState.lastCreatedTemplateId = importedTemplate.id;
+    saveState({ action: `Imported template ${importedTemplate.name}` });
+    return importedTemplate;
+}
+
 /**
  * Persists current state to local browser storage.
  */
@@ -671,6 +829,7 @@ export function saveState(options = {}) {
 
     lastSavedSnapshot = nextSnapshot;
     persistCurrentState();
+    window.dispatchEvent(new Event('art-state-updated'));
 }
 
 export function setHistoryAction(action) {
@@ -839,8 +998,239 @@ export function clearReportEverythingInSession() {
     window.dispatchEvent(new Event('art-reports-updated'));
 }
 
+export function closeCurrentReportSession() {
+    appState.selectedReportId = '';
+    appState.reportTitle = defaultState.reportTitle;
+    appState.orgClient = defaultState.orgClient;
+    appState.projectName = defaultState.projectName;
+    appState.scopeUrl = defaultState.scopeUrl;
+    appState.auditDateStart = defaultState.auditDateStart;
+    appState.auditDateEnd = defaultState.auditDateEnd;
+    appState.auditors = defaultState.auditors;
+    appState.standard = defaultState.standard;
+    appState.testingInstructions = defaultState.testingInstructions;
+    appState.reportType = defaultState.reportType;
+    appState.reportLayout = defaultState.reportLayout;
+    appState.templateOption = defaultState.templateOption;
+    appState.templateName = defaultState.templateName;
+    appState.templateDescription = defaultState.templateDescription;
+    appState.fieldsExpanded = defaultState.fieldsExpanded;
+    appState.fields = [];
+    appState.editingIndex = -1;
+    appState.editorUsesReportTitle = false;
+    appState.editorReadOnly = false;
+    appState.editorFieldValues = {};
+    appState.auditEntries = [];
+    appState.activeAuditEntryIndex = 0;
+    appState.templateEditingId = null;
+    appState.templateCreateMode = false;
+    appState.branding = normalizeBranding(defaultState.branding);
+
+    saveState({ action: 'Closed active report' });
+    window.dispatchEvent(new Event('art-reports-updated'));
+}
+
 export function getReportById(reportId) {
     return (appState.reports || []).find((report) => report.id === reportId) || null;
+}
+
+export function currentReportSupportsAuditEntries() {
+    return appState.reportType === 'Audit Log';
+}
+
+function getReportDataFromSnapshot(report) {
+    return report?.data && typeof report.data === 'object' ? report.data : null;
+}
+
+function getMetricsFromReportData(reportData) {
+    if (!reportData) {
+        return {
+            totalIssues: 0,
+            pagesTested: 0,
+            issuesBySeverity: 'None',
+            wcagCriteria: 0,
+            totalAuditEntries: 0
+        };
+    }
+
+    const fields = Array.isArray(reportData.fields) ? reportData.fields : [];
+    const entries = Array.isArray(reportData.auditEntries) && reportData.auditEntries.length > 0
+        ? reportData.auditEntries
+        : [{ fieldValues: reportData.editorFieldValues || {} }];
+
+    const pageFieldIndexes = fields
+        .map((field, index) => ({ field, index }))
+        .filter((item) => /page|url|scope/i.test(String(item.field?.label || '')))
+        .map((item) => item.index);
+
+    const severityFieldIndexes = fields
+        .map((field, index) => ({ field, index }))
+        .filter((item) => /severity|risk/i.test(String(item.field?.label || '')))
+        .map((item) => item.index);
+
+    const wcagFieldIndexes = fields
+        .map((field, index) => ({ field, index }))
+        .filter((item) => String(item.field?.type || '') === 'wcag-success-criterion')
+        .map((item) => item.index);
+
+    const pages = new Set();
+    const wcagSet = new Set();
+    const severityCounts = new Map();
+
+    entries.forEach((entry) => {
+        const values = entry?.fieldValues || {};
+        pageFieldIndexes.forEach((fieldIndex) => {
+            const value = String(values[fieldIndex] || '').trim();
+            if (value) pages.add(value);
+        });
+        severityFieldIndexes.forEach((fieldIndex) => {
+            const value = String(values[fieldIndex] || '').trim();
+            if (!value) return;
+            severityCounts.set(value, Number(severityCounts.get(value) || 0) + 1);
+        });
+        wcagFieldIndexes.forEach((fieldIndex) => {
+            const value = values[fieldIndex];
+            if (value && typeof value === 'object' && value.identifier) {
+                wcagSet.add(String(value.identifier));
+                return;
+            }
+            const rawText = String(value || '');
+            const match = rawText.match(/\b\d+\.\d+\.\d+\b/);
+            if (match) wcagSet.add(match[0]);
+        });
+    });
+
+    const issuesBySeverity = [...severityCounts.entries()]
+        .map(([label, count]) => `${label}: ${count}`)
+        .join(', ') || 'None';
+
+    return {
+        totalIssues: entries.length,
+        pagesTested: pages.size,
+        issuesBySeverity,
+        wcagCriteria: wcagSet.size,
+        totalAuditEntries: entries.length
+    };
+}
+
+export function computeReportMetrics(report) {
+    return getMetricsFromReportData(getReportDataFromSnapshot(report));
+}
+
+export function getCurrentReportMetrics() {
+    return getMetricsFromReportData(getCurrentReportSnapshotData());
+}
+
+export function validateCurrentReport() {
+    const issues = [];
+    const metadataChecks = [
+        ['reportTitle', appState.reportTitle, 'Report title is required.', 'metadata', 'reportTitle'],
+        ['orgClient', appState.orgClient, 'Organization/Client is required.', 'metadata', 'orgClient'],
+        ['projectName', appState.projectName, 'Project name is required.', 'metadata', 'projectName'],
+        ['scopeUrl', appState.scopeUrl, 'URL / Scope is required.', 'metadata', 'scopeUrl'],
+        ['auditors', appState.auditors, 'Auditor(s) is required.', 'metadata', 'auditors'],
+        ['reportType', appState.reportType, 'Report type is required.', 'builder', 'report-type-select'],
+        ['reportLayout', appState.reportLayout, 'Report layout is required.', 'builder', 'report-layout-select']
+    ];
+
+    metadataChecks.forEach(([keyPath, value, message, targetType, target]) => {
+        if (!String(value || '').trim()) {
+            issues.push({
+                code: `metadata-${keyPath}`,
+                message,
+                targetType,
+                target
+            });
+        }
+    });
+
+    if (!Array.isArray(appState.fields) || appState.fields.length === 0) {
+        issues.push({
+            code: 'fields-missing',
+            message: 'At least one report field must be configured.',
+            targetType: 'builder',
+            target: 'btn-toggle-config'
+        });
+    }
+
+    const entries = currentReportSupportsAuditEntries()
+        ? getAuditEntries()
+        : [{ fieldValues: appState.editorFieldValues || {} }];
+
+    if (currentReportSupportsAuditEntries() && (!Array.isArray(entries) || entries.length === 0)) {
+        issues.push({
+            code: 'entries-missing',
+            message: 'At least one audit entry is required.',
+            targetType: 'editor',
+            target: 'btn-add-entry'
+        });
+    }
+
+    const seenIdentifiers = new Map();
+
+    entries.forEach((entry, entryIndex) => {
+        (appState.fields || []).forEach((field, fieldIndex) => {
+            const type = field?.type === 'select' ? 'dropdown' : field?.type || 'text';
+            const label = String(field?.label || `Field ${fieldIndex + 1}`);
+            const rawValue = entry?.fieldValues?.[fieldIndex];
+            const isStructuredWcag = rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue);
+            const textValue = isStructuredWcag
+                ? `${rawValue.number || ''} ${rawValue.title || ''}`.trim()
+                : String(rawValue || '').trim();
+
+            if (!textValue) {
+                issues.push({
+                    code: `empty-${entryIndex}-${fieldIndex}`,
+                    message: `${label} is required for entry ${entryIndex + 1}.`,
+                    targetType: 'entry-field',
+                    target: `editor-field-${entryIndex}-${fieldIndex}`
+                });
+                return;
+            }
+
+            if (fieldIndex === 0) {
+                const normalized = textValue.toLowerCase();
+                if (seenIdentifiers.has(normalized)) {
+                    issues.push({
+                        code: `duplicate-${entryIndex}-${fieldIndex}`,
+                        message: `Duplicate identifier ${textValue} found in the first column.`,
+                        targetType: 'entry-field',
+                        target: `editor-field-${entryIndex}-${fieldIndex}`
+                    });
+                } else {
+                    seenIdentifiers.set(normalized, entryIndex);
+                }
+            }
+
+            if (type === 'dropdown') {
+                const allowed = Array.isArray(field.dropdownOptions) ? field.dropdownOptions.map((option) => String(option)) : [];
+                if (!allowed.includes(String(rawValue))) {
+                    issues.push({
+                        code: `invalid-dropdown-${entryIndex}-${fieldIndex}`,
+                        message: `${label} contains an invalid value for entry ${entryIndex + 1}.`,
+                        targetType: 'entry-field',
+                        target: `editor-field-${entryIndex}-${fieldIndex}`
+                    });
+                }
+            }
+
+            if (type === 'wcag-success-criterion') {
+                const hasIdentifier = isStructuredWcag
+                    ? String(rawValue.identifier || '').trim()
+                    : textValue.match(/\b\d+\.\d+\.\d+\b/);
+                if (!hasIdentifier) {
+                    issues.push({
+                        code: `missing-wcag-${entryIndex}-${fieldIndex}`,
+                        message: `${label} must reference a valid WCAG success criterion for entry ${entryIndex + 1}.`,
+                        targetType: 'entry-field',
+                        target: `editor-field-${entryIndex}-${fieldIndex}`
+                    });
+                }
+            }
+        });
+    });
+
+    return issues;
 }
 
 export function upsertCurrentReport(options = {}) {

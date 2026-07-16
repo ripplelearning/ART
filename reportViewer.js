@@ -1,5 +1,16 @@
-import { appState, announce, saveState, serializeArtJsonPayload } from './state.js';
+import { appState, announce, saveState, serializeArtJsonPayload, upsertCurrentReport } from './state.js';
 import { formatWcagCriterionDisplay, getWcagCriterionByIdentifier, isWcagCriterionFieldType } from './wcagCatalog.js';
+
+let openExportDialogOnRender = false;
+let openPrintPreviewOnRender = false;
+
+export function requestViewerExportDialog() {
+    openExportDialogOnRender = true;
+}
+
+export function requestViewerPrintPreview() {
+    openPrintPreviewOnRender = true;
+}
 
 function escapeHtml(value) {
     return String(value)
@@ -812,7 +823,7 @@ export function renderViewer() {
     const reportHeading = appState.reportTitle?.trim() || 'Untitled Report';
 
     container.innerHTML = `
-        <section id="viewer-view">
+        <section id="viewer-view" aria-labelledby="viewer-heading">
             <h2 id="viewer-heading" tabindex="-1">${escapeHtml(reportHeading)}</h2>
 
             <section aria-labelledby="viewer-metadata-heading">
@@ -822,13 +833,14 @@ export function renderViewer() {
 
             ${renderBrandingBlock()}
 
+            ${renderReportBody()}
+
             <div class="viewer-actions" role="group" aria-label="Report viewer actions">
                 <button id="btn-export-options" type="button">Export Options...</button>
                 <button id="btn-change-config" type="button">Change Report Configuration</button>
                 <button id="btn-edit-report" type="button">Edit Report</button>
+                <button id="btn-viewer-close-report" type="button">Close Report</button>
             </div>
-
-            ${renderReportBody()}
 
             <div id="wcag-doc-dialog" role="dialog" aria-modal="true" aria-labelledby="wcag-doc-heading" aria-describedby="wcag-doc-description" hidden>
                 <button id="btn-close-wcag-doc" type="button">Close</button>
@@ -863,6 +875,7 @@ export function renderViewer() {
     const exportButton = document.getElementById('btn-export-options');
     const changeConfigButton = document.getElementById('btn-change-config');
     const editReportButton = document.getElementById('btn-edit-report');
+    const closeReportButton = document.getElementById('btn-viewer-close-report');
     const exportDialog = document.getElementById('export-dialog');
     const exportFileName = document.getElementById('export-file-name');
     const exportFormat = document.getElementById('export-format');
@@ -873,7 +886,7 @@ export function renderViewer() {
     const wcagDocClose = document.getElementById('btn-close-wcag-doc');
 
     if (
-        !exportButton || !changeConfigButton || !editReportButton || !exportDialog || !exportFileName
+        !exportButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
         || !exportFormat || !exportSave || !exportCancel || !wcagDocDialog || !wcagDocFrame || !wcagDocClose
     ) return;
 
@@ -1079,4 +1092,26 @@ export function renderViewer() {
             if (editorHeading) editorHeading.focus();
         }, 0);
     });
+
+    closeReportButton.addEventListener('click', () => {
+        upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
+        const welcomeTab = document.getElementById('tab-welcome');
+        welcomeTab?.click();
+        window.setTimeout(() => {
+            const heading = document.getElementById('dash-heading');
+            if (!heading) return;
+            if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+            heading.focus();
+        }, 0);
+    });
+
+    if (openExportDialogOnRender) {
+        openExportDialogOnRender = false;
+        openExportDialog();
+    }
+
+    if (openPrintPreviewOnRender) {
+        openPrintPreviewOnRender = false;
+        window.setTimeout(() => window.print(), 0);
+    }
 }
