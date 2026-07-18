@@ -5,6 +5,12 @@ This document defines the minimum completion requirements for all new ART featur
 
 A change shall not be considered complete until the applicable requirements below have been reviewed and addressed.
 
+## Related Resources
+- [ART Development Standards](ART-Development-Standards.md)
+- [Contributing Guide](../CONTRIBUTING.md)
+- [Copilot Development Instructions](../.github/copilot-instructions.md)
+- [Repository Overview](../README.md)
+
 ## Feature Implementation
 The feature or change must:
 

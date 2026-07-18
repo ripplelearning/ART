@@ -11,8 +11,16 @@ Before submitting contributions, please review:
 
 - [ART Development Standards](docs/ART-Development-Standards.md)
 - [ART Definition of Done](docs/ART-Definition-of-Done.md)
+- [Copilot Development Instructions](.github/copilot-instructions.md)
+- [Feature Completion Requirements](AGENTS.md)
 
 These documents define the standards expected for ART development.
+
+## Related Documentation
+- [Repository Overview](README.md)
+- [ART Development Standards](docs/ART-Development-Standards.md)
+- [ART Definition of Done](docs/ART-Definition-of-Done.md)
+- [Copilot Development Instructions](.github/copilot-instructions.md)
 
 ## Types of Contributions
 Contributions may include:

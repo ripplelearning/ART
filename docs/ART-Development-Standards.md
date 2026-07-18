@@ -17,6 +17,12 @@ The goal is to ensure ART remains accessible, maintainable, consistent, and user
 ## Scope
 These standards apply to all code, documentation, interface updates, shortcut changes, settings updates, and support workflows in the ART repository.
 
+## Related Resources
+- [ART Definition of Done](ART-Definition-of-Done.md)
+- [Contributing Guide](../CONTRIBUTING.md)
+- [Copilot Development Instructions](../.github/copilot-instructions.md)
+- [Repository Overview](../README.md)
+
 ## Accessibility-First Development
 ART shall follow an accessibility-first development philosophy.
 

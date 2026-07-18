@@ -144,8 +144,8 @@ function getHelpSections(rows) {
             id: 'help-settings-config',
             title: 'Settings and Configuration',
             content: `
-                <p>Application Settings includes Keyboard Manager, imported standards, the Paste Standards As Table workflow for clipboard tables, reset controls, and About metadata.</p>
-                <p>If assigned in Keyboard Manager, the Paste Standards As Table action can be opened directly with its configured shortcut.</p>
+                <p>Application Settings includes Keyboard Shortcut Manager, imported standards, the Paste Standards As Table workflow for clipboard tables, reset controls, and About metadata.</p>
+                <p>If assigned in Keyboard Shortcut Manager, the Paste Standards As Table action can be opened directly with its configured shortcut.</p>
                 <p>Shortcut assignments shown in this Help page are dynamically synced from your current settings.</p>
             `
         },
@@ -215,7 +215,7 @@ function getHelpSections(rows) {
             content: `
                 <details>
                     <summary>How do I keep my custom shortcuts visible in Help?</summary>
-                    <p>Shortcut entries in Help are generated from the same source used by Keyboard Manager.</p>
+                    <p>Shortcut entries in Help are generated from the same source used by Keyboard Shortcut Manager.</p>
                 </details>
                 <details>
                     <summary>Can Help stay open while I keep my report context?</summary>
@@ -346,7 +346,7 @@ function getHelpSections(rows) {
             content: `
                 <ul>
                     <li>Update Help content whenever features, workflows, or exports change.</li>
-                    <li>Shortcut references are generated from live shortcut definitions and remain synchronized with Keyboard Manager.</li>
+                    <li>Shortcut references are generated from live shortcut definitions and remain synchronized with Keyboard Shortcut Manager.</li>
                     <li>Add new sections instead of overloading existing ones as ART scope expands.</li>
                 </ul>
             `
