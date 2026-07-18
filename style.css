@@ -309,6 +309,10 @@
 #settings-shortcut-conflict-dialog,
 #settings-standard-name-dialog,
 #settings-standard-overwrite-dialog,
+#settings-standard-paste-dialog,
+#settings-standard-json-dialog,
+#settings-google-dialog,
+#settings-clear-standards-dialog,
 #settings-reset-dialog {
     border: 1px solid #ccc;
     background: #fff;
@@ -338,6 +342,46 @@
 
 #app-settings-dialog h4 {
     margin-top: 0;
+}
+
+#settings-admin-tools {
+    border: 1px solid #ddd;
+    background: #f7f7f7;
+    padding: 8px 10px;
+}
+
+#settings-admin-tools > summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+#settings-admin-tools > summary:focus,
+#settings-admin-tools > summary:focus-visible {
+    outline: 2px solid #005a9c;
+    outline-offset: 2px;
+}
+
+#settings-integrations-list {
+    margin: 10px 0 0;
+    padding-left: 20px;
+    display: grid;
+    gap: 6px;
+}
+
+#network-activity {
+    border: 1px solid #ddd;
+    background: #fafafa;
+    padding: 10px;
+    margin-top: 12px;
+}
+
+#network-activity h3 {
+    margin: 0 0 6px;
+}
+
+#network-activity-status,
+#network-activity-detail {
+    margin: 0;
 }
 
 #settings-shortcuts-table input[readonly] {

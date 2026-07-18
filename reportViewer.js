@@ -1,4 +1,5 @@
-import { appState, announce, getCurrentReportMetrics, saveState, serializeArtJsonPayload, upsertCurrentReport } from './state.js';
+import { appState, announce, getCurrentReportMetrics, getGoogleWorkspaceConfig, getSecurityConfig, recordSecurityAudit, saveState, serializeArtJsonPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
+import { uploadBlobToGoogleDrive } from './googleWorkspace.js';
 import { formatWcagCriterionDisplay, getWcagCriterionByIdentifier, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let openExportDialogOnRender = false;
@@ -956,6 +957,7 @@ export function renderViewer() {
                     <button id="btn-export-save" type="button">Save</button>
                     <button id="btn-export-cancel" type="button">Cancel</button>
                 </div>
+                <p id="export-status" class="open-report-status" role="status" aria-live="polite" aria-atomic="true"></p>
             </div>
         </section>
     `;
@@ -969,13 +971,14 @@ export function renderViewer() {
     const exportFormat = document.getElementById('export-format');
     const exportSave = document.getElementById('btn-export-save');
     const exportCancel = document.getElementById('btn-export-cancel');
+    const exportStatus = document.getElementById('export-status');
     const wcagDocDialog = document.getElementById('wcag-doc-dialog');
     const wcagDocFrame = document.getElementById('wcag-doc-frame');
     const wcagDocClose = document.getElementById('btn-close-wcag-doc');
 
     if (
         !exportButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
-        || !exportFormat || !exportSave || !exportCancel || !wcagDocDialog || !wcagDocFrame || !wcagDocClose
+        || !exportFormat || !exportSave || !exportCancel || !exportStatus || !wcagDocDialog || !wcagDocFrame || !wcagDocClose
     ) return;
 
     let isExportDialogOpen = false;
@@ -1020,6 +1023,7 @@ export function renderViewer() {
     const openExportDialog = () => {
         isExportDialogOpen = true;
         exportDialog.hidden = false;
+        exportStatus.textContent = '';
         exportFileName.value = (appState.reportTitle || 'Report').trim() || 'Report';
         window.setTimeout(() => {
             exportFileName.focus();
@@ -1118,11 +1122,68 @@ export function renderViewer() {
         const format = exportFormat.value;
         const fileNameInput = exportFileName.value.trim() || (appState.reportTitle || 'Report');
         const safeFileName = String(fileNameInput).replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Report';
+        const googleConfig = getGoogleWorkspaceConfig();
+        const securityConfig = getSecurityConfig();
+        const googleTarget = String(googleConfig.defaultExportTarget || 'none');
 
         try {
             const exportConfig = await getExportConfig(format);
             const zipBlob = await buildZipExportBlob(safeFileName, exportConfig);
             const zipFileName = `${safeFileName}_Export.zip`;
+
+            if (googleConfig.enabled && String(googleConfig.status || '').toLowerCase() === 'connected') {
+                if (googleTarget === 'google-drive') {
+                    if (securityConfig.privacyModeEnabled) {
+                        const blocked = 'Privacy Mode is enabled. External integration export is blocked.';
+                        exportStatus.textContent = blocked;
+                        announce(blocked);
+                        recordSecurityAudit('Export blocked by Privacy Mode', `Target: Google Drive, format: ${format}`);
+                        return;
+                    }
+                    const approved = window.confirm(
+                        `Export requires external upload.\\n\\nWhat: ${zipFileName}\\nWhere: Google Drive\\nAccount: ${googleConfig.accountEmail || 'Connected Google account'}\\nWhy: User-initiated report export\\nAction: Upload ZIP package\\n\\nApprove this transfer?`
+                    );
+                    if (!approved) {
+                        exportStatus.textContent = 'External upload cancelled by user.';
+                        announce('External upload cancelled by user.');
+                        recordSecurityAudit('External upload cancelled', `Target: Google Drive, file: ${zipFileName}`);
+                        setNetworkActivity('Offline', 'External upload cancelled by user.');
+                        return;
+                    }
+
+                    exportStatus.textContent = 'Uploading export to Google Drive...';
+                    setNetworkActivity('Authorization Required', 'Preparing user-approved upload to Google Drive.');
+                    recordSecurityAudit('External upload approved', `Target: Google Drive, file: ${zipFileName}`);
+                    const upload = await uploadBlobToGoogleDrive({
+                        blob: zipBlob,
+                        fileName: zipFileName,
+                        mimeType: 'application/zip'
+                    });
+
+                    if (!upload.ok) {
+                        throw new Error(upload.lastError || 'Google Drive upload failed.');
+                    }
+
+                    const successMessage = upload.webViewLink
+                        ? `Uploaded ${upload.fileName} to Google Drive.`
+                        : `Uploaded ${upload.fileName} to Google Drive.`;
+                    exportStatus.textContent = successMessage;
+                    announce(successMessage);
+                    setNetworkActivity('Connected to Google Workspace', 'Last operation: user-approved upload to Google Drive.');
+                    recordSecurityAudit('External upload completed', `Target: Google Drive, file: ${upload.fileName}`);
+                    closeExportDialog(true);
+                    return;
+                }
+
+                if (googleTarget === 'google-docs' || googleTarget === 'google-sheets') {
+                    const fallbackMessage = googleTarget === 'google-docs'
+                        ? 'Google Docs export is not available yet. Saved a local ZIP export instead.'
+                        : 'Google Sheets export is not available yet. Saved a local ZIP export instead.';
+                    exportStatus.textContent = fallbackMessage;
+                    announce(fallbackMessage);
+                }
+            }
+
             const objectUrl = URL.createObjectURL(zipBlob);
             const link = document.createElement('a');
             link.href = objectUrl;
@@ -1131,10 +1192,17 @@ export function renderViewer() {
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(objectUrl);
+            exportStatus.textContent = `Saved ${zipFileName}.`;
             announce(`Saved ${zipFileName}`);
+            setNetworkActivity('Offline', 'Local export completed with no external transfer.');
+            recordSecurityAudit('Local export completed', `File: ${zipFileName}`);
             closeExportDialog(true);
         } catch (error) {
-            announce('Export failed.');
+            const message = String(error?.message || 'Export failed.');
+            exportStatus.textContent = message;
+            announce(message);
+            setNetworkActivity('Connection Failed', message);
+            recordSecurityAudit('Export failed', message);
         }
     };
 

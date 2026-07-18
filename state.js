@@ -75,6 +75,12 @@ const defaultState = {
         settingsRestoreShortcuts: '',
         settingsImportStandard: '',
         settingsPasteStandardTable: '',
+        settingsGoogleConnect: '',
+        settingsGoogleReconnect: '',
+        settingsGoogleDisconnect: '',
+        settingsOpenIntegrations: '',
+        settingsTogglePrivacyMode: '',
+        settingsCreateBackup: '',
         settingsResetApp: '',
         settingsCloseReport: '',
         copyEntry: '',
@@ -94,6 +100,41 @@ const defaultState = {
         logoAltText: "",
         logoDecorative: false,
         logoFileName: ""
+    },
+    googleWorkspace: {
+        enabled: false,
+        clientId: "",
+        status: 'disconnected',
+        accountEmail: "",
+        accountName: "",
+        connectedAt: "",
+        expiresAt: "",
+        scopes: [],
+        defaultExportTarget: 'google-drive',
+        lastError: ""
+    },
+    integrations: {
+        jira: {
+            status: 'disconnected'
+        },
+        githubIssues: {
+            status: 'disconnected'
+        },
+        azureDevOps: {
+            status: 'disconnected'
+        }
+    },
+    security: {
+        privacyModeEnabled: false,
+        networkActivityStatus: 'Offline',
+        networkActivityDetail: 'No external connection activity.',
+        backup: {
+            autoEnabled: false,
+            frequency: 'weekly',
+            retention: 5
+        },
+        restorePoints: [],
+        auditLog: []
     }
 };
 
@@ -149,6 +190,90 @@ function normalizeStandardValue(value) {
     return normalized || defaultState.standard;
 }
 
+function normalizeGoogleWorkspaceConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    const statusRaw = String(source.status || defaultState.googleWorkspace.status).trim().toLowerCase();
+    const allowedStatuses = new Set(['disconnected', 'connected', 'expired', 'error', 'connecting']);
+    const status = allowedStatuses.has(statusRaw) ? statusRaw : defaultState.googleWorkspace.status;
+    const defaultExportTargetRaw = String(source.defaultExportTarget || defaultState.googleWorkspace.defaultExportTarget).trim().toLowerCase();
+    const allowedExportTargets = new Set(['google-drive', 'google-docs', 'google-sheets', 'none']);
+
+    return {
+        ...defaultState.googleWorkspace,
+        ...source,
+        enabled: Boolean(source.enabled),
+        clientId: String(source.clientId || ''),
+        status,
+        accountEmail: String(source.accountEmail || ''),
+        accountName: String(source.accountName || ''),
+        connectedAt: String(source.connectedAt || ''),
+        expiresAt: String(source.expiresAt || ''),
+        scopes: Array.isArray(source.scopes)
+            ? source.scopes.map((scope) => String(scope || '').trim()).filter(Boolean)
+            : [],
+        defaultExportTarget: allowedExportTargets.has(defaultExportTargetRaw)
+            ? defaultExportTargetRaw
+            : defaultState.googleWorkspace.defaultExportTarget,
+        lastError: String(source.lastError || '')
+    };
+}
+
+function normalizeIntegrationStatus(value) {
+    const status = String(value || 'disconnected').trim().toLowerCase();
+    const allowed = new Set(['disconnected', 'connected', 'authorization-required', 'connection-failed']);
+    return allowed.has(status) ? status : 'disconnected';
+}
+
+function normalizeIntegrationsConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    return {
+        jira: {
+            status: normalizeIntegrationStatus(source?.jira?.status)
+        },
+        githubIssues: {
+            status: normalizeIntegrationStatus(source?.githubIssues?.status)
+        },
+        azureDevOps: {
+            status: normalizeIntegrationStatus(source?.azureDevOps?.status)
+        }
+    };
+}
+
+function normalizeSecurityConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    const backupSource = source.backup && typeof source.backup === 'object' ? source.backup : {};
+    const frequency = String(backupSource.frequency || defaultState.security.backup.frequency).trim().toLowerCase();
+    const allowedFrequencies = new Set(['daily', 'weekly', 'monthly']);
+    const retentionNumber = Number(backupSource.retention);
+
+    return {
+        privacyModeEnabled: Boolean(source.privacyModeEnabled),
+        networkActivityStatus: String(source.networkActivityStatus || defaultState.security.networkActivityStatus),
+        networkActivityDetail: String(source.networkActivityDetail || defaultState.security.networkActivityDetail),
+        backup: {
+            autoEnabled: Boolean(backupSource.autoEnabled),
+            frequency: allowedFrequencies.has(frequency) ? frequency : defaultState.security.backup.frequency,
+            retention: Number.isFinite(retentionNumber) ? Math.min(50, Math.max(1, Math.round(retentionNumber))) : defaultState.security.backup.retention
+        },
+        restorePoints: Array.isArray(source.restorePoints)
+            ? source.restorePoints.map((point) => ({
+                id: String(point?.id || `restore-${Date.now()}-${Math.floor(Math.random() * 1000)}`),
+                label: String(point?.label || 'Restore Point'),
+                createdAt: String(point?.createdAt || new Date().toISOString()),
+                projectName: String(point?.projectName || ''),
+                snapshot: point?.snapshot && typeof point.snapshot === 'object' ? point.snapshot : null
+            })).filter((point) => point.snapshot)
+            : [],
+        auditLog: Array.isArray(source.auditLog)
+            ? source.auditLog.map((entry) => ({
+                at: String(entry?.at || new Date().toISOString()),
+                action: String(entry?.action || 'Security event'),
+                detail: String(entry?.detail || '')
+            }))
+            : []
+    };
+}
+
 const SHORTCUT_DEFINITIONS = [
     { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
     { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
@@ -194,6 +319,12 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'settingsRestoreShortcuts', label: 'Restore Default Shortcuts', defaultShortcut: defaultState.shortcuts.settingsRestoreShortcuts },
     { action: 'settingsImportStandard', label: 'Import Accessibility Standard', defaultShortcut: defaultState.shortcuts.settingsImportStandard },
     { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table', defaultShortcut: defaultState.shortcuts.settingsPasteStandardTable },
+    { action: 'settingsGoogleConnect', label: 'Connect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleConnect },
+    { action: 'settingsGoogleReconnect', label: 'Reconnect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleReconnect },
+    { action: 'settingsGoogleDisconnect', label: 'Disconnect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleDisconnect },
+    { action: 'settingsOpenIntegrations', label: 'Open Integrations Section', defaultShortcut: defaultState.shortcuts.settingsOpenIntegrations },
+    { action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode', defaultShortcut: defaultState.shortcuts.settingsTogglePrivacyMode },
+    { action: 'settingsCreateBackup', label: 'Create Backup', defaultShortcut: defaultState.shortcuts.settingsCreateBackup },
     { action: 'settingsResetApp', label: 'Reset ART Application Data', defaultShortcut: defaultState.shortcuts.settingsResetApp },
     { action: 'settingsCloseReport', label: 'Close Report from Settings', defaultShortcut: defaultState.shortcuts.settingsCloseReport },
     { action: 'copyEntry', label: 'Copy Entry', defaultShortcut: defaultState.shortcuts.copyEntry },
@@ -273,6 +404,12 @@ export function getAssignableActions() {
         { action: 'settingsRestoreShortcuts', label: 'Restore Default Shortcuts' },
         { action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
         { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
+        { action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
+        { action: 'settingsGoogleReconnect', label: 'Reconnect Google Workspace' },
+        { action: 'settingsGoogleDisconnect', label: 'Disconnect Google Workspace' },
+        { action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
+        { action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
+        { action: 'settingsCreateBackup', label: 'Create Backup' },
         { action: 'settingsResetApp', label: 'Reset ART Application Data' },
         { action: 'settingsCloseReport', label: 'Close Report from Settings' },
         { action: 'copyEntry', label: 'Copy Entry' },
@@ -521,6 +658,9 @@ export let appState = {
     userStandards: normalizedInitialUserStandards,
     importedStandards: normalizedInitialUserStandards,
     spellUserDictionary: normalizeSpellUserDictionary(storedState.spellUserDictionary),
+    googleWorkspace: normalizeGoogleWorkspaceConfig(storedState.googleWorkspace),
+    integrations: normalizeIntegrationsConfig(storedState.integrations),
+    security: normalizeSecurityConfig(storedState.security),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
         : []
@@ -538,6 +678,9 @@ function normalizeStateSnapshot(rawState) {
         branding: normalizeBranding(base.branding),
         standard: normalizeStandardValue(base.standard),
         shortcuts: normalizeShortcuts(base.shortcuts),
+        googleWorkspace: normalizeGoogleWorkspaceConfig(base.googleWorkspace),
+        integrations: normalizeIntegrationsConfig(base.integrations),
+        security: normalizeSecurityConfig(base.security),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -1466,8 +1609,10 @@ export function clearImportedAccessibilityStandards() {
 export function resetUserPreferences() {
     appState.shortcuts = normalizeShortcuts(defaultState.shortcuts);
     appState.standard = defaultState.standard;
+    appState.security = normalizeSecurityConfig(defaultState.security);
     saveState({ action: 'Reset user preferences' });
     window.dispatchEvent(new Event('art-shortcuts-updated'));
+    window.dispatchEvent(new Event('art-security-updated'));
     window.dispatchEvent(new CustomEvent('art-standard-changed', {
         detail: { standard: appState.standard }
     }));
@@ -1484,6 +1629,8 @@ export function resetAllApplicationData() {
     window.dispatchEvent(new Event('art-reports-updated'));
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    window.dispatchEvent(new Event('art-google-workspace-updated'));
+    window.dispatchEvent(new Event('art-security-updated'));
     window.dispatchEvent(new CustomEvent('art-standard-changed', {
         detail: { standard: appState.standard }
     }));
@@ -1492,6 +1639,12 @@ export function resetAllApplicationData() {
 export function getApplicationInfo() {
     return {
         ...APP_INFO,
+        googleWorkspace: {
+            ...normalizeGoogleWorkspaceConfig(appState.googleWorkspace)
+        },
+        security: {
+            ...normalizeSecurityConfig(appState.security)
+        },
         importedStandards: getUserStandards().map((standard) => ({
             id: standard.id,
             displayName: standard.displayName,
@@ -1501,6 +1654,219 @@ export function getApplicationInfo() {
             criteriaCount: Array.isArray(standard.criteria) ? standard.criteria.length : 0
         }))
     };
+}
+
+export function getGoogleWorkspaceConfig() {
+    return normalizeGoogleWorkspaceConfig(appState.googleWorkspace);
+}
+
+export function updateGoogleWorkspaceConfig(updates = {}, options = {}) {
+    const next = normalizeGoogleWorkspaceConfig({
+        ...appState.googleWorkspace,
+        ...(updates && typeof updates === 'object' ? updates : {})
+    });
+
+    appState.googleWorkspace = next;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated Google Workspace settings') });
+    }
+    window.dispatchEvent(new Event('art-google-workspace-updated'));
+    return next;
+}
+
+export function setGoogleWorkspaceConnection(connection = {}) {
+    const next = normalizeGoogleWorkspaceConfig({
+        ...appState.googleWorkspace,
+        ...connection
+    });
+    appState.googleWorkspace = next;
+    saveState({ action: 'Updated Google Workspace connection' });
+    window.dispatchEvent(new Event('art-google-workspace-updated'));
+    return next;
+}
+
+export function clearGoogleWorkspaceConnection() {
+    const next = normalizeGoogleWorkspaceConfig({
+        ...appState.googleWorkspace,
+        status: 'disconnected',
+        accountEmail: '',
+        accountName: '',
+        connectedAt: '',
+        expiresAt: '',
+        scopes: [],
+        lastError: ''
+    });
+    appState.googleWorkspace = next;
+    saveState({ action: 'Disconnected Google Workspace' });
+    window.dispatchEvent(new Event('art-google-workspace-updated'));
+    return next;
+}
+
+function createManagedDataSnapshot() {
+    return {
+        reportTitle: appState.reportTitle,
+        orgClient: appState.orgClient,
+        projectName: appState.projectName,
+        scopeUrl: appState.scopeUrl,
+        auditDateStart: appState.auditDateStart,
+        auditDateEnd: appState.auditDateEnd,
+        auditors: appState.auditors,
+        standard: appState.standard,
+        testingInstructions: appState.testingInstructions,
+        reportType: appState.reportType,
+        reportLayout: appState.reportLayout,
+        fieldsExpanded: appState.fieldsExpanded,
+        templateOption: appState.templateOption,
+        templateName: appState.templateName,
+        templateDescription: appState.templateDescription,
+        fields: appState.fields,
+        editorFieldValues: appState.editorFieldValues,
+        auditEntries: appState.auditEntries,
+        activeAuditEntryIndex: appState.activeAuditEntryIndex,
+        reports: appState.reports,
+        selectedReportId: appState.selectedReportId,
+        userTemplates: appState.userTemplates,
+        userStandards: appState.userStandards,
+        importedStandards: appState.importedStandards,
+        shortcuts: appState.shortcuts,
+        branding: appState.branding,
+        spellUserDictionary: appState.spellUserDictionary,
+        googleWorkspace: appState.googleWorkspace,
+        integrations: appState.integrations
+    };
+}
+
+function applyManagedDataSnapshot(snapshot) {
+    const normalized = normalizeStateSnapshot({
+        ...appState,
+        ...(snapshot && typeof snapshot === 'object' ? snapshot : {})
+    });
+
+    Object.assign(appState, normalized);
+    saveState({ action: 'Restored ART backup data' });
+    window.dispatchEvent(new Event('art-state-restored'));
+    window.dispatchEvent(new Event('art-reports-updated'));
+    window.dispatchEvent(new Event('art-shortcuts-updated'));
+    window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    window.dispatchEvent(new Event('art-google-workspace-updated'));
+    window.dispatchEvent(new Event('art-security-updated'));
+}
+
+export function getSecurityConfig() {
+    return normalizeSecurityConfig(appState.security);
+}
+
+export function updateSecurityConfig(updates = {}, options = {}) {
+    const source = updates && typeof updates === 'object' ? updates : {};
+    const next = normalizeSecurityConfig({
+        ...appState.security,
+        ...source,
+        backup: {
+            ...appState.security?.backup,
+            ...(source.backup && typeof source.backup === 'object' ? source.backup : {})
+        }
+    });
+    appState.security = next;
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated security settings') });
+    }
+    window.dispatchEvent(new Event('art-security-updated'));
+    return next;
+}
+
+export function setNetworkActivity(status, detail = '') {
+    const next = updateSecurityConfig({
+        networkActivityStatus: String(status || 'Offline'),
+        networkActivityDetail: String(detail || '')
+    }, {
+        action: 'Updated network activity status'
+    });
+    return next;
+}
+
+export function recordSecurityAudit(action, detail = '') {
+    const current = getSecurityConfig();
+    const nextLog = [
+        ...current.auditLog,
+        {
+            at: new Date().toISOString(),
+            action: String(action || 'Security event'),
+            detail: String(detail || '')
+        }
+    ].slice(-200);
+
+    return updateSecurityConfig({ auditLog: nextLog }, { action: 'Recorded security audit event' });
+}
+
+export function getIntegrationStatusMap() {
+    return normalizeIntegrationsConfig(appState.integrations);
+}
+
+export function updateIntegrationStatus(name, status) {
+    const key = String(name || '').trim();
+    if (!['jira', 'githubIssues', 'azureDevOps'].includes(key)) return normalizeIntegrationsConfig(appState.integrations);
+    const next = normalizeIntegrationsConfig({
+        ...appState.integrations,
+        [key]: {
+            status: normalizeIntegrationStatus(status)
+        }
+    });
+    appState.integrations = next;
+    saveState({ action: `Updated integration status ${key}` });
+    window.dispatchEvent(new Event('art-security-updated'));
+    return next;
+}
+
+export function createArtBackupPayload(label = '') {
+    return {
+        artBackupVersion: '1.0',
+        label: String(label || 'ART Backup'),
+        createdAt: new Date().toISOString(),
+        projectName: String(appState.projectName || appState.reportTitle || ''),
+        managedData: createManagedDataSnapshot()
+    };
+}
+
+export function restoreArtBackupPayload(payload) {
+    const backup = payload && typeof payload === 'object' ? payload : null;
+    if (!backup || backup.artBackupVersion !== '1.0' || !backup.managedData || typeof backup.managedData !== 'object') {
+        return { ok: false, reason: 'invalid-backup' };
+    }
+
+    applyManagedDataSnapshot(backup.managedData);
+    recordSecurityAudit('Backup restore', `Restored backup created ${String(backup.createdAt || 'unknown date')}`);
+    return { ok: true };
+}
+
+export function createRestorePoint(label = '') {
+    const current = getSecurityConfig();
+    const point = {
+        id: `restore-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        label: String(label || 'Restore Point'),
+        createdAt: new Date().toISOString(),
+        projectName: String(appState.projectName || appState.reportTitle || ''),
+        snapshot: createManagedDataSnapshot()
+    };
+    const nextPoints = [point, ...current.restorePoints].slice(0, current.backup.retention);
+    updateSecurityConfig({ restorePoints: nextPoints }, { action: 'Created restore point' });
+    recordSecurityAudit('Restore point created', point.label);
+    return point;
+}
+
+export function getRestorePoints() {
+    return [...getSecurityConfig().restorePoints];
+}
+
+export function restoreFromPoint(pointId) {
+    const targetId = String(pointId || '').trim();
+    const point = getSecurityConfig().restorePoints.find((item) => item.id === targetId);
+    if (!point || !point.snapshot) {
+        return { ok: false, reason: 'missing-point' };
+    }
+    applyManagedDataSnapshot(point.snapshot);
+    recordSecurityAudit('Restore point applied', point.label);
+    return { ok: true, point };
 }
 
 export function getMetadataDescriptors() {

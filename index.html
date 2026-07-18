@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -61,9 +62,27 @@
                 <ul id="settings-standards-list" aria-label="Available imported accessibility standards"></ul>
             </section>
 
-            <section aria-labelledby="settings-reset-heading">
-                <h4 id="settings-reset-heading">Reset Application Data</h4>
-                <button id="btn-settings-reset-app" type="button">Reset ART Application Data</button>
+            <section aria-labelledby="settings-security-heading">
+                <h4 id="settings-security-heading">Security and Privacy</h4>
+                <p>ART is privacy-first and non-destructive. External data transfer only occurs after explicit user approval.</p>
+                <label>
+                    <input id="settings-privacy-mode" type="checkbox">
+                    Enable Privacy Mode
+                </label>
+                <p id="settings-privacy-mode-status" role="status" aria-live="polite" aria-atomic="true">Privacy Mode disabled.</p>
+            </section>
+
+            <section aria-labelledby="settings-integrations-heading">
+                <h4 id="settings-integrations-heading">Integrations</h4>
+                <p id="settings-google-help">Configure optional integrations. ART local workflows continue while disconnected.</p>
+                <p id="settings-google-status-summary" role="status" aria-live="polite" aria-atomic="true">Not connected.</p>
+                <button id="btn-settings-google-workspace" type="button">Connect Google Workspace...</button>
+                <ul id="settings-integrations-list" aria-label="Configured integrations">
+                    <li><strong>Google Workspace:</strong> <span id="settings-integration-google-status">Not connected</span></li>
+                    <li><strong>Jira:</strong> <span id="settings-integration-jira-status">Not connected</span></li>
+                    <li><strong>GitHub Issues:</strong> <span id="settings-integration-github-status">Not connected</span></li>
+                    <li><strong>Azure DevOps:</strong> <span id="settings-integration-azure-status">Not connected</span></li>
+                </ul>
             </section>
 
             <section aria-labelledby="settings-about-heading">
@@ -71,6 +90,49 @@
                 <dl id="settings-about-list"></dl>
                 <p><a href="https://www.w3.org/WAI/standards-guidelines/wcag/" target="_blank" rel="noopener noreferrer">Documentation and Help</a></p>
             </section>
+
+            <details id="settings-admin-tools" aria-labelledby="settings-admin-tools-summary">
+                <summary id="settings-admin-tools-summary">Administrator Tools</summary>
+                <section aria-labelledby="settings-backup-heading">
+                    <h4 id="settings-backup-heading">Backup and Recovery</h4>
+                    <p>Backups include ART-managed data only and never upload automatically.</p>
+                    <label>
+                        <input id="settings-backup-auto" type="checkbox">
+                        Enable automatic backups
+                    </label>
+                    <label for="settings-backup-frequency">Backup frequency</label>
+                    <select id="settings-backup-frequency">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                    <label for="settings-backup-retention">Backup retention (count)</label>
+                    <input id="settings-backup-retention" type="number" min="1" max="50" step="1" value="5">
+                    <div class="viewer-dialog-actions" role="group" aria-label="Backup and restore actions">
+                        <button id="btn-settings-backup-now" type="button">Create Backup</button>
+                        <button id="btn-settings-restore-import" type="button">Restore Backup...</button>
+                        <button id="btn-settings-restore-point-create" type="button">Create Restore Point</button>
+                    </div>
+                    <label for="settings-restore-point-select">Restore point</label>
+                    <select id="settings-restore-point-select" aria-label="Available restore points"></select>
+                    <button id="btn-settings-restore-point-apply" type="button">Restore Selected Point</button>
+                </section>
+
+                <section aria-labelledby="settings-data-management-heading">
+                    <h4 id="settings-data-management-heading">Data Management</h4>
+                    <p>Only ART-managed application data can be reset or removed from this interface.</p>
+                </section>
+
+                <section aria-labelledby="settings-diagnostics-heading">
+                    <h4 id="settings-diagnostics-heading">Diagnostics</h4>
+                    <p id="settings-security-diagnostics" role="status" aria-live="polite" aria-atomic="true">No diagnostics available.</p>
+                </section>
+
+                <section aria-labelledby="settings-reset-heading">
+                    <h4 id="settings-reset-heading">Reset</h4>
+                    <button id="btn-settings-reset-app" type="button">Reset ART Application Data</button>
+                </section>
+            </details>
 
             <p id="settings-status" class="open-report-status" role="status" aria-live="polite" aria-atomic="true"></p>
 
@@ -122,6 +184,37 @@
                 <div class="viewer-dialog-actions">
                     <button id="btn-settings-standard-json-save" type="button">Save JSON</button>
                     <button id="btn-settings-standard-json-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-google-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-google-dialog-heading" aria-describedby="settings-google-dialog-desc" hidden>
+                <h4 id="settings-google-dialog-heading">Google Workspace Configuration</h4>
+                <p id="settings-google-dialog-desc">Use this dialog to review permissions, configure Google settings, and connect or disconnect your Google Workspace account.</p>
+                <p id="settings-google-permissions-help">Requested permissions are limited to Drive file upload, Google Docs, and Google Sheets access required for ART workspace export and document workflows.</p>
+                <ul id="settings-google-scope-list" aria-label="Google Workspace permissions requested">
+                    <li>Google Drive: create and manage ART-created files</li>
+                    <li>Google Docs: create and update ART-exported documents</li>
+                    <li>Google Sheets: create and update ART-exported spreadsheets</li>
+                </ul>
+                <label>
+                    <input id="settings-google-enabled" type="checkbox">
+                    Enable Google Workspace integration
+                </label>
+                <label for="settings-google-client-id">Google Client ID</label>
+                <input id="settings-google-client-id" type="text" autocomplete="off" placeholder="Enter OAuth client ID">
+                <label for="settings-google-export-target">Default Google export target</label>
+                <select id="settings-google-export-target">
+                    <option value="google-drive">Google Drive</option>
+                    <option value="google-docs">Google Docs</option>
+                    <option value="google-sheets">Google Sheets</option>
+                    <option value="none">No default target</option>
+                </select>
+                <p id="settings-google-connection-status" role="status" aria-live="polite" aria-atomic="true">Not connected.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Google Workspace connection actions">
+                    <button id="btn-settings-google-connect" type="button">Connect Google Workspace</button>
+                    <button id="btn-settings-google-reconnect" type="button">Reconnect</button>
+                    <button id="btn-settings-google-disconnect" type="button">Disconnect</button>
+                    <button id="btn-settings-google-close" type="button">Close</button>
                 </div>
             </div>
 
@@ -234,6 +327,12 @@
                 <button id="btn-import-copy" type="button">Create a copy</button>
                 <button id="btn-import-cancel" type="button">Cancel</button>
             </div>
+
+            <section id="network-activity" aria-labelledby="network-activity-heading">
+                <h3 id="network-activity-heading">Network Activity</h3>
+                <p id="network-activity-status" role="status" aria-live="polite" aria-atomic="true">Offline</p>
+                <p id="network-activity-detail">No external connection activity.</p>
+            </section>
         </div>
     </section>
 
@@ -265,23 +364,5 @@
 <script type="module" src="reportBuilder.js"></script>
     <script type="module" src="lookupTool.js"></script>
 <script type="module" src="loader.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const openButton = document.getElementById('btn-app-settings');
-    const closeButton = document.getElementById('btn-settings-close');
-    const dialog = document.getElementById('app-settings-dialog');
-    if (!openButton || !closeButton || !dialog) return;
-
-    openButton.addEventListener('click', () => {
-        dialog.hidden = false;
-        window.setTimeout(() => closeButton.focus(), 0);
-    });
-
-    closeButton.addEventListener('click', () => {
-        dialog.hidden = true;
-        window.setTimeout(() => openButton.focus(), 0);
-    });
-});
-</script>
 </body>
 </html>

@@ -2,24 +2,42 @@ import {
     addImportedAccessibilityStandard,
     announce,
     clearImportedAccessibilityStandards,
+    createArtBackupPayload,
+    createRestorePoint,
     findImportedStandardConflict,
     findShortcutConflict,
     getApplicationInfo,
     getAssignableActions,
+    getGoogleWorkspaceConfig,
+    getIntegrationStatusMap,
     getImportedAccessibilityStandards,
+    getRestorePoints,
+    getSecurityConfig,
     getShortcutDefinitions,
     redoState,
     removeImportedAccessibilityStandard,
     replaceImportedAccessibilityStandard,
+    restoreArtBackupPayload,
+    restoreFromPoint,
+    setNetworkActivity,
     resetAllApplicationData,
     resetShortcutsToDefault,
     resetUserPreferences,
+    recordSecurityAudit,
     serializeAccessibilityStandardsJsonPayload,
     undoState,
     updateImportedAccessibilityStandard,
+    updateGoogleWorkspaceConfig,
+    updateSecurityConfig,
     updateShortcut,
     validateAccessibilityStandardPayload
 } from './state.js';
+import {
+    connectGoogleWorkspace,
+    disconnectGoogleWorkspace,
+    getRequiredGoogleWorkspaceScopes,
+    reconnectGoogleWorkspace
+} from './googleWorkspace.js';
 
 let isInitialized = false;
 let activeSubDialog = null;
@@ -418,6 +436,10 @@ function renderAbout() {
         ? info.importedStandards.map((standard) => standard.displayName).join(', ')
         : 'None';
     const importedCount = info.importedStandards.length;
+    const googleStatus = String(info.googleWorkspace?.status || 'disconnected');
+    const googleTarget = String(info.googleWorkspace?.defaultExportTarget || 'google-drive');
+    const privacyMode = Boolean(info.security?.privacyModeEnabled) ? 'Enabled' : 'Disabled';
+    const networkStatus = String(info.security?.networkActivityStatus || 'Offline');
 
     aboutList.innerHTML = `
         <div><dt>Application</dt><dd>${info.applicationName}</dd></div>
@@ -426,6 +448,10 @@ function renderAbout() {
         <div><dt>Data Schema Version</dt><dd>${info.dataSchemaVersion}</dd></div>
         <div><dt>Imported Accessibility Standard Count</dt><dd>${importedCount}</dd></div>
         <div><dt>Imported Accessibility Standards</dt><dd>${importedNames}</dd></div>
+        <div><dt>Privacy Mode</dt><dd>${privacyMode}</dd></div>
+        <div><dt>Network Activity</dt><dd>${networkStatus}</dd></div>
+        <div><dt>Google Workspace Status</dt><dd>${googleStatus}</dd></div>
+        <div><dt>Google Default Export Target</dt><dd>${googleTarget}</dd></div>
     `;
 }
 
@@ -442,10 +468,410 @@ function importAccessibilityStandardList(standards, overwrite = false) {
     return { ok: true };
 }
 
+function formatGoogleConnectionStatus(config) {
+    const status = String(config?.status || 'disconnected').toLowerCase();
+    if (status === 'connected') {
+        const connectedAt = String(config.connectedAt || '').trim();
+        const label = connectedAt
+            ? `Connected${config.accountEmail ? ` as ${config.accountEmail}` : ''}. Connected ${connectedAt.slice(0, 10)}.`
+            : `Connected${config.accountEmail ? ` as ${config.accountEmail}` : ''}.`;
+        return label;
+    }
+    if (status === 'connecting') return 'Connecting to Google Workspace...';
+    if (status === 'expired') return 'Google Workspace session expired. Reconnect to continue.';
+    if (status === 'error') {
+        const detail = String(config.lastError || '').trim();
+        return detail ? `Connection error: ${detail}` : 'Connection error. Check your Google settings and try again.';
+    }
+    return 'Not connected.';
+}
+
+function formatGoogleScopeLabel(scope) {
+    const value = String(scope || '').trim();
+    if (!value) return '';
+    if (value.endsWith('/drive.file')) return 'Google Drive: create and manage ART-created files';
+    if (value.endsWith('/documents')) return 'Google Docs: create and update ART-exported documents';
+    if (value.endsWith('/spreadsheets')) return 'Google Sheets: create and update ART-exported spreadsheets';
+    return value;
+}
+
+function renderGoogleWorkspaceSettings() {
+    const launcherButton = document.getElementById('btn-settings-google-workspace');
+    const statusSummary = document.getElementById('settings-google-status-summary');
+    const privacyModeInput = document.getElementById('settings-privacy-mode');
+    const privacyModeStatus = document.getElementById('settings-privacy-mode-status');
+    const enabledInput = document.getElementById('settings-google-enabled');
+    const clientIdInput = document.getElementById('settings-google-client-id');
+    const exportTargetSelect = document.getElementById('settings-google-export-target');
+    const statusElement = document.getElementById('settings-google-connection-status');
+    const scopeList = document.getElementById('settings-google-scope-list');
+    const connectButton = document.getElementById('btn-settings-google-connect');
+    const reconnectButton = document.getElementById('btn-settings-google-reconnect');
+    const disconnectButton = document.getElementById('btn-settings-google-disconnect');
+
+    const googleIntegrationStatus = document.getElementById('settings-integration-google-status');
+    const jiraIntegrationStatus = document.getElementById('settings-integration-jira-status');
+    const githubIntegrationStatus = document.getElementById('settings-integration-github-status');
+    const azureIntegrationStatus = document.getElementById('settings-integration-azure-status');
+    const backupAutoInput = document.getElementById('settings-backup-auto');
+    const backupFrequencySelect = document.getElementById('settings-backup-frequency');
+    const backupRetentionInput = document.getElementById('settings-backup-retention');
+    const restorePointSelect = document.getElementById('settings-restore-point-select');
+    const diagnostics = document.getElementById('settings-security-diagnostics');
+
+    if (!launcherButton || !statusSummary || !privacyModeInput || !privacyModeStatus || !enabledInput || !clientIdInput || !exportTargetSelect || !statusElement || !scopeList || !connectButton || !reconnectButton || !disconnectButton) return;
+
+    const config = getGoogleWorkspaceConfig();
+    const security = getSecurityConfig();
+    const integrations = getIntegrationStatusMap();
+    const privacyModeEnabled = Boolean(security.privacyModeEnabled);
+    enabledInput.checked = Boolean(config.enabled);
+    clientIdInput.value = String(config.clientId || '');
+    exportTargetSelect.value = String(config.defaultExportTarget || 'google-drive');
+    const statusText = formatGoogleConnectionStatus(config);
+    statusElement.textContent = statusText;
+    statusSummary.textContent = statusText;
+    privacyModeInput.checked = privacyModeEnabled;
+    privacyModeStatus.textContent = privacyModeEnabled
+        ? 'Privacy Mode enabled. External integrations are blocked until disabled.'
+        : 'Privacy Mode disabled.';
+    const scopes = getRequiredGoogleWorkspaceScopes();
+    scopeList.innerHTML = scopes
+        .map((scope) => `<li>${formatGoogleScopeLabel(scope)}</li>`)
+        .join('');
+
+    const isConnected = String(config.status || '').toLowerCase() === 'connected';
+    launcherButton.textContent = isConnected
+        ? 'Disconnect Google Workspace...'
+        : 'Connect Google Workspace...';
+    launcherButton.disabled = privacyModeEnabled;
+    enabledInput.disabled = privacyModeEnabled;
+    clientIdInput.disabled = privacyModeEnabled;
+    exportTargetSelect.disabled = privacyModeEnabled;
+    connectButton.disabled = privacyModeEnabled || !config.enabled || !String(config.clientId || '').trim() || isConnected;
+    reconnectButton.disabled = privacyModeEnabled || !config.enabled || !String(config.clientId || '').trim();
+    disconnectButton.disabled = !isConnected;
+
+    if (googleIntegrationStatus) {
+        googleIntegrationStatus.textContent = privacyModeEnabled
+            ? 'Privacy Mode Enabled'
+            : (isConnected ? 'Connected' : 'Not connected');
+    }
+    if (jiraIntegrationStatus) jiraIntegrationStatus.textContent = integrations.jira.status;
+    if (githubIntegrationStatus) githubIntegrationStatus.textContent = integrations.githubIssues.status;
+    if (azureIntegrationStatus) azureIntegrationStatus.textContent = integrations.azureDevOps.status;
+
+    if (backupAutoInput) backupAutoInput.checked = Boolean(security.backup.autoEnabled);
+    if (backupFrequencySelect) backupFrequencySelect.value = String(security.backup.frequency || 'weekly');
+    if (backupRetentionInput) backupRetentionInput.value = String(security.backup.retention || 5);
+    if (restorePointSelect) {
+        const points = getRestorePoints();
+        restorePointSelect.innerHTML = points.length === 0
+            ? '<option value="">No restore points</option>'
+            : points.map((point) => `<option value="${point.id}">${point.label} - ${point.createdAt.slice(0, 16).replace('T', ' ')}</option>`).join('');
+    }
+
+    if (diagnostics) {
+        const tail = security.auditLog.slice(-1)[0];
+        diagnostics.textContent = tail
+            ? `Last security event: ${tail.action} (${tail.at.slice(0, 16).replace('T', ' ')})`
+            : 'No diagnostics available.';
+    }
+}
+
 function refreshSettingsView() {
     renderShortcuts();
     renderImportedStandards();
+    renderGoogleWorkspaceSettings();
     renderAbout();
+}
+
+function bindGoogleWorkspaceSettings() {
+    const launcherButton = document.getElementById('btn-settings-google-workspace');
+    const googleDialog = document.getElementById('settings-google-dialog');
+    const closeButton = document.getElementById('btn-settings-google-close');
+    const privacyModeInput = document.getElementById('settings-privacy-mode');
+    const enabledInput = document.getElementById('settings-google-enabled');
+    const clientIdInput = document.getElementById('settings-google-client-id');
+    const exportTargetSelect = document.getElementById('settings-google-export-target');
+    const connectButton = document.getElementById('btn-settings-google-connect');
+    const reconnectButton = document.getElementById('btn-settings-google-reconnect');
+    const disconnectButton = document.getElementById('btn-settings-google-disconnect');
+    const backupAutoInput = document.getElementById('settings-backup-auto');
+    const backupFrequencySelect = document.getElementById('settings-backup-frequency');
+    const backupRetentionInput = document.getElementById('settings-backup-retention');
+    const backupNowButton = document.getElementById('btn-settings-backup-now');
+    const restoreImportButton = document.getElementById('btn-settings-restore-import');
+    const createRestorePointButton = document.getElementById('btn-settings-restore-point-create');
+    const restorePointSelect = document.getElementById('settings-restore-point-select');
+    const restorePointApplyButton = document.getElementById('btn-settings-restore-point-apply');
+
+    if (!launcherButton || !googleDialog || !closeButton || !privacyModeInput || !enabledInput || !clientIdInput || !exportTargetSelect || !connectButton || !reconnectButton || !disconnectButton || !backupAutoInput || !backupFrequencySelect || !backupRetentionInput || !backupNowButton || !restoreImportButton || !createRestorePointButton || !restorePointSelect || !restorePointApplyButton) return;
+
+    const restoreInput = document.createElement('input');
+    restoreInput.type = 'file';
+    restoreInput.accept = '.json,application/json';
+    restoreInput.hidden = true;
+    document.body.appendChild(restoreInput);
+
+    privacyModeInput.addEventListener('change', () => {
+        const enable = privacyModeInput.checked;
+        updateSecurityConfig({ privacyModeEnabled: enable }, { action: enable ? 'Enabled Privacy Mode' : 'Disabled Privacy Mode' });
+        if (enable) {
+            const disconnected = disconnectGoogleWorkspace();
+            updateGoogleWorkspaceConfig({
+                status: disconnected.status,
+                connectedAt: disconnected.connectedAt,
+                expiresAt: disconnected.expiresAt,
+                scopes: disconnected.scopes,
+                accountEmail: disconnected.accountEmail,
+                accountName: disconnected.accountName,
+                lastError: ''
+            }, { action: 'Privacy Mode disconnected Google Workspace' });
+            setNetworkActivity('Privacy Mode Enabled', 'External integrations and automatic network activity are blocked.');
+            recordSecurityAudit('Privacy Mode enabled', 'Cloud integrations disabled.');
+        } else {
+            setNetworkActivity('Offline', 'Privacy Mode disabled. No active external connections.');
+            recordSecurityAudit('Privacy Mode disabled', 'Integrations may be reconnected by user action.');
+        }
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+        writeStatus(enable ? 'Privacy Mode enabled.' : 'Privacy Mode disabled.');
+    });
+
+    launcherButton.addEventListener('click', () => {
+        if (getSecurityConfig().privacyModeEnabled) {
+            writeStatus('Privacy Mode is enabled. Disable it to manage external integrations.');
+            return;
+        }
+        openSubDialog(googleDialog, enabledInput, launcherButton);
+    });
+
+    closeButton.addEventListener('click', () => {
+        closeSubDialog(true);
+    });
+
+    enabledInput.addEventListener('change', () => {
+        updateGoogleWorkspaceConfig({ enabled: enabledInput.checked }, { action: 'Updated Google Workspace integration state' });
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+        writeStatus(enabledInput.checked
+            ? 'Google Workspace integration enabled.'
+            : 'Google Workspace integration disabled.');
+    });
+
+    clientIdInput.addEventListener('blur', () => {
+        const clientId = String(clientIdInput.value || '').trim();
+        updateGoogleWorkspaceConfig({ clientId }, { action: 'Updated Google Workspace client ID' });
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+    });
+
+    exportTargetSelect.addEventListener('change', () => {
+        updateGoogleWorkspaceConfig({ defaultExportTarget: exportTargetSelect.value }, { action: 'Updated Google default export target' });
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+        writeStatus(`Google default export target set to ${exportTargetSelect.options[exportTargetSelect.selectedIndex]?.text || exportTargetSelect.value}.`);
+    });
+
+    connectButton.addEventListener('click', async () => {
+        if (getSecurityConfig().privacyModeEnabled) {
+            writeStatus('Privacy Mode is enabled. Connection is blocked.');
+            return;
+        }
+        const current = getGoogleWorkspaceConfig();
+        updateGoogleWorkspaceConfig({ status: 'connecting', lastError: '' }, { action: 'Connecting Google Workspace' });
+        setNetworkActivity('Authorization Required', 'Google Workspace connection requires user authorization.');
+        recordSecurityAudit('Google Workspace connect requested', 'User initiated connection flow.');
+        renderGoogleWorkspaceSettings();
+
+        const result = await connectGoogleWorkspace(current);
+        if (!result.ok) {
+            updateGoogleWorkspaceConfig({ status: 'error', lastError: result.lastError || 'Connection failed.' }, { action: 'Google Workspace connection failed' });
+            setNetworkActivity('Connection Failed', result.lastError || 'Google Workspace connection failed.');
+            recordSecurityAudit('Google Workspace connection failed', result.lastError || 'Unknown error');
+            renderGoogleWorkspaceSettings();
+            renderAbout();
+            writeStatus(formatGoogleConnectionStatus(getGoogleWorkspaceConfig()));
+            return;
+        }
+
+        updateGoogleWorkspaceConfig({
+            status: 'connected',
+            connectedAt: result.connectedAt,
+            expiresAt: result.expiresAt,
+            scopes: result.scopes || getRequiredGoogleWorkspaceScopes(),
+            accountEmail: result.accountEmail || '',
+            accountName: result.accountName || '',
+            lastError: ''
+        }, { action: 'Connected Google Workspace' });
+        setNetworkActivity('Connected to Google Workspace', 'Google Workspace authorization is active.');
+        recordSecurityAudit('Google Workspace connected', 'User authorized Google Workspace access.');
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+        writeStatus('Google Workspace connected.');
+    });
+
+    reconnectButton.addEventListener('click', async () => {
+        if (getSecurityConfig().privacyModeEnabled) {
+            writeStatus('Privacy Mode is enabled. Reconnect is blocked.');
+            return;
+        }
+        const current = getGoogleWorkspaceConfig();
+        updateGoogleWorkspaceConfig({ status: 'connecting', lastError: '' }, { action: 'Reconnecting Google Workspace' });
+        setNetworkActivity('Authorization Required', 'Google Workspace reconnection requires user authorization.');
+        recordSecurityAudit('Google Workspace reconnect requested', 'User initiated reconnect flow.');
+        renderGoogleWorkspaceSettings();
+
+        const result = await reconnectGoogleWorkspace(current);
+        if (!result.ok) {
+            updateGoogleWorkspaceConfig({ status: 'error', lastError: result.lastError || 'Reconnect failed.' }, { action: 'Google Workspace reconnect failed' });
+            setNetworkActivity('Connection Failed', result.lastError || 'Google Workspace reconnect failed.');
+            recordSecurityAudit('Google Workspace reconnect failed', result.lastError || 'Unknown error');
+            renderGoogleWorkspaceSettings();
+            renderAbout();
+            writeStatus(formatGoogleConnectionStatus(getGoogleWorkspaceConfig()));
+            return;
+        }
+
+        updateGoogleWorkspaceConfig({
+            status: 'connected',
+            connectedAt: result.connectedAt,
+            expiresAt: result.expiresAt,
+            scopes: result.scopes || getRequiredGoogleWorkspaceScopes(),
+            accountEmail: result.accountEmail || '',
+            accountName: result.accountName || '',
+            lastError: ''
+        }, { action: 'Reconnected Google Workspace' });
+        setNetworkActivity('Connected to Google Workspace', 'Google Workspace authorization is active.');
+        recordSecurityAudit('Google Workspace reconnected', 'User reauthorized Google Workspace access.');
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+        writeStatus('Google Workspace reconnected.');
+    });
+
+    disconnectButton.addEventListener('click', () => {
+        const result = disconnectGoogleWorkspace();
+        updateGoogleWorkspaceConfig({
+            status: result.status,
+            connectedAt: result.connectedAt,
+            expiresAt: result.expiresAt,
+            scopes: result.scopes,
+            accountEmail: result.accountEmail,
+            accountName: result.accountName,
+            lastError: ''
+        }, { action: 'Disconnected Google Workspace' });
+        setNetworkActivity('Offline', 'Google Workspace disconnected.');
+        recordSecurityAudit('Google Workspace disconnected', 'User disconnected Google Workspace.');
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+        writeStatus('Google Workspace disconnected.');
+    });
+
+    backupAutoInput.addEventListener('change', () => {
+        updateSecurityConfig({
+            backup: {
+                ...getSecurityConfig().backup,
+                autoEnabled: backupAutoInput.checked
+            }
+        }, { action: 'Updated backup automation setting' });
+        renderGoogleWorkspaceSettings();
+        writeStatus(backupAutoInput.checked ? 'Automatic backups enabled.' : 'Automatic backups disabled.');
+    });
+
+    backupFrequencySelect.addEventListener('change', () => {
+        updateSecurityConfig({
+            backup: {
+                ...getSecurityConfig().backup,
+                frequency: backupFrequencySelect.value
+            }
+        }, { action: 'Updated backup frequency' });
+        renderGoogleWorkspaceSettings();
+        writeStatus(`Backup frequency set to ${backupFrequencySelect.value}.`);
+    });
+
+    backupRetentionInput.addEventListener('change', () => {
+        const retention = Number(backupRetentionInput.value || 5);
+        updateSecurityConfig({
+            backup: {
+                ...getSecurityConfig().backup,
+                retention
+            }
+        }, { action: 'Updated backup retention' });
+        renderGoogleWorkspaceSettings();
+        writeStatus('Backup retention updated.');
+    });
+
+    backupNowButton.addEventListener('click', () => {
+        const payload = createArtBackupPayload('Manual Backup');
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const stamp = payload.createdAt.slice(0, 19).replace(/[:T]/g, '-');
+        link.href = objectUrl;
+        link.download = `art-backup-${stamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+        recordSecurityAudit('Manual backup created', `Backup created at ${payload.createdAt}`);
+        writeStatus('Backup created and downloaded.');
+        renderGoogleWorkspaceSettings();
+    });
+
+    restoreImportButton.addEventListener('click', () => {
+        restoreInput.value = '';
+        restoreInput.click();
+    });
+
+    restoreInput.addEventListener('change', async () => {
+        const selected = restoreInput.files && restoreInput.files[0];
+        if (!selected) return;
+        try {
+            const text = await selected.text();
+            const payload = JSON.parse(text);
+            const approved = window.confirm('Restore backup now? This replaces current ART-managed data only. External files are never modified.');
+            if (!approved) {
+                writeStatus('Backup restore cancelled.');
+                return;
+            }
+            const restored = restoreArtBackupPayload(payload);
+            if (!restored.ok) {
+                writeStatus('Restore failed. Backup file format is invalid.');
+                return;
+            }
+            writeStatus('Backup restored.');
+            refreshSettingsView();
+        } catch (error) {
+            writeStatus('Restore failed. Could not read backup file.');
+        }
+    });
+
+    createRestorePointButton.addEventListener('click', () => {
+        const point = createRestorePoint('Manual Restore Point');
+        renderGoogleWorkspaceSettings();
+        writeStatus(`Restore point created: ${point.label}.`);
+    });
+
+    restorePointApplyButton.addEventListener('click', () => {
+        const pointId = String(restorePointSelect.value || '').trim();
+        if (!pointId) {
+            writeStatus('No restore point selected.');
+            return;
+        }
+        const approved = window.confirm('Apply selected restore point? This replaces current ART-managed data only. External files are never modified.');
+        if (!approved) {
+            writeStatus('Restore point apply cancelled.');
+            return;
+        }
+        const restored = restoreFromPoint(pointId);
+        if (!restored.ok) {
+            writeStatus('Restore failed. Restore point was not found.');
+            return;
+        }
+        writeStatus(`Restore point applied: ${restored.point.label}.`);
+        refreshSettingsView();
+    });
 }
 
 function trapSettingsFocus(event) {
@@ -936,6 +1362,7 @@ export function initSettings() {
     bindShortcutCapture();
     bindStandardImport();
     bindStandardExport();
+    bindGoogleWorkspaceSettings();
     bindResetActions();
 
     document.addEventListener('keydown', trapSettingsFocus);
@@ -943,6 +1370,8 @@ export function initSettings() {
 
     window.addEventListener('art-shortcuts-updated', refreshSettingsView);
     window.addEventListener('art-accessibility-standards-updated', refreshSettingsView);
+    window.addEventListener('art-google-workspace-updated', refreshSettingsView);
+    window.addEventListener('art-security-updated', refreshSettingsView);
 
     isInitialized = true;
 }

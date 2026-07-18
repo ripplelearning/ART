@@ -11,8 +11,10 @@ import {
     deleteReportById,
     getAuditEntries,
     getBuiltInTemplates,
+    getGoogleWorkspaceConfig,
     getRecentReports,
     getReportById,
+    getSecurityConfig,
     getTemplateById,
     getUserTemplates,
     importReportWithConflictStrategy,
@@ -143,6 +145,8 @@ export function renderDashboard() {
     const templateImportOptionReplace = document.getElementById('template-import-option-replace');
     const templateImportConfirm = document.getElementById('btn-template-import-confirm');
     const templateImportCancel = document.getElementById('btn-template-import-cancel');
+    const networkStatus = document.getElementById('network-activity-status');
+    const networkDetail = document.getElementById('network-activity-detail');
 
     if (
         !btnNew || !btnOpenReport || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateImport || !btnTemplateExport || !templateStatus
@@ -154,6 +158,33 @@ export function renderDashboard() {
         || !importConflictDialog || !importConflictMessage || !btnImportReplace || !btnImportCopy || !btnImportCancel
         || !templateImportConflictDialog || !templateImportConflictDescription || !templateImportOptionReplace || !templateImportConfirm || !templateImportCancel
     ) return;
+
+    const renderNetworkActivityIndicator = () => {
+        if (!networkStatus || !networkDetail) return;
+        const security = getSecurityConfig();
+        const google = getGoogleWorkspaceConfig();
+        const privacyMode = Boolean(security.privacyModeEnabled);
+        const googleConnected = String(google.status || '').toLowerCase() === 'connected';
+
+        if (privacyMode) {
+            networkStatus.textContent = 'Privacy Mode Enabled';
+            networkDetail.textContent = 'External integrations are blocked until Privacy Mode is disabled.';
+            return;
+        }
+
+        if (googleConnected) {
+            networkStatus.textContent = 'Connected to Google Workspace';
+            networkDetail.textContent = 'Google Workspace connection is active for user-initiated export actions.';
+            return;
+        }
+
+        networkStatus.textContent = String(security.networkActivityStatus || 'Offline');
+        networkDetail.textContent = String(security.networkActivityDetail || 'No external connection activity.');
+    };
+
+    renderNetworkActivityIndicator();
+    window.addEventListener('art-security-updated', renderNetworkActivityIndicator);
+    window.addEventListener('art-google-workspace-updated', renderNetworkActivityIndicator);
 
     const openReportInput = document.createElement('input');
     openReportInput.type = 'file';

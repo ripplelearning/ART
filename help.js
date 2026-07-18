@@ -144,9 +144,38 @@ function getHelpSections(rows) {
             id: 'help-settings-config',
             title: 'Settings and Configuration',
             content: `
-                <p>Application Settings includes Keyboard Shortcut Manager, imported standards, the Paste Standards As Table workflow for clipboard tables, reset controls, and About metadata.</p>
+                <p>Application Settings includes Keyboard Shortcut Manager, imported standards, the Paste Standards As Table workflow for clipboard tables, Security and Privacy controls, Integrations, Administrator Tools, and About metadata.</p>
                 <p>If assigned in Keyboard Shortcut Manager, the Paste Standards As Table action can be opened directly with its configured shortcut.</p>
+                <p>Google Workspace integration is optional and does not block local report workflows when disconnected.</p>
+                <p>The Connect Google Workspace or Disconnect Google Workspace button opens a configuration dialog where permissions, export target, and connection actions are managed.</p>
                 <p>Shortcut assignments shown in this Help page are dynamically synced from your current settings.</p>
+            `
+        },
+        {
+            id: 'help-security-privacy',
+            title: 'Security and Privacy',
+            content: `
+                <p>ART follows an accessibility-first, privacy-by-default, and user-controlled security model.</p>
+                <ul>
+                    <li><strong>Privacy by Default:</strong> ART does not automatically transmit, upload, synchronize, or share user data.</li>
+                    <li><strong>Non-Destructive Operation:</strong> ART does not automatically delete, rename, move, or overwrite external files.</li>
+                    <li><strong>Data Ownership:</strong> Users retain ownership of data created, imported, exported, and managed in ART.</li>
+                    <li><strong>External Integrations:</strong> Integrations require explicit user authorization and least-privilege permissions.</li>
+                    <li><strong>Privacy Mode:</strong> Privacy Mode disables cloud connections and external integration activity.</li>
+                    <li><strong>Backups and Restore:</strong> Backups contain ART-managed data only and remain under user control.</li>
+                    <li><strong>Network Activity Indicator:</strong> Dashboard shows accessible connection status text and activity detail.</li>
+                    <li><strong>Data Transmission Policy:</strong> ART informs users what is sent, where it is sent, and why before external transfer.</li>
+                    <li><strong>What ART stores:</strong> ART-managed reports, templates, standards, settings, shortcuts, and security audit events.</li>
+                    <li><strong>What ART does not transmit:</strong> Data is not transmitted to external services without explicit user approval.</li>
+                    <li><strong>Enterprise Considerations:</strong> Security controls and audit events support governance and policy review.</li>
+                </ul>
+            `
+        },
+        {
+            id: 'help-development-standards',
+            title: 'Development Standards',
+            content: `
+                <p>ART is a non-destructive application. It is designed to assist users in creating, managing, and exporting accessibility information while preserving the integrity of user data and external files.</p>
             `
         },
         {
@@ -190,6 +219,8 @@ function getHelpSections(rows) {
             title: 'Import and Export',
             content: `
                 <p>ART supports report and template import workflows, the Settings-based standards table import workflow, and multi-format report export.</p>
+                <p>When Google Workspace integration is enabled and connected, export can upload the ZIP package directly to Google Drive using your configured default target.</p>
+                <p>Google Docs and Google Sheets export targets are reserved for future release and currently fall back to local ZIP download.</p>
                 <p>Export output reflects current report values and selected layout at export time.</p>
             `
         },

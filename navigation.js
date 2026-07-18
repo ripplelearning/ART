@@ -40,7 +40,11 @@ const shortcutControlMap = [
     { id: 'top-tabs', action: 'focusNavigation', label: 'Navigation tablist' },
     { id: 'btn-export-options', action: 'exportReport', label: 'Export report' },
     { id: 'btn-settings-import-standard', action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
-    { id: 'btn-settings-paste-standard', action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' }
+    { id: 'btn-settings-paste-standard', action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
+    { id: 'btn-settings-google-workspace', action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
+    { id: 'btn-settings-google-workspace', action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
+    { id: 'settings-privacy-mode', action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
+    { id: 'btn-settings-backup-now', action: 'settingsCreateBackup', label: 'Create Backup' }
 ];
 
 function eventToShortcut(event) {
@@ -489,6 +493,42 @@ export function initNavigation() {
         if (action === 'settingsPasteStandardTable') {
             e.preventDefault();
             clickElementById('btn-settings-paste-standard');
+            return;
+        }
+        if (action === 'settingsGoogleConnect') {
+            e.preventDefault();
+            clickElementById('btn-settings-google-workspace');
+            return;
+        }
+        if (action === 'settingsGoogleReconnect') {
+            e.preventDefault();
+            clickElementById('btn-settings-google-workspace');
+            return;
+        }
+        if (action === 'settingsGoogleDisconnect') {
+            e.preventDefault();
+            clickElementById('btn-settings-google-workspace');
+            return;
+        }
+        if (action === 'settingsOpenIntegrations') {
+            e.preventDefault();
+            const integrationsHeading = document.getElementById('settings-integrations-heading');
+            if (integrationsHeading) {
+                integrationsHeading.scrollIntoView({ block: 'start' });
+                if (!integrationsHeading.hasAttribute('tabindex')) integrationsHeading.setAttribute('tabindex', '-1');
+                integrationsHeading.focus();
+            }
+            clickElementById('btn-settings-google-workspace');
+            return;
+        }
+        if (action === 'settingsTogglePrivacyMode') {
+            e.preventDefault();
+            clickElementById('settings-privacy-mode');
+            return;
+        }
+        if (action === 'settingsCreateBackup') {
+            e.preventDefault();
+            clickElementById('btn-settings-backup-now');
             return;
         }
         if (action === 'settingsResetApp') {
