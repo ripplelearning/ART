@@ -39,20 +39,16 @@ export function renderWelcome() {
     container.innerHTML = `
         <section id="welcome-view" aria-labelledby="welcome-heading">
             <h1 id="welcome-heading">Welcome to ART</h1>
-            <p>The Accessibility Reporting Tool (ART) helps you create audit logs, Executive Summaries, track current audit progress, lookup WCAG success criteria, and export compliance reports.</p>
-            <p>New in this release: in-editor Spell Check (with configurable shortcuts) and expanded exports including Microsoft Excel (.xlsx) with Overview and Accessibility Audit sheets.</p>
-            <p>Please use the <strong>Dashboard</strong> to create a new report or open an existing file to begin.</p>
-            <section aria-labelledby="welcome-export-heading">
-                <h2 id="welcome-export-heading">Export Notes</h2>
-                <ul>
-                    <li>WCAG Success Criterion values export as criterion names and keep their official Understanding links where the format supports hyperlinks.</li>
-                    <li>HTML exports open WCAG links in a new tab.</li>
-                    <li>Excel exports include <strong>Overview</strong> and <strong>Accessibility Audit</strong> sheets with live report data at export time.</li>
-                </ul>
-            </section>
+            <p>The <strong>Accessibility Reporting Tool (ART)</strong> is an open-source application for creating, managing, and exporting professional accessibility audit reports. Designed for accessibility professionals, quality assurance testers, developers, designers, educators, and organizations, ART streamlines the process of documenting accessibility findings while supporting efficient, consistent, and accessible reporting workflows.</p>
+            <p>ART is built on an accessibility-first philosophy. Keyboard accessibility, screen reader compatibility, semantic HTML, and support for a wide range of users are fundamental to every aspect of the application.</p>
+            <div>
+                <h2 id="welcome-getting-started-heading">Getting Started</h2>
+                <p>The best place to begin is the <strong>Dashboard</strong>, where you can create a new report, open an existing project, or configure ART through <strong>Application Settings</strong>.</p>
+                <p>Press <strong>F1</strong> at any time to open the built-in Help system, which includes comprehensive documentation, tutorials, keyboard shortcuts, and detailed information about every feature in ART.</p>
+                <p>The keyboard shortcuts below are updated automatically to reflect your current shortcut assignments.</p>
+            </div>
             <section aria-labelledby="welcome-shortcuts-heading">
                 <h2 id="welcome-shortcuts-heading">Keyboard Shortcuts</h2>
-                <p>Use Ctrl+F6 and Ctrl+Shift+F6 to cycle through the application landmarks in a continuous loop.</p>
                 <ul>
                     ${shortcuts.map((shortcut) => `<li>${shortcut}</li>`).join('')}
                 </ul>
