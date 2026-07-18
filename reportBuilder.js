@@ -1,6 +1,6 @@
 // reportBuilder.js
 import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport } from './state.js';
-import { getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let pendingFocus = null;
 let pendingDelete = null;
@@ -208,6 +208,8 @@ export async function renderBuilder() {
         : '';
     const editField = getEditField();
     const editType = normalizeFieldType(editField?.type);
+    const availableStandards = await getAvailableWcagStandards().catch(() => ['WCAG 2.2', 'WCAG 2.1']);
+    const standardOptions = availableStandards.length > 0 ? availableStandards : ['WCAG 2.2', 'WCAG 2.1'];
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
     const reportLayouts = {
         'Audit Log': ['Paragraphs', 'Tabular', 'Template'],
@@ -237,8 +239,7 @@ export async function renderBuilder() {
                 <label>Auditor(s): <input type="text" id="auditors" value="${appState.auditors || ''}"></label>
                 <label>Accessibility Standard:
                     <select id="standard-select" aria-label="Accessibility Standard" aria-describedby="builder-select-help">
-                        <option value="WCAG 2.2" ${appState.standard === 'WCAG 2.2' ? 'selected' : ''}>WCAG 2.2</option>
-                        <option value="WCAG 2.1" ${appState.standard === 'WCAG 2.1' ? 'selected' : ''}>WCAG 2.1</option>
+                        ${standardOptions.map((standard) => `<option value="${escapeHtml(standard)}" ${appState.standard === standard ? 'selected' : ''}>${escapeHtml(standard)}</option>`).join('')}
                     </select>
                 </label>
                 <label>Testing Instructions: <textarea id="testing-instructions">${appState.testingInstructions || ''}</textarea></label>

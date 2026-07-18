@@ -12,6 +12,9 @@ import {
     getAuditEntries,
     getAuditEntryDisplayName,
     getCurrentReportMetrics,
+    getShortcutForAction,
+    getSpellUserDictionary,
+    addSpellUserDictionaryWord,
     getMetadataDescriptors,
     moveAuditEntry,
     upsertCurrentReport,
@@ -28,6 +31,514 @@ let pendingDeleteEntry = null;
 let activeModalDialog = null;
 let areModalListenersBound = false;
 let pendingEditorFocusTargetId = '';
+let spellSession = null;
+
+function editorEventToShortcut(event) {
+    const key = String(event.key || '');
+    if (!key || ['Control', 'Shift', 'Alt', 'Meta'].includes(key)) return '';
+
+    const parts = [];
+    if (event.ctrlKey) parts.push('Ctrl');
+    if (event.altKey) parts.push('Alt');
+    if (event.shiftKey) parts.push('Shift');
+
+    let normalized = key;
+    if (/^f\d+$/i.test(key)) {
+        normalized = key.toUpperCase();
+    } else if (key.length === 1) {
+        normalized = key.toUpperCase();
+    } else if (key === ' ') {
+        normalized = 'Space';
+    } else {
+        normalized = key[0].toUpperCase() + key.slice(1).toLowerCase();
+    }
+
+    parts.push(normalized);
+    return parts.join('+');
+}
+
+function levenshteinDistance(a, b) {
+    const left = String(a || '');
+    const right = String(b || '');
+    const dp = Array.from({ length: left.length + 1 }, () => Array(right.length + 1).fill(0));
+    for (let i = 0; i <= left.length; i += 1) dp[i][0] = i;
+    for (let j = 0; j <= right.length; j += 1) dp[0][j] = j;
+    for (let i = 1; i <= left.length; i += 1) {
+        for (let j = 1; j <= right.length; j += 1) {
+            const cost = left[i - 1] === right[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(
+                dp[i - 1][j] + 1,
+                dp[i][j - 1] + 1,
+                dp[i - 1][j - 1] + cost
+            );
+        }
+    }
+    return dp[left.length][right.length];
+}
+
+const fallbackSpellDictionary = new Set([
+    'a','able','about','above','access','accessibility','accessible','action','actions','add','added','additional','all','allow','already','an','and','announcement','app','application','are','aria','as','assign','assigned','audit','available','bar','be','because','been','before','below','between','both','browser','build','builder','button','buttons','by','can','cancel','change','changed','checking','clear','close','code','color','command','commands','complete','configurable','configure','conflict','content','controls','copy','correction','criteria','current','custom','dashboard','data','default','delete','description','dialog','does','done','down','editor','entry','error','errors','escape','existing','export','field','fields','filter','find','focus','for','found','from','function','functions','have','help','highlight','if','ignore','import','in','include','information','input','is','issue','issues','it','item','items','keyboard','keys','label','labels','link','list','lookup','manual','manager','metadata','modal','move','name','navigation','new','no','not','now','of','on','open','option','or','panel','paragraph','print','project','report','replace','required','reset','result','review','role','save','screen','search','section','select','selection','settings','shortcut','shortcuts','should','show','single','spell','spelling','standard','start','status','stop','suggestion','suggestions','table','tab','template','text','that','the','there','this','to','tool','undo','update','up','use','user','value','version','view','viewer','wcag','when','with','word','words','workflow'
+]);
+
+let spellDictionaryEngine = null;
+let spellDictionaryLoadPromise = null;
+
+function loadExternalScript(src) {
+    return new Promise((resolve, reject) => {
+        const existing = Array.from(document.querySelectorAll('script[src]')).find((script) => script.src === src);
+        if (existing) {
+            if (existing.dataset.loaded === 'true') {
+                resolve();
+                return;
+            }
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error(`Failed to load script: ${src}`)), { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.addEventListener('load', () => {
+            script.dataset.loaded = 'true';
+            resolve();
+        }, { once: true });
+        script.addEventListener('error', () => reject(new Error(`Failed to load script: ${src}`)), { once: true });
+        document.head.appendChild(script);
+    });
+}
+
+async function ensureSpellDictionaryEngine() {
+    if (spellDictionaryEngine) return spellDictionaryEngine;
+    if (spellDictionaryLoadPromise) return spellDictionaryLoadPromise;
+
+    spellDictionaryLoadPromise = (async () => {
+        try {
+            if (typeof window.Typo !== 'function') {
+                await loadExternalScript('https://cdn.jsdelivr.net/npm/typo-js@1.2.4/typo.js');
+            }
+
+            const [affResponse, dicResponse] = await Promise.all([
+                fetch('https://cdn.jsdelivr.net/npm/dictionary-en-us/index.aff'),
+                fetch('https://cdn.jsdelivr.net/npm/dictionary-en-us/index.dic')
+            ]);
+
+            if (!affResponse.ok || !dicResponse.ok || typeof window.Typo !== 'function') {
+                throw new Error('Dictionary files unavailable');
+            }
+
+            const [affData, dicData] = await Promise.all([affResponse.text(), dicResponse.text()]);
+            spellDictionaryEngine = new window.Typo('en_US', affData, dicData, { platform: 'any' });
+        } catch (error) {
+            spellDictionaryEngine = null;
+        }
+        return spellDictionaryEngine;
+    })();
+
+    return spellDictionaryLoadPromise;
+}
+
+function getSpellSuggestions(word) {
+    const source = String(word || '').toLowerCase();
+    if (!source) return [];
+    if (spellDictionaryEngine && typeof spellDictionaryEngine.suggest === 'function') {
+        return spellDictionaryEngine.suggest(source).slice(0, 6);
+    }
+    return [...fallbackSpellDictionary]
+        .filter((entry) => entry[0] === source[0])
+        .map((entry) => ({ entry, score: levenshteinDistance(source, entry) }))
+        .filter((item) => item.score <= 3)
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 6)
+        .map((item) => item.entry);
+}
+
+function getSpellContext(text, start, end) {
+    const full = String(text || '');
+    const leftBound = Math.max(0, full.lastIndexOf('.', start - 1) + 1, full.lastIndexOf('\n', start - 1) + 1);
+    let rightBound = full.indexOf('.', end);
+    if (rightBound < 0) rightBound = full.length;
+    const sentence = full.slice(leftBound, rightBound + 1).trim();
+    return sentence || full.slice(Math.max(0, start - 40), Math.min(full.length, end + 40));
+}
+
+function isWordMisspelled(word, ignoreSet) {
+    const raw = String(word || '');
+    const lower = raw.toLowerCase();
+    if (!lower || lower.length < 2) return false;
+    if (ignoreSet.has(raw) || ignoreSet.has(lower)) return false;
+    if (/^[A-Z]{2,}$/.test(raw)) return false;
+    if (/\d/.test(raw)) return false;
+    if (raw[0] === raw[0].toUpperCase() && raw.slice(1) !== raw.slice(1).toLowerCase()) return false;
+    if (spellDictionaryEngine && typeof spellDictionaryEngine.check === 'function') {
+        return !spellDictionaryEngine.check(lower);
+    }
+    return !fallbackSpellDictionary.has(lower);
+}
+
+function getSpellcheckControls() {
+    const editor = document.getElementById('editor-view');
+    if (!editor) return [];
+    return Array.from(editor.querySelectorAll('textarea, input[type="text"]'))
+        .filter((control) => !control.readOnly && !control.disabled && control.id && control.id.startsWith('editor-field-'));
+}
+
+function collectSpellIssues(ignoreSet = new Set()) {
+    const issues = [];
+    const controls = getSpellcheckControls();
+    controls.forEach((control) => {
+        const text = String(control.value || '');
+        const matcher = /\b[A-Za-z][A-Za-z'’-]*\b/g;
+        let match;
+        while ((match = matcher.exec(text)) !== null) {
+            const word = match[0];
+            const start = match.index;
+            const end = start + word.length;
+            if (!isWordMisspelled(word, ignoreSet)) continue;
+            issues.push({
+                controlId: control.id,
+                word,
+                start,
+                end,
+                context: getSpellContext(text, start, end),
+                suggestions: getSpellSuggestions(word)
+            });
+        }
+    });
+    return issues;
+}
+
+function buildSpellIgnoreSet(sessionIgnoreSet) {
+    const merged = new Set();
+    (getSpellUserDictionary() || []).forEach((word) => {
+        const value = String(word || '').trim();
+        if (!value) return;
+        merged.add(value);
+        merged.add(value.toLowerCase());
+    });
+    (sessionIgnoreSet || new Set()).forEach((word) => {
+        merged.add(word);
+        merged.add(String(word || '').toLowerCase());
+    });
+    return merged;
+}
+
+function getSpellActionLabel(action, fallback) {
+    const shortcut = getShortcutForAction(action);
+    return shortcut ? `${fallback} (${shortcut})` : fallback;
+}
+
+function renderSpellDialog(session) {
+    const issue = session.issues[session.index];
+    const suggestionOptions = issue.suggestions.length
+        ? issue.suggestions.map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('')
+        : '<option value="">No suggestion available</option>';
+    const labelText = `Issue ${session.index + 1} of ${session.issues.length}`;
+    return `
+        <h3 id="spellcheck-title">Spell Check</h3>
+        <p id="spellcheck-status" class="spellcheck-status">${escapeHtml(labelText)}: <strong>${escapeHtml(issue.word)}</strong></p>
+        <p class="spellcheck-context" id="spellcheck-context">${escapeHtml(issue.context)}</p>
+        <label for="spellcheck-replacement">Replacement</label>
+        <input id="spellcheck-replacement" type="text" value="${escapeHtml(issue.suggestions[0] || issue.word)}" autocomplete="off" />
+        <label for="spellcheck-suggestion-list">Suggestions</label>
+        <select id="spellcheck-suggestion-list">${suggestionOptions}</select>
+        <div class="modal-actions" role="group" aria-label="Spell check actions">
+            <button id="spellcheck-replace" type="button">${escapeHtml(getSpellActionLabel('spellReplace', 'Replace'))}</button>
+            <button id="spellcheck-replace-all" type="button">${escapeHtml(getSpellActionLabel('spellReplaceAll', 'Replace All'))}</button>
+            <button id="spellcheck-ignore" type="button">${escapeHtml(getSpellActionLabel('spellIgnore', 'Ignore'))}</button>
+            <button id="spellcheck-ignore-all" type="button">${escapeHtml(getSpellActionLabel('spellIgnoreAll', 'Ignore All'))}</button>
+            <button id="spellcheck-add-dictionary" type="button">${escapeHtml(getSpellActionLabel('spellAddToDictionary', 'Add to Dictionary'))}</button>
+            <button id="spellcheck-undo" type="button" ${session.history.length ? '' : 'disabled aria-disabled="true"'}>${escapeHtml(getSpellActionLabel('spellUndoLastCorrection', 'Undo Last Correction'))}</button>
+            <button id="spellcheck-cancel" type="button">${escapeHtml(getSpellActionLabel('spellCancel', 'Cancel'))}</button>
+        </div>
+        <p id="spellcheck-live" class="sr-only" aria-live="polite"></p>
+    `;
+}
+
+function focusSpellIssue(issue) {
+    const control = document.getElementById(issue.controlId);
+    if (!control) return;
+    control.focus();
+    if (typeof control.setSelectionRange === 'function') {
+        control.setSelectionRange(issue.start, issue.end);
+    }
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    control.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+}
+
+function applySpellReplacement(issue, replacement) {
+    const control = document.getElementById(issue.controlId);
+    if (!control) return null;
+    const text = String(control.value || '');
+    const updated = `${text.slice(0, issue.start)}${replacement}${text.slice(issue.end)}`;
+    control.value = updated;
+    control.dispatchEvent(new Event('input', { bubbles: true }));
+    return {
+        controlId: issue.controlId,
+        start: issue.start,
+        before: issue.word,
+        after: replacement
+    };
+}
+
+function escapeRegex(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function applySpellReplaceAll(session, sourceWord, replacement) {
+    const source = String(sourceWord || '').trim();
+    const target = String(replacement || '').trim();
+    if (!source || !target || source === target) return 0;
+    const matcher = new RegExp(`\\b${escapeRegex(source)}\\b`, 'g');
+    let count = 0;
+    getSpellcheckControls().forEach((control) => {
+        const before = String(control.value || '');
+        const after = before.replace(matcher, () => {
+            count += 1;
+            return target;
+        });
+        if (after !== before) {
+            control.value = after;
+            control.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    if (count > 0) {
+        session.history.push({ type: 'replaceAll', source, target, count });
+    }
+    return count;
+}
+
+function rebuildSpellSessionIssues(session) {
+    session.issues = collectSpellIssues(buildSpellIgnoreSet(session.ignoreAllWords));
+    if (session.index >= session.issues.length) {
+        session.index = Math.max(0, session.issues.length - 1);
+    }
+}
+
+function announceSpellMessage(message) {
+    const live = document.getElementById('spellcheck-live');
+    if (!live) return;
+    live.textContent = '';
+    window.setTimeout(() => {
+        live.textContent = message;
+    }, 10);
+}
+
+function announceEditorStatus(message) {
+    announce(String(message || ''));
+}
+
+function closeSpellDialog(restoreFocus = true) {
+    const dialog = document.getElementById('editor-spellcheck-dialog');
+    if (dialog) {
+        dialog.hidden = true;
+        dialog.innerHTML = '';
+    }
+    closeModalDialog(false);
+    const trigger = document.getElementById('btn-editor-spell-check');
+    const shouldRestore = restoreFocus && trigger;
+    spellSession = null;
+    if (shouldRestore) {
+        window.setTimeout(() => trigger.focus(), 0);
+    }
+}
+
+function rerenderSpellDialog() {
+    if (!spellSession) return;
+    const dialog = document.getElementById('editor-spellcheck-dialog');
+    if (!dialog) return;
+    if (!spellSession.issues.length) {
+        closeSpellDialog(false);
+        announceEditorStatus('Spell checking is complete.');
+        return;
+    }
+    dialog.innerHTML = renderSpellDialog(spellSession);
+    openModalDialog(dialog, null, document.getElementById('btn-editor-spell-check'));
+
+    const issue = spellSession.issues[spellSession.index];
+    focusSpellIssue(issue);
+
+    const replacementInput = document.getElementById('spellcheck-replacement');
+    const suggestionList = document.getElementById('spellcheck-suggestion-list');
+    const onSuggestionChange = () => {
+        if (!replacementInput || !suggestionList) return;
+        replacementInput.value = suggestionList.value;
+    };
+    if (suggestionList) {
+        suggestionList.addEventListener('change', onSuggestionChange);
+    }
+
+    const command = (name) => {
+        if (!spellSession) return;
+        const currentIssue = spellSession.issues[spellSession.index];
+        const replacement = String(replacementInput?.value || '').trim();
+        if (name === 'replace') {
+            const mutation = applySpellReplacement(currentIssue, replacement || currentIssue.word);
+            if (mutation) {
+                spellSession.history.push({ type: 'replace', mutation });
+                announceSpellMessage(`Replaced ${currentIssue.word} with ${replacement || currentIssue.word}.`);
+            }
+            rebuildSpellSessionIssues(spellSession);
+            rerenderSpellDialog();
+            return;
+        }
+        if (name === 'replaceAll') {
+            const changed = applySpellReplaceAll(spellSession, currentIssue.word, replacement || currentIssue.word);
+            announceSpellMessage(changed ? `Replaced ${changed} occurrences of ${currentIssue.word}.` : `No additional occurrences of ${currentIssue.word} were found.`);
+            rebuildSpellSessionIssues(spellSession);
+            rerenderSpellDialog();
+            return;
+        }
+        if (name === 'ignore') {
+            spellSession.issues.splice(spellSession.index, 1);
+            if (!spellSession.issues.length) {
+                closeSpellDialog(false);
+                announceEditorStatus('Spell checking is complete.');
+                return;
+            }
+            if (spellSession.index >= spellSession.issues.length) {
+                spellSession.index = spellSession.issues.length - 1;
+            }
+            rerenderSpellDialog();
+            return;
+        }
+        if (name === 'ignoreAll') {
+            spellSession.ignoreAllWords.add(String(currentIssue.word || '').toLowerCase());
+            rebuildSpellSessionIssues(spellSession);
+            announceSpellMessage(`Ignoring all occurrences of ${currentIssue.word}.`);
+            rerenderSpellDialog();
+            return;
+        }
+        if (name === 'addDictionary') {
+            const added = addSpellUserDictionaryWord(currentIssue.word);
+            const spoken = added.alreadyExists
+                ? `${currentIssue.word} is already in your dictionary.`
+                : `Added ${currentIssue.word} to your dictionary.`;
+            announceSpellMessage(spoken);
+            rebuildSpellSessionIssues(spellSession);
+            rerenderSpellDialog();
+            return;
+        }
+        if (name === 'undo') {
+            const last = spellSession.history.pop();
+            if (!last) return;
+            if (last.type === 'replace' && last.mutation) {
+                const control = document.getElementById(last.mutation.controlId);
+                if (control) {
+                    const current = String(control.value || '');
+                    const start = last.mutation.start;
+                    const end = start + String(last.mutation.after || '').length;
+                    control.value = `${current.slice(0, start)}${last.mutation.before}${current.slice(end)}`;
+                    control.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+            if (last.type === 'replaceAll') {
+                const matcher = new RegExp(`\\b${escapeRegex(last.target)}\\b`, 'g');
+                getSpellcheckControls().forEach((control) => {
+                    const text = String(control.value || '');
+                    control.value = text.replace(matcher, last.source);
+                    control.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            }
+            announceSpellMessage('Undo completed.');
+            rebuildSpellSessionIssues(spellSession);
+            rerenderSpellDialog();
+            return;
+        }
+        closeSpellDialog();
+        announceEditorStatus('Spell check canceled.');
+    };
+
+    const buttonMap = [
+        ['spellcheck-replace', 'replace'],
+        ['spellcheck-replace-all', 'replaceAll'],
+        ['spellcheck-ignore', 'ignore'],
+        ['spellcheck-ignore-all', 'ignoreAll'],
+        ['spellcheck-add-dictionary', 'addDictionary'],
+        ['spellcheck-undo', 'undo'],
+        ['spellcheck-cancel', 'cancel']
+    ];
+    buttonMap.forEach(([id, action]) => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.onclick = () => command(action);
+        }
+    });
+
+    dialog.onkeydown = (event) => {
+        if (!spellSession) return;
+        const shortcut = editorEventToShortcut(event);
+        const match = (action) => {
+            const expected = getShortcutForAction(action);
+            return expected && shortcut === expected;
+        };
+        if ((event.ctrlKey || event.metaKey) && String(event.key || '').toLowerCase() === 'z') {
+            event.preventDefault();
+            command('undo');
+            return;
+        }
+        if (match('spellReplace')) {
+            event.preventDefault();
+            command('replace');
+            return;
+        }
+        if (match('spellReplaceAll')) {
+            event.preventDefault();
+            command('replaceAll');
+            return;
+        }
+        if (match('spellIgnore')) {
+            event.preventDefault();
+            command('ignore');
+            return;
+        }
+        if (match('spellIgnoreAll')) {
+            event.preventDefault();
+            command('ignoreAll');
+            return;
+        }
+        if (match('spellAddToDictionary')) {
+            event.preventDefault();
+            command('addDictionary');
+            return;
+        }
+        if (match('spellUndoLastCorrection')) {
+            event.preventDefault();
+            command('undo');
+            return;
+        }
+        if (match('spellCancel') || event.key === 'Escape') {
+            event.preventDefault();
+            command('cancel');
+        }
+    };
+
+    window.setTimeout(() => {
+        replacementInput?.focus();
+        replacementInput?.select();
+    }, 0);
+}
+
+async function startSpellCheck() {
+    announceEditorStatus('Loading spell check dictionary.');
+    const engine = await ensureSpellDictionaryEngine();
+    if (!engine) {
+        announceEditorStatus('Using fallback spell check dictionary.');
+    }
+
+    const issues = collectSpellIssues(buildSpellIgnoreSet(new Set()));
+    if (!issues.length) {
+        announceEditorStatus('No spelling issues were found.');
+        return;
+    }
+    spellSession = {
+        issues,
+        index: 0,
+        ignoreAllWords: new Set(),
+        history: []
+    };
+    rerenderSpellDialog();
+}
 export function activateAddEntryWorkflow() {
     if (!currentReportSupportsAuditEntries()) {
         announce('Add Entry is unavailable for the current report type.');
@@ -493,9 +1004,11 @@ function renderStatisticsDialog(metrics) {
 
 function renderEditorActionBar() {
     const addEntryDisabled = !currentReportSupportsAuditEntries();
+    const spellCheckLabel = getSpellActionLabel('spellCheck', 'Spell Check');
     return `
         <div class="editor-action-bar" role="group" aria-label="Report editor actions">
             <button id="btn-add-entry" type="button" ${addEntryDisabled ? 'disabled aria-disabled="true"' : ''}>Add Entry</button>
+            <button id="btn-editor-spell-check" type="button">${escapeHtml(spellCheckLabel)}</button>
             <button id="btn-editor-configure-report" type="button">Configure Report</button>
             <button id="btn-editor-validate-report" type="button">Validate Report</button>
             <button id="btn-editor-report-statistics" type="button">Report Statistics</button>
@@ -760,6 +1273,7 @@ function bindEditorDialogEvents() {
     const editMetadataButton = document.getElementById('btn-edit-metadata');
     const clearReportButton = document.getElementById('btn-clear-report-data');
     const configureReportButton = document.getElementById('btn-editor-configure-report');
+    const spellCheckButton = document.getElementById('btn-editor-spell-check');
     const validateReportButton = document.getElementById('btn-editor-validate-report');
     const reportStatisticsButton = document.getElementById('btn-editor-report-statistics');
     const viewReportButton = document.getElementById('btn-editor-view-report');
@@ -811,6 +1325,10 @@ function bindEditorDialogEvents() {
         window.setTimeout(() => {
             document.getElementById('builder-heading')?.focus();
         }, 0);
+    });
+
+    spellCheckButton?.addEventListener('click', () => {
+        startSpellCheck();
     });
 
     validateReportButton?.addEventListener('click', () => {
@@ -947,6 +1465,7 @@ export async function renderEditor() {
             ${renderClearDialog()}
             ${renderValidationDialog()}
             ${renderStatisticsDialog(getCurrentReportMetrics())}
+            <div id="editor-spellcheck-dialog" role="dialog" aria-modal="true" aria-labelledby="spellcheck-title" hidden></div>
         </section>
     `;
 

@@ -1,6 +1,7 @@
-const WCAG_DATA_URL = 'wcag_data.js';
+import defaultStandards from './defaultStandards.js';
+import { getUserStandards } from './state.js';
 
-let catalogPromise = null;
+let builtInCatalogPromise = null;
 
 function slugify(value) {
     return String(value || '')
@@ -42,6 +43,9 @@ function normalizeCriterion(entry) {
     const parsed = parseCriterionName(entry.name);
     const understandingUrl = String(entry.Link || '').trim();
     const stableId = `${slugify(standard)}-${parsed.number || slugify(parsed.title)}`;
+    const references = understandingUrl
+        ? [{ label: 'Official reference', url: understandingUrl }]
+        : [];
 
     return {
         ...entry,
@@ -51,28 +55,71 @@ function normalizeCriterion(entry) {
         title: parsed.title,
         level: String(entry.level || '').trim(),
         understandingUrl,
+        references,
         recommendationUrl: buildRecommendationUrl(understandingUrl),
         searchText: `${parsed.number} ${parsed.title} ${entry.desc || ''}`.toLowerCase()
     };
 }
 
-async function fetchCatalogData() {
-    const response = await fetch(WCAG_DATA_URL, { cache: 'no-cache' });
-    if (!response.ok) {
-        throw new Error(`Unable to load WCAG data: HTTP ${response.status}`);
+function normalizeImportedCatalogEntry(criterion, standardName) {
+    const number = String(criterion?.number || '').trim();
+    const title = String(criterion?.title || criterion?.name || '').trim();
+    const desc = String(criterion?.desc || '').trim();
+    const understandingUrl = String(criterion?.understandingUrl || criterion?.Link || '').trim();
+    const references = Array.isArray(criterion?.references)
+        ? criterion.references
+        : understandingUrl
+            ? [{ label: 'Official reference', url: understandingUrl }]
+            : [];
+    const identifier = String(
+        criterion?.identifier
+        || `${slugify(standardName)}-${slugify(number || title || Math.random().toString(36).slice(2))}`
+    );
+
+    return {
+        ...criterion,
+        standard: standardName,
+        identifier,
+        number,
+        title,
+        level: String(criterion?.level || '').trim(),
+        understandingUrl,
+        recommendationUrl: String(criterion?.recommendationUrl || '').trim(),
+        references,
+        searchText: `${number} ${title} ${desc}`.toLowerCase(),
+        desc,
+        failures: String(criterion?.failures || '').trim(),
+        fixes: String(criterion?.fixes || '').trim(),
+        disabilitie: String(criterion?.disabilitie || criterion?.disabilities || '').trim(),
+        categories: String(criterion?.categories || '').trim(),
+        tags: Array.isArray(criterion?.tags)
+            ? criterion.tags
+            : String(criterion?.tags || '').split('|').map((tag) => tag.trim()).filter(Boolean)
+    };
+}
+
+async function loadBuiltInCatalog() {
+    if (!builtInCatalogPromise) {
+        if (!Array.isArray(defaultStandards)) {
+            throw new Error('Default standards are not available.');
+        }
+        builtInCatalogPromise = Promise.resolve(defaultStandards.map(normalizeCriterion));
     }
-    const raw = await response.json();
-    if (!Array.isArray(raw)) {
-        throw new Error('WCAG data is not an array.');
-    }
-    return raw.map(normalizeCriterion);
+    return builtInCatalogPromise;
+}
+
+async function buildMergedCatalog() {
+    const builtInCatalog = await loadBuiltInCatalog();
+    const importedStandards = getUserStandards();
+    const importedCriteria = importedStandards.flatMap((standard) => {
+        const standardName = String(standard.displayName || standard.internalId || 'Imported Standard').trim();
+        return (Array.isArray(standard.criteria) ? standard.criteria : []).map((criterion) => normalizeImportedCatalogEntry(criterion, standardName));
+    });
+    return [...builtInCatalog, ...importedCriteria];
 }
 
 export function loadWcagCatalog() {
-    if (!catalogPromise) {
-        catalogPromise = fetchCatalogData();
-    }
-    return catalogPromise;
+    return buildMergedCatalog();
 }
 
 export async function getWcagCriteriaForStandard(standard) {

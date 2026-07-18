@@ -1,4 +1,4 @@
-import { appState, announce, saveState, serializeArtJsonPayload, upsertCurrentReport } from './state.js';
+import { appState, announce, getCurrentReportMetrics, saveState, serializeArtJsonPayload, upsertCurrentReport } from './state.js';
 import { formatWcagCriterionDisplay, getWcagCriterionByIdentifier, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let openExportDialogOnRender = false;
@@ -137,14 +137,14 @@ function buildTextSummary() {
     const fieldsText = appState.reportType === 'Audit Log'
         ? getAuditEntryGroups(false).map((group) => {
             const content = group.entries.map((entry) => {
-                if (entry.url) return `${entry.label}: ${entry.displayText}\n${entry.url}`;
+                if (entry.url) return `${entry.label}: ${entry.displayText} (${entry.url})`;
                 return `${entry.label}: ${entry.exportText}`;
             }).join('\n');
             return `${group.title}\n${content}`;
         }).join('\n\n')
         : getResolvedFieldEntries(false).map((entry) => {
             if (entry.url) {
-                return `${entry.label}: ${entry.displayText}\n${entry.url}`;
+                return `${entry.label}: ${entry.displayText} (${entry.url})`;
             }
             return `${entry.label}: ${entry.exportText}`;
         }).join('\n');
@@ -186,14 +186,14 @@ function buildHtmlSummary() {
     const fieldItems = appState.reportType === 'Audit Log'
         ? getAuditEntryGroups(false).map((group) => `<li><strong>${escapeHtml(group.title)}</strong><ul>${group.entries.map((entry) => {
             if (entry.url) {
-                return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener">${escapeHtml(entry.displayText)}</a></li>`;
+                return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.displayText)}</a></li>`;
             }
             return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
         }).join('')}</ul></li>`).join('')
         : getResolvedFieldEntries(false)
             .map((entry) => {
                 if (entry.url) {
-                    return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener">${escapeHtml(entry.displayText)}</a></li>`;
+                    return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.displayText)}</a></li>`;
                 }
                 return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
             })
@@ -253,6 +253,80 @@ function buildRtfSummary() {
     return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\f0\\fs22\\b ${title}\\b0\\line\\line ${brandingBlock}Metadata\\line ${metadata}\\line\\line Fields\\line ${fields}}`;
 }
 
+function buildXlsxBlob() {
+    if (!window.XLSX) {
+        throw new Error('SheetJS is not available for XLSX export.');
+    }
+
+    const workbook = window.XLSX.utils.book_new();
+
+    const metrics = getCurrentReportMetrics();
+    const overviewRows = [['Section', 'Entry', 'Field', 'Value', 'References']];
+    getMetadataRows().forEach(([label, value]) => {
+        overviewRows.push(['Metadata', '', String(label), String(value || ''), '']);
+    });
+
+    getBrandingTextLines().forEach((line) => {
+        const parts = String(line).split(':');
+        const key = parts.shift() || 'Branding';
+        overviewRows.push(['Metadata', '', key.trim(), parts.join(':').trim(), '']);
+    });
+
+    overviewRows.push(['Metrics', '', 'Total Audit Entries', String(metrics.totalAuditEntries || 0), '']);
+    overviewRows.push(['Metrics', '', 'Total Issues', String(metrics.totalIssues || 0), '']);
+    overviewRows.push(['Metrics', '', 'Issues by Severity', String(metrics.issuesBySeverity || 'None'), '']);
+    overviewRows.push(['Metrics', '', 'Unique Pages Tested', String(metrics.pagesTested || 0), '']);
+    overviewRows.push(['Metrics', '', 'WCAG Success Criteria Referenced', String(metrics.wcagCriteria || 0), '']);
+
+    const configuredFieldLabels = (appState.fields || []).map((field, index) => String(field?.label || `Field ${index + 1}`));
+    const auditRows = [['Entry', ...configuredFieldLabels]];
+
+    const toXlsxCellValue = (entry) => {
+        const text = String(entry?.displayText || entry?.exportText || '');
+        const url = String(entry?.url || '').trim();
+        if (!url) return text;
+        return {
+            t: 's',
+            v: text,
+            l: {
+                Target: url,
+                Tooltip: `Open ${text}`
+            }
+        };
+    };
+
+    if (appState.reportType === 'Audit Log') {
+        getAuditEntriesList().forEach((auditEntry, entryIndex) => {
+            const resolvedEntries = getResolvedFieldEntriesForValues(auditEntry?.fieldValues || {}, false);
+            const entryName = String(auditEntry?.fieldValues?.[0] || '').trim() || `Entry ${entryIndex + 1}`;
+            const row = [
+                entryName,
+                ...resolvedEntries.map((entry) => toXlsxCellValue(entry))
+            ];
+            auditRows.push(row);
+
+            resolvedEntries.forEach((entry) => {
+                overviewRows.push(['Accessibility Audit', entryName, entry.label, entry.exportText, entry.url || '']);
+            });
+        });
+    } else {
+        const resolvedEntries = getResolvedFieldEntries(false);
+        const row = ['Primary', ...resolvedEntries.map((entry) => toXlsxCellValue(entry))];
+        auditRows.push(row);
+        resolvedEntries.forEach((entry) => {
+            overviewRows.push(['Accessibility Audit', 'Primary', entry.label, entry.exportText, entry.url || '']);
+        });
+    }
+
+    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.aoa_to_sheet(overviewRows), 'Overview');
+    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.aoa_to_sheet(auditRows), 'Accessibility Audit');
+
+    const arrayBuffer = window.XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    return new Blob([arrayBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+}
+
 function escapeXml(value) {
     return String(value)
         .replace(/&/g, '&amp;')
@@ -266,6 +340,13 @@ function buildDocxDocumentXml() {
     const makeParagraph = (text, style = 'Normal') => {
         const paragraphText = String(text || '');
         return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(paragraphText)}</w:t></w:r></w:p>`;
+    };
+
+    const makeHyperlinkParagraph = (label, text, url, style = 'Normal') => {
+        const safeLabel = String(label || '');
+        const safeText = String(text || '');
+        const safeUrl = String(url || '');
+        return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(safeLabel)}: </w:t></w:r><w:fldSimple w:instr="HYPERLINK &quot;${escapeXml(safeUrl)}&quot;"><w:r><w:rPr><w:u w:val="single"/><w:color w:val="0563C1"/></w:rPr><w:t xml:space="preserve">${escapeXml(safeText)}</w:t></w:r></w:fldSimple></w:p>`;
     };
 
     const metadataRows = getMetadataRows();
@@ -323,7 +404,7 @@ function buildDocxDocumentXml() {
             paragraphs.push(makeParagraph(group.title, 'Heading2'));
             group.entries.forEach((entry) => {
                 if (entry.url) {
-                    paragraphs.push(makeParagraph(`${entry.label}: ${entry.displayText} (${entry.url})`, 'Normal'));
+                    paragraphs.push(makeHyperlinkParagraph(entry.label, entry.displayText, entry.url, 'Normal'));
                 } else {
                     paragraphs.push(makeParagraph(`${entry.label}: ${entry.exportText || 'No value entered'}`, 'Normal'));
                 }
@@ -331,10 +412,10 @@ function buildDocxDocumentXml() {
         });
     } else {
         getResolvedFieldEntries(false).forEach((entry) => {
-            paragraphs.push(makeParagraph(entry.label, 'Heading2'));
             if (entry.url) {
-                paragraphs.push(makeParagraph(`${entry.displayText} (${entry.url})`, 'Normal'));
+                paragraphs.push(makeHyperlinkParagraph(entry.label, entry.displayText, entry.url, 'Normal'));
             } else {
+                paragraphs.push(makeParagraph(entry.label, 'Heading2'));
                 paragraphs.push(makeParagraph(entry.exportText || 'No value entered', 'Normal'));
             }
         });
@@ -584,6 +665,12 @@ async function getExportConfig(format) {
             return { extension: 'txt', mimeType: 'text/plain', blob: new Blob([buildTextSummary()], { type: 'text/plain' }) };
         case 'rtf':
             return { extension: 'rtf', mimeType: 'application/rtf', blob: new Blob([buildRtfSummary()], { type: 'application/rtf' }) };
+        case 'xlsx':
+            return {
+                extension: 'xlsx',
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                blob: buildXlsxBlob()
+            };
         default:
             return fallback;
     }
@@ -807,7 +894,7 @@ function renderBrandingBlock() {
 }
 
 function renderWcagViewerLink(entry, text) {
-    return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener" class="wcag-viewer-link" aria-label="Open official W3C Understanding documentation for ${escapeHtml(text)}" data-wcag-index="${entry.index}" data-wcag-identifier="${escapeHtml(entry.rawValue?.identifier || '')}" data-wcag-url="${escapeHtml(entry.url)}">${escapeHtml(text)}</a>`;
+    return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" class="wcag-viewer-link" aria-label="Open official W3C Understanding documentation for ${escapeHtml(text)}" data-wcag-index="${entry.index}" data-wcag-identifier="${escapeHtml(entry.rawValue?.identifier || '')}" data-wcag-url="${escapeHtml(entry.url)}">${escapeHtml(text)}</a>`;
 }
 
 function getFocusableElements(dialog) {
@@ -857,6 +944,7 @@ export function renderViewer() {
                 <label for="export-format">Format</label>
                 <select id="export-format" aria-label="Export format">
                     <option value="docx">Microsoft Word (.docx)</option>
+                    <option value="xlsx">Microsoft Excel (.xlsx)</option>
                     <option value="pdf">PDF</option>
                     <option value="html">HTML</option>
                     <option value="markdown">Markdown</option>

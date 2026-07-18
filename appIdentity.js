@@ -59,7 +59,7 @@ export function syncDocumentTitle() {
 function mapPanelFromFocusTarget(target) {
     if (!target || typeof target.closest !== 'function') return '';
     if (target.closest('#dashboard')) return 'Dashboard';
-    if (target.closest('#lookup-tool')) return 'WCAG Lookup Tool';
+    if (target.closest('#lookup-tool')) return 'Accessibility Lookup Tool';
     if (target.closest('#main-inner')) return getSelectedTabPanelName();
     return '';
 }
@@ -93,8 +93,8 @@ export function initApplicationIdentity() {
 
     const lookup = document.getElementById('lookup-tool');
     if (lookup) {
-        lookup.addEventListener('click', () => setActivePanel('WCAG Lookup Tool'));
-        lookup.addEventListener('focusin', () => setActivePanel('WCAG Lookup Tool'));
+        lookup.addEventListener('click', () => setActivePanel('Accessibility Lookup Tool'));
+        lookup.addEventListener('focusin', () => setActivePanel('Accessibility Lookup Tool'));
     }
 
     const tabList = document.getElementById('top-tabs');

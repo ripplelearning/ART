@@ -29,6 +29,63 @@ const defaultState = {
     templateEditingId: null,
     templateCreateMode: false,
     lastCreatedTemplateId: "",
+    userStandards: [],
+    shortcuts: {
+        spellCheck: 'F7',
+        spellReplace: 'Alt+R',
+        spellReplaceAll: 'Alt+A',
+        spellIgnore: 'Alt+I',
+        spellIgnoreAll: 'Alt+G',
+        spellAddToDictionary: '',
+        spellUndoLastCorrection: 'Alt+U',
+        spellCancel: 'Alt+C',
+        nextLandmark: 'Ctrl+F6',
+        previousLandmark: 'Ctrl+Shift+F6',
+        focusNavigation: 'Alt+Shift+N',
+        focusDashboard: 'Alt+Shift+S',
+        focusMainContent: '',
+        openWelcome: 'Alt+Shift+W',
+        openHelp: 'F1',
+        openBuilder: 'Alt+Shift+U',
+        openEditor: 'Alt+Shift+E',
+        openViewer: 'Alt+Shift+V',
+        focusLookup: 'Alt+Shift+L',
+        addField: 'Alt+Shift+F',
+        done: 'Alt+Shift+O',
+        addEntry: 'Alt+Shift+A',
+        openReport: 'Ctrl+O',
+        exportReport: 'Ctrl+Shift+S',
+        newReport: 'Ctrl+N',
+        newReportFromTemplate: 'Ctrl+Shift+N',
+        resetLookup: 'Alt+Shift+D',
+        closeReport: 'Alt+Shift+C',
+        configureReport: '',
+        editReport: '',
+        viewReport: '',
+        deleteReport: '',
+        newTemplate: '',
+        useTemplate: '',
+        openTemplate: '',
+        editTemplate: '',
+        deleteTemplate: '',
+        importTemplate: '',
+        exportTemplate: '',
+        openSettings: '',
+        settingsClose: '',
+        settingsRestoreShortcuts: '',
+        settingsImportStandard: '',
+        settingsPasteStandardTable: '',
+        settingsResetApp: '',
+        settingsCloseReport: '',
+        copyEntry: '',
+        copyName: '',
+        copyDescription: '',
+        copyFailures: '',
+        copyFixes: '',
+        copyLink: ''
+    },
+    importedStandards: [],
+    spellUserDictionary: [],
     branding: {
         enabled: false,
         headerText: "",
@@ -88,7 +145,213 @@ function normalizeBranding(branding) {
 }
 
 function normalizeStandardValue(value) {
-    return value === 'WCAG 2.1' ? 'WCAG 2.1' : 'WCAG 2.2';
+    const normalized = String(value || '').trim();
+    return normalized || defaultState.standard;
+}
+
+const SHORTCUT_DEFINITIONS = [
+    { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
+    { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
+    { action: 'spellReplaceAll', label: 'Spell Check Replace All', defaultShortcut: defaultState.shortcuts.spellReplaceAll },
+    { action: 'spellIgnore', label: 'Spell Check Ignore', defaultShortcut: defaultState.shortcuts.spellIgnore },
+    { action: 'spellIgnoreAll', label: 'Spell Check Ignore All', defaultShortcut: defaultState.shortcuts.spellIgnoreAll },
+    { action: 'spellAddToDictionary', label: 'Spell Check Add to Dictionary', defaultShortcut: defaultState.shortcuts.spellAddToDictionary },
+    { action: 'spellUndoLastCorrection', label: 'Spell Check Undo Last Correction', defaultShortcut: defaultState.shortcuts.spellUndoLastCorrection },
+    { action: 'spellCancel', label: 'Spell Check Cancel', defaultShortcut: defaultState.shortcuts.spellCancel },
+    { action: 'nextLandmark', label: 'Navigate to next application region', defaultShortcut: defaultState.shortcuts.nextLandmark },
+    { action: 'previousLandmark', label: 'Navigate to previous application region', defaultShortcut: defaultState.shortcuts.previousLandmark },
+    { action: 'focusNavigation', label: 'Focus navigation tablist', defaultShortcut: defaultState.shortcuts.focusNavigation },
+    { action: 'focusDashboard', label: 'Focus dashboard region', defaultShortcut: defaultState.shortcuts.focusDashboard },
+    { action: 'focusMainContent', label: 'Focus main content region', defaultShortcut: defaultState.shortcuts.focusMainContent },
+    { action: 'openWelcome', label: 'Open Welcome tab', defaultShortcut: defaultState.shortcuts.openWelcome },
+    { action: 'openHelp', label: 'Open Help documentation', defaultShortcut: defaultState.shortcuts.openHelp },
+    { action: 'openBuilder', label: 'Open Report Builder tab', defaultShortcut: defaultState.shortcuts.openBuilder },
+    { action: 'openEditor', label: 'Open Report Editor tab', defaultShortcut: defaultState.shortcuts.openEditor },
+    { action: 'openViewer', label: 'Open Report Viewer tab', defaultShortcut: defaultState.shortcuts.openViewer },
+    { action: 'focusLookup', label: 'Focus Accessibility Lookup search', defaultShortcut: defaultState.shortcuts.focusLookup },
+    { action: 'addField', label: 'Add field in Report Builder', defaultShortcut: defaultState.shortcuts.addField },
+    { action: 'done', label: 'Complete Builder and move to Editor', defaultShortcut: defaultState.shortcuts.done },
+    { action: 'addEntry', label: 'Add entry in Report Editor', defaultShortcut: defaultState.shortcuts.addEntry },
+    { action: 'openReport', label: 'Open/Import report', defaultShortcut: defaultState.shortcuts.openReport },
+    { action: 'exportReport', label: 'Export report', defaultShortcut: defaultState.shortcuts.exportReport },
+    { action: 'newReport', label: 'Create new report', defaultShortcut: defaultState.shortcuts.newReport },
+    { action: 'newReportFromTemplate', label: 'Create new report from template', defaultShortcut: defaultState.shortcuts.newReportFromTemplate },
+    { action: 'resetLookup', label: 'Reset Accessibility Lookup Tool', defaultShortcut: defaultState.shortcuts.resetLookup },
+    { action: 'closeReport', label: 'Close Report', defaultShortcut: defaultState.shortcuts.closeReport },
+    { action: 'configureReport', label: 'Configure Report', defaultShortcut: defaultState.shortcuts.configureReport },
+    { action: 'editReport', label: 'Edit Report', defaultShortcut: defaultState.shortcuts.editReport },
+    { action: 'viewReport', label: 'View Report', defaultShortcut: defaultState.shortcuts.viewReport },
+    { action: 'deleteReport', label: 'Delete Report', defaultShortcut: defaultState.shortcuts.deleteReport },
+    { action: 'newTemplate', label: 'Create Template', defaultShortcut: defaultState.shortcuts.newTemplate },
+    { action: 'useTemplate', label: 'Use Template', defaultShortcut: defaultState.shortcuts.useTemplate },
+    { action: 'openTemplate', label: 'View Template', defaultShortcut: defaultState.shortcuts.openTemplate },
+    { action: 'editTemplate', label: 'Edit Template', defaultShortcut: defaultState.shortcuts.editTemplate },
+    { action: 'deleteTemplate', label: 'Delete Template', defaultShortcut: defaultState.shortcuts.deleteTemplate },
+    { action: 'importTemplate', label: 'Import Template', defaultShortcut: defaultState.shortcuts.importTemplate },
+    { action: 'exportTemplate', label: 'Export Template', defaultShortcut: defaultState.shortcuts.exportTemplate },
+    { action: 'openSettings', label: 'Open Application Settings', defaultShortcut: defaultState.shortcuts.openSettings },
+    { action: 'settingsClose', label: 'Close Application Settings', defaultShortcut: defaultState.shortcuts.settingsClose },
+    { action: 'settingsRestoreShortcuts', label: 'Restore Default Shortcuts', defaultShortcut: defaultState.shortcuts.settingsRestoreShortcuts },
+    { action: 'settingsImportStandard', label: 'Import Accessibility Standard', defaultShortcut: defaultState.shortcuts.settingsImportStandard },
+    { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table', defaultShortcut: defaultState.shortcuts.settingsPasteStandardTable },
+    { action: 'settingsResetApp', label: 'Reset ART Application Data', defaultShortcut: defaultState.shortcuts.settingsResetApp },
+    { action: 'settingsCloseReport', label: 'Close Report from Settings', defaultShortcut: defaultState.shortcuts.settingsCloseReport },
+    { action: 'copyEntry', label: 'Copy Entry', defaultShortcut: defaultState.shortcuts.copyEntry },
+    { action: 'copyName', label: 'Copy Name', defaultShortcut: defaultState.shortcuts.copyName },
+    { action: 'copyDescription', label: 'Copy Description', defaultShortcut: defaultState.shortcuts.copyDescription },
+    { action: 'copyFailures', label: 'Copy Failures', defaultShortcut: defaultState.shortcuts.copyFailures },
+    { action: 'copyFixes', label: 'Copy Fixes', defaultShortcut: defaultState.shortcuts.copyFixes },
+    { action: 'copyLink', label: 'Copy References', defaultShortcut: defaultState.shortcuts.copyLink }
+];
+
+const APP_INFO = {
+    applicationName: 'Accessibility Reporting Tool (ART)',
+    version: '13.0.0',
+    buildDate: '2026-07-16',
+    dataSchemaVersion: '1.0'
+};
+
+function normalizeShortcutValue(value, fallback) {
+    const text = String(value || '').trim();
+    return text || fallback;
+}
+
+function normalizeShortcuts(rawShortcuts) {
+    const source = rawShortcuts && typeof rawShortcuts === 'object' ? rawShortcuts : {};
+    const normalized = { ...defaultState.shortcuts };
+
+    SHORTCUT_DEFINITIONS.forEach((definition) => {
+        normalized[definition.action] = normalizeShortcutValue(source[definition.action], definition.defaultShortcut);
+    });
+
+    return normalized;
+}
+
+export function getAssignableActions() {
+    return [
+        { action: 'spellCheck', label: 'Spell Check' },
+        { action: 'spellReplace', label: 'Spell Check Replace' },
+        { action: 'spellReplaceAll', label: 'Spell Check Replace All' },
+        { action: 'spellIgnore', label: 'Spell Check Ignore' },
+        { action: 'spellIgnoreAll', label: 'Spell Check Ignore All' },
+        { action: 'spellAddToDictionary', label: 'Spell Check Add to Dictionary' },
+        { action: 'spellUndoLastCorrection', label: 'Spell Check Undo Last Correction' },
+        { action: 'spellCancel', label: 'Spell Check Cancel' },
+        { action: 'nextLandmark', label: 'Navigate to next application region' },
+        { action: 'previousLandmark', label: 'Navigate to previous application region' },
+        { action: 'focusNavigation', label: 'Focus navigation tablist' },
+        { action: 'focusDashboard', label: 'Focus dashboard region' },
+        { action: 'focusMainContent', label: 'Focus main content region' },
+        { action: 'openWelcome', label: 'Open Welcome tab' },
+        { action: 'openHelp', label: 'Open Help documentation' },
+        { action: 'openBuilder', label: 'Open Report Builder tab' },
+        { action: 'openEditor', label: 'Open Report Editor tab' },
+        { action: 'openViewer', label: 'Open Report Viewer tab' },
+        { action: 'focusLookup', label: 'Focus Accessibility Lookup search' },
+        { action: 'addField', label: 'Add field in Report Builder' },
+        { action: 'done', label: 'Complete Builder and move to Editor' },
+        { action: 'addEntry', label: 'Add entry in Report Editor' },
+        { action: 'openReport', label: 'Open/Import report' },
+        { action: 'exportReport', label: 'Export report' },
+        { action: 'newReport', label: 'Create new report' },
+        { action: 'newReportFromTemplate', label: 'Create new report from template' },
+        { action: 'resetLookup', label: 'Reset Accessibility Lookup Tool' },
+        { action: 'closeReport', label: 'Close Report' },
+        { action: 'configureReport', label: 'Configure Report' },
+        { action: 'editReport', label: 'Edit Report' },
+        { action: 'viewReport', label: 'View Report' },
+        { action: 'deleteReport', label: 'Delete Report' },
+        { action: 'newTemplate', label: 'Create Template' },
+        { action: 'useTemplate', label: 'Use Template' },
+        { action: 'openTemplate', label: 'View Template' },
+        { action: 'editTemplate', label: 'Edit Template' },
+        { action: 'deleteTemplate', label: 'Delete Template' },
+        { action: 'importTemplate', label: 'Import Template' },
+        { action: 'exportTemplate', label: 'Export Template' },
+        { action: 'openSettings', label: 'Open Application Settings' },
+        { action: 'settingsClose', label: 'Close Application Settings' },
+        { action: 'settingsRestoreShortcuts', label: 'Restore Default Shortcuts' },
+        { action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
+        { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
+        { action: 'settingsResetApp', label: 'Reset ART Application Data' },
+        { action: 'settingsCloseReport', label: 'Close Report from Settings' },
+        { action: 'copyEntry', label: 'Copy Entry' },
+        { action: 'copyName', label: 'Copy Name' },
+        { action: 'copyDescription', label: 'Copy Description' },
+        { action: 'copyFailures', label: 'Copy Failures' },
+        { action: 'copyFixes', label: 'Copy Fixes' },
+        { action: 'copyLink', label: 'Copy References' }
+    ];
+}
+
+function normalizeImportedCriterion(criterion, defaultStandard) {
+    const number = String(criterion?.number || '').trim();
+    const title = String(criterion?.title || criterion?.name || '').trim();
+    const desc = String(criterion?.desc || criterion?.description || '').trim();
+    const level = String(criterion?.level || '').trim();
+    const understandingUrl = String(criterion?.understandingUrl || criterion?.Link || '').trim();
+    const identifierSeed = number || title || `${Math.random().toString(36).slice(2)}`;
+
+    return {
+        standard: String(defaultStandard || ''),
+        identifier: String(criterion?.identifier || `${String(defaultStandard || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${identifierSeed.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`),
+        number,
+        title,
+        level,
+        desc,
+        understandingUrl,
+        recommendationUrl: String(criterion?.recommendationUrl || '').trim(),
+        failures: String(criterion?.failures || '').trim(),
+        fixes: String(criterion?.fixes || '').trim(),
+        disabilitie: String(criterion?.disabilitie || criterion?.disabilities || '').trim(),
+        categories: String(criterion?.categories || '').trim(),
+        tags: Array.isArray(criterion?.tags)
+            ? criterion.tags.map((tag) => String(tag).trim()).filter(Boolean)
+            : String(criterion?.tags || '').split('|').map((tag) => tag.trim()).filter(Boolean)
+    };
+}
+
+function normalizeImportedStandard(standard) {
+    const displayName = String(standard?.displayName || '').trim();
+    const internalId = String(standard?.internalId || standard?.id || '').trim();
+    const version = String(standard?.version || '').trim();
+    const source = String(standard?.source || '').trim();
+    const criteria = Array.isArray(standard?.criteria)
+        ? standard.criteria
+        : [];
+
+    return {
+        id: String(standard?.id || `standard-${Date.now()}-${Math.floor(Math.random() * 1000)}`),
+        internalId,
+        displayName: displayName || internalId || 'Imported Standard',
+        version,
+        source,
+        importedAt: String(standard?.importedAt || new Date().toISOString()),
+        criteria: criteria.map((criterion) => normalizeImportedCriterion(criterion, displayName || internalId || 'Imported Standard'))
+    };
+}
+
+function normalizeImportedStandards(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeImportedStandard);
+}
+
+function normalizeUserStandards(list) {
+    return normalizeImportedStandards(list);
+}
+
+function normalizeSpellUserDictionary(list) {
+    if (!Array.isArray(list)) return [];
+    const seen = new Set();
+    const normalized = [];
+    list.forEach((entry) => {
+        const value = String(entry || '').trim();
+        if (!value) return;
+        if (seen.has(value)) return;
+        seen.add(value);
+        normalized.push(value);
+    });
+    return normalized;
 }
 
 const builtInTemplates = [
@@ -243,6 +506,7 @@ function normalizeTemplate(template) {
 const storedState = JSON.parse(localStorage.getItem('art-state')) || {};
 const normalizedInitialFields = Array.isArray(storedState.fields) ? storedState.fields.map(normalizeField) : [];
 const normalizedInitialEditorValues = normalizeEditorFieldValues(storedState.editorFieldValues);
+const normalizedInitialUserStandards = normalizeUserStandards(storedState.userStandards || storedState.importedStandards);
 export let appState = {
     ...defaultState,
     ...storedState,
@@ -253,6 +517,10 @@ export let appState = {
     auditEntries: normalizeAuditEntries(storedState.auditEntries, normalizedInitialFields, normalizedInitialEditorValues),
     reports: normalizeReports(storedState.reports),
     selectedReportId: String(storedState.selectedReportId || ''),
+    shortcuts: normalizeShortcuts(storedState.shortcuts),
+    userStandards: normalizedInitialUserStandards,
+    importedStandards: normalizedInitialUserStandards,
+    spellUserDictionary: normalizeSpellUserDictionary(storedState.spellUserDictionary),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
         : []
@@ -269,6 +537,10 @@ function normalizeStateSnapshot(rawState) {
         ...base,
         branding: normalizeBranding(base.branding),
         standard: normalizeStandardValue(base.standard),
+        shortcuts: normalizeShortcuts(base.shortcuts),
+        userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
+        importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
+        spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
         fields,
         editorFieldValues,
         auditEntries: normalizeAuditEntries(base.auditEntries, fields, editorFieldValues),
@@ -673,6 +945,23 @@ export function serializeTemplateJsonPayload(template) {
     return JSON.stringify(createTemplateJsonPayload(template), null, 2);
 }
 
+function normalizeAccessibilityStandardsPayload(standards) {
+    const list = Array.isArray(standards) ? standards : getImportedAccessibilityStandards();
+    return {
+        artAccessibilityStandardsVersion: '1.0',
+        exportedAt: new Date().toISOString(),
+        standards: list.map((standard) => normalizeImportedStandard(standard))
+    };
+}
+
+export function createAccessibilityStandardsJsonPayload(standards) {
+    return normalizeAccessibilityStandardsPayload(standards);
+}
+
+export function serializeAccessibilityStandardsJsonPayload(standards) {
+    return JSON.stringify(createAccessibilityStandardsJsonPayload(standards), null, 2);
+}
+
 export function validateTemplateJsonPayload(input) {
     let payload;
     if (typeof input === 'string') {
@@ -882,6 +1171,338 @@ export function getRecentReports() {
     return [...(appState.reports || [])].sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
 }
 
+export function getShortcutDefinitions() {
+    return SHORTCUT_DEFINITIONS.map((definition) => ({
+        ...definition,
+        shortcut: appState.shortcuts[definition.action] || definition.defaultShortcut
+    }));
+}
+
+export function getSpellUserDictionary() {
+    return [...(appState.spellUserDictionary || [])];
+}
+
+export function addSpellUserDictionaryWord(word) {
+    const value = String(word || '').trim();
+    if (!value) return { ok: false, reason: 'missing-word' };
+    if ((appState.spellUserDictionary || []).includes(value)) {
+        return { ok: true, alreadyExists: true, word: value };
+    }
+
+    appState.spellUserDictionary = [...(appState.spellUserDictionary || []), value];
+    saveState({ action: `Added ${value} to spell dictionary` });
+    return { ok: true, alreadyExists: false, word: value };
+}
+
+export function getShortcutMap() {
+    return { ...appState.shortcuts };
+}
+
+export function getShortcutForAction(action) {
+    const definition = SHORTCUT_DEFINITIONS.find((item) => item.action === action);
+    if (!definition) return '';
+    return String(appState.shortcuts[action] || definition.defaultShortcut || '').trim();
+}
+
+export function findShortcutConflict(shortcut, exceptAction = '') {
+    const normalized = String(shortcut || '').trim().toLowerCase();
+    if (!normalized) return null;
+    const conflict = SHORTCUT_DEFINITIONS.find((definition) => {
+        if (definition.action === exceptAction) return false;
+        const current = String(appState.shortcuts[definition.action] || '').trim().toLowerCase();
+        return current === normalized;
+    });
+    if (!conflict) return null;
+    return {
+        action: conflict.action,
+        label: conflict.label,
+        shortcut: appState.shortcuts[conflict.action]
+    };
+}
+
+export function updateShortcut(action, shortcut, options = {}) {
+    const definition = SHORTCUT_DEFINITIONS.find((item) => item.action === action);
+    if (!definition) {
+        return { ok: false, reason: 'unknown-action' };
+    }
+
+    const normalizedShortcut = String(shortcut || '').trim();
+    if (!normalizedShortcut) {
+        return { ok: false, reason: 'missing-shortcut' };
+    }
+
+    const conflict = findShortcutConflict(normalizedShortcut, action);
+    if (conflict && options.allowConflict !== true) {
+        return { ok: false, reason: 'conflict', conflict };
+    }
+
+    appState.shortcuts[action] = normalizedShortcut;
+    saveState({ action: `Updated shortcut for ${definition.label}` });
+    window.dispatchEvent(new Event('art-shortcuts-updated'));
+    return { ok: true, conflict };
+}
+
+export function resetShortcutsToDefault() {
+    appState.shortcuts = normalizeShortcuts(defaultState.shortcuts);
+    saveState({ action: 'Restored default keyboard shortcuts' });
+    window.dispatchEvent(new Event('art-shortcuts-updated'));
+}
+
+export function getImportedAccessibilityStandards() {
+    return normalizeUserStandards(appState.userStandards || appState.importedStandards);
+}
+
+export function getUserStandards() {
+    return getImportedAccessibilityStandards();
+}
+
+export function getAllAccessibilityStandardNames() {
+    const builtIns = ['WCAG 2.2', 'WCAG 2.1'];
+    const imported = getUserStandards().map((standard) => standard.displayName);
+    return [...new Set([...builtIns, ...imported])];
+}
+
+export function validateAccessibilityStandardPayload(input) {
+    let payload;
+    if (typeof input === 'string') {
+        try {
+            payload = JSON.parse(input);
+        } catch (error) {
+            return { isValid: false, reason: 'invalid-json' };
+        }
+    } else {
+        payload = input;
+    }
+
+    if (payload && typeof payload === 'object' && payload.artAccessibilityStandardsVersion === '1.0' && Array.isArray(payload.standards)) {
+        const normalizedStandards = payload.standards
+            .map((standard) => validateAccessibilityStandardPayload(standard))
+            .filter((result) => result.isValid && result.standard)
+            .map((result) => result.standard);
+
+        if (normalizedStandards.length === 0) {
+            return { isValid: false, reason: 'missing-criteria' };
+        }
+
+        return {
+            isValid: true,
+            reason: 'ok',
+            isBundle: true,
+            standards: normalizedStandards
+        };
+    }
+
+    const standardNode = payload?.standard && typeof payload.standard === 'object'
+        ? payload.standard
+        : payload;
+
+    if (!standardNode || typeof standardNode !== 'object') {
+        return { isValid: false, reason: 'invalid-payload' };
+    }
+
+    const criteria = Array.isArray(standardNode.criteria)
+        ? standardNode.criteria
+        : Array.isArray(standardNode.successCriteria)
+            ? standardNode.successCriteria
+            : null;
+
+    if (!criteria || criteria.length === 0) {
+        return { isValid: false, reason: 'missing-criteria' };
+    }
+
+    const internalId = String(standardNode.id || standardNode.identifier || '').trim();
+    const version = String(standardNode.version || payload?.version || '').trim();
+    const source = String(standardNode.source || payload?.source || '').trim();
+    const provisionalDisplayName = String(standardNode.displayName || internalId || version || 'Imported Standard').trim();
+
+    const normalized = normalizeImportedStandard({
+        internalId,
+        displayName: provisionalDisplayName,
+        version,
+        source,
+        criteria
+    });
+
+    return {
+        isValid: true,
+        reason: 'ok',
+        standard: normalized
+    };
+}
+
+export function findImportedStandardConflict(internalId) {
+    const normalizedInternalId = String(internalId || '').trim().toLowerCase();
+    if (!normalizedInternalId) return null;
+    return (appState.userStandards || []).find((item) => String(item.internalId || '').trim().toLowerCase() === normalizedInternalId) || null;
+}
+
+export function addImportedAccessibilityStandard(standard, displayName, options = {}) {
+    const normalized = normalizeImportedStandard({
+        ...standard,
+        displayName
+    });
+    const targetInternalId = String(normalized.internalId || '').trim().toLowerCase();
+    const existingIndex = (appState.userStandards || []).findIndex((item) => String(item.internalId || '').trim().toLowerCase() === targetInternalId && targetInternalId);
+
+    if (existingIndex >= 0 && options.overwrite !== true) {
+        return {
+            ok: false,
+            reason: 'conflict',
+            existing: appState.userStandards[existingIndex]
+        };
+    }
+
+    if (existingIndex >= 0) {
+        const existing = appState.userStandards[existingIndex];
+        appState.userStandards[existingIndex] = {
+            ...normalized,
+            id: existing.id
+        };
+    } else {
+        appState.userStandards.push(normalized);
+    }
+
+    appState.importedStandards = appState.userStandards;
+
+    saveState({ action: `Imported accessibility standard ${normalized.displayName}` });
+    window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    return { ok: true, standard: normalized, replaced: existingIndex >= 0 };
+}
+
+export function updateImportedAccessibilityStandard(standardId, updates = {}) {
+    const index = (appState.userStandards || []).findIndex((standard) => standard.id === standardId);
+    if (index < 0) return null;
+
+    const existing = appState.userStandards[index];
+    const nextStandard = normalizeImportedStandard({
+        ...existing,
+        ...updates,
+        id: existing.id,
+        internalId: existing.internalId,
+        importedAt: existing.importedAt
+    });
+
+    appState.userStandards[index] = {
+        ...existing,
+        ...nextStandard,
+        id: existing.id,
+        internalId: existing.internalId,
+        importedAt: existing.importedAt
+    };
+    appState.importedStandards = appState.userStandards;
+    saveState({ action: `Updated accessibility standard ${appState.userStandards[index].displayName}` });
+    window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    return appState.userStandards[index];
+}
+
+export function replaceImportedAccessibilityStandard(standardId, standardData) {
+    const index = (appState.userStandards || []).findIndex((standard) => standard.id === standardId);
+    if (index < 0) return null;
+
+    const existing = appState.userStandards[index];
+    const normalized = normalizeImportedStandard({
+        ...standardData,
+        id: existing.id,
+        internalId: standardData?.internalId || standardData?.id || existing.internalId,
+        importedAt: existing.importedAt
+    });
+
+    const conflictIndex = (appState.userStandards || []).findIndex((standard, currentIndex) => {
+        if (currentIndex === index) return false;
+        return String(standard.internalId || '').trim().toLowerCase() === String(normalized.internalId || '').trim().toLowerCase();
+    });
+
+    if (conflictIndex >= 0) {
+        return { ok: false, reason: 'conflict', existing: appState.userStandards[conflictIndex] };
+    }
+
+    appState.userStandards[index] = {
+        ...existing,
+        ...normalized,
+        id: existing.id,
+        importedAt: existing.importedAt
+    };
+    appState.importedStandards = appState.userStandards;
+
+    if (appState.standard === existing.displayName) {
+        appState.standard = appState.userStandards[index].displayName;
+        window.dispatchEvent(new CustomEvent('art-standard-changed', {
+            detail: { standard: appState.standard }
+        }));
+    }
+
+    saveState({ action: `Replaced accessibility standard ${appState.userStandards[index].displayName}` });
+    window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    return { ok: true, standard: appState.userStandards[index] };
+}
+
+export function removeImportedAccessibilityStandard(standardId) {
+    const index = (appState.userStandards || []).findIndex((standard) => standard.id === standardId);
+    if (index < 0) return null;
+    const [removed] = appState.userStandards.splice(index, 1);
+    appState.importedStandards = appState.userStandards;
+    if (appState.standard === removed.displayName) {
+        appState.standard = defaultState.standard;
+        window.dispatchEvent(new CustomEvent('art-standard-changed', {
+            detail: { standard: appState.standard }
+        }));
+    }
+    saveState({ action: `Removed accessibility standard ${removed.displayName}` });
+    window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    return removed;
+}
+
+export function clearImportedAccessibilityStandards() {
+    const removedStandards = getImportedAccessibilityStandards();
+    if (removedStandards.length === 0) return [];
+
+    appState.userStandards = [];
+    appState.importedStandards = appState.userStandards;
+    saveState({ action: 'Cleared imported accessibility standards' });
+    window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    return removedStandards;
+}
+
+export function resetUserPreferences() {
+    appState.shortcuts = normalizeShortcuts(defaultState.shortcuts);
+    appState.standard = defaultState.standard;
+    saveState({ action: 'Reset user preferences' });
+    window.dispatchEvent(new Event('art-shortcuts-updated'));
+    window.dispatchEvent(new CustomEvent('art-standard-changed', {
+        detail: { standard: appState.standard }
+    }));
+}
+
+export function resetAllApplicationData() {
+    localStorage.clear();
+    appState = normalizeStateSnapshot(defaultState);
+    lastSavedSnapshot = JSON.stringify(appState);
+    undoStack.length = 0;
+    redoStack.length = 0;
+    persistCurrentState();
+    window.dispatchEvent(new Event('art-state-restored'));
+    window.dispatchEvent(new Event('art-reports-updated'));
+    window.dispatchEvent(new Event('art-shortcuts-updated'));
+    window.dispatchEvent(new Event('art-accessibility-standards-updated'));
+    window.dispatchEvent(new CustomEvent('art-standard-changed', {
+        detail: { standard: appState.standard }
+    }));
+}
+
+export function getApplicationInfo() {
+    return {
+        ...APP_INFO,
+        importedStandards: getUserStandards().map((standard) => ({
+            id: standard.id,
+            displayName: standard.displayName,
+            internalId: standard.internalId,
+            version: standard.version,
+            source: standard.source,
+            criteriaCount: Array.isArray(standard.criteria) ? standard.criteria.length : 0
+        }))
+    };
+}
+
 export function getMetadataDescriptors() {
     const metadata = getDefaultMetadataObject();
     return flattenMetadataObject(metadata)
@@ -909,7 +1530,7 @@ export function getMetadataDescriptors() {
                 inputType,
                 value: currentValue ?? item.value,
                 options: keyPath === 'standard'
-                    ? ['WCAG 2.2', 'WCAG 2.1']
+                    ? getAllAccessibilityStandardNames()
                     : []
             };
         });
