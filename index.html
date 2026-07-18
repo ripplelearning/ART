@@ -6,13 +6,15 @@
     <title>ART - Accessibility Reporting Tool</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <h1 class="sr-only">Accessibility Reporting Tool</h1>
 <div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="app-container">
-    <nav aria-label="panel selector">
+    <nav id="nav" aria-label="panel selector">
     <div id="top-tabs" role="tablist">
         <button role="tab" aria-selected="true" id="tab-welcome">Welcome</button> <button role="tab" aria-selected="false" id="tab-builder">Builder</button>
         <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
@@ -25,6 +27,128 @@
         <div class="action-group">
             <button id="btn-new-report">New Report</button>
             <button id="btn-open-report" title="Ctrl+O">Open Existing Report JSON File</button>
+            <button id="btn-app-settings" type="button">Application Settings</button>
+            <button id="btn-help" type="button">Help</button>
+        </div>
+
+        <div id="app-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="app-settings-heading" aria-describedby="app-settings-description" hidden>
+            <div class="settings-header">
+                <h3 id="app-settings-heading">Application Settings</h3>
+                <button id="btn-settings-close" type="button">Close</button>
+            </div>
+            <p id="app-settings-description">Manage keyboard shortcuts, accessibility standards, and application maintenance options.</p>
+
+            <section aria-labelledby="settings-shortcuts-heading">
+                <h4 id="settings-shortcuts-heading">Keyboard Shortcut Manager</h4>
+                <p id="settings-shortcuts-help">Use Change to capture a new shortcut. Conflicts are announced before saving.</p>
+                <table id="settings-shortcuts-table" aria-describedby="settings-shortcuts-help">
+                    <caption class="sr-only">Configurable keyboard shortcuts by action</caption>
+                    <thead>
+                        <tr><th scope="col">Action</th><th scope="col">Shortcut</th><th scope="col">Manage</th></tr>
+                    </thead>
+                    <tbody id="settings-shortcuts-body"></tbody>
+                </table>
+                <button id="btn-settings-shortcuts-reset" type="button">Restore Default Shortcuts</button>
+            </section>
+
+            <section aria-labelledby="settings-standards-heading">
+                <h4 id="settings-standards-heading">Accessibility Standards <span id="settings-standards-count" aria-live="polite">(0)</span></h4>
+                    <p>Import standards from a file or use Paste Standards As Table to add standards data copied from a spreadsheet or table. Imported names appear in Report Builder and the Accessibility Lookup Tool.</p>
+                <button id="btn-settings-import-standard" type="button">Import Accessibility Standard...</button>
+                    <button id="btn-settings-paste-standard" type="button">Paste Standards As Table...</button>
+                <button id="btn-settings-export-standards" type="button" disabled>Export Imported Standards...</button>
+                <button id="btn-settings-clear-standards" type="button" disabled>Clear Imported Standards...</button>
+                <ul id="settings-standards-list" aria-label="Available imported accessibility standards"></ul>
+            </section>
+
+            <section aria-labelledby="settings-reset-heading">
+                <h4 id="settings-reset-heading">Reset Application Data</h4>
+                <button id="btn-settings-reset-app" type="button">Reset ART Application Data</button>
+            </section>
+
+            <section aria-labelledby="settings-about-heading">
+                <h4 id="settings-about-heading">About ART</h4>
+                <dl id="settings-about-list"></dl>
+                <p><a href="https://www.w3.org/WAI/standards-guidelines/wcag/" target="_blank" rel="noopener noreferrer">Documentation and Help</a></p>
+            </section>
+
+            <p id="settings-status" class="open-report-status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+            <div id="settings-shortcut-conflict-dialog" role="alertdialog" aria-modal="true" aria-labelledby="settings-shortcut-conflict-heading" aria-describedby="settings-shortcut-conflict-message" hidden>
+                <h4 id="settings-shortcut-conflict-heading">Shortcut conflict detected</h4>
+                <p id="settings-shortcut-conflict-message"></p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-shortcut-conflict-assign" type="button">Assign Anyway</button>
+                    <button id="btn-settings-shortcut-conflict-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-name-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-standard-name-heading" aria-describedby="settings-standard-name-desc" hidden>
+                <h4 id="settings-standard-name-heading">Accessibility Standard Name</h4>
+                <p id="settings-standard-name-desc">This name will be used throughout ART wherever accessibility standards are shown.</p>
+                <label for="settings-standard-name-input">Display Name</label>
+                <input id="settings-standard-name-input" type="text">
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-name-save" type="button">Save</button>
+                    <button id="btn-settings-standard-name-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-overwrite-dialog" role="alertdialog" aria-modal="true" aria-labelledby="settings-standard-overwrite-heading" aria-describedby="settings-standard-overwrite-message" hidden>
+                <h4 id="settings-standard-overwrite-heading">Standard already exists</h4>
+                <p id="settings-standard-overwrite-message"></p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-overwrite-yes" type="button">Overwrite Existing</button>
+                    <button id="btn-settings-standard-overwrite-no" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-paste-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-standard-paste-heading" aria-describedby="settings-standard-paste-desc" hidden>
+                <h4 id="settings-standard-paste-heading">Paste Accessibility Standards As Table</h4>
+                <p id="settings-standard-paste-desc">Paste a standards table copied from a spreadsheet or document, then use the import action to add it to ART.</p>
+                <label for="settings-standard-paste-input">Standards Table</label>
+                <textarea id="settings-standard-paste-input" rows="12" placeholder='Standard | Version | Number | Title | Level | Description | Link'></textarea>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-paste-import" type="button">Import Pasted Table</button>
+                    <button id="btn-settings-standard-paste-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-json-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-standard-json-heading" aria-describedby="settings-standard-json-desc" hidden>
+                <h4 id="settings-standard-json-heading">Edit Accessibility Standard JSON</h4>
+                <p id="settings-standard-json-desc">Edit the raw JSON for this imported standard, then save the updated criteria and metadata back into ART.</p>
+                <label for="settings-standard-json-input">Standard JSON</label>
+                <textarea id="settings-standard-json-input" rows="14"></textarea>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-json-save" type="button">Save JSON</button>
+                    <button id="btn-settings-standard-json-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-clear-standards-dialog" role="alertdialog" aria-modal="true" aria-labelledby="settings-clear-standards-heading" aria-describedby="settings-clear-standards-desc" hidden>
+                <h4 id="settings-clear-standards-heading">Clear imported standards?</h4>
+                <p id="settings-clear-standards-desc">This removes all imported accessibility standards from ART. Built-in standards remain available.</p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-clear-standards-confirm" type="button">Clear Imported Standards</button>
+                    <button id="btn-settings-clear-standards-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-reset-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-reset-dialog-heading" aria-describedby="settings-reset-dialog-desc" hidden>
+                <h4 id="settings-reset-dialog-heading">Reset ART Application Data</h4>
+                <p id="settings-reset-dialog-desc">What would you like to reset?</p>
+                <fieldset>
+                    <legend class="sr-only">Reset options</legend>
+                    <label><input type="radio" name="settings-reset-option" value="preferences" checked> Reset user preferences only</label>
+                    <p>Keeps reports, templates, and imported standards.</p>
+                    <label><input type="radio" name="settings-reset-option" value="all"> Reset all application data</label>
+                    <p>Removes reports, templates, imported standards, and local state.</p>
+                </fieldset>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-reset-confirm" type="button">Reset</button>
+                    <button id="btn-settings-reset-cancel" type="button">Cancel</button>
+                </div>
+            </div>
         </div>
         
         <div id="new-report-options">
@@ -118,9 +242,21 @@
     </main>
 
     <aside id="lookup-tool" aria-labelledby="lookup-heading">
-        <h2 id="lookup-heading">WCAG Lookup Tool</h2>
+        <h2 id="lookup-heading">Accessibility Lookup Tool</h2>
         <div id="container"></div>
     </aside>
+</div>
+
+<div id="help-dialog" role="dialog" aria-modal="false" aria-labelledby="help-heading" aria-describedby="help-description" hidden>
+    <div class="help-header">
+        <h2 id="help-heading">ART Help and Documentation</h2>
+        <button id="btn-help-close" type="button">Close Help</button>
+    </div>
+    <p id="help-description">Use this guide to learn ART features, navigation, shortcuts, and accessibility workflows. Help opens independently so your current work stays in place.</p>
+    <div class="help-layout">
+        <nav id="help-toc" aria-label="Help table of contents"></nav>
+        <article id="help-content"></article>
+    </div>
 </div>
 
 <script type="module" src="state.js"></script>
@@ -129,5 +265,23 @@
 <script type="module" src="reportBuilder.js"></script>
     <script type="module" src="lookupTool.js"></script>
 <script type="module" src="loader.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const openButton = document.getElementById('btn-app-settings');
+    const closeButton = document.getElementById('btn-settings-close');
+    const dialog = document.getElementById('app-settings-dialog');
+    if (!openButton || !closeButton || !dialog) return;
+
+    openButton.addEventListener('click', () => {
+        dialog.hidden = false;
+        window.setTimeout(() => closeButton.focus(), 0);
+    });
+
+    closeButton.addEventListener('click', () => {
+        dialog.hidden = true;
+        window.setTimeout(() => openButton.focus(), 0);
+    });
+});
+</script>
 </body>
 </html>
