@@ -1261,8 +1261,8 @@ export function validateArtxTemplatePayload(input) {
     if (String(payload.format || '').trim() !== 'ART Template') return { isValid: false, reason: 'invalid-format' };
     if (!String(payload.formatVersion || '').trim()) return { isValid: false, reason: 'missing-format-version' };
     if (!String(payload.schemaVersion || '').trim()) return { isValid: false, reason: 'missing-schema-version' };
-    if (String(payload.formatVersion).trim() !== ART_TEMPLATE_FORMAT_VERSION) return { isValid: false, reason: 'missing-template-header' };
-    if (String(payload.schemaVersion).trim() !== ART_TEMPLATE_SCHEMA_VERSION) return { isValid: false, reason: 'missing-template-header' };
+    if (String(payload.formatVersion).trim() !== ART_TEMPLATE_FORMAT_VERSION) return { isValid: false, reason: 'unsupported-format-version' };
+    if (String(payload.schemaVersion).trim() !== ART_TEMPLATE_SCHEMA_VERSION) return { isValid: false, reason: 'unsupported-schema-version' };
     if (!payload.template || typeof payload.template !== 'object') return { isValid: false, reason: 'missing-template' };
     if (!String(payload.template.name || '').trim()) return { isValid: false, reason: 'missing-template-name' };
     if (!payload.template.data || typeof payload.template.data !== 'object') return { isValid: false, reason: 'missing-template-data' };

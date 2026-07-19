@@ -52,9 +52,10 @@ $checks += [pscustomobject]@{ Name = 'Template payload and validation contracts'
 		'formatVersion:\s*ART_TEMPLATE_FORMAT_VERSION',
 		'schemaVersion:\s*ART_TEMPLATE_SCHEMA_VERSION',
 		'export function validateArtxTemplatePayload\(',
-		'missing-template-header',
 		'missing-format-version',
 		'missing-schema-version',
+		'unsupported-format-version',
+		'unsupported-schema-version',
 		'export function serializeArtxTemplatePayload\('
 	) 'ARTX template payload validation contract is incomplete.'
 }}
@@ -81,6 +82,8 @@ $checks += [pscustomobject]@{ Name = 'Dashboard template workflow wiring'; Scrip
 		'missing-template-header',
 		'missing-format-version',
 		'missing-schema-version',
+		'unsupported-format-version',
+		'unsupported-schema-version',
 		'Template file validated\.'
 	) 'Dashboard template import/export workflow is incomplete.'
 }}
@@ -116,6 +119,7 @@ $checks += [pscustomobject]@{ Name = 'Help and UI project labels'; Script = {
 	Assert-All 'help.js' $help @(
 		'\.art \(project\)',
 		'\.artx \(template\)',
+		'formatVersion or schemaVersion is missing or not supported',
 		'ZIP exports include.*editable \.art project file'
 	) 'Help documentation for project/template portability is incomplete.'
 }}

@@ -230,6 +230,7 @@ function getHelpSections(rows) {
                 <p>ART supports portable project and template workflows using .art (project) and .artx (template) formats.</p>
                 <p>Open ART Project loads .art files, Save Project writes to the current .art file, and Save Project As creates a new .art file.</p>
                 <p>Import supports legacy report/template JSON and standards table workflows, including Settings-based standards import.</p>
+                <p>ART validates format headers and version fields during import. Files may be rejected when formatVersion or schemaVersion is missing or not supported by the current ART version.</p>
                 <p>When Google Workspace is connected, export can upload the ZIP package directly to Google Drive after explicit user approval.</p>
                 <p>ZIP exports include the selected output format, ART JSON payload, and an editable .art project file.</p>
                 <p>Google operations follow an explicit import/edit/export model and do not automatically synchronize or merge external documents.</p>

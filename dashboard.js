@@ -282,6 +282,8 @@ export function renderDashboard() {
         'invalid-payload': 'Template payload is not in ART Template format.',
         'missing-format-version': 'Template formatVersion is missing from the file header.',
         'missing-schema-version': 'Template schemaVersion is missing from the file header.',
+        'unsupported-format-version': 'Template formatVersion is not supported by this ART version.',
+        'unsupported-schema-version': 'Template schemaVersion is not supported by this ART version.',
         'missing-template-header': 'Template version metadata is missing or unsupported.',
         'missing-template': 'Template object is missing from the file.',
         'missing-template-name': 'Template name is required.',
