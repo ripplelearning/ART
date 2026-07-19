@@ -124,6 +124,12 @@ Pull requests should:
 - Identify accessibility considerations.
 - Include documentation updates when needed.
 
+Before opening or updating a pull request, run the ART verification scripts:
+
+- `powershell -ExecutionPolicy Bypass -File .\\verify-all.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\\verify-epic13.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\\verify-epic20.ps1`
+
 Large changes should be discussed before implementation.
 
 ## AI-Assisted Development

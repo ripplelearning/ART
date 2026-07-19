@@ -20,3 +20,4 @@ Use these documents as the primary source of development and contribution standa
 - Review [ART Development Standards](docs/ART-Development-Standards.md) before implementing changes.
 - Confirm completion criteria in [ART Definition of Done](docs/ART-Definition-of-Done.md) before finalizing work.
 - Follow contribution expectations in [Contributing Guide](CONTRIBUTING.md).
+- Run `powershell -ExecutionPolicy Bypass -File .\\verify-all.ps1` before final review.
