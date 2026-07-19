@@ -3,6 +3,7 @@ import {
     addAuditEntry,
     announce,
     appState,
+    canPerformExternalCommunication,
     buildMetadataDraftFromValues,
     clearReportContentOnly,
     clearReportEverythingInSession,
@@ -111,6 +112,10 @@ function loadExternalScript(src) {
 async function ensureSpellDictionaryEngine() {
     if (spellDictionaryEngine) return spellDictionaryEngine;
     if (spellDictionaryLoadPromise) return spellDictionaryLoadPromise;
+
+    if (!canPerformExternalCommunication()) {
+        return null;
+    }
 
     spellDictionaryLoadPromise = (async () => {
         try {

@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ART - Accessibility Reporting Tool</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -74,9 +71,10 @@
 
             <section aria-labelledby="settings-integrations-heading">
                 <h4 id="settings-integrations-heading">Integrations</h4>
-                <p id="settings-google-help">Configure optional integrations. ART local workflows continue while disconnected.</p>
+                <p id="settings-google-help">Google Workspace integration is optional and user-controlled. ART local workflows continue while disconnected.</p>
                 <p id="settings-google-status-summary" role="status" aria-live="polite" aria-atomic="true">Not connected.</p>
-                <button id="btn-settings-google-workspace" type="button">Connect Google Workspace...</button>
+                <p id="settings-google-summary-note">Connect your Google account to import and export reports, templates, and accessibility standards where supported.</p>
+                <button id="btn-settings-google-workspace" type="button">Connect Google Workspace</button>
                 <ul id="settings-integrations-list" aria-label="Configured integrations">
                     <li><strong>Google Workspace:</strong> <span id="settings-integration-google-status">Not connected</span></li>
                     <li><strong>Jira:</strong> <span id="settings-integration-jira-status">Not connected</span></li>
@@ -188,33 +186,38 @@
             </div>
 
             <div id="settings-google-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-google-dialog-heading" aria-describedby="settings-google-dialog-desc" hidden>
-                <h4 id="settings-google-dialog-heading">Google Workspace Configuration</h4>
-                <p id="settings-google-dialog-desc">Use this dialog to review permissions, configure Google settings, and connect or disconnect your Google Workspace account.</p>
-                <p id="settings-google-permissions-help">Requested permissions are limited to Drive file upload, Google Docs, and Google Sheets access required for ART workspace export and document workflows.</p>
+                <h4 id="settings-google-dialog-heading">Google Workspace</h4>
+                <p id="settings-google-dialog-desc">Use this dialog to connect or disconnect your Google account for explicit import and export workflows.</p>
+                <p id="settings-google-permissions-help">ART requests only minimum permissions for current Google Drive workflows and account identification.</p>
                 <ul id="settings-google-scope-list" aria-label="Google Workspace permissions requested">
                     <li>Google Drive: create and manage ART-created files</li>
-                    <li>Google Docs: create and update ART-exported documents</li>
-                    <li>Google Sheets: create and update ART-exported spreadsheets</li>
+                    <li>Google Account Email: identify the connected account</li>
                 </ul>
-                <label>
-                    <input id="settings-google-enabled" type="checkbox">
-                    Enable Google Workspace integration
-                </label>
-                <label for="settings-google-client-id">Google Client ID</label>
-                <input id="settings-google-client-id" type="text" autocomplete="off" placeholder="Enter OAuth client ID">
-                <label for="settings-google-export-target">Default Google export target</label>
-                <select id="settings-google-export-target">
-                    <option value="google-drive">Google Drive</option>
-                    <option value="google-docs">Google Docs</option>
-                    <option value="google-sheets">Google Sheets</option>
-                    <option value="none">No default target</option>
-                </select>
                 <p id="settings-google-connection-status" role="status" aria-live="polite" aria-atomic="true">Not connected.</p>
-                <div class="viewer-dialog-actions" role="group" aria-label="Google Workspace connection actions">
-                    <button id="btn-settings-google-connect" type="button">Connect Google Workspace</button>
-                    <button id="btn-settings-google-reconnect" type="button">Reconnect</button>
-                    <button id="btn-settings-google-disconnect" type="button">Disconnect</button>
-                    <button id="btn-settings-google-close" type="button">Close</button>
+                <div id="settings-google-connect-view" aria-labelledby="settings-google-connect-heading" hidden>
+                    <h5 id="settings-google-connect-heading">Connect Google Account</h5>
+                    <p id="settings-google-connect-help">Enter the Google account email to connect. You can replace this value at any time before connecting.</p>
+                    <label for="settings-google-email-input">Google account email</label>
+                    <input id="settings-google-email-input" type="email" autocomplete="email" inputmode="email" placeholder="name@example.com" aria-describedby="settings-google-connect-help">
+                    <div class="viewer-dialog-actions" role="group" aria-label="Google Workspace connect actions">
+                        <button id="btn-settings-google-connect" type="button">Connect Google Workspace</button>
+                        <button id="btn-settings-google-close" type="button">Close</button>
+                    </div>
+                </div>
+                <div id="settings-google-disconnect-view" aria-labelledby="settings-google-disconnect-heading" hidden>
+                    <h5 id="settings-google-disconnect-heading">Connected Account</h5>
+                    <p id="settings-google-account">Connected account: Not connected</p>
+                    <div class="viewer-dialog-actions" role="group" aria-label="Google Workspace disconnect actions">
+                        <button id="btn-settings-google-disconnect" type="button">Disconnect Google Workspace</button>
+                        <button id="btn-settings-google-close-disconnect" type="button">Close</button>
+                    </div>
+                </div>
+                <h5 id="settings-google-import-heading">Google Import Workflows</h5>
+                <p id="settings-google-import-help">All imports are explicit and user-initiated. Enter a Google file ID or file URL when prompted.</p>
+                <div class="viewer-dialog-actions" role="group" aria-labelledby="settings-google-import-heading" aria-describedby="settings-google-import-help">
+                    <button id="btn-settings-google-import-report" type="button">Import Report from Google Drive...</button>
+                    <button id="btn-settings-google-import-template" type="button">Import Template from Google Drive...</button>
+                    <button id="btn-settings-google-import-standards-sheet" type="button">Import Standards from Google Sheets...</button>
                 </div>
             </div>
 
@@ -235,7 +238,7 @@
                     <label><input type="radio" name="settings-reset-option" value="preferences" checked> Reset user preferences only</label>
                     <p>Keeps reports, templates, and imported standards.</p>
                     <label><input type="radio" name="settings-reset-option" value="all"> Reset all application data</label>
-                    <p>Removes reports, templates, imported standards, and local state.</p>
+                    <p>Removes reports, templates, imported standards, local state, integration connections, and remembered login details.</p>
                 </fieldset>
                 <div class="viewer-dialog-actions">
                     <button id="btn-settings-reset-confirm" type="button">Reset</button>

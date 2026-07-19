@@ -2,6 +2,7 @@ import {
     addImportedAccessibilityStandard,
     announce,
     clearImportedAccessibilityStandards,
+    canPerformExternalCommunication,
     createArtBackupPayload,
     createRestorePoint,
     findImportedStandardConflict,
@@ -11,6 +12,8 @@ import {
     getGoogleWorkspaceConfig,
     getIntegrationStatusMap,
     getImportedAccessibilityStandards,
+    importReportWithConflictStrategy,
+    importTemplateWithConflictStrategy,
     getRestorePoints,
     getSecurityConfig,
     getShortcutDefinitions,
@@ -23,6 +26,7 @@ import {
     resetAllApplicationData,
     resetShortcutsToDefault,
     resetUserPreferences,
+    reportNameExists,
     recordSecurityAudit,
     serializeAccessibilityStandardsJsonPayload,
     undoState,
@@ -30,13 +34,18 @@ import {
     updateGoogleWorkspaceConfig,
     updateSecurityConfig,
     updateShortcut,
+    templateNameExists,
+    validateArtJsonPayload,
+    validateTemplateJsonPayload,
     validateAccessibilityStandardPayload
 } from './state.js';
 import {
     connectGoogleWorkspace,
+    downloadGoogleDriveTextFile,
+    downloadGoogleSheetAsTsv,
     disconnectGoogleWorkspace,
-    getRequiredGoogleWorkspaceScopes,
-    reconnectGoogleWorkspace
+    extractGoogleDriveFileId,
+    getRequiredGoogleWorkspaceScopes
 } from './googleWorkspace.js';
 
 let isInitialized = false;
@@ -437,7 +446,6 @@ function renderAbout() {
         : 'None';
     const importedCount = info.importedStandards.length;
     const googleStatus = String(info.googleWorkspace?.status || 'disconnected');
-    const googleTarget = String(info.googleWorkspace?.defaultExportTarget || 'google-drive');
     const privacyMode = Boolean(info.security?.privacyModeEnabled) ? 'Enabled' : 'Disabled';
     const networkStatus = String(info.security?.networkActivityStatus || 'Offline');
 
@@ -451,7 +459,6 @@ function renderAbout() {
         <div><dt>Privacy Mode</dt><dd>${privacyMode}</dd></div>
         <div><dt>Network Activity</dt><dd>${networkStatus}</dd></div>
         <div><dt>Google Workspace Status</dt><dd>${googleStatus}</dd></div>
-        <div><dt>Google Default Export Target</dt><dd>${googleTarget}</dd></div>
     `;
 }
 
@@ -478,7 +485,7 @@ function formatGoogleConnectionStatus(config) {
         return label;
     }
     if (status === 'connecting') return 'Connecting to Google Workspace...';
-    if (status === 'expired') return 'Google Workspace session expired. Reconnect to continue.';
+    if (status === 'expired') return 'Google Workspace session expired. Connect again to continue.';
     if (status === 'error') {
         const detail = String(config.lastError || '').trim();
         return detail ? `Connection error: ${detail}` : 'Connection error. Check your Google settings and try again.';
@@ -490,8 +497,8 @@ function formatGoogleScopeLabel(scope) {
     const value = String(scope || '').trim();
     if (!value) return '';
     if (value.endsWith('/drive.file')) return 'Google Drive: create and manage ART-created files';
-    if (value.endsWith('/documents')) return 'Google Docs: create and update ART-exported documents';
-    if (value.endsWith('/spreadsheets')) return 'Google Sheets: create and update ART-exported spreadsheets';
+    if (value.endsWith('/userinfo.email')) return 'Google Account Email: identify the connected account';
+    if (value.endsWith('/spreadsheets.readonly')) return 'Google Sheets: read spreadsheet values for standards imports';
     return value;
 }
 
@@ -500,14 +507,18 @@ function renderGoogleWorkspaceSettings() {
     const statusSummary = document.getElementById('settings-google-status-summary');
     const privacyModeInput = document.getElementById('settings-privacy-mode');
     const privacyModeStatus = document.getElementById('settings-privacy-mode-status');
-    const enabledInput = document.getElementById('settings-google-enabled');
-    const clientIdInput = document.getElementById('settings-google-client-id');
-    const exportTargetSelect = document.getElementById('settings-google-export-target');
     const statusElement = document.getElementById('settings-google-connection-status');
+    const accountElement = document.getElementById('settings-google-account');
+    const emailInput = document.getElementById('settings-google-email-input');
+    const connectView = document.getElementById('settings-google-connect-view');
+    const disconnectView = document.getElementById('settings-google-disconnect-view');
+    const closeDisconnectButton = document.getElementById('btn-settings-google-close-disconnect');
     const scopeList = document.getElementById('settings-google-scope-list');
     const connectButton = document.getElementById('btn-settings-google-connect');
-    const reconnectButton = document.getElementById('btn-settings-google-reconnect');
     const disconnectButton = document.getElementById('btn-settings-google-disconnect');
+    const importReportButton = document.getElementById('btn-settings-google-import-report');
+    const importTemplateButton = document.getElementById('btn-settings-google-import-template');
+    const importStandardsSheetButton = document.getElementById('btn-settings-google-import-standards-sheet');
 
     const googleIntegrationStatus = document.getElementById('settings-integration-google-status');
     const jiraIntegrationStatus = document.getElementById('settings-integration-jira-status');
@@ -519,18 +530,20 @@ function renderGoogleWorkspaceSettings() {
     const restorePointSelect = document.getElementById('settings-restore-point-select');
     const diagnostics = document.getElementById('settings-security-diagnostics');
 
-    if (!launcherButton || !statusSummary || !privacyModeInput || !privacyModeStatus || !enabledInput || !clientIdInput || !exportTargetSelect || !statusElement || !scopeList || !connectButton || !reconnectButton || !disconnectButton) return;
+    if (!launcherButton || !statusSummary || !privacyModeInput || !privacyModeStatus || !statusElement || !accountElement || !emailInput || !connectView || !disconnectView || !closeDisconnectButton || !scopeList || !connectButton || !disconnectButton || !importReportButton || !importTemplateButton || !importStandardsSheetButton) return;
 
     const config = getGoogleWorkspaceConfig();
     const security = getSecurityConfig();
     const integrations = getIntegrationStatusMap();
     const privacyModeEnabled = Boolean(security.privacyModeEnabled);
-    enabledInput.checked = Boolean(config.enabled);
-    clientIdInput.value = String(config.clientId || '');
-    exportTargetSelect.value = String(config.defaultExportTarget || 'google-drive');
     const statusText = formatGoogleConnectionStatus(config);
     statusElement.textContent = statusText;
     statusSummary.textContent = statusText;
+    accountElement.textContent = `Connected account: ${config.accountEmail || 'Not connected'}`;
+    const preferredEmail = String(config.lastConnectedAccountEmail || '').trim();
+    if (document.activeElement !== emailInput) {
+        emailInput.value = preferredEmail;
+    }
     privacyModeInput.checked = privacyModeEnabled;
     privacyModeStatus.textContent = privacyModeEnabled
         ? 'Privacy Mode enabled. External integrations are blocked until disabled.'
@@ -542,15 +555,16 @@ function renderGoogleWorkspaceSettings() {
 
     const isConnected = String(config.status || '').toLowerCase() === 'connected';
     launcherButton.textContent = isConnected
-        ? 'Disconnect Google Workspace...'
-        : 'Connect Google Workspace...';
+        ? 'Disconnect Google Workspace'
+        : 'Connect Google Workspace';
     launcherButton.disabled = privacyModeEnabled;
-    enabledInput.disabled = privacyModeEnabled;
-    clientIdInput.disabled = privacyModeEnabled;
-    exportTargetSelect.disabled = privacyModeEnabled;
-    connectButton.disabled = privacyModeEnabled || !config.enabled || !String(config.clientId || '').trim() || isConnected;
-    reconnectButton.disabled = privacyModeEnabled || !config.enabled || !String(config.clientId || '').trim();
+    connectView.hidden = isConnected;
+    disconnectView.hidden = !isConnected;
+    connectButton.disabled = privacyModeEnabled || isConnected;
     disconnectButton.disabled = !isConnected;
+    importReportButton.disabled = privacyModeEnabled || !isConnected;
+    importTemplateButton.disabled = privacyModeEnabled || !isConnected;
+    importStandardsSheetButton.disabled = privacyModeEnabled || !isConnected;
 
     if (googleIntegrationStatus) {
         googleIntegrationStatus.textContent = privacyModeEnabled
@@ -590,13 +604,15 @@ function bindGoogleWorkspaceSettings() {
     const launcherButton = document.getElementById('btn-settings-google-workspace');
     const googleDialog = document.getElementById('settings-google-dialog');
     const closeButton = document.getElementById('btn-settings-google-close');
+    const closeDisconnectButton = document.getElementById('btn-settings-google-close-disconnect');
     const privacyModeInput = document.getElementById('settings-privacy-mode');
-    const enabledInput = document.getElementById('settings-google-enabled');
-    const clientIdInput = document.getElementById('settings-google-client-id');
-    const exportTargetSelect = document.getElementById('settings-google-export-target');
+    const accountElement = document.getElementById('settings-google-account');
+    const emailInput = document.getElementById('settings-google-email-input');
     const connectButton = document.getElementById('btn-settings-google-connect');
-    const reconnectButton = document.getElementById('btn-settings-google-reconnect');
     const disconnectButton = document.getElementById('btn-settings-google-disconnect');
+    const importReportButton = document.getElementById('btn-settings-google-import-report');
+    const importTemplateButton = document.getElementById('btn-settings-google-import-template');
+    const importStandardsSheetButton = document.getElementById('btn-settings-google-import-standards-sheet');
     const backupAutoInput = document.getElementById('settings-backup-auto');
     const backupFrequencySelect = document.getElementById('settings-backup-frequency');
     const backupRetentionInput = document.getElementById('settings-backup-retention');
@@ -606,7 +622,34 @@ function bindGoogleWorkspaceSettings() {
     const restorePointSelect = document.getElementById('settings-restore-point-select');
     const restorePointApplyButton = document.getElementById('btn-settings-restore-point-apply');
 
-    if (!launcherButton || !googleDialog || !closeButton || !privacyModeInput || !enabledInput || !clientIdInput || !exportTargetSelect || !connectButton || !reconnectButton || !disconnectButton || !backupAutoInput || !backupFrequencySelect || !backupRetentionInput || !backupNowButton || !restoreImportButton || !createRestorePointButton || !restorePointSelect || !restorePointApplyButton) return;
+    if (!launcherButton || !googleDialog || !closeButton || !closeDisconnectButton || !privacyModeInput || !accountElement || !emailInput || !connectButton || !disconnectButton || !importReportButton || !importTemplateButton || !importStandardsSheetButton || !backupAutoInput || !backupFrequencySelect || !backupRetentionInput || !backupNowButton || !restoreImportButton || !createRestorePointButton || !restorePointSelect || !restorePointApplyButton) return;
+
+    const isGoogleConnected = () => String(getGoogleWorkspaceConfig().status || '').toLowerCase() === 'connected';
+
+    const ensureGoogleImportReady = () => {
+        if (!canPerformExternalCommunication()) {
+            writeStatus('Privacy Mode is enabled. Google import is blocked.');
+            return false;
+        }
+        if (!isGoogleConnected()) {
+            writeStatus('Connect Google Workspace before importing from Google Drive or Sheets.');
+            return false;
+        }
+        return true;
+    };
+
+    const askForGoogleFileId = (promptText) => {
+        const input = window.prompt(promptText, '');
+        if (input === null) return '';
+        return extractGoogleDriveFileId(input);
+    };
+
+    const resolveReportImportConflictStrategy = (reportTitle) => {
+        if (!reportNameExists(reportTitle)) return 'copy';
+        return window.confirm(`A report named "${reportTitle}" already exists. Select OK to Replace, or Cancel to Import as Copy.`)
+            ? 'replace'
+            : 'copy';
+    };
 
     const restoreInput = document.createElement('input');
     restoreInput.type = 'file';
@@ -618,18 +661,8 @@ function bindGoogleWorkspaceSettings() {
         const enable = privacyModeInput.checked;
         updateSecurityConfig({ privacyModeEnabled: enable }, { action: enable ? 'Enabled Privacy Mode' : 'Disabled Privacy Mode' });
         if (enable) {
-            const disconnected = disconnectGoogleWorkspace();
-            updateGoogleWorkspaceConfig({
-                status: disconnected.status,
-                connectedAt: disconnected.connectedAt,
-                expiresAt: disconnected.expiresAt,
-                scopes: disconnected.scopes,
-                accountEmail: disconnected.accountEmail,
-                accountName: disconnected.accountName,
-                lastError: ''
-            }, { action: 'Privacy Mode disconnected Google Workspace' });
             setNetworkActivity('Privacy Mode Enabled', 'External integrations and automatic network activity are blocked.');
-            recordSecurityAudit('Privacy Mode enabled', 'Cloud integrations disabled.');
+            recordSecurityAudit('Privacy Mode enabled', 'Cloud integrations paused. Existing connections remain inactive.');
         } else {
             setNetworkActivity('Offline', 'Privacy Mode disabled. No active external connections.');
             recordSecurityAudit('Privacy Mode disabled', 'Integrations may be reconnected by user action.');
@@ -640,52 +673,41 @@ function bindGoogleWorkspaceSettings() {
     });
 
     launcherButton.addEventListener('click', () => {
-        if (getSecurityConfig().privacyModeEnabled) {
+        if (!canPerformExternalCommunication()) {
             writeStatus('Privacy Mode is enabled. Disable it to manage external integrations.');
             return;
         }
-        openSubDialog(googleDialog, enabledInput, launcherButton);
+        const status = String(getGoogleWorkspaceConfig().status || '').toLowerCase();
+        const focusTarget = status === 'connected' ? disconnectButton : emailInput;
+        openSubDialog(googleDialog, focusTarget, launcherButton);
     });
 
     closeButton.addEventListener('click', () => {
         closeSubDialog(true);
     });
 
-    enabledInput.addEventListener('change', () => {
-        updateGoogleWorkspaceConfig({ enabled: enabledInput.checked }, { action: 'Updated Google Workspace integration state' });
-        renderGoogleWorkspaceSettings();
-        renderAbout();
-        writeStatus(enabledInput.checked
-            ? 'Google Workspace integration enabled.'
-            : 'Google Workspace integration disabled.');
-    });
-
-    clientIdInput.addEventListener('blur', () => {
-        const clientId = String(clientIdInput.value || '').trim();
-        updateGoogleWorkspaceConfig({ clientId }, { action: 'Updated Google Workspace client ID' });
-        renderGoogleWorkspaceSettings();
-        renderAbout();
-    });
-
-    exportTargetSelect.addEventListener('change', () => {
-        updateGoogleWorkspaceConfig({ defaultExportTarget: exportTargetSelect.value }, { action: 'Updated Google default export target' });
-        renderGoogleWorkspaceSettings();
-        renderAbout();
-        writeStatus(`Google default export target set to ${exportTargetSelect.options[exportTargetSelect.selectedIndex]?.text || exportTargetSelect.value}.`);
+    closeDisconnectButton.addEventListener('click', () => {
+        closeSubDialog(true);
     });
 
     connectButton.addEventListener('click', async () => {
-        if (getSecurityConfig().privacyModeEnabled) {
+        if (!canPerformExternalCommunication()) {
             writeStatus('Privacy Mode is enabled. Connection is blocked.');
             return;
         }
+        const loginEmail = String(emailInput.value || '').trim();
+        if (!loginEmail || !/^\S+@\S+\.\S+$/.test(loginEmail)) {
+            writeStatus('Enter a valid Google account email before connecting.');
+            emailInput.focus();
+            return;
+        }
         const current = getGoogleWorkspaceConfig();
-        updateGoogleWorkspaceConfig({ status: 'connecting', lastError: '' }, { action: 'Connecting Google Workspace' });
+        updateGoogleWorkspaceConfig({ status: 'connecting', lastError: '', lastConnectedAccountEmail: loginEmail }, { action: 'Connecting Google Workspace' });
         setNetworkActivity('Authorization Required', 'Google Workspace connection requires user authorization.');
         recordSecurityAudit('Google Workspace connect requested', 'User initiated connection flow.');
         renderGoogleWorkspaceSettings();
 
-        const result = await connectGoogleWorkspace(current);
+        const result = await connectGoogleWorkspace({ ...current, loginHint: loginEmail });
         if (!result.ok) {
             updateGoogleWorkspaceConfig({ status: 'error', lastError: result.lastError || 'Connection failed.' }, { action: 'Google Workspace connection failed' });
             setNetworkActivity('Connection Failed', result.lastError || 'Google Workspace connection failed.');
@@ -697,11 +719,13 @@ function bindGoogleWorkspaceSettings() {
         }
 
         updateGoogleWorkspaceConfig({
+            enabled: true,
             status: 'connected',
             connectedAt: result.connectedAt,
             expiresAt: result.expiresAt,
             scopes: result.scopes || getRequiredGoogleWorkspaceScopes(),
             accountEmail: result.accountEmail || '',
+            lastConnectedAccountEmail: result.accountEmail || loginEmail,
             accountName: result.accountName || '',
             lastError: ''
         }, { action: 'Connected Google Workspace' });
@@ -712,52 +736,17 @@ function bindGoogleWorkspaceSettings() {
         writeStatus('Google Workspace connected.');
     });
 
-    reconnectButton.addEventListener('click', async () => {
-        if (getSecurityConfig().privacyModeEnabled) {
-            writeStatus('Privacy Mode is enabled. Reconnect is blocked.');
-            return;
-        }
-        const current = getGoogleWorkspaceConfig();
-        updateGoogleWorkspaceConfig({ status: 'connecting', lastError: '' }, { action: 'Reconnecting Google Workspace' });
-        setNetworkActivity('Authorization Required', 'Google Workspace reconnection requires user authorization.');
-        recordSecurityAudit('Google Workspace reconnect requested', 'User initiated reconnect flow.');
-        renderGoogleWorkspaceSettings();
-
-        const result = await reconnectGoogleWorkspace(current);
-        if (!result.ok) {
-            updateGoogleWorkspaceConfig({ status: 'error', lastError: result.lastError || 'Reconnect failed.' }, { action: 'Google Workspace reconnect failed' });
-            setNetworkActivity('Connection Failed', result.lastError || 'Google Workspace reconnect failed.');
-            recordSecurityAudit('Google Workspace reconnect failed', result.lastError || 'Unknown error');
-            renderGoogleWorkspaceSettings();
-            renderAbout();
-            writeStatus(formatGoogleConnectionStatus(getGoogleWorkspaceConfig()));
-            return;
-        }
-
-        updateGoogleWorkspaceConfig({
-            status: 'connected',
-            connectedAt: result.connectedAt,
-            expiresAt: result.expiresAt,
-            scopes: result.scopes || getRequiredGoogleWorkspaceScopes(),
-            accountEmail: result.accountEmail || '',
-            accountName: result.accountName || '',
-            lastError: ''
-        }, { action: 'Reconnected Google Workspace' });
-        setNetworkActivity('Connected to Google Workspace', 'Google Workspace authorization is active.');
-        recordSecurityAudit('Google Workspace reconnected', 'User reauthorized Google Workspace access.');
-        renderGoogleWorkspaceSettings();
-        renderAbout();
-        writeStatus('Google Workspace reconnected.');
-    });
-
     disconnectButton.addEventListener('click', () => {
+        const previous = getGoogleWorkspaceConfig();
         const result = disconnectGoogleWorkspace();
         updateGoogleWorkspaceConfig({
+            enabled: false,
             status: result.status,
             connectedAt: result.connectedAt,
             expiresAt: result.expiresAt,
             scopes: result.scopes,
             accountEmail: result.accountEmail,
+            lastConnectedAccountEmail: previous.accountEmail || previous.lastConnectedAccountEmail || '',
             accountName: result.accountName,
             lastError: ''
         }, { action: 'Disconnected Google Workspace' });
@@ -766,6 +755,137 @@ function bindGoogleWorkspaceSettings() {
         renderGoogleWorkspaceSettings();
         renderAbout();
         writeStatus('Google Workspace disconnected.');
+    });
+
+    importReportButton.addEventListener('click', async () => {
+        if (!ensureGoogleImportReady()) return;
+
+        const fileId = askForGoogleFileId('Enter Google Drive file ID or URL for the ART report JSON to import:');
+        if (!fileId) {
+            writeStatus('Google report import cancelled.');
+            return;
+        }
+
+        setNetworkActivity('Importing from Google Drive', 'Downloading report JSON from Google Drive.');
+        recordSecurityAudit('Google Drive report import requested', `User requested report import from file ${fileId}.`);
+
+        const downloaded = await downloadGoogleDriveTextFile(fileId);
+        if (!downloaded.ok) {
+            setNetworkActivity('Import Failed', downloaded.lastError || 'Could not download report from Google Drive.');
+            recordSecurityAudit('Google Drive report import failed', downloaded.lastError || 'Unknown error');
+            writeStatus(downloaded.lastError || 'Could not download report from Google Drive.');
+            return;
+        }
+
+        const validation = validateArtJsonPayload(downloaded.text);
+        if (!validation.isValid) {
+            setNetworkActivity('Import Failed', 'Downloaded file is not a valid ART report JSON payload.');
+            recordSecurityAudit('Google Drive report import failed', 'Downloaded file failed ART report JSON validation.');
+            writeStatus('Import failed. The downloaded file is not a valid ART report JSON payload.');
+            return;
+        }
+
+        const strategy = resolveReportImportConflictStrategy(validation.reportTitle || 'Untitled Report');
+        const imported = importReportWithConflictStrategy(validation.state, strategy);
+        if (!imported) {
+            setNetworkActivity('Import Failed', 'Report import conflict could not be resolved.');
+            recordSecurityAudit('Google Drive report import failed', 'Report import conflict resolution failed.');
+            writeStatus('Import failed. Report conflict could not be resolved.');
+            return;
+        }
+
+        setNetworkActivity('Import Complete', `Report imported from Google Drive as ${imported.name}.`);
+        recordSecurityAudit('Google Drive report imported', `Imported report ${imported.name} from file ${downloaded.fileId}.`);
+        writeStatus(`Imported report from Google Drive: ${imported.name}.`);
+    });
+
+    importTemplateButton.addEventListener('click', async () => {
+        if (!ensureGoogleImportReady()) return;
+
+        const fileId = askForGoogleFileId('Enter Google Drive file ID or URL for the template JSON to import:');
+        if (!fileId) {
+            writeStatus('Google template import cancelled.');
+            return;
+        }
+
+        setNetworkActivity('Importing from Google Drive', 'Downloading template JSON from Google Drive.');
+        recordSecurityAudit('Google Drive template import requested', `User requested template import from file ${fileId}.`);
+
+        const downloaded = await downloadGoogleDriveTextFile(fileId);
+        if (!downloaded.ok) {
+            setNetworkActivity('Import Failed', downloaded.lastError || 'Could not download template from Google Drive.');
+            recordSecurityAudit('Google Drive template import failed', downloaded.lastError || 'Unknown error');
+            writeStatus(downloaded.lastError || 'Could not download template from Google Drive.');
+            return;
+        }
+
+        const validation = validateTemplateJsonPayload(downloaded.text);
+        if (!validation.isValid) {
+            setNetworkActivity('Import Failed', 'Downloaded file is not a valid template JSON payload.');
+            recordSecurityAudit('Google Drive template import failed', 'Downloaded file failed template JSON validation.');
+            writeStatus('Import failed. The downloaded file is not a valid template JSON payload.');
+            return;
+        }
+
+        const hasConflict = templateNameExists(validation.displayName);
+        const strategy = hasConflict && window.confirm(`A template named "${validation.displayName}" already exists. Select OK to Replace, or Cancel to Import as Copy.`)
+            ? 'replace'
+            : 'copy';
+        const imported = importTemplateWithConflictStrategy(validation.template, strategy);
+        if (!imported || imported.ok === false) {
+            setNetworkActivity('Import Failed', 'Template import conflict could not be resolved.');
+            recordSecurityAudit('Google Drive template import failed', 'Template import conflict resolution failed.');
+            writeStatus('Import failed. Template conflict could not be resolved.');
+            return;
+        }
+
+        setNetworkActivity('Import Complete', `Template imported from Google Drive as ${imported.name}.`);
+        recordSecurityAudit('Google Drive template imported', `Imported template ${imported.name} from file ${downloaded.fileId}.`);
+        writeStatus(`Imported template from Google Drive: ${imported.name}.`);
+        refreshSettingsView();
+    });
+
+    importStandardsSheetButton.addEventListener('click', async () => {
+        if (!ensureGoogleImportReady()) return;
+
+        const sheetId = askForGoogleFileId('Enter Google Sheets spreadsheet ID or URL for standards import:');
+        if (!sheetId) {
+            writeStatus('Google Sheets standards import cancelled.');
+            return;
+        }
+
+        const rangeInput = window.prompt('Enter Google Sheets range to import (default A1:ZZ2000):', 'A1:ZZ2000');
+        if (rangeInput === null) {
+            writeStatus('Google Sheets standards import cancelled.');
+            return;
+        }
+
+        setNetworkActivity('Importing from Google Sheets', 'Downloading standards table from Google Sheets.');
+        recordSecurityAudit('Google Sheets standards import requested', `User requested standards import from sheet ${sheetId}.`);
+
+        const downloaded = await downloadGoogleSheetAsTsv(sheetId, rangeInput || 'A1:ZZ2000');
+        if (!downloaded.ok) {
+            setNetworkActivity('Import Failed', downloaded.lastError || 'Could not download standards from Google Sheets.');
+            recordSecurityAudit('Google Sheets standards import failed', downloaded.lastError || 'Unknown error');
+            writeStatus(downloaded.lastError || 'Could not download standards from Google Sheets.');
+            return;
+        }
+
+        const standards = parsePastedStandardsTable(downloaded.tsv);
+        if (!standards || standards.length === 0) {
+            setNetworkActivity('Import Failed', 'No standards rows were detected in the selected Google Sheets range.');
+            recordSecurityAudit('Google Sheets standards import failed', 'Downloaded sheet data could not be converted to standards table.');
+            writeStatus('Import failed. No standards rows were detected in the selected Google Sheets range.');
+            return;
+        }
+
+        const overwrite = window.confirm('One or more imported standards may conflict with existing identifiers. Select OK to overwrite matching identifiers, or Cancel to preserve existing standards.');
+        importAccessibilityStandardList(standards, overwrite);
+
+        setNetworkActivity('Import Complete', `Imported ${standards.length} accessibility standard bundle(s) from Google Sheets.`);
+        recordSecurityAudit('Google Sheets standards imported', `Imported ${standards.length} standard bundle(s) from sheet ${downloaded.spreadsheetId}.`);
+        writeStatus(`Imported accessibility standards from Google Sheets (${standards.length} bundle${standards.length === 1 ? '' : 's'}).`);
+        refreshSettingsView();
     });
 
     backupAutoInput.addEventListener('change', () => {

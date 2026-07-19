@@ -76,8 +76,10 @@ const defaultState = {
         settingsImportStandard: '',
         settingsPasteStandardTable: '',
         settingsGoogleConnect: '',
-        settingsGoogleReconnect: '',
         settingsGoogleDisconnect: '',
+        settingsGoogleImportReport: '',
+        settingsGoogleImportTemplate: '',
+        settingsGoogleImportStandardsSheet: '',
         settingsOpenIntegrations: '',
         settingsTogglePrivacyMode: '',
         settingsCreateBackup: '',
@@ -103,14 +105,13 @@ const defaultState = {
     },
     googleWorkspace: {
         enabled: false,
-        clientId: "",
         status: 'disconnected',
         accountEmail: "",
+        lastConnectedAccountEmail: "",
         accountName: "",
         connectedAt: "",
         expiresAt: "",
         scopes: [],
-        defaultExportTarget: 'google-drive',
         lastError: ""
     },
     integrations: {
@@ -195,25 +196,20 @@ function normalizeGoogleWorkspaceConfig(config) {
     const statusRaw = String(source.status || defaultState.googleWorkspace.status).trim().toLowerCase();
     const allowedStatuses = new Set(['disconnected', 'connected', 'expired', 'error', 'connecting']);
     const status = allowedStatuses.has(statusRaw) ? statusRaw : defaultState.googleWorkspace.status;
-    const defaultExportTargetRaw = String(source.defaultExportTarget || defaultState.googleWorkspace.defaultExportTarget).trim().toLowerCase();
-    const allowedExportTargets = new Set(['google-drive', 'google-docs', 'google-sheets', 'none']);
 
     return {
         ...defaultState.googleWorkspace,
         ...source,
         enabled: Boolean(source.enabled),
-        clientId: String(source.clientId || ''),
         status,
         accountEmail: String(source.accountEmail || ''),
+        lastConnectedAccountEmail: String(source.lastConnectedAccountEmail || ''),
         accountName: String(source.accountName || ''),
         connectedAt: String(source.connectedAt || ''),
         expiresAt: String(source.expiresAt || ''),
         scopes: Array.isArray(source.scopes)
             ? source.scopes.map((scope) => String(scope || '').trim()).filter(Boolean)
             : [],
-        defaultExportTarget: allowedExportTargets.has(defaultExportTargetRaw)
-            ? defaultExportTargetRaw
-            : defaultState.googleWorkspace.defaultExportTarget,
         lastError: String(source.lastError || '')
     };
 }
@@ -320,8 +316,10 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'settingsImportStandard', label: 'Import Accessibility Standard', defaultShortcut: defaultState.shortcuts.settingsImportStandard },
     { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table', defaultShortcut: defaultState.shortcuts.settingsPasteStandardTable },
     { action: 'settingsGoogleConnect', label: 'Connect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleConnect },
-    { action: 'settingsGoogleReconnect', label: 'Reconnect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleReconnect },
     { action: 'settingsGoogleDisconnect', label: 'Disconnect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleDisconnect },
+    { action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive', defaultShortcut: defaultState.shortcuts.settingsGoogleImportReport },
+    { action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive', defaultShortcut: defaultState.shortcuts.settingsGoogleImportTemplate },
+    { action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets', defaultShortcut: defaultState.shortcuts.settingsGoogleImportStandardsSheet },
     { action: 'settingsOpenIntegrations', label: 'Open Integrations Section', defaultShortcut: defaultState.shortcuts.settingsOpenIntegrations },
     { action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode', defaultShortcut: defaultState.shortcuts.settingsTogglePrivacyMode },
     { action: 'settingsCreateBackup', label: 'Create Backup', defaultShortcut: defaultState.shortcuts.settingsCreateBackup },
@@ -405,8 +403,10 @@ export function getAssignableActions() {
         { action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
         { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
         { action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
-        { action: 'settingsGoogleReconnect', label: 'Reconnect Google Workspace' },
         { action: 'settingsGoogleDisconnect', label: 'Disconnect Google Workspace' },
+        { action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive' },
+        { action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive' },
+        { action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets' },
         { action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
         { action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
         { action: 'settingsCreateBackup', label: 'Create Backup' },
@@ -1704,6 +1704,8 @@ export function clearGoogleWorkspaceConnection() {
 }
 
 function createManagedDataSnapshot() {
+    // Connection/account state is intentionally excluded so backup/restore
+    // never transfers integration identities between different user profiles.
     return {
         reportTitle: appState.reportTitle,
         orgClient: appState.orgClient,
@@ -1731,9 +1733,7 @@ function createManagedDataSnapshot() {
         importedStandards: appState.importedStandards,
         shortcuts: appState.shortcuts,
         branding: appState.branding,
-        spellUserDictionary: appState.spellUserDictionary,
-        googleWorkspace: appState.googleWorkspace,
-        integrations: appState.integrations
+        spellUserDictionary: appState.spellUserDictionary
     };
 }
 
@@ -1755,6 +1755,11 @@ function applyManagedDataSnapshot(snapshot) {
 
 export function getSecurityConfig() {
     return normalizeSecurityConfig(appState.security);
+}
+
+export function canPerformExternalCommunication() {
+    const security = getSecurityConfig();
+    return !Boolean(security.privacyModeEnabled);
 }
 
 export function updateSecurityConfig(updates = {}, options = {}) {

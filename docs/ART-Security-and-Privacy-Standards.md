@@ -58,6 +58,7 @@ Only ART-managed application data may be reset or deleted from within ART.
 - Backups never upload, sync, or share automatically.
 - Users control backup frequency, retention, and restore actions.
 - Restores require confirmation and clearly identify affected ART-managed data.
+- Future enhancement: support optional encrypted backups for enterprise deployments and sensitive environments.
 
 ## Integration Security Requirements
 - Integrations are optional and user-controlled.

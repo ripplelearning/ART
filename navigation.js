@@ -42,6 +42,9 @@ const shortcutControlMap = [
     { id: 'btn-settings-import-standard', action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
     { id: 'btn-settings-paste-standard', action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
     { id: 'btn-settings-google-workspace', action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
+        { id: 'btn-settings-google-import-report', action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive' },
+        { id: 'btn-settings-google-import-template', action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive' },
+        { id: 'btn-settings-google-import-standards-sheet', action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets' },
     { id: 'btn-settings-google-workspace', action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
     { id: 'settings-privacy-mode', action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
     { id: 'btn-settings-backup-now', action: 'settingsCreateBackup', label: 'Create Backup' }
@@ -500,11 +503,6 @@ export function initNavigation() {
             clickElementById('btn-settings-google-workspace');
             return;
         }
-        if (action === 'settingsGoogleReconnect') {
-            e.preventDefault();
-            clickElementById('btn-settings-google-workspace');
-            return;
-        }
         if (action === 'settingsGoogleDisconnect') {
             e.preventDefault();
             clickElementById('btn-settings-google-workspace');
@@ -519,6 +517,21 @@ export function initNavigation() {
                 integrationsHeading.focus();
             }
             clickElementById('btn-settings-google-workspace');
+            return;
+        }
+        if (action === 'settingsGoogleImportReport') {
+            e.preventDefault();
+            clickElementById('btn-settings-google-import-report');
+            return;
+        }
+        if (action === 'settingsGoogleImportTemplate') {
+            e.preventDefault();
+            clickElementById('btn-settings-google-import-template');
+            return;
+        }
+        if (action === 'settingsGoogleImportStandardsSheet') {
+            e.preventDefault();
+            clickElementById('btn-settings-google-import-standards-sheet');
             return;
         }
         if (action === 'settingsTogglePrivacyMode') {
