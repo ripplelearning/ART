@@ -53,8 +53,12 @@ const defaultState = {
         addField: 'Alt+Shift+F',
         done: 'Alt+Shift+O',
         addEntry: 'Alt+Shift+A',
-        openReport: 'Ctrl+O',
-        exportReport: 'Ctrl+Shift+S',
+        openProject: 'Ctrl+O',
+        saveProject: 'Ctrl+S',
+        saveProjectAs: 'Ctrl+Shift+S',
+        importData: 'Ctrl+Shift+I',
+        openReport: '',
+        exportReport: 'Ctrl+Shift+E',
         newReport: 'Ctrl+N',
         newReportFromTemplate: 'Ctrl+Shift+N',
         resetLookup: 'Alt+Shift+D',
@@ -125,6 +129,20 @@ const defaultState = {
             status: 'disconnected'
         }
     },
+    projectDocument: {
+        fileName: '',
+        filePath: '',
+        formatVersion: '1.0',
+        schemaVersion: '1.0',
+        createdWith: '',
+        lastSavedWith: '',
+        createdAt: '',
+        lastModifiedAt: '',
+        recoveryLabel: '',
+        hasRecoveredChanges: false
+    },
+    recentProjectFiles: [],
+    hasUnsavedChanges: false,
     security: {
         privacyModeEnabled: false,
         networkActivityStatus: 'Offline',
@@ -270,6 +288,38 @@ function normalizeSecurityConfig(config) {
     };
 }
 
+function normalizeProjectDocumentConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    return {
+        fileName: String(source.fileName || ''),
+        filePath: String(source.filePath || ''),
+        formatVersion: String(source.formatVersion || '1.0'),
+        schemaVersion: String(source.schemaVersion || '1.0'),
+        createdWith: String(source.createdWith || ''),
+        lastSavedWith: String(source.lastSavedWith || ''),
+        createdAt: String(source.createdAt || ''),
+        lastModifiedAt: String(source.lastModifiedAt || ''),
+        recoveryLabel: String(source.recoveryLabel || ''),
+        hasRecoveredChanges: Boolean(source.hasRecoveredChanges)
+    };
+}
+
+function normalizeRecentProjectFile(item) {
+    return {
+        id: String(item?.id || `project-${Date.now()}-${Math.floor(Math.random() * 1000)}`),
+        fileName: String(item?.fileName || ''),
+        filePath: String(item?.filePath || ''),
+        lastOpenedAt: String(item?.lastOpenedAt || new Date().toISOString()),
+        status: String(item?.status || 'saved')
+    };
+}
+
+function normalizeRecentProjectFiles(list) {
+    if (!Array.isArray(list)) return [];
+    const normalized = list.map(normalizeRecentProjectFile);
+    return normalized.slice(0, 25);
+}
+
 const SHORTCUT_DEFINITIONS = [
     { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
     { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
@@ -293,6 +343,10 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'addField', label: 'Add field in Report Builder', defaultShortcut: defaultState.shortcuts.addField },
     { action: 'done', label: 'Complete Builder and move to Editor', defaultShortcut: defaultState.shortcuts.done },
     { action: 'addEntry', label: 'Add entry in Report Editor', defaultShortcut: defaultState.shortcuts.addEntry },
+    { action: 'openProject', label: 'Open ART Project', defaultShortcut: defaultState.shortcuts.openProject },
+    { action: 'saveProject', label: 'Save ART Project', defaultShortcut: defaultState.shortcuts.saveProject },
+    { action: 'saveProjectAs', label: 'Save ART Project As', defaultShortcut: defaultState.shortcuts.saveProjectAs },
+    { action: 'importData', label: 'Import Data', defaultShortcut: defaultState.shortcuts.importData },
     { action: 'openReport', label: 'Open/Import report', defaultShortcut: defaultState.shortcuts.openReport },
     { action: 'exportReport', label: 'Export report', defaultShortcut: defaultState.shortcuts.exportReport },
     { action: 'newReport', label: 'Create new report', defaultShortcut: defaultState.shortcuts.newReport },
@@ -348,10 +402,28 @@ function normalizeShortcutValue(value, fallback) {
 function normalizeShortcuts(rawShortcuts) {
     const source = rawShortcuts && typeof rawShortcuts === 'object' ? rawShortcuts : {};
     const normalized = { ...defaultState.shortcuts };
+    const hasProjectShortcutKeys = ['openProject', 'saveProject', 'saveProjectAs', 'importData']
+        .some((key) => Object.prototype.hasOwnProperty.call(source, key));
 
     SHORTCUT_DEFINITIONS.forEach((definition) => {
         normalized[definition.action] = normalizeShortcutValue(source[definition.action], definition.defaultShortcut);
     });
+
+    if (!hasProjectShortcutKeys) {
+        normalized.openProject = defaultState.shortcuts.openProject;
+        normalized.saveProject = defaultState.shortcuts.saveProject;
+        normalized.saveProjectAs = defaultState.shortcuts.saveProjectAs;
+        normalized.importData = defaultState.shortcuts.importData;
+
+        const legacyOpenReport = String(source.openReport || '').trim().toLowerCase();
+        const legacyExportReport = String(source.exportReport || '').trim().toLowerCase();
+        if (!legacyOpenReport || legacyOpenReport === 'ctrl+o') {
+            normalized.openReport = defaultState.shortcuts.openReport;
+        }
+        if (!legacyExportReport || legacyExportReport === 'ctrl+shift+s') {
+            normalized.exportReport = defaultState.shortcuts.exportReport;
+        }
+    }
 
     return normalized;
 }
@@ -380,6 +452,10 @@ export function getAssignableActions() {
         { action: 'addField', label: 'Add field in Report Builder' },
         { action: 'done', label: 'Complete Builder and move to Editor' },
         { action: 'addEntry', label: 'Add entry in Report Editor' },
+        { action: 'openProject', label: 'Open ART Project' },
+        { action: 'saveProject', label: 'Save ART Project' },
+        { action: 'saveProjectAs', label: 'Save ART Project As' },
+        { action: 'importData', label: 'Import Data' },
         { action: 'openReport', label: 'Open/Import report' },
         { action: 'exportReport', label: 'Export report' },
         { action: 'newReport', label: 'Create new report' },
@@ -641,6 +717,9 @@ function normalizeTemplate(template) {
 
 // Initializing the application state from local storage or defaults
 const storedState = JSON.parse(localStorage.getItem('art-state')) || {};
+if (!Array.isArray(storedState.importedStandards) && Array.isArray(storedState.userStandards)) {
+    storedState.importedStandards = storedState.userStandards;
+}
 const normalizedInitialFields = Array.isArray(storedState.fields) ? storedState.fields.map(normalizeField) : [];
 const normalizedInitialEditorValues = normalizeEditorFieldValues(storedState.editorFieldValues);
 const normalizedInitialUserStandards = normalizeUserStandards(storedState.userStandards || storedState.importedStandards);
@@ -656,10 +735,13 @@ export let appState = {
     selectedReportId: String(storedState.selectedReportId || ''),
     shortcuts: normalizeShortcuts(storedState.shortcuts),
     userStandards: normalizedInitialUserStandards,
-    importedStandards: normalizedInitialUserStandards,
+    importedStandards: normalizeImportedStandards(storedState.importedStandards),
     spellUserDictionary: normalizeSpellUserDictionary(storedState.spellUserDictionary),
     googleWorkspace: normalizeGoogleWorkspaceConfig(storedState.googleWorkspace),
     integrations: normalizeIntegrationsConfig(storedState.integrations),
+    projectDocument: normalizeProjectDocumentConfig(storedState.projectDocument),
+    recentProjectFiles: normalizeRecentProjectFiles(storedState.recentProjectFiles),
+    hasUnsavedChanges: Boolean(storedState.hasUnsavedChanges),
     security: normalizeSecurityConfig(storedState.security),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
@@ -680,6 +762,9 @@ function normalizeStateSnapshot(rawState) {
         shortcuts: normalizeShortcuts(base.shortcuts),
         googleWorkspace: normalizeGoogleWorkspaceConfig(base.googleWorkspace),
         integrations: normalizeIntegrationsConfig(base.integrations),
+        projectDocument: normalizeProjectDocumentConfig(base.projectDocument),
+        recentProjectFiles: normalizeRecentProjectFiles(base.recentProjectFiles),
+        hasUnsavedChanges: Boolean(base.hasUnsavedChanges),
         security: normalizeSecurityConfig(base.security),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
@@ -1011,6 +1096,9 @@ const ART_JSON_VERSION = '1.0';
 const ART_JSON_WARNING = 'Warning: Do not edit. This file is used for importing your report back into ART and will not work if modified.';
 const ART_TEMPLATE_JSON_VERSION = '1.0';
 const ART_TEMPLATE_WARNING = 'Warning: Do not edit. This file is used for importing templates back into ART and may fail validation if modified.';
+const ART_PROJECT_FORMAT_VERSION = '1.0';
+const ART_PROJECT_SCHEMA_VERSION = '1.0';
+const ART_TEMPLATE_FORMAT_VERSION = '1.0';
 
 function cloneDeep(value) {
     return JSON.parse(JSON.stringify(value));
@@ -1048,6 +1136,136 @@ export function createArtJsonPayload(reportState = cloneCurrentAppState()) {
 
 export function serializeArtJsonPayload(reportState) {
     return JSON.stringify(createArtJsonPayload(reportState), null, 2);
+}
+
+function getAppVersionLabel() {
+    const appName = String(APP_INFO.applicationName || 'ART').trim();
+    const version = String(APP_INFO.version || 'unknown').trim();
+    return `${appName} ${version}`;
+}
+
+function createProjectMetadata(overrides = {}) {
+    const now = new Date().toISOString();
+    const existing = normalizeProjectDocumentConfig(appState.projectDocument);
+    const createdAt = String(overrides.createdAt || existing.createdAt || now);
+    const lastModifiedAt = String(overrides.lastModifiedAt || now);
+    return {
+        formatVersion: ART_PROJECT_FORMAT_VERSION,
+        schemaVersion: ART_PROJECT_SCHEMA_VERSION,
+        createdWith: String(overrides.createdWith || existing.createdWith || getAppVersionLabel()),
+        lastSavedWith: String(overrides.lastSavedWith || getAppVersionLabel()),
+        createdAt,
+        lastModifiedAt
+    };
+}
+
+export function createArtProjectPayload() {
+    return {
+        format: 'ART Project',
+        formatVersion: ART_PROJECT_FORMAT_VERSION,
+        schemaVersion: ART_PROJECT_SCHEMA_VERSION,
+        metadata: createProjectMetadata(),
+        project: createManagedDataSnapshot()
+    };
+}
+
+export function serializeArtProjectPayload() {
+    return JSON.stringify(createArtProjectPayload(), null, 2);
+}
+
+export function validateArtProjectPayload(input) {
+    let payload;
+    if (typeof input === 'string') {
+        try {
+            payload = JSON.parse(input);
+        } catch (error) {
+            return { isValid: false, reason: 'invalid-json' };
+        }
+    } else {
+        payload = input;
+    }
+
+    if (!payload || typeof payload !== 'object') return { isValid: false, reason: 'invalid-payload' };
+    if (String(payload.format || '').trim() !== 'ART Project') return { isValid: false, reason: 'invalid-format' };
+    if (!payload.project || typeof payload.project !== 'object') return { isValid: false, reason: 'missing-project-data' };
+    if (!payload.metadata || typeof payload.metadata !== 'object') return { isValid: false, reason: 'missing-metadata' };
+
+    return {
+        isValid: true,
+        reason: 'ok',
+        payload: {
+            ...payload,
+            metadata: createProjectMetadata(payload.metadata)
+        }
+    };
+}
+
+export function importArtProjectPayload(input) {
+    const validation = validateArtProjectPayload(input);
+    if (!validation.isValid) return validation;
+
+    applyManagedDataSnapshot(validation.payload.project);
+    const fileName = String(validation.payload?.metadata?.fileName || appState.projectDocument.fileName || '');
+    appState.projectDocument = normalizeProjectDocumentConfig({
+        ...appState.projectDocument,
+        ...validation.payload.metadata,
+        fileName,
+        hasRecoveredChanges: false,
+        recoveryLabel: ''
+    });
+    appState.hasUnsavedChanges = false;
+    saveState({ action: 'Opened ART project file', recordHistory: false });
+    return validation;
+}
+
+export function createArtxTemplatePayload(template) {
+    const normalized = normalizeTemplatePayloadData(template);
+    return {
+        format: 'ART Template',
+        formatVersion: ART_TEMPLATE_FORMAT_VERSION,
+        schemaVersion: '1.0',
+        metadata: {
+            createdWith: getAppVersionLabel(),
+            exportedAt: new Date().toISOString()
+        },
+        template: {
+            name: normalized.name,
+            metadata: normalized.metadata,
+            data: normalized.data
+        }
+    };
+}
+
+export function serializeArtxTemplatePayload(template) {
+    return JSON.stringify(createArtxTemplatePayload(template), null, 2);
+}
+
+export function validateArtxTemplatePayload(input) {
+    let payload;
+    if (typeof input === 'string') {
+        try {
+            payload = JSON.parse(input);
+        } catch (error) {
+            return { isValid: false, reason: 'invalid-json' };
+        }
+    } else {
+        payload = input;
+    }
+
+    if (!payload || typeof payload !== 'object') return { isValid: false, reason: 'invalid-payload' };
+    if (String(payload.format || '').trim() !== 'ART Template') return { isValid: false, reason: 'invalid-format' };
+    if (!payload.template || typeof payload.template !== 'object') return { isValid: false, reason: 'missing-template' };
+    if (!String(payload.template.name || '').trim()) return { isValid: false, reason: 'missing-template-name' };
+    if (!payload.template.data || typeof payload.template.data !== 'object') return { isValid: false, reason: 'missing-template-data' };
+
+    return {
+        isValid: true,
+        reason: 'ok',
+        payload: {
+            ...payload,
+            template: normalizeTemplatePayloadData(payload.template)
+        }
+    };
 }
 
 function normalizeTemplatePayloadData(templateData) {
@@ -1119,6 +1337,10 @@ export function validateTemplateJsonPayload(input) {
 
     if (!payload || typeof payload !== 'object') {
         return { isValid: false, reason: 'invalid-payload' };
+    }
+
+    if (String(payload.format || '').trim() === 'ART Template') {
+        return validateArtxTemplatePayload(payload);
     }
 
     if (payload.artTemplateVersion !== ART_TEMPLATE_JSON_VERSION || typeof payload._warning !== 'string') {
@@ -1259,7 +1481,24 @@ export function saveState(options = {}) {
         redoStack.length = 0;
     }
 
-    lastSavedSnapshot = nextSnapshot;
+    const changed = nextSnapshot !== lastSavedSnapshot;
+    if (changed) {
+        appState.hasUnsavedChanges = true;
+    }
+
+    if (options.markProjectSaved === true) {
+        appState.hasUnsavedChanges = false;
+        appState.projectDocument = normalizeProjectDocumentConfig({
+            ...appState.projectDocument,
+            ...createProjectMetadata({
+                createdAt: appState.projectDocument.createdAt || new Date().toISOString()
+            }),
+            hasRecoveredChanges: false,
+            recoveryLabel: ''
+        });
+    }
+
+    lastSavedSnapshot = JSON.stringify(appState);
     persistCurrentState();
     window.dispatchEvent(new Event('art-state-updated'));
 }
@@ -1312,6 +1551,64 @@ export function redoState() {
 
 export function getRecentReports() {
     return [...(appState.reports || [])].sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+}
+
+export function getProjectDocumentInfo() {
+    return normalizeProjectDocumentConfig(appState.projectDocument);
+}
+
+export function hasUnsavedProjectChanges() {
+    return Boolean(appState.hasUnsavedChanges);
+}
+
+export function markProjectRecovered(label = 'Recovered changes available') {
+    appState.projectDocument = normalizeProjectDocumentConfig({
+        ...appState.projectDocument,
+        hasRecoveredChanges: true,
+        recoveryLabel: String(label || 'Recovered changes available')
+    });
+    saveState({ action: 'Marked project recovery state', recordHistory: false });
+}
+
+export function clearProjectRecoveryMark() {
+    appState.projectDocument = normalizeProjectDocumentConfig({
+        ...appState.projectDocument,
+        hasRecoveredChanges: false,
+        recoveryLabel: ''
+    });
+    saveState({ action: 'Cleared project recovery state', recordHistory: false });
+}
+
+export function updateProjectDocumentInfo(updates = {}, options = {}) {
+    const next = normalizeProjectDocumentConfig({
+        ...appState.projectDocument,
+        ...(updates && typeof updates === 'object' ? updates : {})
+    });
+    appState.projectDocument = next;
+
+    if (updates.fileName || updates.filePath || updates.lastModifiedAt || updates.createdAt) {
+        const newEntry = normalizeRecentProjectFile({
+            id: `${String(updates.filePath || updates.fileName || 'project')}-${Date.now()}`,
+            fileName: String(updates.fileName || next.fileName || 'Untitled.art'),
+            filePath: String(updates.filePath || next.filePath || ''),
+            lastOpenedAt: String(updates.lastModifiedAt || new Date().toISOString()),
+            status: next.hasRecoveredChanges ? 'recovered' : 'saved'
+        });
+        const deduped = [newEntry, ...(appState.recentProjectFiles || [])].filter((item, index, arr) => {
+            const key = `${String(item.fileName || '').toLowerCase()}|${String(item.filePath || '').toLowerCase()}`;
+            return arr.findIndex((candidate) => `${String(candidate.fileName || '').toLowerCase()}|${String(candidate.filePath || '').toLowerCase()}` === key) === index;
+        });
+        appState.recentProjectFiles = normalizeRecentProjectFiles(deduped);
+    }
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated project document'), recordHistory: false });
+    }
+    return next;
+}
+
+export function getRecentProjectFiles() {
+    return normalizeRecentProjectFiles(appState.recentProjectFiles);
 }
 
 export function getShortcutDefinitions() {

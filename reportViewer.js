@@ -1,4 +1,4 @@
-import { appState, announce, canPerformExternalCommunication, getCurrentReportMetrics, getGoogleWorkspaceConfig, recordSecurityAudit, saveState, serializeArtJsonPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
+import { appState, announce, canPerformExternalCommunication, getCurrentReportMetrics, getGoogleWorkspaceConfig, recordSecurityAudit, saveState, serializeArtJsonPayload, serializeArtProjectPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
 import { uploadBlobToGoogleDrive } from './googleWorkspace.js';
 import { formatWcagCriterionDisplay, getWcagCriterionByIdentifier, isWcagCriterionFieldType } from './wcagCatalog.js';
 
@@ -719,10 +719,12 @@ async function buildZipExportBlob(baseFileName, reportExportConfig) {
     const zip = new window.JSZip();
     const reportFileName = `${baseFileName}.${reportExportConfig.extension}`;
     const artJsonFileName = `${baseFileName}_ART.json`;
+    const artProjectFileName = `${baseFileName}.art`;
 
     const reportArrayBuffer = await reportExportConfig.blob.arrayBuffer();
     zip.file(reportFileName, reportArrayBuffer);
     zip.file(artJsonFileName, serializeArtJsonPayload());
+    zip.file(artProjectFileName, serializeArtProjectPayload());
 
     return zip.generateAsync({
         type: 'blob',

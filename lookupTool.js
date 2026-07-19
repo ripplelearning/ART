@@ -88,7 +88,7 @@ export async function initLookupTool() {
                 <input id="s" type="search" placeholder="Search... e.g. 1.1.1, buttons, tables" style="width:90%; padding:10px;">
                 <div style="margin:15px 0; display:grid; gap:10px;">
                     <label for="ver-f">Standard</label>
-                    <select id="ver-f"><option value="">Standard: All</option>${standards.map((standard) => `<option value="${standard}">${standard}</option>`).join('')}</select>
+                    <select id="ver-f"><option value="">Version: All</option>${standards.map((standard) => `<option value="${standard}">${standard}</option>`).join('')}</select>
                     <label for="lvl-f">Level</label>
                     <select id="lvl-f"><option value="">Level: All</option><option value="A">A</option><option value="AA">AA</option><option value="AAA">AAA</option></select>
                     <label for="cat-f">Category</label>
@@ -204,7 +204,7 @@ export async function initLookupTool() {
             const standardFilter = document.getElementById('ver-f');
             if (!standardFilter) return;
             const selected = standardFilter.value;
-            standardFilter.innerHTML = `<option value="">Standard: All</option>${refreshed.map((standard) => `<option value="${standard}">${standard}</option>`).join('')}`;
+            standardFilter.innerHTML = `<option value="">Version: All</option>${refreshed.map((standard) => `<option value="${standard}">${standard}</option>`).join('')}`;
             if ([...standardFilter.options].some((option) => option.value === selected)) {
                 standardFilter.value = selected;
             }

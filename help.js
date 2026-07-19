@@ -227,8 +227,11 @@ function getHelpSections(rows) {
             id: 'help-import-export',
             title: 'Import and Export',
             content: `
-                <p>ART supports report and template import workflows, the Settings-based standards table import workflow, and multi-format report export.</p>
+                <p>ART supports portable project and template workflows using .art (project) and .artx (template) formats.</p>
+                <p>Open ART Project loads .art files, Save Project writes to the current .art file, and Save Project As creates a new .art file.</p>
+                <p>Import supports legacy report/template JSON and standards table workflows, including Settings-based standards import.</p>
                 <p>When Google Workspace is connected, export can upload the ZIP package directly to Google Drive after explicit user approval.</p>
+                <p>ZIP exports include the selected output format, ART JSON payload, and an editable .art project file.</p>
                 <p>Google operations follow an explicit import/edit/export model and do not automatically synchronize or merge external documents.</p>
                 <p>Export output reflects current report values and selected layout at export time.</p>
             `

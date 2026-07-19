@@ -1,5 +1,5 @@
 import defaultStandards from './defaultStandards.js';
-import { getUserStandards } from './state.js';
+import { getImportedAccessibilityStandards } from './state.js';
 
 let builtInCatalogPromise = null;
 
@@ -110,7 +110,7 @@ async function loadBuiltInCatalog() {
 
 async function buildMergedCatalog() {
     const builtInCatalog = await loadBuiltInCatalog();
-    const importedStandards = getUserStandards();
+    const importedStandards = getImportedAccessibilityStandards();
     const importedCriteria = importedStandards.flatMap((standard) => {
         const standardName = String(standard.displayName || standard.internalId || 'Imported Standard').trim();
         return (Array.isArray(standard.criteria) ? standard.criteria : []).map((criterion) => normalizeImportedCatalogEntry(criterion, standardName));

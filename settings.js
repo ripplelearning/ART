@@ -1207,7 +1207,32 @@ function bindShortcutCapture() {
 
         if (!artConflict && !browserConflict) {
             const result = updateShortcut(currentAction, shortcut, { allowConflict: false });
-            if (!result.ok) return;
+            if (!result.ok) {
+                if (result.reason === 'conflict') {
+                    const conflictLabel = result.conflict?.label || 'another action';
+                    const conflictText = `${shortcut} is already assigned to ${conflictLabel}. Assign it anyway?`;
+                    conflictMessage.textContent = conflictText;
+                    writeStatus(conflictText);
+                    openSubDialog(conflictDialog, conflictAssign, pendingShortcutUpdate.input);
+                    conflictAssign.onclick = () => {
+                        const forceResult = updateShortcut(currentAction, shortcut, { allowConflict: true });
+                        closeSubDialog(true);
+                        if (!forceResult.ok) return;
+                        const actionLabel = getAssignableActions().find((item) => item.action === currentAction)?.label || 'action';
+                        refreshSettingsView();
+                        pendingShortcutUpdate = null;
+                        document.getElementById(`settings-shortcut-input-${currentAction}`)?.focus();
+                        writeStatus(`Shortcut changed. ${shortcut} is now assigned to ${actionLabel}.`);
+                    };
+                    conflictCancel.onclick = () => {
+                        closeSubDialog(true);
+                        refreshSettingsView();
+                        pendingShortcutUpdate = null;
+                        document.getElementById(`settings-shortcut-input-${currentAction}`)?.focus();
+                    };
+                }
+                return;
+            }
             const actionLabel = getAssignableActions().find((item) => item.action === currentAction)?.label || 'action';
             writeStatus(`Shortcut changed. ${shortcut} is now assigned to ${actionLabel}.`);
             refreshSettingsView();

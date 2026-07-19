@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ripplelearning.github.io/ART/schemas/art-template.schema.json",
+  "title": "ART Template File",
+  "description": "Portable ART template format (.artx)",
+  "type": "object",
+  "required": [
+    "format",
+    "formatVersion",
+    "schemaVersion",
+    "template"
+  ],
+  "properties": {
+    "format": {
+      "const": "ART Template"
+    },
+    "formatVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "template": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "reportType": {
+          "type": "string"
+        },
+        "reportLayout": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array"
+        },
+        "defaultStatus": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "metadata": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

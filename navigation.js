@@ -34,7 +34,11 @@ const shortcutControlMap = [
     { id: 'btn-done', action: 'done', label: 'Done' },
     { id: 's', action: 'focusLookup', label: 'WCAG search' },
     { id: 'reset-btn', action: 'resetLookup', label: 'Reset tool' },
-    { id: 'btn-open-report', action: 'openReport', label: 'Open existing report JSON file' },
+    { id: 'btn-open-report', action: 'openProject', label: 'Open ART project file' },
+    { id: 'btn-save-project', action: 'saveProject', label: 'Save ART project' },
+    { id: 'btn-save-project-as', action: 'saveProjectAs', label: 'Save ART project as' },
+    { id: 'btn-import-data', action: 'importData', label: 'Import data file' },
+    { id: 'btn-import-data', action: 'openReport', label: 'Import report JSON file' },
     { id: 'btn-new-report', action: 'newReport', label: 'New report' },
     { id: 'btn-help', action: 'openHelp', label: 'Help' },
     { id: 'top-tabs', action: 'focusNavigation', label: 'Navigation tablist' },
@@ -42,9 +46,9 @@ const shortcutControlMap = [
     { id: 'btn-settings-import-standard', action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
     { id: 'btn-settings-paste-standard', action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
     { id: 'btn-settings-google-workspace', action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
-        { id: 'btn-settings-google-import-report', action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive' },
-        { id: 'btn-settings-google-import-template', action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive' },
-        { id: 'btn-settings-google-import-standards-sheet', action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets' },
+    { id: 'btn-settings-google-import-report', action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive' },
+    { id: 'btn-settings-google-import-template', action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive' },
+    { id: 'btn-settings-google-import-standards-sheet', action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets' },
     { id: 'btn-settings-google-workspace', action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
     { id: 'settings-privacy-mode', action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
     { id: 'btn-settings-backup-now', action: 'settingsCreateBackup', label: 'Create Backup' }
@@ -400,7 +404,27 @@ export function initNavigation() {
         }
         if (action === 'openReport') {
             e.preventDefault();
+            document.getElementById('btn-import-data')?.click();
+            return;
+        }
+        if (action === 'openProject') {
+            e.preventDefault();
             document.getElementById('btn-open-report')?.click();
+            return;
+        }
+        if (action === 'saveProject') {
+            e.preventDefault();
+            document.getElementById('btn-save-project')?.click();
+            return;
+        }
+        if (action === 'saveProjectAs') {
+            e.preventDefault();
+            document.getElementById('btn-save-project-as')?.click();
+            return;
+        }
+        if (action === 'importData') {
+            e.preventDefault();
+            document.getElementById('btn-import-data')?.click();
             return;
         }
         if (action === 'newReport') {

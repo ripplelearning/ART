@@ -1,4 +1,4 @@
-import { getShortcutDefinitions } from './state.js';
+import { getShortcutDefinitions, getShortcutForAction } from './state.js';
 
 let welcomeShortcutSyncBound = false;
 
@@ -17,6 +17,14 @@ function getDynamicShortcutLines() {
         .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
     lines.push('Ctrl+Z / Ctrl+Shift+Z: Undo and redo');
+
+    const openBuilder = getShortcutForAction('openBuilder');
+    const newReport = getShortcutForAction('newReport');
+    const nextLandmark = getShortcutForAction('nextLandmark');
+    if (openBuilder) lines.push(`${openBuilder}: Open Builder`);
+    if (newReport) lines.push(`${newReport}: New Report`);
+    if (nextLandmark) lines.push(`${nextLandmark}: Next Landmark`);
+
     return lines;
 }
 

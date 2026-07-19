@@ -4,31 +4,42 @@ import {
     addAuditEntry,
     announce,
     appState,
+    createArtProjectPayload,
     createUserTemplateFromSelection,
     closeCurrentReportSession,
+    clearProjectRecoveryMark,
     computeReportMetrics,
     deleteUserTemplate,
     deleteReportById,
     getAuditEntries,
     getBuiltInTemplates,
     getGoogleWorkspaceConfig,
+    getProjectDocumentInfo,
+    getRecentProjectFiles,
     getRecentReports,
     getReportById,
     getSecurityConfig,
     getTemplateById,
     getUserTemplates,
+    hasUnsavedProjectChanges,
+    importArtProjectPayload,
     importReportWithConflictStrategy,
     importTemplateWithConflictStrategy,
     importArtJsonPayload,
     loadReportById,
     loadTemplate,
+    markProjectRecovered,
     reportNameExists,
     resetReportToBlank,
     saveState,
-    serializeTemplateJsonPayload,
+    serializeArtProjectPayload,
+    serializeArtxTemplatePayload,
     templateNameExists,
     upsertCurrentReport,
+    updateProjectDocumentInfo,
+    validateArtProjectPayload,
     validateArtJsonPayload,
+    validateArtxTemplatePayload,
     validateTemplateJsonPayload
 } from './state.js';
 
@@ -45,6 +56,26 @@ function moveFocusToBuilderHeading() {
 function moveFocusToEditorHeading() {
     const editorHeading = document.getElementById('editor-heading');
     if (editorHeading) editorHeading.focus();
+}
+
+let activeProjectFileHandle = null;
+
+function sanitizeFileName(name, fallback = 'ART Project') {
+    const safe = String(name || fallback).replace(/[\\/:*?"<>|]+/g, '-').trim();
+    return safe || fallback;
+}
+
+function buildProjectFileName() {
+    const current = getProjectDocumentInfo();
+    if (String(current.fileName || '').trim()) return current.fileName;
+    const title = String(appState.projectName || appState.reportTitle || 'ART Project').trim();
+    return `${sanitizeFileName(title, 'ART Project')}.art`;
+}
+
+async function writeTextToFileHandle(handle, text) {
+    const writable = await handle.createWritable();
+    await writable.write(String(text || ''));
+    await writable.close();
 }
 
 function buildTemplateOptions(selectEl) {
@@ -100,6 +131,9 @@ function getDialogFocusableElements(dialog) {
 export function renderDashboard() {
     const btnNew = document.getElementById('btn-new-report');
     const btnOpenReport = document.getElementById('btn-open-report');
+    const btnSaveProject = document.getElementById('btn-save-project');
+    const btnSaveProjectAs = document.getElementById('btn-save-project-as');
+    const btnImportData = document.getElementById('btn-import-data');
     const builderTab = document.getElementById('tab-builder');
     const editorTab = document.getElementById('tab-editor');
     const viewerTab = document.getElementById('tab-view');
@@ -149,7 +183,7 @@ export function renderDashboard() {
     const networkDetail = document.getElementById('network-activity-detail');
 
     if (
-        !btnNew || !btnOpenReport || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateImport || !btnTemplateExport || !templateStatus
+        !btnNew || !btnOpenReport || !btnSaveProject || !btnSaveProjectAs || !btnImportData || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateImport || !btnTemplateExport || !templateStatus
         || !deleteDialog || !deleteMessage || !btnDeleteYes || !btnDeleteNo
         || !createDialog || !createNameInput || !btnCreateSave || !btnCreateCancel
         || !editConfirmDialog || !editConfirmMessage || !btnEditYes || !btnEditNo
@@ -186,17 +220,25 @@ export function renderDashboard() {
     window.addEventListener('art-security-updated', renderNetworkActivityIndicator);
     window.addEventListener('art-google-workspace-updated', renderNetworkActivityIndicator);
 
-    const openReportInput = document.createElement('input');
-    openReportInput.type = 'file';
-    openReportInput.accept = '.json,application/json';
-    openReportInput.hidden = true;
-    openReportInput.tabIndex = -1;
-    openReportInput.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(openReportInput);
+    const openProjectInput = document.createElement('input');
+    openProjectInput.type = 'file';
+    openProjectInput.accept = '.art,application/json';
+    openProjectInput.hidden = true;
+    openProjectInput.tabIndex = -1;
+    openProjectInput.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(openProjectInput);
+
+    const importReportInput = document.createElement('input');
+    importReportInput.type = 'file';
+    importReportInput.accept = '.json,application/json';
+    importReportInput.hidden = true;
+    importReportInput.tabIndex = -1;
+    importReportInput.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(importReportInput);
 
     const importTemplateInput = document.createElement('input');
     importTemplateInput.type = 'file';
-    importTemplateInput.accept = '.json,application/json';
+    importTemplateInput.accept = '.artx,.json,application/json';
     importTemplateInput.hidden = true;
     importTemplateInput.tabIndex = -1;
     importTemplateInput.setAttribute('aria-hidden', 'true');
@@ -216,6 +258,9 @@ export function renderDashboard() {
     const reasonMap = {
         'invalid-json': 'File is not valid JSON.',
         'invalid-payload': 'JSON payload is not in ART format.',
+        'invalid-format': 'File is not an ART Project (.art) file.',
+        'missing-project-data': 'Project content is missing from the file.',
+        'missing-metadata': 'Project metadata is missing from the file.',
         'missing-required-header': 'ART header is missing or invalid.',
         'missing-integrity': 'ART integrity metadata is missing.',
         'missing-report-state': 'ART report data is missing.',
@@ -243,13 +288,187 @@ export function renderDashboard() {
         announce(text);
     };
 
-    btnOpenReport.addEventListener('click', () => {
-        openReportInput.value = '';
-        openReportInput.click();
+    const openProjectFromText = (fileText, selectedFileName = '') => {
+        const validation = validateArtProjectPayload(fileText);
+        if (!validation.isValid) {
+            const detail = reasonMap[validation.reason] || 'Project file does not match the ART project schema.';
+            reportPrecheckStatus(`Open failed for ${selectedFileName || 'project'}. ${detail}`);
+            return false;
+        }
+
+        const result = importArtProjectPayload(validation.payload);
+        if (!result.isValid) {
+            reportPrecheckStatus(`Open failed for ${selectedFileName || 'project'}. Project data could not be loaded.`);
+            return false;
+        }
+
+        const now = new Date().toISOString();
+        updateProjectDocumentInfo({
+            fileName: selectedFileName || buildProjectFileName(),
+            filePath: activeProjectFileHandle?.name ? activeProjectFileHandle.name : '',
+            createdAt: validation.payload.metadata.createdAt || now,
+            lastModifiedAt: validation.payload.metadata.lastModifiedAt || now,
+            createdWith: validation.payload.metadata.createdWith || '',
+            lastSavedWith: validation.payload.metadata.lastSavedWith || '',
+            hasRecoveredChanges: false,
+            recoveryLabel: ''
+        }, { action: 'Opened ART project file' });
+        clearProjectRecoveryMark();
+        reportPrecheckStatus(`Opened ${selectedFileName || 'project'} successfully.`);
+        rebuildRecentReports();
+        return true;
+    };
+
+    const runSaveProjectAs = async () => {
+        const payloadText = serializeArtProjectPayload();
+        const suggestedName = buildProjectFileName();
+        const now = new Date().toISOString();
+
+        if (typeof window.showSaveFilePicker === 'function') {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName,
+                    types: [{
+                        description: 'ART Project Files',
+                        accept: { 'application/json': ['.art'] }
+                    }]
+                });
+                if (!handle) return false;
+                await writeTextToFileHandle(handle, payloadText);
+                activeProjectFileHandle = handle;
+                updateProjectDocumentInfo({
+                    fileName: handle.name || suggestedName,
+                    filePath: '',
+                    createdAt: getProjectDocumentInfo().createdAt || now,
+                    lastModifiedAt: now,
+                    createdWith: getProjectDocumentInfo().createdWith || '',
+                    lastSavedWith: ''
+                }, { action: 'Saved ART project as file' });
+                saveState({ action: 'Saved ART project', markProjectSaved: true, recordHistory: false });
+                announce(`Project saved as ${handle.name || suggestedName}.`);
+                return true;
+            } catch (error) {
+                reportPrecheckStatus('Save As cancelled or failed. Your work remains in local recovery storage.');
+                return false;
+            }
+        }
+
+        try {
+            const blob = new Blob([payloadText], { type: 'application/json' });
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = suggestedName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(objectUrl);
+            updateProjectDocumentInfo({
+                fileName: suggestedName,
+                filePath: '',
+                createdAt: getProjectDocumentInfo().createdAt || now,
+                lastModifiedAt: now,
+                createdWith: getProjectDocumentInfo().createdWith || '',
+                lastSavedWith: ''
+            }, { action: 'Saved ART project as download' });
+            saveState({ action: 'Saved ART project', markProjectSaved: true, recordHistory: false });
+            announce(`Project saved as ${suggestedName}.`);
+            return true;
+        } catch (error) {
+            reportPrecheckStatus('Unable to save project. Your work has been preserved in recovery storage.');
+            return false;
+        }
+    };
+
+    const runSaveProject = async () => {
+        const payloadText = serializeArtProjectPayload();
+        const now = new Date().toISOString();
+        const currentProject = getProjectDocumentInfo();
+
+        if (activeProjectFileHandle) {
+            try {
+                await writeTextToFileHandle(activeProjectFileHandle, payloadText);
+                updateProjectDocumentInfo({
+                    fileName: activeProjectFileHandle.name || currentProject.fileName || buildProjectFileName(),
+                    lastModifiedAt: now,
+                    createdAt: currentProject.createdAt || now,
+                    createdWith: currentProject.createdWith || '',
+                    lastSavedWith: ''
+                }, { action: 'Saved ART project' });
+                saveState({ action: 'Saved ART project', markProjectSaved: true, recordHistory: false });
+                announce('Changes saved.');
+                return true;
+            } catch (error) {
+                reportPrecheckStatus('Unable to save changes. Please check storage permissions.');
+                return false;
+            }
+        }
+
+        return runSaveProjectAs();
+    };
+
+    const confirmProceedWithUnsavedChanges = async () => {
+        if (!hasUnsavedProjectChanges()) return true;
+        const saveNow = window.confirm('You have unsaved changes. Select OK to save before continuing, or Cancel to review your changes.');
+        if (!saveNow) return false;
+        return runSaveProject();
+    };
+
+    btnSaveProject.addEventListener('click', async () => {
+        await runSaveProject();
     });
 
-    openReportInput.addEventListener('change', async () => {
-        const selectedFile = openReportInput.files && openReportInput.files[0];
+    btnSaveProjectAs.addEventListener('click', async () => {
+        await runSaveProjectAs();
+    });
+
+    btnOpenReport.addEventListener('click', async () => {
+        const proceed = await confirmProceedWithUnsavedChanges();
+        if (!proceed) return;
+
+        if (typeof window.showOpenFilePicker === 'function') {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    multiple: false,
+                    types: [{
+                        description: 'ART Project Files',
+                        accept: { 'application/json': ['.art'] }
+                    }]
+                });
+                if (!handle) return;
+                const file = await handle.getFile();
+                const text = await file.text();
+                activeProjectFileHandle = handle;
+                openProjectFromText(text, file.name || handle.name || 'project.art');
+                return;
+            } catch (error) {
+                // Fallback to hidden input when picker is unavailable or cancelled.
+            }
+        }
+
+        openProjectInput.value = '';
+        openProjectInput.click();
+    });
+
+    openProjectInput.addEventListener('change', async () => {
+        const selectedFile = openProjectInput.files && openProjectInput.files[0];
+        if (!selectedFile) return;
+        try {
+            const fileText = await selectedFile.text();
+            activeProjectFileHandle = null;
+            openProjectFromText(fileText, selectedFile.name);
+        } catch (error) {
+            reportPrecheckStatus(`Open failed for ${selectedFile.name}. Could not read file.`);
+        }
+    });
+
+    btnImportData.addEventListener('click', () => {
+        importReportInput.value = '';
+        importReportInput.click();
+    });
+
+    importReportInput.addEventListener('change', async () => {
+        const selectedFile = importReportInput.files && importReportInput.files[0];
         if (!selectedFile) return;
 
         try {
@@ -257,7 +476,7 @@ export function renderDashboard() {
             const precheck = validateArtJsonPayload(fileText);
             if (!precheck.isValid) {
                 const detail = reasonMap[precheck.reason] || 'Unknown validation error.';
-                reportPrecheckStatus(`Precheck failed for ${selectedFile.name}. ${detail}`);
+                reportPrecheckStatus(`Import failed for ${selectedFile.name}. ${detail}`);
                 return;
             }
 
@@ -285,14 +504,21 @@ export function renderDashboard() {
                 pendingImportPayload = importState;
                 pendingImportFileName = selectedFile.name;
                 importConflictMessage.innerHTML = `A report named <strong>${importName}</strong> already exists.`;
-                openDialog(importConflictDialog, btnImportReplace, btnOpenReport);
+                openDialog(importConflictDialog, btnImportReplace, btnImportData);
                 return;
             }
 
             finalizeImport('copy');
         } catch (error) {
-            reportPrecheckStatus(`Precheck failed for ${selectedFile.name}. Could not read file.`);
+            reportPrecheckStatus(`Import failed for ${selectedFile.name}. Could not read file.`);
         }
+    });
+
+    window.addEventListener('beforeunload', (event) => {
+        if (!hasUnsavedProjectChanges()) return;
+        markProjectRecovered('Recovered changes are available.');
+        event.preventDefault();
+        event.returnValue = '';
     });
 
     const finalizeTemplateImport = (templatePayload, strategy) => {
@@ -313,7 +539,9 @@ export function renderDashboard() {
 
         try {
             const fileText = await selectedFile.text();
-            const validation = validateTemplateJsonPayload(fileText);
+            const validation = validateArtxTemplatePayload(fileText).isValid
+                ? validateArtxTemplatePayload(fileText)
+                : validateTemplateJsonPayload(fileText);
             if (!validation.isValid) {
                 const detail = templateReasonMap[validation.reason] || 'Unknown template validation error.';
                 reportTemplateStatus(`Template import failed for ${selectedFile.name}. ${detail}`);
@@ -352,12 +580,12 @@ export function renderDashboard() {
         }
 
         const safeName = String(selected.name || 'Template').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Template';
-        const payload = serializeTemplateJsonPayload(selected);
+        const payload = serializeArtxTemplatePayload(selected);
         const blob = new Blob([payload], { type: 'application/json' });
         const objectUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = objectUrl;
-        link.download = `${safeName}.template.json`;
+        link.download = `${safeName}.artx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -403,10 +631,27 @@ export function renderDashboard() {
 
     const rebuildRecentReports = () => {
         const reports = getRecentReports();
+        const recentProjects = getRecentProjectFiles();
+        const projectInfo = getProjectDocumentInfo();
         const currentSelection = appState.selectedReportId;
-        recentReportsSelect.innerHTML = reports.length > 0
-            ? `<option value="">No report selected</option>${reports.map((report) => `<option value="${report.id}">${report.name}</option>`).join('')}`
-            : '<option value="">No saved reports</option>';
+
+        const projectOptions = recentProjects.map((project) => {
+            const labelBase = project.filePath
+                ? `${project.fileName} - ${project.filePath}`
+                : project.fileName;
+            const recoverySuffix = project.status === 'recovered' ? ' - Recovered Changes Available' : '';
+            return `<option value="project:${project.id}">${labelBase}${recoverySuffix}</option>`;
+        });
+        if (projectInfo.hasRecoveredChanges) {
+            projectOptions.unshift(`<option value="project:recovery">${projectInfo.fileName || 'Unsaved ART Project'} - Recovered Changes Available</option>`);
+        }
+
+        const reportOptions = reports.map((report) => `<option value="${report.id}">${report.name}</option>`);
+        const emptyLabel = (projectOptions.length > 0 || reportOptions.length > 0)
+            ? 'No item selected'
+            : 'No recent projects or reports';
+
+        recentReportsSelect.innerHTML = `<option value="">${emptyLabel}</option>${projectOptions.join('')}${reportOptions.join('')}`;
 
         if (reports.length > 0) {
             const hasCurrent = reports.some((report) => report.id === currentSelection);
@@ -417,12 +662,13 @@ export function renderDashboard() {
             appState.selectedReportId = '';
         }
 
-        const hasSelection = Boolean(recentReportsSelect.value);
-        btnConfigureReport.disabled = !hasSelection;
-        btnEditReportDashboard.disabled = !hasSelection;
-        btnViewReportDashboard.disabled = !hasSelection;
-        btnDeleteReportDashboard.disabled = !hasSelection;
-        btnCloseActiveReport.disabled = !hasSelection;
+        const selected = String(recentReportsSelect.value || '');
+        const hasReportSelection = Boolean(selected) && !selected.startsWith('project:');
+        btnConfigureReport.disabled = !hasReportSelection;
+        btnEditReportDashboard.disabled = !hasReportSelection;
+        btnViewReportDashboard.disabled = !hasReportSelection;
+        btnDeleteReportDashboard.disabled = !hasReportSelection;
+        btnCloseActiveReport.disabled = !hasReportSelection;
         refreshReportMetrics();
     };
 
@@ -503,7 +749,7 @@ export function renderDashboard() {
                 pendingImportPayload = null;
                 pendingImportFileName = '';
                 closeDialog(activeDialog.dialog, true);
-                btnOpenReport.focus();
+                btnImportData.focus();
                 return;
             }
             if (activeDialog.dialog.id === 'template-import-conflict-dialog') {
@@ -751,20 +997,25 @@ export function renderDashboard() {
 
     const loadSelectedRecentReport = () => {
         const reportId = recentReportsSelect.value;
-        if (!reportId) return null;
+        if (!reportId || reportId.startsWith('project:')) return null;
         const loaded = loadReportById(reportId);
         return loaded;
     };
 
     recentReportsSelect.addEventListener('change', () => {
-        appState.selectedReportId = recentReportsSelect.value || '';
+        const selected = String(recentReportsSelect.value || '');
+        appState.selectedReportId = selected.startsWith('project:') ? '' : selected;
         saveState({ action: 'Selected dashboard report', recordHistory: false });
-        const hasSelection = Boolean(recentReportsSelect.value);
-        btnConfigureReport.disabled = !hasSelection;
-        btnEditReportDashboard.disabled = !hasSelection;
-        btnViewReportDashboard.disabled = !hasSelection;
-        btnDeleteReportDashboard.disabled = !hasSelection;
-        btnCloseActiveReport.disabled = !hasSelection;
+        const hasReportSelection = Boolean(selected) && !selected.startsWith('project:');
+        btnConfigureReport.disabled = !hasReportSelection;
+        btnEditReportDashboard.disabled = !hasReportSelection;
+        btnViewReportDashboard.disabled = !hasReportSelection;
+        btnDeleteReportDashboard.disabled = !hasReportSelection;
+        btnCloseActiveReport.disabled = !hasReportSelection;
+
+        if (selected.startsWith('project:')) {
+            announce('Recent project entry selected. Use Open ART Project to choose the project file from storage.');
+        }
         refreshReportMetrics();
     });
 
@@ -876,7 +1127,7 @@ export function renderDashboard() {
         pendingImportPayload = null;
         pendingImportFileName = '';
         closeDialog(importConflictDialog, true);
-        btnOpenReport.focus();
+        btnImportData.focus();
     });
 
     templateImportConfirm.addEventListener('click', () => {
@@ -943,7 +1194,7 @@ export function renderDashboard() {
         pendingImportPayload = null;
         pendingImportFileName = '';
         closeDialog(importConflictDialog, true);
-        btnOpenReport.focus();
+        btnImportData.focus();
     });
 
     templateImportConflictDialog.addEventListener('keydown', (event) => {
@@ -957,5 +1208,11 @@ export function renderDashboard() {
 
     window.addEventListener('art-reports-updated', rebuildRecentReports);
     window.addEventListener('art-state-restored', rebuildRecentReports);
+
+    const projectInfo = getProjectDocumentInfo();
+    if (projectInfo.hasRecoveredChanges || hasUnsavedProjectChanges()) {
+        markProjectRecovered(projectInfo.recoveryLabel || 'Recovered changes are available.');
+        announce(projectInfo.recoveryLabel || 'A previous unsaved version of this project was found.');
+    }
     rebuildRecentReports();
 }

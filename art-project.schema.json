@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ripplelearning.github.io/ART/schemas/art-project.schema.json",
+  "title": "ART Project File",
+  "description": "Portable editable ART project file format (.art)",
+  "type": "object",
+  "required": [
+    "format",
+    "formatVersion",
+    "schemaVersion",
+    "metadata",
+    "project"
+  ],
+  "properties": {
+    "format": {
+      "const": "ART Project"
+    },
+    "formatVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "formatVersion",
+        "schemaVersion",
+        "createdWith",
+        "lastSavedWith",
+        "createdAt",
+        "lastModifiedAt"
+      ],
+      "properties": {
+        "formatVersion": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "createdWith": {
+          "type": "string"
+        },
+        "lastSavedWith": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastModifiedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": true
+    },
+    "project": {
+      "type": "object",
+      "description": "ART-managed project data snapshot used to restore editing state.",
+      "properties": {
+        "reportTitle": { "type": "string" },
+        "projectName": { "type": "string" },
+        "reportType": { "type": "string" },
+        "reportLayout": { "type": "string" },
+        "fields": { "type": "array" },
+        "auditEntries": { "type": "array" },
+        "reports": { "type": "array" },
+        "userTemplates": { "type": "array" },
+        "userStandards": { "type": "array" },
+        "branding": { "type": "object" },
+        "shortcuts": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
