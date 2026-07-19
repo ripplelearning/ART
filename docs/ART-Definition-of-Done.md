@@ -115,6 +115,12 @@ Before completion, verify:
 - Accessibility requirements are reviewed.
 - Documentation is updated.
 
+Run project verification scripts before finalizing relevant feature work:
+
+- `powershell -ExecutionPolicy Bypass -File .\verify-epic13.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\verify-epic20.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\verify-all.ps1`
+
 ## Final Completion Review
 A feature is complete only when:
 
