@@ -259,6 +259,10 @@ export function renderDashboard() {
         'invalid-json': 'File is not valid JSON.',
         'invalid-payload': 'JSON payload is not in ART format.',
         'invalid-format': 'File is not an ART Project (.art) file.',
+        'missing-format-version': 'Project formatVersion is missing from the file header.',
+        'missing-schema-version': 'Project schemaVersion is missing from the file header.',
+        'unsupported-format-version': 'Project formatVersion is not supported by this ART version.',
+        'unsupported-schema-version': 'Project schemaVersion is not supported by this ART version.',
         'missing-project-data': 'Project content is missing from the file.',
         'missing-metadata': 'Project metadata is missing from the file.',
         'missing-required-header': 'ART header is missing or invalid.',
@@ -276,6 +280,8 @@ export function renderDashboard() {
     const templateReasonMap = {
         'invalid-json': 'Template file is not valid JSON.',
         'invalid-payload': 'Template payload is not in ART Template format.',
+        'missing-format-version': 'Template formatVersion is missing from the file header.',
+        'missing-schema-version': 'Template schemaVersion is missing from the file header.',
         'missing-template-header': 'Template version metadata is missing or unsupported.',
         'missing-template': 'Template object is missing from the file.',
         'missing-template-name': 'Template name is required.',
@@ -539,8 +545,9 @@ export function renderDashboard() {
 
         try {
             const fileText = await selectedFile.text();
-            const validation = validateArtxTemplatePayload(fileText).isValid
-                ? validateArtxTemplatePayload(fileText)
+            const artxValidation = validateArtxTemplatePayload(fileText);
+            const validation = artxValidation.isValid
+                ? artxValidation
                 : validateTemplateJsonPayload(fileText);
             if (!validation.isValid) {
                 const detail = templateReasonMap[validation.reason] || 'Unknown template validation error.';

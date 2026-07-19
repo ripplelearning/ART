@@ -1099,6 +1099,7 @@ const ART_TEMPLATE_WARNING = 'Warning: Do not edit. This file is used for import
 const ART_PROJECT_FORMAT_VERSION = '1.0';
 const ART_PROJECT_SCHEMA_VERSION = '1.0';
 const ART_TEMPLATE_FORMAT_VERSION = '1.0';
+const ART_TEMPLATE_SCHEMA_VERSION = '1.0';
 
 function cloneDeep(value) {
     return JSON.parse(JSON.stringify(value));
@@ -1187,6 +1188,10 @@ export function validateArtProjectPayload(input) {
 
     if (!payload || typeof payload !== 'object') return { isValid: false, reason: 'invalid-payload' };
     if (String(payload.format || '').trim() !== 'ART Project') return { isValid: false, reason: 'invalid-format' };
+    if (!String(payload.formatVersion || '').trim()) return { isValid: false, reason: 'missing-format-version' };
+    if (!String(payload.schemaVersion || '').trim()) return { isValid: false, reason: 'missing-schema-version' };
+    if (String(payload.formatVersion).trim() !== ART_PROJECT_FORMAT_VERSION) return { isValid: false, reason: 'unsupported-format-version' };
+    if (String(payload.schemaVersion).trim() !== ART_PROJECT_SCHEMA_VERSION) return { isValid: false, reason: 'unsupported-schema-version' };
     if (!payload.project || typeof payload.project !== 'object') return { isValid: false, reason: 'missing-project-data' };
     if (!payload.metadata || typeof payload.metadata !== 'object') return { isValid: false, reason: 'missing-metadata' };
 
@@ -1223,7 +1228,7 @@ export function createArtxTemplatePayload(template) {
     return {
         format: 'ART Template',
         formatVersion: ART_TEMPLATE_FORMAT_VERSION,
-        schemaVersion: '1.0',
+        schemaVersion: ART_TEMPLATE_SCHEMA_VERSION,
         metadata: {
             createdWith: getAppVersionLabel(),
             exportedAt: new Date().toISOString()
@@ -1254,6 +1259,10 @@ export function validateArtxTemplatePayload(input) {
 
     if (!payload || typeof payload !== 'object') return { isValid: false, reason: 'invalid-payload' };
     if (String(payload.format || '').trim() !== 'ART Template') return { isValid: false, reason: 'invalid-format' };
+    if (!String(payload.formatVersion || '').trim()) return { isValid: false, reason: 'missing-format-version' };
+    if (!String(payload.schemaVersion || '').trim()) return { isValid: false, reason: 'missing-schema-version' };
+    if (String(payload.formatVersion).trim() !== ART_TEMPLATE_FORMAT_VERSION) return { isValid: false, reason: 'missing-template-header' };
+    if (String(payload.schemaVersion).trim() !== ART_TEMPLATE_SCHEMA_VERSION) return { isValid: false, reason: 'missing-template-header' };
     if (!payload.template || typeof payload.template !== 'object') return { isValid: false, reason: 'missing-template' };
     if (!String(payload.template.name || '').trim()) return { isValid: false, reason: 'missing-template-name' };
     if (!payload.template.data || typeof payload.template.data !== 'object') return { isValid: false, reason: 'missing-template-data' };
