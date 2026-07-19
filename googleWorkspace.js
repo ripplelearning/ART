@@ -1,10 +1,13 @@
 import { canPerformExternalCommunication } from './state.js';
 
-const GOOGLE_WORKSPACE_REQUIRED_SCOPES = [
+const GOOGLE_WORKSPACE_BASE_SCOPES = [
     'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/spreadsheets.readonly'
+    'https://www.googleapis.com/auth/userinfo.email'
 ];
+
+const GOOGLE_WORKSPACE_OPTIONAL_SCOPES = {
+    sheetsRead: 'https://www.googleapis.com/auth/spreadsheets.readonly'
+};
 
 let activeAccessToken = '';
 
@@ -125,7 +128,21 @@ function buildDriveMultipartBody(metadata, blob, boundary) {
 }
 
 export function getRequiredGoogleWorkspaceScopes() {
-    return [...GOOGLE_WORKSPACE_REQUIRED_SCOPES];
+    return [...GOOGLE_WORKSPACE_BASE_SCOPES, GOOGLE_WORKSPACE_OPTIONAL_SCOPES.sheetsRead];
+}
+
+export function getGoogleWorkspaceBaseScopes() {
+    return [...GOOGLE_WORKSPACE_BASE_SCOPES];
+}
+
+export function getGoogleWorkspaceOptionalScopes() {
+    return { ...GOOGLE_WORKSPACE_OPTIONAL_SCOPES };
+}
+
+function normalizeScopes(scopes) {
+    const values = Array.isArray(scopes) ? scopes : [];
+    const deduped = new Set(values.map((scope) => String(scope || '').trim()).filter(Boolean));
+    return [...deduped];
 }
 
 export function hasGoogleWorkspaceAccessToken() {
@@ -199,12 +216,16 @@ export async function connectGoogleWorkspace(config = {}) {
     }
 
     const loginHint = String(config?.loginHint || '').trim();
+    const requestedScopes = normalizeScopes(config?.requestedScopes);
+    const effectiveScopes = requestedScopes.length > 0
+        ? normalizeScopes([...GOOGLE_WORKSPACE_BASE_SCOPES, ...requestedScopes])
+        : [...GOOGLE_WORKSPACE_BASE_SCOPES];
 
     return new Promise((resolve) => {
         try {
             const tokenClient = oauth2.initTokenClient({
                 client_id: clientId,
-                scope: GOOGLE_WORKSPACE_REQUIRED_SCOPES.join(' '),
+                scope: effectiveScopes.join(' '),
                 callback: (response) => {
                     if (response?.error) {
                         resolve(mapOAuthError(response));
@@ -217,6 +238,7 @@ export async function connectGoogleWorkspace(config = {}) {
             });
             tokenClient.requestAccessToken({
                 prompt: 'consent',
+                include_granted_scopes: true,
                 ...(loginHint ? { login_hint: loginHint } : {})
             });
         } catch (error) {

@@ -194,6 +194,9 @@
                     <li>Google Account Email: identify the connected account</li>
                 </ul>
                 <p id="settings-google-connection-status" role="status" aria-live="polite" aria-atomic="true">Not connected.</p>
+                <p id="settings-google-last-auth">Last authenticated: Not available</p>
+                <p id="settings-google-current-permissions">Current permissions: None granted</p>
+                <p id="settings-google-incremental-note">Additional permissions may be requested later only when you choose actions that need them.</p>
                 <div id="settings-google-connect-view" aria-labelledby="settings-google-connect-heading" hidden>
                     <h5 id="settings-google-connect-heading">Connect Google Account</h5>
                     <p id="settings-google-connect-help">Enter the Google account email to connect. You can replace this value at any time before connecting.</p>
@@ -218,6 +221,23 @@
                     <button id="btn-settings-google-import-report" type="button">Import Report from Google Drive...</button>
                     <button id="btn-settings-google-import-template" type="button">Import Template from Google Drive...</button>
                     <button id="btn-settings-google-import-standards-sheet" type="button">Import Standards from Google Sheets...</button>
+                </div>
+            </div>
+
+            <div id="settings-google-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-google-permission-heading" aria-describedby="settings-google-permission-desc" hidden>
+                <h4 id="settings-google-permission-heading">Review Google Permissions</h4>
+                <p id="settings-google-permission-desc">ART explains requested permissions before opening Google authorization. You control whether to continue or cancel.</p>
+                <p id="settings-google-permission-service">Service: Google Workspace</p>
+                <p id="settings-google-permission-why">Why this is needed: Connect your account and perform only the operation you selected.</p>
+                <h5>Permissions requested now</h5>
+                <ul id="settings-google-permission-scope-list" aria-label="Permissions requested now"></ul>
+                <h5>How ART will use this access</h5>
+                <ul id="settings-google-permission-usage-list" aria-label="How ART will use this access"></ul>
+                <p>ART will not access files you did not choose, delete Drive files, or share your data with third parties.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Permission dialog actions">
+                    <button id="btn-settings-google-permission-continue" type="button">Continue to Google Authorization</button>
+                    <button id="btn-settings-google-permission-cancel" type="button">Cancel</button>
+                    <button id="btn-settings-google-permission-learn-more" type="button">Learn More About Security and Privacy</button>
                 </div>
             </div>
 

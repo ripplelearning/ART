@@ -27,9 +27,14 @@ For official ART builds, configure this value in the release pipeline or build p
 - Ensure Privacy Mode can block all external communication paths.
 
 ## Current Scope Baseline
-Current implementation requests:
+Initial connection requests:
 - `https://www.googleapis.com/auth/drive.file`
 - `https://www.googleapis.com/auth/userinfo.email`
+
+Additional scopes are requested incrementally when the user selects features that require them.
+
+Current incremental scope usage:
+- `https://www.googleapis.com/auth/spreadsheets.readonly` only when importing standards from Google Sheets.
 
 ## Validation Checklist
 - Confirm users can connect and disconnect from Settings -> Integrations.

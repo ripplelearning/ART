@@ -148,10 +148,11 @@ function getHelpSections(rows) {
                 <p>If assigned in Keyboard Shortcut Manager, the Paste Standards As Table action can be opened directly with its configured shortcut.</p>
                 <p>Google Workspace integration is optional and does not block local report workflows when disconnected.</p>
                 <p>The Google Workspace integration flow does not require end users to configure OAuth client IDs, secrets, API keys, redirect URIs, or scopes.</p>
-                <p>Use Connect Google Workspace to start authorization, review requested permissions, confirm the connected account, and disconnect when needed.</p>
+                <p>Use Connect Google Workspace to start authorization, review requested permissions in ART before redirect, confirm the connected account, and disconnect when needed.</p>
                 <p>When disconnected, the Google modal shows an email field used for connect authorization. If a previously connected account exists, its email is prefilled and can be edited before reconnecting.</p>
                 <p>Use explicit Import actions in Settings > Integrations to import ART report JSON files and template JSON files from Google Drive, and to import standards tables from Google Sheets.</p>
                 <p>Google import workflows are user-initiated only and require an active connection with Privacy Mode disabled.</p>
+                <p>ART uses incremental authorization. Additional scopes are requested only when you choose features that need them, such as importing standards from Google Sheets.</p>
                 <p>Developer OAuth build configuration is isolated from user settings and documented separately for developers.</p>
                 <p>Shortcut assignments shown in this Help page are dynamically synced from your current settings.</p>
             `
@@ -166,6 +167,8 @@ function getHelpSections(rows) {
                     <li><strong>Non-Destructive Operation:</strong> ART does not automatically delete, rename, move, or overwrite external files.</li>
                     <li><strong>Data Ownership:</strong> Users retain ownership of data created, imported, exported, and managed in ART.</li>
                     <li><strong>External Integrations:</strong> Integrations require explicit user authorization and least-privilege permissions.</li>
+                    <li><strong>Permission Transparency:</strong> ART explains requested integration permissions before opening provider authorization pages.</li>
+                    <li><strong>Incremental Authorization:</strong> ART requests additional scopes only when you choose an action that needs them.</li>
                     <li><strong>Privacy Mode:</strong> Privacy Mode disables cloud connections and external integration activity.</li>
                     <li><strong>Backups and Restore:</strong> Backups contain ART-managed data only and remain under user control.</li>
                     <li><strong>Future Backup Encryption:</strong> ART plans optional encrypted backups for enterprise deployments and sensitive environments.</li>

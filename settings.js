@@ -45,8 +45,10 @@ import {
     downloadGoogleSheetAsTsv,
     disconnectGoogleWorkspace,
     extractGoogleDriveFileId,
-    getRequiredGoogleWorkspaceScopes
+    getGoogleWorkspaceBaseScopes,
 } from './googleWorkspace.js';
+
+const GOOGLE_SCOPE_SHEETS_READONLY = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 
 let isInitialized = false;
 let activeSubDialog = null;
@@ -502,12 +504,23 @@ function formatGoogleScopeLabel(scope) {
     return value;
 }
 
+function formatDateTime(value) {
+    const text = String(value || '').trim();
+    if (!text) return 'Not available';
+    const parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime())) return text;
+    return parsed.toLocaleString();
+}
+
 function renderGoogleWorkspaceSettings() {
     const launcherButton = document.getElementById('btn-settings-google-workspace');
     const statusSummary = document.getElementById('settings-google-status-summary');
     const privacyModeInput = document.getElementById('settings-privacy-mode');
     const privacyModeStatus = document.getElementById('settings-privacy-mode-status');
     const statusElement = document.getElementById('settings-google-connection-status');
+    const lastAuthElement = document.getElementById('settings-google-last-auth');
+    const currentPermissionsElement = document.getElementById('settings-google-current-permissions');
+    const incrementalNoteElement = document.getElementById('settings-google-incremental-note');
     const accountElement = document.getElementById('settings-google-account');
     const emailInput = document.getElementById('settings-google-email-input');
     const connectView = document.getElementById('settings-google-connect-view');
@@ -530,7 +543,7 @@ function renderGoogleWorkspaceSettings() {
     const restorePointSelect = document.getElementById('settings-restore-point-select');
     const diagnostics = document.getElementById('settings-security-diagnostics');
 
-    if (!launcherButton || !statusSummary || !privacyModeInput || !privacyModeStatus || !statusElement || !accountElement || !emailInput || !connectView || !disconnectView || !closeDisconnectButton || !scopeList || !connectButton || !disconnectButton || !importReportButton || !importTemplateButton || !importStandardsSheetButton) return;
+    if (!launcherButton || !statusSummary || !privacyModeInput || !privacyModeStatus || !statusElement || !lastAuthElement || !currentPermissionsElement || !incrementalNoteElement || !accountElement || !emailInput || !connectView || !disconnectView || !closeDisconnectButton || !scopeList || !connectButton || !disconnectButton || !importReportButton || !importTemplateButton || !importStandardsSheetButton) return;
 
     const config = getGoogleWorkspaceConfig();
     const security = getSecurityConfig();
@@ -548,7 +561,9 @@ function renderGoogleWorkspaceSettings() {
     privacyModeStatus.textContent = privacyModeEnabled
         ? 'Privacy Mode enabled. External integrations are blocked until disabled.'
         : 'Privacy Mode disabled.';
-    const scopes = getRequiredGoogleWorkspaceScopes();
+    const scopes = Array.isArray(config.scopes) && config.scopes.length > 0
+        ? config.scopes
+        : getGoogleWorkspaceBaseScopes();
     scopeList.innerHTML = scopes
         .map((scope) => `<li>${formatGoogleScopeLabel(scope)}</li>`)
         .join('');
@@ -565,6 +580,11 @@ function renderGoogleWorkspaceSettings() {
     importReportButton.disabled = privacyModeEnabled || !isConnected;
     importTemplateButton.disabled = privacyModeEnabled || !isConnected;
     importStandardsSheetButton.disabled = privacyModeEnabled || !isConnected;
+    lastAuthElement.textContent = `Last authenticated: ${formatDateTime(config.connectedAt)}`;
+    currentPermissionsElement.textContent = scopes.length > 0
+        ? `Current permissions: ${scopes.map((scope) => formatGoogleScopeLabel(scope)).join('; ')}`
+        : 'Current permissions: None granted';
+    incrementalNoteElement.textContent = 'Additional permissions may be requested only when you choose a feature that requires them.';
 
     if (googleIntegrationStatus) {
         googleIntegrationStatus.textContent = privacyModeEnabled
@@ -610,6 +630,14 @@ function bindGoogleWorkspaceSettings() {
     const emailInput = document.getElementById('settings-google-email-input');
     const connectButton = document.getElementById('btn-settings-google-connect');
     const disconnectButton = document.getElementById('btn-settings-google-disconnect');
+    const permissionDialog = document.getElementById('settings-google-permission-dialog');
+    const permissionService = document.getElementById('settings-google-permission-service');
+    const permissionWhy = document.getElementById('settings-google-permission-why');
+    const permissionScopeList = document.getElementById('settings-google-permission-scope-list');
+    const permissionUsageList = document.getElementById('settings-google-permission-usage-list');
+    const permissionContinueButton = document.getElementById('btn-settings-google-permission-continue');
+    const permissionCancelButton = document.getElementById('btn-settings-google-permission-cancel');
+    const permissionLearnMoreButton = document.getElementById('btn-settings-google-permission-learn-more');
     const importReportButton = document.getElementById('btn-settings-google-import-report');
     const importTemplateButton = document.getElementById('btn-settings-google-import-template');
     const importStandardsSheetButton = document.getElementById('btn-settings-google-import-standards-sheet');
@@ -622,7 +650,49 @@ function bindGoogleWorkspaceSettings() {
     const restorePointSelect = document.getElementById('settings-restore-point-select');
     const restorePointApplyButton = document.getElementById('btn-settings-restore-point-apply');
 
-    if (!launcherButton || !googleDialog || !closeButton || !closeDisconnectButton || !privacyModeInput || !accountElement || !emailInput || !connectButton || !disconnectButton || !importReportButton || !importTemplateButton || !importStandardsSheetButton || !backupAutoInput || !backupFrequencySelect || !backupRetentionInput || !backupNowButton || !restoreImportButton || !createRestorePointButton || !restorePointSelect || !restorePointApplyButton) return;
+    if (!launcherButton || !googleDialog || !closeButton || !closeDisconnectButton || !privacyModeInput || !accountElement || !emailInput || !connectButton || !disconnectButton || !permissionDialog || !permissionService || !permissionWhy || !permissionScopeList || !permissionUsageList || !permissionContinueButton || !permissionCancelButton || !permissionLearnMoreButton || !importReportButton || !importTemplateButton || !importStandardsSheetButton || !backupAutoInput || !backupFrequencySelect || !backupRetentionInput || !backupNowButton || !restoreImportButton || !createRestorePointButton || !restorePointSelect || !restorePointApplyButton) return;
+
+    const openPermissionDialog = ({ why, scopes, usageItems, trigger }) => new Promise((resolve) => {
+        permissionService.textContent = 'Service: Google Workspace';
+        permissionWhy.textContent = `Why this is needed: ${String(why || 'Connect your account and complete your selected action.')}`;
+        permissionScopeList.innerHTML = (Array.isArray(scopes) ? scopes : [])
+            .map((scope) => `<li>${formatGoogleScopeLabel(scope)}</li>`)
+            .join('');
+        permissionUsageList.innerHTML = (Array.isArray(usageItems) ? usageItems : [])
+            .map((item) => `<li>${String(item || '').trim()}</li>`)
+            .join('');
+
+        permissionContinueButton.onclick = () => {
+            closeSubDialog(false);
+            resolve(true);
+        };
+        permissionCancelButton.onclick = () => {
+            closeSubDialog(true);
+            resolve(false);
+        };
+        permissionLearnMoreButton.onclick = () => {
+            document.getElementById('btn-help')?.click();
+            writeStatus('Opened Help for Security and Privacy details.');
+        };
+
+        openSubDialog(permissionDialog, permissionContinueButton, trigger || connectButton);
+    });
+
+    const updateConnectionFromOAuthResult = (result, fallbackEmail, actionLabel = 'Connected Google Workspace') => {
+        updateGoogleWorkspaceConfig({
+            enabled: true,
+            status: 'connected',
+            connectedAt: result.connectedAt,
+            expiresAt: result.expiresAt,
+            scopes: result.scopes || getGoogleWorkspaceBaseScopes(),
+            accountEmail: result.accountEmail || fallbackEmail || '',
+            lastConnectedAccountEmail: result.accountEmail || fallbackEmail || '',
+            accountName: result.accountName || '',
+            lastError: ''
+        }, { action: actionLabel });
+        renderGoogleWorkspaceSettings();
+        renderAbout();
+    };
 
     const isGoogleConnected = () => String(getGoogleWorkspaceConfig().status || '').toLowerCase() === 'connected';
 
@@ -701,13 +771,33 @@ function bindGoogleWorkspaceSettings() {
             emailInput.focus();
             return;
         }
+        const initialScopes = getGoogleWorkspaceBaseScopes();
+        const approved = await openPermissionDialog({
+            why: 'Connect your Google account so ART can identify your account and manage ART-selected Drive files.',
+            scopes: initialScopes,
+            usageItems: [
+                'Connect to your Google account.',
+                'Create and update Google Drive files that you create or select using ART.',
+                'Identify the connected account email so status can be shown in ART.'
+            ],
+            trigger: connectButton
+        });
+        if (!approved) {
+            writeStatus('Google Workspace authorization cancelled by user.');
+            recordSecurityAudit('Google Workspace authorization cancelled', 'User cancelled pre-authorization permission dialog.');
+            return;
+        }
         const current = getGoogleWorkspaceConfig();
         updateGoogleWorkspaceConfig({ status: 'connecting', lastError: '', lastConnectedAccountEmail: loginEmail }, { action: 'Connecting Google Workspace' });
         setNetworkActivity('Authorization Required', 'Google Workspace connection requires user authorization.');
-        recordSecurityAudit('Google Workspace connect requested', 'User initiated connection flow.');
+        recordSecurityAudit('Google Workspace connect requested', 'User initiated connection flow after reviewing requested permissions.');
         renderGoogleWorkspaceSettings();
 
-        const result = await connectGoogleWorkspace({ ...current, loginHint: loginEmail });
+        const result = await connectGoogleWorkspace({
+            ...current,
+            loginHint: loginEmail,
+            requestedScopes: initialScopes
+        });
         if (!result.ok) {
             updateGoogleWorkspaceConfig({ status: 'error', lastError: result.lastError || 'Connection failed.' }, { action: 'Google Workspace connection failed' });
             setNetworkActivity('Connection Failed', result.lastError || 'Google Workspace connection failed.');
@@ -718,21 +808,9 @@ function bindGoogleWorkspaceSettings() {
             return;
         }
 
-        updateGoogleWorkspaceConfig({
-            enabled: true,
-            status: 'connected',
-            connectedAt: result.connectedAt,
-            expiresAt: result.expiresAt,
-            scopes: result.scopes || getRequiredGoogleWorkspaceScopes(),
-            accountEmail: result.accountEmail || '',
-            lastConnectedAccountEmail: result.accountEmail || loginEmail,
-            accountName: result.accountName || '',
-            lastError: ''
-        }, { action: 'Connected Google Workspace' });
+        updateConnectionFromOAuthResult(result, loginEmail, 'Connected Google Workspace');
         setNetworkActivity('Connected to Google Workspace', 'Google Workspace authorization is active.');
         recordSecurityAudit('Google Workspace connected', 'User authorized Google Workspace access.');
-        renderGoogleWorkspaceSettings();
-        renderAbout();
         writeStatus('Google Workspace connected.');
     });
 
@@ -847,6 +925,49 @@ function bindGoogleWorkspaceSettings() {
 
     importStandardsSheetButton.addEventListener('click', async () => {
         if (!ensureGoogleImportReady()) return;
+
+        const currentConnection = getGoogleWorkspaceConfig();
+        const currentScopes = Array.isArray(currentConnection.scopes) ? currentConnection.scopes : [];
+        if (!currentScopes.includes(GOOGLE_SCOPE_SHEETS_READONLY)) {
+            const approved = await openPermissionDialog({
+                why: 'Read spreadsheet rows only when you choose to import accessibility standards from Google Sheets.',
+                scopes: [GOOGLE_SCOPE_SHEETS_READONLY],
+                usageItems: [
+                    'Read values from the Google Sheet range you specify for standards import.',
+                    'Use spreadsheet data only to create or update standards inside ART.',
+                    'Keep all other Google Workspace actions unchanged unless you explicitly choose them.'
+                ],
+                trigger: importStandardsSheetButton
+            });
+            if (!approved) {
+                writeStatus('Google Sheets authorization cancelled by user.');
+                recordSecurityAudit('Google Sheets authorization cancelled', 'User cancelled incremental permission request.');
+                return;
+            }
+
+            updateGoogleWorkspaceConfig({ status: 'connecting', lastError: '' }, { action: 'Requesting Google Sheets permission' });
+            setNetworkActivity('Authorization Required', 'Google Sheets permission requires user authorization.');
+            renderGoogleWorkspaceSettings();
+
+            const permissionResult = await connectGoogleWorkspace({
+                ...currentConnection,
+                loginHint: currentConnection.accountEmail || currentConnection.lastConnectedAccountEmail || '',
+                requestedScopes: [...currentScopes, GOOGLE_SCOPE_SHEETS_READONLY]
+            });
+
+            if (!permissionResult.ok) {
+                updateGoogleWorkspaceConfig({ status: 'error', lastError: permissionResult.lastError || 'Permission request failed.' }, { action: 'Google Sheets permission request failed' });
+                setNetworkActivity('Connection Failed', permissionResult.lastError || 'Google Sheets permission request failed.');
+                recordSecurityAudit('Google Sheets permission request failed', permissionResult.lastError || 'Unknown error');
+                renderGoogleWorkspaceSettings();
+                writeStatus(permissionResult.lastError || 'Google Sheets permission request failed.');
+                return;
+            }
+
+            updateConnectionFromOAuthResult(permissionResult, currentConnection.accountEmail || currentConnection.lastConnectedAccountEmail || '', 'Google Sheets permission authorized');
+            setNetworkActivity('Connected to Google Workspace', 'Google Workspace authorization updated with incremental permissions.');
+            recordSecurityAudit('Google Sheets permission granted', 'User granted incremental Google Sheets read permission.');
+        }
 
         const sheetId = askForGoogleFileId('Enter Google Sheets spreadsheet ID or URL for standards import:');
         if (!sheetId) {
