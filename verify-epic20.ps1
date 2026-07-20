@@ -14,6 +14,14 @@ function Assert-All([string]$name, [string]$content, [string[]]$patterns, [strin
 	}
 }
 
+function Assert-NotContains([string]$name, [string]$content, [string[]]$patterns, [string]$message) {
+	foreach ($pattern in $patterns) {
+		if ($content -match $pattern) {
+			throw "FAIL: [$name] $message Unexpected pattern: $pattern"
+		}
+	}
+}
+
 $state = Read-Text 'state.js'
 $dashboard = Read-Text 'dashboard.js'
 $navigation = Read-Text 'navigation.js'
@@ -58,6 +66,28 @@ $checks += [pscustomobject]@{ Name = 'Template payload and validation contracts'
 		'unsupported-schema-version',
 		'export function serializeArtxTemplatePayload\('
 	) 'ARTX template payload validation contract is incomplete.'
+}}
+
+$checks += [pscustomobject]@{ Name = 'Portability privacy safeguards'; Script = {
+	Assert-All 'state.js' $state @(
+		'function createManagedDataSnapshot\(',
+		'Connection/account state is intentionally excluded so backup/restore'
+	) 'Managed snapshot safeguards are incomplete.'
+
+	$snapshotMatch = [regex]::Match($state, 'function createManagedDataSnapshot\(\)\s*\{[\s\S]*?\n\}', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+	if (-not $snapshotMatch.Success) {
+		throw 'FAIL: [state.js] Could not parse createManagedDataSnapshot body for privacy checks.'
+	}
+
+	$snapshotBody = $snapshotMatch.Value
+	Assert-NotContains 'state.js' $snapshotBody @(
+		'googleWorkspace',
+		'integrations',
+		'security\s*:',
+		'accountEmail',
+		'expiresAt',
+		'scopes'
+	) 'Managed snapshot includes profile-bound integration identity state.'
 }}
 
 $checks += [pscustomobject]@{ Name = 'Dashboard project workflow wiring'; Script = {
