@@ -47,11 +47,9 @@ const shortcutControlMap = [
     { id: 'btn-viewer-progress-log', action: 'openProgressLog', label: 'Open Progress Log' },
     { id: 'btn-settings-import-standard', action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
     { id: 'btn-settings-paste-standard', action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
-    { id: 'btn-settings-google-workspace', action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
-    { id: 'btn-settings-google-import-report', action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive' },
-    { id: 'btn-settings-google-import-template', action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive' },
-    { id: 'btn-settings-google-import-standards-sheet', action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets' },
-    { id: 'btn-settings-google-workspace', action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
+    { id: 'btn-settings-import-report-file', action: 'settingsImportReportFile', label: 'Import Report File from Device' },
+    { id: 'btn-settings-import-template-file', action: 'settingsImportTemplateFile', label: 'Import Template File from Device' },
+    { id: 'btn-app-settings', action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
     { id: 'settings-privacy-mode', action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
     { id: 'btn-settings-backup-now', action: 'settingsCreateBackup', label: 'Create Backup' }
 ];
@@ -530,16 +528,6 @@ export function initNavigation() {
             clickElementById('btn-settings-paste-standard');
             return;
         }
-        if (action === 'settingsGoogleConnect') {
-            e.preventDefault();
-            clickElementById('btn-settings-google-workspace');
-            return;
-        }
-        if (action === 'settingsGoogleDisconnect') {
-            e.preventDefault();
-            clickElementById('btn-settings-google-workspace');
-            return;
-        }
         if (action === 'settingsOpenIntegrations') {
             e.preventDefault();
             const integrationsHeading = document.getElementById('settings-integrations-heading');
@@ -548,22 +536,16 @@ export function initNavigation() {
                 if (!integrationsHeading.hasAttribute('tabindex')) integrationsHeading.setAttribute('tabindex', '-1');
                 integrationsHeading.focus();
             }
-            clickElementById('btn-settings-google-workspace');
             return;
         }
-        if (action === 'settingsGoogleImportReport') {
+        if (action === 'settingsImportReportFile') {
             e.preventDefault();
-            clickElementById('btn-settings-google-import-report');
+            clickElementById('btn-settings-import-report-file');
             return;
         }
-        if (action === 'settingsGoogleImportTemplate') {
+        if (action === 'settingsImportTemplateFile') {
             e.preventDefault();
-            clickElementById('btn-settings-google-import-template');
-            return;
-        }
-        if (action === 'settingsGoogleImportStandardsSheet') {
-            e.preventDefault();
-            clickElementById('btn-settings-google-import-standards-sheet');
+            clickElementById('btn-settings-import-template-file');
             return;
         }
         if (action === 'settingsTogglePrivacyMode') {

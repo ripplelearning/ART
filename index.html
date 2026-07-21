@@ -74,12 +74,16 @@
 
             <section aria-labelledby="settings-integrations-heading">
                 <h4 id="settings-integrations-heading">Integrations</h4>
-                <p id="settings-google-help">Google Workspace integration is optional and user-controlled. ART local workflows continue while disconnected.</p>
-                <p id="settings-google-status-summary" role="status" aria-live="polite" aria-atomic="true">Not connected.</p>
-                <p id="settings-google-summary-note">Connect your Google account to import and export reports, templates, and accessibility standards where supported.</p>
-                <button id="btn-settings-google-workspace" type="button">Connect Google Workspace</button>
+                <p id="settings-local-files-help">ART uses local and network-accessible file workflows for import, export, and project operations.</p>
+                <p id="settings-local-files-status-summary" role="status" aria-live="polite" aria-atomic="true">Local and network file workflows are available.</p>
+                <p id="settings-local-files-summary-note">Use these actions to import reports, templates, and standards from local or network file locations.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Local file import actions">
+                    <button id="btn-settings-import-report-file" type="button">Import Report File...</button>
+                    <button id="btn-settings-import-template-file" type="button">Import Template File...</button>
+                    <button id="btn-settings-import-standards-file" type="button">Import Standards File...</button>
+                </div>
                 <ul id="settings-integrations-list" aria-label="Configured integrations">
-                    <li><strong>Google Workspace:</strong> <span id="settings-integration-google-status">Not connected</span></li>
+                    <li><strong>Local Files:</strong> <span id="settings-integration-local-files-status">Available</span></li>
                     <li><strong>Jira:</strong> <span id="settings-integration-jira-status">Not connected</span></li>
                     <li><strong>GitHub Issues:</strong> <span id="settings-integration-github-status">Not connected</span></li>
                     <li><strong>Azure DevOps:</strong> <span id="settings-integration-azure-status">Not connected</span></li>
@@ -185,62 +189,6 @@
                 <div class="viewer-dialog-actions">
                     <button id="btn-settings-standard-json-save" type="button">Save JSON</button>
                     <button id="btn-settings-standard-json-cancel" type="button">Cancel</button>
-                </div>
-            </div>
-
-            <div id="settings-google-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-google-dialog-heading" aria-describedby="settings-google-dialog-desc" hidden>
-                <h4 id="settings-google-dialog-heading">Google Workspace</h4>
-                <p id="settings-google-dialog-desc">Use this dialog to connect or disconnect your Google account for explicit import and export workflows.</p>
-                <p id="settings-google-permissions-help">ART requests only minimum permissions for current Google Drive workflows and account identification.</p>
-                <ul id="settings-google-scope-list" aria-label="Google Workspace permissions requested">
-                    <li>Google Drive: create and manage ART-created files</li>
-                    <li>Google Account Email: identify the connected account</li>
-                </ul>
-                <p id="settings-google-connection-status" role="status" aria-live="polite" aria-atomic="true">Not connected.</p>
-                <p id="settings-google-last-auth">Last authenticated: Not available</p>
-                <p id="settings-google-current-permissions">Current permissions: None granted</p>
-                <p id="settings-google-incremental-note">Additional permissions may be requested later only when you choose actions that need them.</p>
-                <div id="settings-google-connect-view" aria-labelledby="settings-google-connect-heading" hidden>
-                    <h5 id="settings-google-connect-heading">Connect Google Account</h5>
-                    <p id="settings-google-connect-help">Enter the Google account email to connect. You can replace this value at any time before connecting.</p>
-                    <label for="settings-google-email-input">Google account email</label>
-                    <input id="settings-google-email-input" type="email" autocomplete="email" inputmode="email" placeholder="name@example.com" aria-describedby="settings-google-connect-help">
-                    <div class="viewer-dialog-actions" role="group" aria-label="Google Workspace connect actions">
-                        <button id="btn-settings-google-connect" type="button">Connect Google Workspace</button>
-                        <button id="btn-settings-google-close" type="button">Close</button>
-                    </div>
-                </div>
-                <div id="settings-google-disconnect-view" aria-labelledby="settings-google-disconnect-heading" hidden>
-                    <h5 id="settings-google-disconnect-heading">Connected Account</h5>
-                    <p id="settings-google-account">Connected account: Not connected</p>
-                    <div class="viewer-dialog-actions" role="group" aria-label="Google Workspace disconnect actions">
-                        <button id="btn-settings-google-disconnect" type="button">Disconnect Google Workspace</button>
-                        <button id="btn-settings-google-close-disconnect" type="button">Close</button>
-                    </div>
-                </div>
-                <h5 id="settings-google-import-heading">Google Import Workflows</h5>
-                <p id="settings-google-import-help">All imports are explicit and user-initiated. Enter a Google file ID or file URL when prompted.</p>
-                <div class="viewer-dialog-actions" role="group" aria-labelledby="settings-google-import-heading" aria-describedby="settings-google-import-help">
-                    <button id="btn-settings-google-import-report" type="button">Import Report from Google Drive...</button>
-                    <button id="btn-settings-google-import-template" type="button">Import Template from Google Drive...</button>
-                    <button id="btn-settings-google-import-standards-sheet" type="button">Import Standards from Google Sheets...</button>
-                </div>
-            </div>
-
-            <div id="settings-google-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-google-permission-heading" aria-describedby="settings-google-permission-desc" hidden>
-                <h4 id="settings-google-permission-heading">Review Google Permissions</h4>
-                <p id="settings-google-permission-desc">ART explains requested permissions before opening Google authorization. You control whether to continue or cancel.</p>
-                <p id="settings-google-permission-service">Service: Google Workspace</p>
-                <p id="settings-google-permission-why">Why this is needed: Connect your account and perform only the operation you selected.</p>
-                <h5>Permissions requested now</h5>
-                <ul id="settings-google-permission-scope-list" aria-label="Permissions requested now"></ul>
-                <h5>How ART will use this access</h5>
-                <ul id="settings-google-permission-usage-list" aria-label="How ART will use this access"></ul>
-                <p>ART will not access files you did not choose, delete Drive files, or share your data with third parties.</p>
-                <div class="viewer-dialog-actions" role="group" aria-label="Permission dialog actions">
-                    <button id="btn-settings-google-permission-continue" type="button">Continue to Google Authorization</button>
-                    <button id="btn-settings-google-permission-cancel" type="button">Cancel</button>
-                    <button id="btn-settings-google-permission-learn-more" type="button">Learn More About Security and Privacy</button>
                 </div>
             </div>
 

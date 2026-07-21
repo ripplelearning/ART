@@ -164,14 +164,9 @@ function getHelpSections(rows) {
             content: `
                 <p>Application Settings includes Keyboard Shortcut Manager, imported standards, the Paste Standards As Table workflow for clipboard tables, Security and Privacy controls, Integrations, Administrator Tools, and About metadata.</p>
                 <p>If assigned in Keyboard Shortcut Manager, the Paste Standards As Table action can be opened directly with its configured shortcut.</p>
-                <p>Google Workspace integration is optional and does not block local report workflows when disconnected.</p>
-                <p>The Google Workspace integration flow does not require end users to configure OAuth client IDs, secrets, API keys, redirect URIs, or scopes.</p>
-                <p>Use Connect Google Workspace to start authorization, review requested permissions in ART before redirect, confirm the connected account, and disconnect when needed.</p>
-                <p>When disconnected, the Google modal shows an email field used for connect authorization. If a previously connected account exists, its email is prefilled and can be edited before reconnecting.</p>
-                <p>Use explicit Import actions in Settings > Integrations to import ART report JSON files and template JSON files from Google Drive, and to import standards tables from Google Sheets.</p>
-                <p>Google import workflows are user-initiated only and require an active connection with Privacy Mode disabled.</p>
-                <p>ART uses incremental authorization. Additional scopes are requested only when you choose features that need them, such as importing standards from Google Sheets.</p>
-                <p>Developer OAuth build configuration is isolated from user settings and documented separately for developers.</p>
+                <p>Settings > Integrations provides local and network file import actions for reports, templates, and standards.</p>
+                <p>Import workflows are user-initiated and respect Privacy Mode.</p>
+                <p>No cloud account configuration is required for report and template management.</p>
                 <p>Shortcut assignments shown in this Help page are dynamically synced from your current settings.</p>
             `
         },
@@ -249,9 +244,8 @@ function getHelpSections(rows) {
                 <p>Open ART Project loads .art files, Save Project writes to the current .art file, and Save Project As creates a new .art file.</p>
                 <p>Import supports legacy report/template JSON and standards table workflows, including Settings-based standards import.</p>
                 <p>ART validates format headers and version fields during import. Files may be rejected when formatVersion or schemaVersion is missing or not supported by the current ART version.</p>
-                <p>When Google Workspace is connected, export can upload the ZIP package directly to Google Drive after explicit user approval.</p>
                 <p>ZIP exports include the selected output format, ART JSON payload, and an editable .art project file.</p>
-                <p>Google operations follow an explicit import/edit/export model and do not automatically synchronize or merge external documents.</p>
+                <p>Import and export workflows use local or network-accessible file locations selected by the user.</p>
                 <p>Export output reflects current report values and selected layout at export time.</p>
             `
         },

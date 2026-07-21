@@ -14,7 +14,6 @@ import {
     deleteReportById,
     getAuditEntries,
     getBuiltInTemplates,
-    getGoogleWorkspaceConfig,
     getProjectDocumentInfo,
     getRecentProjectFiles,
     getRecentReports,
@@ -197,19 +196,11 @@ export function renderDashboard() {
     const renderNetworkActivityIndicator = () => {
         if (!networkStatus || !networkDetail) return;
         const security = getSecurityConfig();
-        const google = getGoogleWorkspaceConfig();
         const privacyMode = Boolean(security.privacyModeEnabled);
-        const googleConnected = String(google.status || '').toLowerCase() === 'connected';
 
         if (privacyMode) {
             networkStatus.textContent = 'Privacy Mode Enabled';
             networkDetail.textContent = 'External integrations are blocked until Privacy Mode is disabled.';
-            return;
-        }
-
-        if (googleConnected) {
-            networkStatus.textContent = 'Connected to Google Workspace';
-            networkDetail.textContent = 'Google Workspace connection is active for user-initiated export actions.';
             return;
         }
 
@@ -219,7 +210,6 @@ export function renderDashboard() {
 
     renderNetworkActivityIndicator();
     window.addEventListener('art-security-updated', renderNetworkActivityIndicator);
-    window.addEventListener('art-google-workspace-updated', renderNetworkActivityIndicator);
 
     const openProjectInput = document.createElement('input');
     openProjectInput.type = 'file';

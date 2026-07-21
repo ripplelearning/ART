@@ -1,5 +1,4 @@
-import { appState, announce, canPerformExternalCommunication, getCurrentReportMetrics, getGoogleWorkspaceConfig, getProgressItems, isProgressLogAppendixEnabled, isProgressLogEnabled, recordSecurityAudit, saveState, serializeArtJsonPayload, serializeArtProjectPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
-import { uploadBlobToGoogleDrive } from './googleWorkspace.js';
+import { appState, announce, getCurrentReportMetrics, getProgressItems, isProgressLogAppendixEnabled, isProgressLogEnabled, recordSecurityAudit, saveState, serializeArtJsonPayload, serializeArtProjectPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
 import { formatWcagCriterionDisplay, getWcagCriterionByIdentifier, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { openProgressLogDialog } from './progressLog.js';
 
@@ -1277,57 +1276,12 @@ export function renderViewer() {
         const format = exportFormat.value;
         const fileNameInput = exportFileName.value.trim() || (appState.reportTitle || 'Report');
         const safeFileName = String(fileNameInput).replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Report';
-        const googleConfig = getGoogleWorkspaceConfig();
 
         try {
             await ensureExportLibraries(format);
             const exportConfig = await getExportConfig(format);
             const zipBlob = await buildZipExportBlob(safeFileName, exportConfig);
             const zipFileName = `${safeFileName}_Export.zip`;
-
-            if (String(googleConfig.status || '').toLowerCase() === 'connected') {
-                if (!canPerformExternalCommunication()) {
-                    const blocked = 'Privacy Mode is enabled. External integration export is blocked.';
-                    exportStatus.textContent = blocked;
-                    announce(blocked);
-                    recordSecurityAudit('Export blocked by Privacy Mode', `Target: Google Drive, format: ${format}`);
-                    return;
-                }
-
-                const approved = window.confirm(
-                    `Export requires external upload.\\n\\nWhat: ${zipFileName}\\nWhere: Google Drive\\nAccount: ${googleConfig.accountEmail || 'Connected Google account'}\\nWhy: User-initiated report export\\nAction: Upload ZIP package\\n\\nApprove this transfer?`
-                );
-                if (!approved) {
-                    exportStatus.textContent = 'External upload cancelled by user.';
-                    announce('External upload cancelled by user.');
-                    recordSecurityAudit('External upload cancelled', `Target: Google Drive, file: ${zipFileName}`);
-                    setNetworkActivity('Offline', 'External upload cancelled by user.');
-                    return;
-                }
-
-                exportStatus.textContent = 'Uploading export to Google Drive...';
-                setNetworkActivity('Authorization Required', 'Preparing user-approved upload to Google Drive.');
-                recordSecurityAudit('External upload approved', `Target: Google Drive, file: ${zipFileName}`);
-                const upload = await uploadBlobToGoogleDrive({
-                    blob: zipBlob,
-                    fileName: zipFileName,
-                    mimeType: 'application/zip'
-                });
-
-                if (!upload.ok) {
-                    throw new Error(upload.lastError || 'Google Drive upload failed.');
-                }
-
-                const successMessage = upload.webViewLink
-                    ? `Uploaded ${upload.fileName} to Google Drive.`
-                    : `Uploaded ${upload.fileName} to Google Drive.`;
-                exportStatus.textContent = successMessage;
-                announce(successMessage);
-                setNetworkActivity('Connected to Google Workspace', 'Last operation: user-approved upload to Google Drive.');
-                recordSecurityAudit('External upload completed', `Target: Google Drive, file: ${upload.fileName}`);
-                closeExportDialog(true);
-                return;
-            }
 
             const objectUrl = URL.createObjectURL(zipBlob);
             const link = document.createElement('a');

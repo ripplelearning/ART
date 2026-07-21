@@ -81,7 +81,6 @@ $checks += [pscustomobject]@{ Name = 'Portability privacy safeguards'; Script = 
 
 	$snapshotBody = $snapshotMatch.Value
 	Assert-NotContains 'state.js' $snapshotBody @(
-		'googleWorkspace',
 		'integrations',
 		'security\s*:',
 		'accountEmail',

@@ -63,8 +63,8 @@ Rules:
 - Users are never prompted for permissions tied to features they did not choose to use.
 
 Examples:
-- Google Sheets scope is requested only when the user starts a Google Sheets standards import.
-- Future Google Docs export scope is requested only when the user chooses Google Docs export.
+- Additional permissions are requested only when a user selects features that require them.
+- Features that do not require external access must remain fully available in local-first mode.
 
 ## Permission Explanation Dialog Requirements
 Before redirecting to a third-party provider authorization page, ART must show an accessible confirmation dialog that includes:
@@ -106,7 +106,6 @@ Disconnecting must:
 
 ## Integration Consistency Requirements
 This permission model applies to all current and future integrations, including:
-- Google Workspace
 - Jira
 - GitHub Issues
 - Azure DevOps
@@ -161,7 +160,6 @@ Only ART-managed application data may be reset or deleted from within ART.
 - Statuses should include:
   - Offline
   - Privacy Mode Enabled
-  - Connected to Google Workspace
   - Connected to Jira
   - Authorization Required
   - Connection Failed

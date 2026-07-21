@@ -83,11 +83,8 @@ const defaultState = {
         settingsRestoreShortcuts: '',
         settingsImportStandard: '',
         settingsPasteStandardTable: '',
-        settingsGoogleConnect: '',
-        settingsGoogleDisconnect: '',
-        settingsGoogleImportReport: '',
-        settingsGoogleImportTemplate: '',
-        settingsGoogleImportStandardsSheet: '',
+        settingsImportReportFile: '',
+        settingsImportTemplateFile: '',
         settingsOpenIntegrations: '',
         settingsTogglePrivacyMode: '',
         settingsCreateBackup: '',
@@ -110,17 +107,6 @@ const defaultState = {
         logoAltText: "",
         logoDecorative: false,
         logoFileName: ""
-    },
-    googleWorkspace: {
-        enabled: false,
-        status: 'disconnected',
-        accountEmail: "",
-        lastConnectedAccountEmail: "",
-        accountName: "",
-        connectedAt: "",
-        expiresAt: "",
-        scopes: [],
-        lastError: ""
     },
     integrations: {
         jira: {
@@ -280,29 +266,6 @@ function normalizeStandardValue(value) {
     return normalized || defaultState.standard;
 }
 
-function normalizeGoogleWorkspaceConfig(config) {
-    const source = config && typeof config === 'object' ? config : {};
-    const statusRaw = String(source.status || defaultState.googleWorkspace.status).trim().toLowerCase();
-    const allowedStatuses = new Set(['disconnected', 'connected', 'expired', 'error', 'connecting']);
-    const status = allowedStatuses.has(statusRaw) ? statusRaw : defaultState.googleWorkspace.status;
-
-    return {
-        ...defaultState.googleWorkspace,
-        ...source,
-        enabled: Boolean(source.enabled),
-        status,
-        accountEmail: String(source.accountEmail || ''),
-        lastConnectedAccountEmail: String(source.lastConnectedAccountEmail || ''),
-        accountName: String(source.accountName || ''),
-        connectedAt: String(source.connectedAt || ''),
-        expiresAt: String(source.expiresAt || ''),
-        scopes: Array.isArray(source.scopes)
-            ? source.scopes.map((scope) => String(scope || '').trim()).filter(Boolean)
-            : [],
-        lastError: String(source.lastError || '')
-    };
-}
-
 function normalizeIntegrationStatus(value) {
     const status = String(value || 'disconnected').trim().toLowerCase();
     const allowed = new Set(['disconnected', 'connected', 'authorization-required', 'connection-failed']);
@@ -441,11 +404,8 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'settingsRestoreShortcuts', label: 'Restore Default Shortcuts', defaultShortcut: defaultState.shortcuts.settingsRestoreShortcuts },
     { action: 'settingsImportStandard', label: 'Import Accessibility Standard', defaultShortcut: defaultState.shortcuts.settingsImportStandard },
     { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table', defaultShortcut: defaultState.shortcuts.settingsPasteStandardTable },
-    { action: 'settingsGoogleConnect', label: 'Connect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleConnect },
-    { action: 'settingsGoogleDisconnect', label: 'Disconnect Google Workspace', defaultShortcut: defaultState.shortcuts.settingsGoogleDisconnect },
-    { action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive', defaultShortcut: defaultState.shortcuts.settingsGoogleImportReport },
-    { action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive', defaultShortcut: defaultState.shortcuts.settingsGoogleImportTemplate },
-    { action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets', defaultShortcut: defaultState.shortcuts.settingsGoogleImportStandardsSheet },
+    { action: 'settingsImportReportFile', label: 'Import Report File from Device', defaultShortcut: defaultState.shortcuts.settingsImportReportFile },
+    { action: 'settingsImportTemplateFile', label: 'Import Template File from Device', defaultShortcut: defaultState.shortcuts.settingsImportTemplateFile },
     { action: 'settingsOpenIntegrations', label: 'Open Integrations Section', defaultShortcut: defaultState.shortcuts.settingsOpenIntegrations },
     { action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode', defaultShortcut: defaultState.shortcuts.settingsTogglePrivacyMode },
     { action: 'settingsCreateBackup', label: 'Create Backup', defaultShortcut: defaultState.shortcuts.settingsCreateBackup },
@@ -551,11 +511,8 @@ export function getAssignableActions() {
         { action: 'settingsRestoreShortcuts', label: 'Restore Default Shortcuts' },
         { action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
         { action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
-        { action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
-        { action: 'settingsGoogleDisconnect', label: 'Disconnect Google Workspace' },
-        { action: 'settingsGoogleImportReport', label: 'Import Report from Google Drive' },
-        { action: 'settingsGoogleImportTemplate', label: 'Import Template from Google Drive' },
-        { action: 'settingsGoogleImportStandardsSheet', label: 'Import Standards from Google Sheets' },
+        { action: 'settingsImportReportFile', label: 'Import Report File from Device' },
+        { action: 'settingsImportTemplateFile', label: 'Import Template File from Device' },
         { action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
         { action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
         { action: 'settingsCreateBackup', label: 'Create Backup' },
@@ -818,7 +775,6 @@ export let appState = {
     userStandards: normalizedInitialUserStandards,
     importedStandards: normalizeImportedStandards(storedState.importedStandards),
     spellUserDictionary: normalizeSpellUserDictionary(storedState.spellUserDictionary),
-    googleWorkspace: normalizeGoogleWorkspaceConfig(storedState.googleWorkspace),
     integrations: normalizeIntegrationsConfig(storedState.integrations),
     projectDocument: normalizeProjectDocumentConfig(storedState.projectDocument),
     recentProjectFiles: normalizeRecentProjectFiles(storedState.recentProjectFiles),
@@ -842,7 +798,6 @@ function normalizeStateSnapshot(rawState) {
         branding: normalizeBranding(base.branding),
         standard: normalizeStandardValue(base.standard),
         shortcuts: normalizeShortcuts(base.shortcuts),
-        googleWorkspace: normalizeGoogleWorkspaceConfig(base.googleWorkspace),
         integrations: normalizeIntegrationsConfig(base.integrations),
         projectDocument: normalizeProjectDocumentConfig(base.projectDocument),
         recentProjectFiles: normalizeRecentProjectFiles(base.recentProjectFiles),
@@ -2196,7 +2151,6 @@ export function resetAllApplicationData() {
     window.dispatchEvent(new Event('art-reports-updated'));
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-accessibility-standards-updated'));
-    window.dispatchEvent(new Event('art-google-workspace-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
     window.dispatchEvent(new CustomEvent('art-standard-changed', {
         detail: { standard: appState.standard }
@@ -2206,9 +2160,6 @@ export function resetAllApplicationData() {
 export function getApplicationInfo() {
     return {
         ...APP_INFO,
-        googleWorkspace: {
-            ...normalizeGoogleWorkspaceConfig(appState.googleWorkspace)
-        },
         security: {
             ...normalizeSecurityConfig(appState.security)
         },
@@ -2221,53 +2172,6 @@ export function getApplicationInfo() {
             criteriaCount: Array.isArray(standard.criteria) ? standard.criteria.length : 0
         }))
     };
-}
-
-export function getGoogleWorkspaceConfig() {
-    return normalizeGoogleWorkspaceConfig(appState.googleWorkspace);
-}
-
-export function updateGoogleWorkspaceConfig(updates = {}, options = {}) {
-    const next = normalizeGoogleWorkspaceConfig({
-        ...appState.googleWorkspace,
-        ...(updates && typeof updates === 'object' ? updates : {})
-    });
-
-    appState.googleWorkspace = next;
-
-    if (options.persist !== false) {
-        saveState({ action: String(options.action || 'Updated Google Workspace settings') });
-    }
-    window.dispatchEvent(new Event('art-google-workspace-updated'));
-    return next;
-}
-
-export function setGoogleWorkspaceConnection(connection = {}) {
-    const next = normalizeGoogleWorkspaceConfig({
-        ...appState.googleWorkspace,
-        ...connection
-    });
-    appState.googleWorkspace = next;
-    saveState({ action: 'Updated Google Workspace connection' });
-    window.dispatchEvent(new Event('art-google-workspace-updated'));
-    return next;
-}
-
-export function clearGoogleWorkspaceConnection() {
-    const next = normalizeGoogleWorkspaceConfig({
-        ...appState.googleWorkspace,
-        status: 'disconnected',
-        accountEmail: '',
-        accountName: '',
-        connectedAt: '',
-        expiresAt: '',
-        scopes: [],
-        lastError: ''
-    });
-    appState.googleWorkspace = next;
-    saveState({ action: 'Disconnected Google Workspace' });
-    window.dispatchEvent(new Event('art-google-workspace-updated'));
-    return next;
 }
 
 function createManagedDataSnapshot() {
@@ -2319,7 +2223,6 @@ function applyManagedDataSnapshot(snapshot) {
     window.dispatchEvent(new Event('art-reports-updated'));
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-accessibility-standards-updated'));
-    window.dispatchEvent(new Event('art-google-workspace-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
 }
 
