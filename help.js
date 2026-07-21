@@ -141,6 +141,24 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-progress-log-workflow',
+            title: 'Progress Log Workflow',
+            content: `
+                <p>The Progress Log is an optional workflow for Audit Log reports that keeps internal evaluation tracking separate from report findings.</p>
+                <p>Enable the Progress Log in Builder, then open it from Editor or Viewer to manage evaluation items, status updates, findings counts, and assignment details.</p>
+                <p>When Appendix output is enabled, the Progress Log can be included in exported report packages as a separate reference section.</p>
+            `
+        },
+        {
+            id: 'help-evaluation-item-selection',
+            title: 'Evaluation Item Selection Box',
+            content: `
+                <p>The Evaluation Item Selection Box field type lets a report field point to a Progress Log evaluation item by name.</p>
+                <p>Use it when a field should reference one of the current Progress Log items instead of a freeform value.</p>
+                <p>The available choices stay synchronized with the current Progress Log entries for the active report.</p>
+            `
+        },
+        {
             id: 'help-settings-config',
             title: 'Settings and Configuration',
             content: `
@@ -235,6 +253,15 @@ function getHelpSections(rows) {
                 <p>ZIP exports include the selected output format, ART JSON payload, and an editable .art project file.</p>
                 <p>Google operations follow an explicit import/edit/export model and do not automatically synchronize or merge external documents.</p>
                 <p>Export output reflects current report values and selected layout at export time.</p>
+            `
+        },
+        {
+            id: 'help-progress-log-appendix',
+            title: 'Progress Log Appendix',
+            content: `
+                <p>The Progress Log Appendix summarizes the active evaluation items that were attached to the report when export was generated.</p>
+                <p>This appendix is optional and can be enabled from the Builder when the Progress Log is turned on.</p>
+                <p>The appendix helps reviewers keep track of evaluation progress without mixing that workflow data into the report findings themselves.</p>
             `
         },
         {

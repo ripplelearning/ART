@@ -1,5 +1,5 @@
 // reportBuilder.js
-import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport } from './state.js';
+import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let pendingFocus = null;
@@ -13,6 +13,7 @@ function getFieldTypeLabel(type) {
     const normalizedType = normalizeFieldType(type);
     if (normalizedType === 'textarea') return 'Textarea';
     if (normalizedType === 'dropdown') return 'Dropdown';
+    if (normalizedType === 'evaluation-item-selection') return 'Evaluation Item Selection Box';
     if (isWcagCriterionFieldType(normalizedType)) return 'WCAG Success Criterion';
     return 'Text';
 }
@@ -143,6 +144,52 @@ function buildTemplateSelectionMarkup() {
     return sections.join('');
 }
 
+function buildProgressItemRows(typeSuggestions, statusOptions) {
+    const items = getProgressItems();
+    if (items.length === 0) {
+        return '<p>No evaluation items have been added yet.</p>';
+    }
+
+    return `
+        <div class="progress-log-config-list" role="list" aria-label="Progress log evaluation items">
+            ${items.map((item, index) => `
+                <fieldset class="progress-log-config-item" data-progress-item-id="${escapeHtml(item.id)}">
+                    <legend>Evaluation Item ${index + 1}</legend>
+                    <label>Evaluation Item Name
+                        <input type="text" data-progress-field="name" value="${escapeHtml(item.name)}">
+                    </label>
+                    <label>Type
+                        <input type="text" data-progress-field="type" list="progress-item-type-options" value="${escapeHtml(item.type)}">
+                    </label>
+                    <label>URL/Location
+                        <input type="text" data-progress-field="location" value="${escapeHtml(item.location)}">
+                    </label>
+                    <label>Status
+                        <select data-progress-field="status" aria-describedby="builder-select-help">
+                            ${statusOptions.map((status) => `<option value="${escapeHtml(status)}" ${item.status === status ? 'selected' : ''}>${escapeHtml(status)}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label>Assigned Tester
+                        <input type="text" data-progress-field="assignedTester" value="${escapeHtml(item.assignedTester)}">
+                    </label>
+                    <label>Findings Count
+                        <input type="number" min="0" step="1" data-progress-field="findingsCount" value="${escapeHtml(item.findingsCount)}">
+                    </label>
+                    <label>Notes
+                        <textarea data-progress-field="notes">${escapeHtml(item.notes)}</textarea>
+                    </label>
+                    <p>Started: ${escapeHtml(item.dateStarted || 'Not started')}</p>
+                    <p>Completed: ${escapeHtml(item.dateCompleted || 'Not completed')}</p>
+                    <button type="button" data-progress-action="remove">Remove Evaluation Item</button>
+                </fieldset>
+            `).join('')}
+        </div>
+        <datalist id="progress-item-type-options">
+            ${typeSuggestions.map((type) => `<option value="${escapeHtml(type)}"></option>`).join('')}
+        </datalist>
+    `;
+}
+
 function showDeleteDialog(index) {
     pendingDelete = {
         index,
@@ -223,6 +270,10 @@ export async function renderBuilder() {
             : [];
     const showTemplateSection = appState.reportLayout === 'Template' && !!appState.reportType;
     const branding = getBrandingState();
+    const progressTypeSuggestions = getDefaultProgressItemTypes();
+    const progressItemNames = getProgressItemNames();
+    const progressStatusOptions = getProgressStatuses();
+    const showProgressLogConfig = appState.reportType === 'Audit Log' && appState.progressLogEnabled;
 
     container.innerHTML = `
         <section id="builder-view" aria-labelledby="builder-heading">
@@ -320,6 +371,7 @@ export async function renderBuilder() {
                     <option value="text" ${editType === 'text' ? 'selected' : ''}>Text</option>
                     <option value="textarea" ${editType === 'textarea' ? 'selected' : ''}>Textarea</option>
                     <option value="dropdown" ${editType === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                    <option value="evaluation-item-selection" ${editType === 'evaluation-item-selection' ? 'selected' : ''}>Evaluation Item Selection Box</option>
                     <option value="wcag-success-criterion" ${isWcagCriterionFieldType(editType) ? 'selected' : ''}>WCAG Success Criterion</option>
                 </select>
                 <div id="dropdown-options-container" ${editType === 'dropdown' ? '' : 'hidden'}>
@@ -334,6 +386,15 @@ export async function renderBuilder() {
                         ${wcagCriteria.map((criterion) => `<option>${escapeHtml(`${criterion.number} ${criterion.title}`)}</option>`).join('')}
                     </select>
                 </div>
+                <div id="progress-item-options-container" ${editType === 'evaluation-item-selection' ? '' : 'hidden'}>
+                    <label for="progress-item-options-preview">Evaluation Item Preview</label>
+                    <p id="progress-item-options-help">The Report Editor will populate this field from current Progress Log evaluation item names only.</p>
+                    <select id="progress-item-options-preview" size="6" aria-describedby="progress-item-options-help" disabled>
+                        ${progressItemNames.length > 0
+                            ? progressItemNames.map((name) => `<option>${escapeHtml(name)}</option>`).join('')
+                            : '<option>No evaluation items available</option>'}
+                    </select>
+                </div>
                 <table>
                     <thead><tr><th scope="col">Field Label</th><th scope="col">Field Type</th><th scope="col">Actions</th></tr></thead>
                     <tbody id="fields-tbody"></tbody>
@@ -345,6 +406,24 @@ export async function renderBuilder() {
                     <button id="btn-delete-no" type="button">No</button>
                 </div>
             </section>
+            ${appState.reportType === 'Audit Log' ? `
+                <section id="progress-log-builder-region" aria-labelledby="progress-log-builder-heading">
+                    <h3 id="progress-log-builder-heading">Progress Log Configuration</h3>
+                    <label class="branding-toggle">
+                        <input type="checkbox" id="progress-log-enabled" ${appState.progressLogEnabled ? 'checked' : ''}>
+                        Enable Progress Log
+                    </label>
+                    ${showProgressLogConfig ? `
+                        <label class="branding-toggle">
+                            <input type="checkbox" id="progress-log-appendix-enabled" ${appState.progressLogAppendixEnabled ? 'checked' : ''}>
+                            Include Progress Log Appendix
+                        </label>
+                        <p>Evaluation item workflow data remains separate from audit findings and can be included as an appendix in Report Viewer and exports.</p>
+                        <button id="btn-progress-item-add" type="button">Add Evaluation Item</button>
+                        ${buildProgressItemRows(progressTypeSuggestions, progressStatusOptions)}
+                    ` : '<p>Progress Log is optional. Enable it to manage evaluation items for this Audit Log.</p>'}
+                </section>
+            ` : ''}
             ${appState.templateEditingId ? '<button id="btn-save-template-changes" type="button">Apply Template Changes</button>' : ''}
             <button id="btn-done" type="button">Done</button>
         </section>
@@ -499,16 +578,75 @@ export async function renderBuilder() {
     if (reportTypeSelect) {
         setupSelectAnnouncement(reportTypeSelect, 'Report Type');
         reportTypeSelect.addEventListener('change', (e) => {
+            const nextReportType = e.target.value;
             appState.reportType = e.target.value;
             appState.reportLayout = '';
             appState.templateOption = '';
             appState.templateName = '';
             appState.templateDescription = '';
+            if (nextReportType === 'Audit Log') {
+                appState.progressLogEnabled = true;
+                appState.progressLogAppendixEnabled = true;
+            } else {
+                appState.progressLogEnabled = false;
+                appState.progressLogAppendixEnabled = false;
+            }
             saveState();
             pendingFocus = { index: null, action: 'report-type-select' };
             renderBuilder();
         });
     }
+
+    const progressLogEnabled = document.getElementById('progress-log-enabled');
+    if (progressLogEnabled) {
+        progressLogEnabled.addEventListener('change', (event) => {
+            updateProgressLogSettings({ progressLogEnabled: event.target.checked }, { action: 'Updated progress log enabled setting' });
+            pendingFocus = { index: null, action: 'progress-log-enabled' };
+            renderBuilder();
+        });
+    }
+
+    const progressLogAppendixEnabled = document.getElementById('progress-log-appendix-enabled');
+    if (progressLogAppendixEnabled) {
+        progressLogAppendixEnabled.addEventListener('change', (event) => {
+            updateProgressLogSettings({ progressLogAppendixEnabled: event.target.checked }, { action: 'Updated progress log appendix setting' });
+        });
+    }
+
+    const addProgressItemButton = document.getElementById('btn-progress-item-add');
+    if (addProgressItemButton) {
+        addProgressItemButton.addEventListener('click', () => {
+            const created = addProgressItem({ type: progressTypeSuggestions[0], status: progressStatusOptions[0] });
+            announce(`Added evaluation item ${getProgressItems().length}.`);
+            renderBuilder();
+            pendingFocus = { index: null, action: '' };
+            window.setTimeout(() => {
+                const target = document.querySelector(`[data-progress-item-id="${created.id}"] [data-progress-field="name"]`);
+                target?.focus();
+            }, 0);
+        });
+    }
+
+    container.querySelectorAll('[data-progress-item-id]').forEach((fieldset) => {
+        const itemId = fieldset.getAttribute('data-progress-item-id');
+        if (!itemId) return;
+
+        fieldset.querySelectorAll('[data-progress-field]').forEach((input) => {
+            const fieldName = input.getAttribute('data-progress-field');
+            const eventName = input.tagName.toLowerCase() === 'select' ? 'change' : 'input';
+            input.addEventListener(eventName, (event) => {
+                const nextValue = event.target.type === 'number' ? Number(event.target.value || 0) : event.target.value;
+                updateProgressItem(itemId, { [fieldName]: nextValue });
+            });
+        });
+
+        fieldset.querySelector('[data-progress-action="remove"]')?.addEventListener('click', () => {
+            const removed = removeProgressItem(itemId);
+            if (!removed) return;
+            announce(`Removed evaluation item ${removed.name || ''}`.trim());
+            renderBuilder();
+        });
+    });
 
     const reportLayoutSelect = document.getElementById('report-layout-select');
     if (reportLayoutSelect) {
@@ -569,11 +707,13 @@ export async function renderBuilder() {
     const fieldTypeInput = document.getElementById('field-type-input');
     const dropdownOptionsContainer = document.getElementById('dropdown-options-container');
     const wcagOptionsContainer = document.getElementById('wcag-options-container');
-    if (fieldTypeInput && dropdownOptionsContainer && wcagOptionsContainer) {
+    const progressItemOptionsContainer = document.getElementById('progress-item-options-container');
+    if (fieldTypeInput && dropdownOptionsContainer && wcagOptionsContainer && progressItemOptionsContainer) {
         setupSelectAnnouncement(fieldTypeInput, 'Field Type');
         const commitFieldType = () => {
             dropdownOptionsContainer.hidden = fieldTypeInput.value !== 'dropdown';
             wcagOptionsContainer.hidden = !isWcagCriterionFieldType(fieldTypeInput.value);
+            progressItemOptionsContainer.hidden = fieldTypeInput.value !== 'evaluation-item-selection';
         };
         fieldTypeInput.addEventListener('change', (e) => {
             appState.fieldsExpanded = true;

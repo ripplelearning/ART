@@ -16,6 +16,9 @@ const defaultState = {
     templateOption: "",
     templateName: "",
     templateDescription: "",
+    progressLogEnabled: false,
+    progressLogAppendixEnabled: false,
+    progressItems: [],
     fields: [],
     editingIndex: -1,
     editorUsesReportTitle: false,
@@ -49,6 +52,7 @@ const defaultState = {
         openBuilder: 'Alt+Shift+U',
         openEditor: 'Alt+Shift+E',
         openViewer: 'Alt+Shift+V',
+        openProgressLog: 'Alt+Shift+P',
         focusLookup: 'Alt+Shift+L',
         addField: 'Alt+Shift+F',
         done: 'Alt+Shift+O',
@@ -173,9 +177,76 @@ const reportDefaults = {
     templateOption: defaultState.templateOption,
     templateName: defaultState.templateName,
     templateDescription: defaultState.templateDescription,
+    progressLogEnabled: defaultState.progressLogEnabled,
+    progressLogAppendixEnabled: defaultState.progressLogAppendixEnabled,
+    progressItems: defaultState.progressItems,
     fields: defaultState.fields,
     branding: defaultState.branding
 };
+
+const DEFAULT_PROGRESS_ITEM_TYPES = ['Page', 'Screen', 'Component', 'Flow', 'Document'];
+const DEFAULT_PROGRESS_STATUSES = [
+    'Not Started',
+    'In Progress',
+    'On Hold',
+    'Blocked',
+    'Needs Review',
+    'Retest Required',
+    'Not Applicable',
+    'Complete'
+];
+
+function normalizeProgressLogEnabled(value, reportType) {
+    if (String(reportType || '').trim() !== 'Audit Log') return false;
+    return value !== false;
+}
+
+function normalizeProgressLogAppendixEnabled(value, reportType) {
+    if (String(reportType || '').trim() !== 'Audit Log') return false;
+    return value !== false;
+}
+
+function normalizeProgressItemType(value) {
+    const text = String(value || '').trim();
+    return text || DEFAULT_PROGRESS_ITEM_TYPES[0];
+}
+
+function normalizeProgressItemStatus(value) {
+    const text = String(value || '').trim();
+    return DEFAULT_PROGRESS_STATUSES.includes(text) ? text : 'Not Started';
+}
+
+function normalizeIsoDateTime(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+}
+
+function normalizeProgressItem(item, index) {
+    const status = normalizeProgressItemStatus(item?.status);
+    const started = normalizeIsoDateTime(item?.dateStarted);
+    const completed = normalizeIsoDateTime(item?.dateCompleted);
+    const findingsCount = Number(item?.findingsCount);
+
+    return {
+        id: String(item?.id || `progress-${Date.now()}-${index}`),
+        name: String(item?.name || item?.evaluationItemName || '').trim(),
+        type: normalizeProgressItemType(item?.type),
+        location: String(item?.location || item?.url || item?.urlLocation || '').trim(),
+        status,
+        notes: String(item?.notes || '').trim(),
+        findingsCount: Number.isFinite(findingsCount) ? Math.max(0, Math.round(findingsCount)) : 0,
+        assignedTester: String(item?.assignedTester || '').trim(),
+        dateStarted: status !== 'Not Started' && status !== 'Not Applicable' ? (started || new Date().toISOString()) : '',
+        dateCompleted: status === 'Complete' ? (completed || new Date().toISOString()) : ''
+    };
+}
+
+function normalizeProgressItems(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map((item, index) => normalizeProgressItem(item, index));
+}
 
 function normalizeBranding(branding) {
     const toBool = (value) => {
@@ -339,6 +410,7 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'openBuilder', label: 'Open Report Builder tab', defaultShortcut: defaultState.shortcuts.openBuilder },
     { action: 'openEditor', label: 'Open Report Editor tab', defaultShortcut: defaultState.shortcuts.openEditor },
     { action: 'openViewer', label: 'Open Report Viewer tab', defaultShortcut: defaultState.shortcuts.openViewer },
+    { action: 'openProgressLog', label: 'Open Progress Log', defaultShortcut: defaultState.shortcuts.openProgressLog },
     { action: 'focusLookup', label: 'Focus Accessibility Lookup search', defaultShortcut: defaultState.shortcuts.focusLookup },
     { action: 'addField', label: 'Add field in Report Builder', defaultShortcut: defaultState.shortcuts.addField },
     { action: 'done', label: 'Complete Builder and move to Editor', defaultShortcut: defaultState.shortcuts.done },
@@ -448,6 +520,7 @@ export function getAssignableActions() {
         { action: 'openBuilder', label: 'Open Report Builder tab' },
         { action: 'openEditor', label: 'Open Report Editor tab' },
         { action: 'openViewer', label: 'Open Report Viewer tab' },
+        { action: 'openProgressLog', label: 'Open Progress Log' },
         { action: 'focusLookup', label: 'Focus Accessibility Lookup search' },
         { action: 'addField', label: 'Add field in Report Builder' },
         { action: 'done', label: 'Complete Builder and move to Editor' },
@@ -669,6 +742,8 @@ function normalizeSavedReport(report, index) {
     const fields = Array.isArray(rawData.fields) ? rawData.fields.map(normalizeField) : [];
     const editorFieldValues = normalizeEditorFieldValues(rawData.editorFieldValues);
     const auditEntries = normalizeAuditEntries(rawData.auditEntries, fields, editorFieldValues);
+    const reportType = String(rawData.reportType || reportDefaults.reportType);
+    const progressItems = normalizeProgressItems(rawData.progressItems);
 
     return {
         id: String(report?.id || `report-${Date.now()}-${index}`),
@@ -678,6 +753,9 @@ function normalizeSavedReport(report, index) {
             ...reportDefaults,
             ...rawData,
             branding: normalizeBranding(rawData.branding),
+            progressLogEnabled: normalizeProgressLogEnabled(rawData.progressLogEnabled, reportType),
+            progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(rawData.progressLogAppendixEnabled, reportType),
+            progressItems,
             fields,
             editorFieldValues,
             auditEntries,
@@ -728,6 +806,9 @@ export let appState = {
     ...storedState,
     standard: normalizeStandardValue(storedState.standard),
     branding: normalizeBranding(storedState.branding),
+    progressLogEnabled: normalizeProgressLogEnabled(storedState.progressLogEnabled, storedState.reportType),
+    progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(storedState.progressLogAppendixEnabled, storedState.reportType),
+    progressItems: normalizeProgressItems(storedState.progressItems),
     fields: normalizedInitialFields,
     editorFieldValues: normalizedInitialEditorValues,
     auditEntries: normalizeAuditEntries(storedState.auditEntries, normalizedInitialFields, normalizedInitialEditorValues),
@@ -755,6 +836,7 @@ function normalizeStateSnapshot(rawState) {
     };
     const fields = Array.isArray(base.fields) ? base.fields.map(normalizeField) : [];
     const editorFieldValues = normalizeEditorFieldValues(base.editorFieldValues);
+    const reportType = String(base.reportType || defaultState.reportType);
     return {
         ...base,
         branding: normalizeBranding(base.branding),
@@ -769,6 +851,9 @@ function normalizeStateSnapshot(rawState) {
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
+        progressLogEnabled: normalizeProgressLogEnabled(base.progressLogEnabled, reportType),
+        progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(base.progressLogAppendixEnabled, reportType),
+        progressItems: normalizeProgressItems(base.progressItems),
         fields,
         editorFieldValues,
         auditEntries: normalizeAuditEntries(base.auditEntries, fields, editorFieldValues),
@@ -823,6 +908,9 @@ function getCurrentReportSnapshotData() {
         templateOption: appState.templateOption,
         templateName: appState.templateName,
         templateDescription: appState.templateDescription,
+        progressLogEnabled: appState.progressLogEnabled,
+        progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
+        progressItems: normalizeProgressItems(appState.progressItems),
         branding: normalizeBranding(appState.branding),
         fields: appState.fields.map((field) => normalizeField(field)),
         editorFieldValues: normalizeEditorFieldValues(appState.editorFieldValues),
@@ -1004,16 +1092,23 @@ function captureCurrentReportData() {
         templateOption: appState.templateOption,
         templateName: appState.templateName,
         templateDescription: appState.templateDescription,
+        progressLogEnabled: appState.progressLogEnabled,
+        progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
+        progressItems: normalizeProgressItems(appState.progressItems),
         branding: normalizeBranding(appState.branding),
         fields: appState.fields.map((field) => normalizeField(field))
     };
 }
 
 function applyReportData(data) {
+    const reportType = String(data?.reportType || reportDefaults.reportType);
     const normalized = {
         ...reportDefaults,
         ...(data || {}),
         branding: normalizeBranding(data?.branding),
+        progressLogEnabled: normalizeProgressLogEnabled(data?.progressLogEnabled, reportType),
+        progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(data?.progressLogAppendixEnabled, reportType),
+        progressItems: normalizeProgressItems(data?.progressItems),
         fields: Array.isArray(data?.fields) ? data.fields.map(normalizeField) : []
     };
 
@@ -1711,6 +1806,172 @@ export function getAllAccessibilityStandardNames() {
     return [...new Set([...builtIns, ...imported])];
 }
 
+export function getProgressStatuses() {
+    return [...DEFAULT_PROGRESS_STATUSES];
+}
+
+export function getDefaultProgressItemTypes() {
+    return [...DEFAULT_PROGRESS_ITEM_TYPES];
+}
+
+export function isProgressLogAvailable() {
+    return String(appState.reportType || '').trim() === 'Audit Log';
+}
+
+export function isProgressLogEnabled() {
+    return isProgressLogAvailable() && Boolean(appState.progressLogEnabled);
+}
+
+export function isProgressLogAppendixEnabled() {
+    return isProgressLogEnabled() && Boolean(appState.progressLogAppendixEnabled);
+}
+
+export function getProgressItems() {
+    return normalizeProgressItems(appState.progressItems);
+}
+
+export function getProgressItemNames() {
+    const seen = new Set();
+    return getProgressItems()
+        .map((item) => String(item.name || '').trim())
+        .filter((name) => {
+            if (!name) return false;
+            const key = name.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+}
+
+export function updateProgressLogSettings(updates = {}, options = {}) {
+    const nextEnabled = normalizeProgressLogEnabled(
+        Object.prototype.hasOwnProperty.call(updates, 'progressLogEnabled') ? updates.progressLogEnabled : appState.progressLogEnabled,
+        appState.reportType
+    );
+    const nextAppendix = normalizeProgressLogAppendixEnabled(
+        Object.prototype.hasOwnProperty.call(updates, 'progressLogAppendixEnabled') ? updates.progressLogAppendixEnabled : appState.progressLogAppendixEnabled,
+        appState.reportType
+    );
+
+    appState.progressLogEnabled = nextEnabled;
+    appState.progressLogAppendixEnabled = nextEnabled ? nextAppendix : false;
+    appState.progressItems = nextEnabled ? normalizeProgressItems(appState.progressItems) : normalizeProgressItems(appState.progressItems);
+    saveState({ action: String(options.action || 'Updated progress log settings') });
+    window.dispatchEvent(new Event('art-progress-log-updated'));
+    return {
+        progressLogEnabled: appState.progressLogEnabled,
+        progressLogAppendixEnabled: appState.progressLogAppendixEnabled
+    };
+}
+
+function syncProgressItemDates(item, nextStatus) {
+    const status = normalizeProgressItemStatus(nextStatus);
+    const started = normalizeIsoDateTime(item?.dateStarted);
+    return {
+        ...item,
+        status,
+        dateStarted: status !== 'Not Started' && status !== 'Not Applicable' ? (started || new Date().toISOString()) : '',
+        dateCompleted: status === 'Complete' ? (normalizeIsoDateTime(item?.dateCompleted) || new Date().toISOString()) : ''
+    };
+}
+
+export function addProgressItem(seed = {}) {
+    const item = normalizeProgressItem(seed, appState.progressItems.length);
+    appState.progressItems = [...getProgressItems(), item];
+    saveState({ action: `Added evaluation item ${item.name || appState.progressItems.length}` });
+    window.dispatchEvent(new Event('art-progress-log-updated'));
+    return item;
+}
+
+export function updateProgressItem(itemId, updates = {}) {
+    const targetId = String(itemId || '').trim();
+    let updatedItem = null;
+    appState.progressItems = getProgressItems().map((item, index) => {
+        if (item.id !== targetId) return item;
+        const merged = normalizeProgressItem({ ...item, ...updates, id: item.id }, index);
+        updatedItem = syncProgressItemDates(merged, merged.status);
+        return updatedItem;
+    });
+    if (!updatedItem) return null;
+    saveState({ action: `Updated evaluation item ${updatedItem.name || updatedItem.id}` });
+    window.dispatchEvent(new Event('art-progress-log-updated'));
+    return updatedItem;
+}
+
+export function updateProgressItemStatus(itemId, status) {
+    const targetId = String(itemId || '').trim();
+    let updatedItem = null;
+    appState.progressItems = getProgressItems().map((item) => {
+        if (item.id !== targetId) return item;
+        updatedItem = syncProgressItemDates(item, status);
+        return updatedItem;
+    });
+    if (!updatedItem) return null;
+    saveState({ action: `Updated evaluation item status ${updatedItem.name || updatedItem.id}` });
+    window.dispatchEvent(new Event('art-progress-log-updated'));
+    return updatedItem;
+}
+
+export function removeProgressItem(itemId) {
+    const targetId = String(itemId || '').trim();
+    const existing = getProgressItems();
+    const removed = existing.find((item) => item.id === targetId) || null;
+    if (!removed) return null;
+    appState.progressItems = existing.filter((item) => item.id !== targetId);
+    saveState({ action: `Removed evaluation item ${removed.name || removed.id}` });
+    window.dispatchEvent(new Event('art-progress-log-updated'));
+    return removed;
+}
+
+export function getProgressLogMetrics(report = null) {
+    const source = report ? normalizeStateSnapshot(getReportDataFromSnapshot(report)) : appState;
+    const items = normalizeProgressItems(source.progressItems);
+    if (String(source.reportType || '').trim() !== 'Audit Log' || !Boolean(source.progressLogEnabled) || items.length === 0) {
+        return {
+            totalEvaluationItems: 0,
+            completed: 0,
+            testingCompletionPercent: 0,
+            inProgress: 0,
+            onHold: 0,
+            blocked: 0,
+            needsReview: 0,
+            retestRequired: 0,
+            notApplicable: 0
+        };
+    }
+
+    const counts = {
+        'In Progress': 0,
+        'On Hold': 0,
+        Blocked: 0,
+        'Needs Review': 0,
+        'Retest Required': 0,
+        'Not Applicable': 0,
+        Complete: 0
+    };
+
+    items.forEach((item) => {
+        const status = normalizeProgressItemStatus(item.status);
+        if (Object.prototype.hasOwnProperty.call(counts, status)) {
+            counts[status] += 1;
+        }
+    });
+
+    const total = items.length;
+    const completed = counts.Complete;
+    return {
+        totalEvaluationItems: total,
+        completed,
+        testingCompletionPercent: total > 0 ? Math.round((completed / total) * 100) : 0,
+        inProgress: counts['In Progress'],
+        onHold: counts['On Hold'],
+        blocked: counts.Blocked,
+        needsReview: counts['Needs Review'],
+        retestRequired: counts['Retest Required'],
+        notApplicable: counts['Not Applicable']
+    };
+}
+
 export function validateAccessibilityStandardPayload(input) {
     let payload;
     if (typeof input === 'string') {
@@ -2028,6 +2289,9 @@ function createManagedDataSnapshot() {
         templateOption: appState.templateOption,
         templateName: appState.templateName,
         templateDescription: appState.templateDescription,
+        progressLogEnabled: appState.progressLogEnabled,
+        progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
+        progressItems: appState.progressItems,
         fields: appState.fields,
         editorFieldValues: appState.editorFieldValues,
         auditEntries: appState.auditEntries,
@@ -2284,6 +2548,9 @@ export function clearReportEverythingInSession() {
     appState.templateOption = defaultState.templateOption;
     appState.templateName = defaultState.templateName;
     appState.templateDescription = defaultState.templateDescription;
+    appState.progressLogEnabled = defaultState.progressLogEnabled;
+    appState.progressLogAppendixEnabled = defaultState.progressLogAppendixEnabled;
+    appState.progressItems = [];
     appState.fields = [];
     appState.editorFieldValues = {};
     appState.auditEntries = [];
@@ -2312,6 +2579,9 @@ export function closeCurrentReportSession() {
     appState.templateOption = defaultState.templateOption;
     appState.templateName = defaultState.templateName;
     appState.templateDescription = defaultState.templateDescription;
+    appState.progressLogEnabled = defaultState.progressLogEnabled;
+    appState.progressLogAppendixEnabled = defaultState.progressLogAppendixEnabled;
+    appState.progressItems = [];
     appState.fieldsExpanded = defaultState.fieldsExpanded;
     appState.fields = [];
     appState.editingIndex = -1;
@@ -2506,6 +2776,18 @@ export function validateCurrentReport() {
                     issues.push({
                         code: `invalid-dropdown-${entryIndex}-${fieldIndex}`,
                         message: `${label} contains an invalid value for entry ${entryIndex + 1}.`,
+                        targetType: 'entry-field',
+                        target: `editor-field-${entryIndex}-${fieldIndex}`
+                    });
+                }
+            }
+
+            if (type === 'evaluation-item-selection') {
+                const allowed = getProgressItemNames();
+                if (allowed.length > 0 && !allowed.includes(String(rawValue))) {
+                    issues.push({
+                        code: `invalid-evaluation-item-${entryIndex}-${fieldIndex}`,
+                        message: `${label} must reference an available Progress Log evaluation item for entry ${entryIndex + 1}.`,
                         targetType: 'entry-field',
                         target: `editor-field-${entryIndex}-${fieldIndex}`
                     });

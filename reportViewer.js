@@ -1,6 +1,7 @@
-import { appState, announce, canPerformExternalCommunication, getCurrentReportMetrics, getGoogleWorkspaceConfig, recordSecurityAudit, saveState, serializeArtJsonPayload, serializeArtProjectPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
+import { appState, announce, canPerformExternalCommunication, getCurrentReportMetrics, getGoogleWorkspaceConfig, getProgressItems, isProgressLogAppendixEnabled, isProgressLogEnabled, recordSecurityAudit, saveState, serializeArtJsonPayload, serializeArtProjectPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
 import { uploadBlobToGoogleDrive } from './googleWorkspace.js';
 import { formatWcagCriterionDisplay, getWcagCriterionByIdentifier, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { openProgressLogDialog } from './progressLog.js';
 
 let openExportDialogOnRender = false;
 let openPrintPreviewOnRender = false;
@@ -163,6 +164,67 @@ function getResolvedFieldEntries(hideEmpty = true) {
     return getResolvedFieldEntriesForValues(appState.editorFieldValues || {}, hideEmpty);
 }
 
+function getProgressAppendixItems() {
+    return isProgressLogAppendixEnabled() ? getProgressItems() : [];
+}
+
+function buildProgressAppendixText() {
+    const items = getProgressAppendixItems();
+    if (items.length === 0) return '';
+
+    const lines = ['Progress Log Appendix'];
+    const instructions = String(appState.testingInstructions || '').trim();
+    if (instructions) {
+        lines.push(`Testing Instructions: ${instructions}`);
+    }
+    items.forEach((item) => {
+        const name = String(item.name || 'Untitled Evaluation Item').trim() || 'Untitled Evaluation Item';
+        const location = String(item.location || '').trim();
+        lines.push(location ? `${name}: ${location}` : name);
+    });
+    return lines.join('\n');
+}
+
+function buildProgressAppendixMarkdown() {
+    const items = getProgressAppendixItems();
+    if (items.length === 0) return '';
+
+    const lines = ['## Progress Log Appendix'];
+    const instructions = String(appState.testingInstructions || '').trim();
+    if (instructions) {
+        lines.push(`- **Testing Instructions:** ${instructions}`);
+    }
+    items.forEach((item) => {
+        const name = String(item.name || 'Untitled Evaluation Item').trim() || 'Untitled Evaluation Item';
+        const location = String(item.location || '').trim();
+        lines.push(location ? `- **${name}:** ${location}` : `- **${name}**`);
+    });
+    return lines.join('\n');
+}
+
+function renderProgressAppendixHtmlSection() {
+    const items = getProgressAppendixItems();
+    if (items.length === 0) return '';
+
+    return `
+        <section aria-labelledby="viewer-progress-appendix-heading">
+            <h2 id="viewer-progress-appendix-heading">Progress Log Appendix</h2>
+            ${String(appState.testingInstructions || '').trim() ? `<p><strong>Testing Instructions:</strong> ${escapeHtml(appState.testingInstructions)}</p>` : ''}
+            <ul>
+                ${items.map((item) => {
+                    const name = escapeHtml(item.name || 'Untitled Evaluation Item');
+                    const location = String(item.location || '').trim();
+                    if (/^https?:/i.test(location)) {
+                        return `<li><a href="${escapeHtml(location)}" target="_blank" rel="noopener noreferrer">${name}</a> <span>(opens in new tab)</span></li>`;
+                    }
+                    if (location) return `<li><strong>${name}:</strong> ${escapeHtml(location)}</li>`;
+                    return `<li>${name}</li>`;
+                }).join('')}
+            </ul>
+        </section>
+    `;
+}
+
 function buildTextSummary() {
     const metadataRows = getMetadataRows();
     const brandingText = getBrandingTextLines().join('\n');
@@ -184,7 +246,8 @@ function buildTextSummary() {
             return `${entry.label}: ${entry.exportText}`;
         }).join('\n');
 
-    return `${brandingSection}${metadataText}\n\nFields\n${fieldsText}`.trim();
+    const appendix = buildProgressAppendixText();
+    return `${brandingSection}${metadataText}\n\nFields\n${fieldsText}${appendix ? `\n\n${appendix}` : ''}`.trim();
 }
 
 function buildMarkdownSummary() {
@@ -207,7 +270,8 @@ function buildMarkdownSummary() {
             return `- **${entry.label}:** ${entry.exportText}`;
         }).join('\n');
 
-    return `# ${appState.reportTitle || 'Report'}\n\n${brandingMd}## Metadata\n${metadataMd}\n\n## Fields\n${fieldsMd}`;
+    const appendix = buildProgressAppendixMarkdown();
+    return `# ${appState.reportTitle || 'Report'}\n\n${brandingMd}## Metadata\n${metadataMd}\n\n## Fields\n${fieldsMd}${appendix ? `\n\n${appendix}` : ''}`;
 }
 
 function buildHtmlSummary() {
@@ -251,8 +315,9 @@ function buildHtmlSummary() {
     ${brandingBlock}
   <h2>Metadata</h2>
   <ul>${metadataItems}</ul>
-  <h2>Fields</h2>
-  <ul>${fieldItems}</ul>
+    <h2>Fields</h2>
+    <ul>${fieldItems}</ul>
+    ${renderProgressAppendixHtmlSection()}
 </body>
 </html>`;
 }
@@ -285,7 +350,9 @@ function buildRtfSummary() {
             return `${escapeRtf(entry.label)}: ${escapeRtf(entry.exportText)}`;
         }).join('\\line ');
 
-    return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\f0\\fs22\\b ${title}\\b0\\line\\line ${brandingBlock}Metadata\\line ${metadata}\\line\\line Fields\\line ${fields}}`;
+    const appendix = buildProgressAppendixText();
+    const appendixBlock = appendix ? `\\line\\line ${escapeRtf(appendix)}` : '';
+    return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\f0\\fs22\\b ${title}\\b0\\line\\line ${brandingBlock}Metadata\\line ${metadata}\\line\\line Fields\\line ${fields}${appendixBlock}}`;
 }
 
 function buildXlsxBlob() {
@@ -350,6 +417,17 @@ function buildXlsxBlob() {
         auditRows.push(row);
         resolvedEntries.forEach((entry) => {
             overviewRows.push(['Accessibility Audit', 'Primary', entry.label, entry.exportText, entry.url || '']);
+        });
+    }
+
+    const progressItems = getProgressAppendixItems();
+    if (progressItems.length > 0) {
+        const instructions = String(appState.testingInstructions || '').trim();
+        if (instructions) {
+            overviewRows.push(['Progress Log Appendix', '', 'Testing Instructions', instructions, '']);
+        }
+        progressItems.forEach((item) => {
+            overviewRows.push(['Progress Log Appendix', String(item.name || 'Untitled Evaluation Item'), 'Location', String(item.location || ''), '']);
         });
     }
 
@@ -453,6 +531,20 @@ function buildDocxDocumentXml() {
                 paragraphs.push(makeParagraph(entry.label, 'Heading2'));
                 paragraphs.push(makeParagraph(entry.exportText || 'No value entered', 'Normal'));
             }
+        });
+    }
+
+    const progressItems = getProgressAppendixItems();
+    if (progressItems.length > 0) {
+        paragraphs.push(makeParagraph('', 'Normal'));
+        paragraphs.push(makeParagraph('Progress Log Appendix', 'Heading1'));
+        if (String(appState.testingInstructions || '').trim()) {
+            paragraphs.push(makeParagraph(`Testing Instructions: ${appState.testingInstructions}`, 'Normal'));
+        }
+        progressItems.forEach((item) => {
+            const name = String(item.name || 'Untitled Evaluation Item').trim() || 'Untitled Evaluation Item';
+            const location = String(item.location || '').trim();
+            paragraphs.push(makeParagraph(location ? `${name}: ${location}` : name, 'Normal'));
         });
     }
 
@@ -908,6 +1000,29 @@ function renderReportBody() {
     return renderNonTemplateLayout();
 }
 
+function renderProgressAppendixViewer() {
+    const items = getProgressAppendixItems();
+    if (items.length === 0) return '';
+
+    return `
+        <section aria-labelledby="viewer-progress-log-appendix-heading">
+            <h3 id="viewer-progress-log-appendix-heading">Progress Log Appendix</h3>
+            ${String(appState.testingInstructions || '').trim() ? `<p><strong>Testing Instructions:</strong> ${escapeHtml(appState.testingInstructions)}</p>` : ''}
+            <ul class="viewer-bullet-list">
+                ${items.map((item) => {
+                    const name = escapeHtml(item.name || 'Untitled Evaluation Item');
+                    const location = String(item.location || '').trim();
+                    if (/^https?:/i.test(location)) {
+                        return `<li><a href="${escapeHtml(location)}" target="_blank" rel="noopener noreferrer">${name}</a> <span>(opens in new tab)</span></li>`;
+                    }
+                    if (location) return `<li><strong>${name}:</strong> ${escapeHtml(location)}</li>`;
+                    return `<li>${name}</li>`;
+                }).join('')}
+            </ul>
+        </section>
+    `;
+}
+
 function renderBrandingBlock() {
     const branding = getBrandingState();
     if (!branding.enabled) return '';
@@ -959,8 +1074,11 @@ export function renderViewer() {
 
             ${renderReportBody()}
 
+            ${renderProgressAppendixViewer()}
+
             <div class="viewer-actions" role="group" aria-label="Report viewer actions">
                 <button id="btn-export-options" type="button">Export Options...</button>
+                ${isProgressLogEnabled() ? '<button id="btn-viewer-progress-log" type="button">Open Progress Log</button>' : ''}
                 <button id="btn-change-config" type="button">Change Report Configuration</button>
                 <button id="btn-edit-report" type="button">Edit Report</button>
                 <button id="btn-viewer-close-report" type="button">Close Report</button>
@@ -999,6 +1117,7 @@ export function renderViewer() {
     `;
 
     const exportButton = document.getElementById('btn-export-options');
+    const progressLogButton = document.getElementById('btn-viewer-progress-log');
     const changeConfigButton = document.getElementById('btn-change-config');
     const editReportButton = document.getElementById('btn-edit-report');
     const closeReportButton = document.getElementById('btn-viewer-close-report');
@@ -1233,6 +1352,10 @@ export function renderViewer() {
     };
 
     exportButton.addEventListener('click', openExportDialog);
+
+    progressLogButton?.addEventListener('click', () => {
+        openProgressLogDialog(progressLogButton);
+    });
 
     exportCancel.addEventListener('click', () => {
         closeExportDialog(true);

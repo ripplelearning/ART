@@ -13,6 +13,8 @@ import {
     getAuditEntries,
     getAuditEntryDisplayName,
     getCurrentReportMetrics,
+    getProgressItemNames,
+    isProgressLogEnabled,
     getShortcutForAction,
     getSpellUserDictionary,
     addSpellUserDictionaryWord,
@@ -26,6 +28,7 @@ import {
 } from './state.js';
 import { formatWcagCriterionDisplay, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { requestViewerExportDialog, requestViewerPrintPreview } from './reportViewer.js';
+import { openProgressLogDialog } from './progressLog.js';
 
 let pendingEntryFocus = null;
 let pendingDeleteEntry = null;
@@ -664,6 +667,19 @@ function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly
         `;
     }
 
+    if (type === 'evaluation-item-selection') {
+        const options = getProgressItemNames();
+        return `
+            <select id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" aria-describedby="editor-select-help" ${readOnly ? 'disabled aria-disabled="true"' : ''}>
+                <option value="">${options.length > 0 ? 'Select an evaluation item' : 'No evaluation items available'}</option>
+                ${options.map((option) => {
+                    const selected = String(storedValue) === String(option) ? 'selected' : '';
+                    return `<option value="${escapeHtml(option)}" ${selected}>${escapeHtml(option)}</option>`;
+                }).join('')}
+            </select>
+        `;
+    }
+
     return `<input type="text" id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" value="${escapeHtml(storedValue)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>`;
 }
 
@@ -1017,6 +1033,7 @@ function renderEditorActionBar() {
             <button id="btn-editor-configure-report" type="button">Configure Report</button>
             <button id="btn-editor-validate-report" type="button">Validate Report</button>
             <button id="btn-editor-report-statistics" type="button">Report Statistics</button>
+            ${isProgressLogEnabled() ? '<button id="btn-editor-progress-log" type="button">Open Progress Log</button>' : ''}
             <button id="btn-editor-view-report" type="button">View Report</button>
             <button id="btn-editor-print-preview" type="button">Print Preview</button>
             <button id="btn-editor-export-report" type="button">Export Report...</button>
@@ -1281,6 +1298,7 @@ function bindEditorDialogEvents() {
     const spellCheckButton = document.getElementById('btn-editor-spell-check');
     const validateReportButton = document.getElementById('btn-editor-validate-report');
     const reportStatisticsButton = document.getElementById('btn-editor-report-statistics');
+    const progressLogButton = document.getElementById('btn-editor-progress-log');
     const viewReportButton = document.getElementById('btn-editor-view-report');
     const printPreviewButton = document.getElementById('btn-editor-print-preview');
     const exportReportButton = document.getElementById('btn-editor-export-report');
@@ -1352,6 +1370,10 @@ function bindEditorDialogEvents() {
 
     reportStatisticsButton?.addEventListener('click', () => {
         openModalDialog(statisticsDialog, statisticsClose, reportStatisticsButton);
+    });
+
+    progressLogButton?.addEventListener('click', () => {
+        openProgressLogDialog(progressLogButton);
     });
 
     viewReportButton?.addEventListener('click', () => {

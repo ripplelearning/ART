@@ -28,6 +28,7 @@ const shortcutControlMap = [
     { id: 'tab-welcome', action: 'openWelcome', label: 'Welcome tab' },
     { id: 'tab-builder', action: 'openBuilder', label: 'Builder tab' },
     { id: 'tab-editor', action: 'openEditor', label: 'Editor tab' },
+    { id: 'btn-editor-progress-log', action: 'openProgressLog', label: 'Open Progress Log' },
     { id: 'btn-add-entry', action: 'addEntry', label: 'Add entry' },
     { id: 'btn-editor-spell-check', action: 'spellCheck', label: 'Spell check' },
     { id: 'btn-add-field', action: 'addField', label: 'Add field' },
@@ -43,6 +44,7 @@ const shortcutControlMap = [
     { id: 'btn-help', action: 'openHelp', label: 'Help' },
     { id: 'top-tabs', action: 'focusNavigation', label: 'Navigation tablist' },
     { id: 'btn-export-options', action: 'exportReport', label: 'Export report' },
+    { id: 'btn-viewer-progress-log', action: 'openProgressLog', label: 'Open Progress Log' },
     { id: 'btn-settings-import-standard', action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
     { id: 'btn-settings-paste-standard', action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
     { id: 'btn-settings-google-workspace', action: 'settingsGoogleConnect', label: 'Connect Google Workspace' },
@@ -359,6 +361,12 @@ export function initNavigation() {
         if (action === 'openViewer') {
             e.preventDefault();
             activateTabAndFocusHeading('tab-view', 'viewer-heading', 'Report Viewer');
+            return;
+        }
+        if (action === 'openProgressLog') {
+            e.preventDefault();
+            if (clickElementById('btn-editor-progress-log')) return;
+            clickElementById('btn-viewer-progress-log');
             return;
         }
         if (action === 'focusLookup') {

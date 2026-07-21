@@ -515,8 +515,81 @@ th { background-color: #f4f4f4; }
     overflow-x: auto;
 }
 
+#progress-log-dialog {
+    position: fixed;
+    inset: 4vh 4vw;
+    z-index: 1200;
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+    max-width: none;
+    max-height: 92vh;
+    overflow: hidden;
+}
+
+.progress-log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.progress-log-header h3 {
+    margin: 0;
+}
+
+.progress-log-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.progress-log-table-wrapper {
+    overflow: auto;
+    min-height: 0;
+}
+
+.progress-log-table {
+    min-width: 1200px;
+    margin: 0;
+}
+
+.progress-log-table th,
+.progress-log-table td {
+    vertical-align: top;
+}
+
+.progress-log-table input,
+.progress-log-table select,
+.progress-log-table textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+}
+
+.progress-log-table textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+
+.progress-log-notes {
+    white-space: pre-wrap;
+}
+
+.progress-log-link-note {
+    margin-left: 4px;
+    font-size: 0.85em;
+    color: #555;
+}
+
 @media (max-width: 1100px) {
     #help-dialog {
+        inset: 2vh 2vw;
+    }
+
+    #progress-log-dialog {
         inset: 2vh 2vw;
     }
 
@@ -595,6 +668,7 @@ a:focus-visible,
     .template-config,
     .branding-config,
     #report-metrics,
+    #progress-log-dialog,
     #editor-metadata-dialog,
     #editor-clear-dialog,
     #editor-validation-dialog,
@@ -615,6 +689,10 @@ a:focus-visible,
     .shortcut-tooltip::after {
         border: 1px solid CanvasText;
         background: Canvas;
+        color: CanvasText;
+    }
+
+    .progress-log-link-note {
         color: CanvasText;
     }
 }

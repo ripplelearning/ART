@@ -9,6 +9,7 @@ import {
     closeCurrentReportSession,
     clearProjectRecoveryMark,
     computeReportMetrics,
+    getProgressLogMetrics,
     deleteUserTemplate,
     deleteReportById,
     getAuditEntries,
@@ -629,12 +630,24 @@ export function renderDashboard() {
             return;
         }
         const metrics = computeReportMetrics(selectedReport);
+        const progressMetrics = getProgressLogMetrics(selectedReport);
         reportMetricsList.innerHTML = `
             <div><dt>Total Issues</dt><dd>${metrics.totalIssues}</dd></div>
             <div><dt>Pages Tested</dt><dd>${metrics.pagesTested}</dd></div>
             <div><dt>Issues by Severity</dt><dd>${metrics.issuesBySeverity}</dd></div>
             <div><dt>WCAG Success Criteria Referenced</dt><dd>${metrics.wcagCriteria}</dd></div>
             <div><dt>Total Audit Entries</dt><dd>${metrics.totalAuditEntries}</dd></div>
+            ${progressMetrics.totalEvaluationItems > 0 ? `
+                <div><dt>Total Evaluation Items</dt><dd>${progressMetrics.totalEvaluationItems}</dd></div>
+                <div><dt>Completed</dt><dd>${progressMetrics.completed}</dd></div>
+                <div><dt>Testing Completion</dt><dd>${progressMetrics.testingCompletionPercent}% (${progressMetrics.completed}/${progressMetrics.totalEvaluationItems})</dd></div>
+                ${progressMetrics.inProgress > 0 ? `<div><dt>In Progress</dt><dd>${progressMetrics.inProgress}</dd></div>` : ''}
+                ${progressMetrics.onHold > 0 ? `<div><dt>On Hold</dt><dd>${progressMetrics.onHold}</dd></div>` : ''}
+                ${progressMetrics.blocked > 0 ? `<div><dt>Blocked</dt><dd>${progressMetrics.blocked}</dd></div>` : ''}
+                ${progressMetrics.needsReview > 0 ? `<div><dt>Needs Review</dt><dd>${progressMetrics.needsReview}</dd></div>` : ''}
+                ${progressMetrics.retestRequired > 0 ? `<div><dt>Retest Required</dt><dd>${progressMetrics.retestRequired}</dd></div>` : ''}
+                ${progressMetrics.notApplicable > 0 ? `<div><dt>Not Applicable</dt><dd>${progressMetrics.notApplicable}</dd></div>` : ''}
+            ` : ''}
         `;
     };
 
@@ -1217,6 +1230,7 @@ export function renderDashboard() {
 
     window.addEventListener('art-reports-updated', rebuildRecentReports);
     window.addEventListener('art-state-restored', rebuildRecentReports);
+    window.addEventListener('art-progress-log-updated', refreshReportMetrics);
 
     const projectInfo = getProjectDocumentInfo();
     if (projectInfo.hasRecoveredChanges || hasUnsavedProjectChanges()) {
