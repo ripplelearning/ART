@@ -85,7 +85,7 @@ export async function initLookupTool() {
             <fieldset style="margin:0; padding:0; border:0;">
                 <legend>Search and filter criteria</legend>
                 <label for="s">Search For Accessibility Standard</label>
-                <input id="s" type="search" placeholder="Search... e.g. 1.1.1, buttons, tables" style="width:90%; padding:10px;">
+                <input id="s" type="text" placeholder="Search... e.g. 1.1.1, buttons, tables" style="width:90%; padding:10px;" autocomplete="off">
                 <div style="margin:15px 0; display:grid; gap:10px;">
                     <label for="ver-f">Standard</label>
                     <select id="ver-f"><option value="">Version: All</option>${standards.map((standard) => `<option value="${standard}">${standard}</option>`).join('')}</select>

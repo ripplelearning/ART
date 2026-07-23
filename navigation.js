@@ -33,7 +33,7 @@ const shortcutControlMap = [
     { id: 'btn-editor-spell-check', action: 'spellCheck', label: 'Spell check' },
     { id: 'btn-add-field', action: 'addField', label: 'Add field' },
     { id: 'btn-done', action: 'done', label: 'Done' },
-    { id: 's', action: 'focusLookup', label: 'WCAG search' },
+    { id: 's', action: 'focusLookup', label: 'Search For Accessibility Standard' },
     { id: 'reset-btn', action: 'resetLookup', label: 'Reset tool' },
     { id: 'btn-open-report', action: 'openProject', label: 'Open ART project file' },
     { id: 'btn-save-project', action: 'saveProject', label: 'Save ART project' },
