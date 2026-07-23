@@ -72,7 +72,7 @@ function validateBrandingInputs(shouldAnnounce = true) {
 function focusAfterRender() {
     if (!pendingFocus) return false;
 
-    const { index, action } = pendingFocus;
+    const { index, action, itemId } = pendingFocus;
     pendingFocus = null;
 
     if (
@@ -106,6 +106,24 @@ function focusAfterRender() {
         const addButton = document.getElementById('btn-add-field');
         if (addButton) {
             addButton.focus();
+            return true;
+        }
+        return false;
+    }
+
+    if (action === 'btn-progress-item-add') {
+        const addProgressButton = document.getElementById('btn-progress-item-add');
+        if (addProgressButton) {
+            addProgressButton.focus();
+            return true;
+        }
+        return false;
+    }
+
+    if (action === 'progress-item-name' && itemId) {
+        const target = document.querySelector(`[data-progress-item-id="${itemId}"] [data-progress-field="name"]`);
+        if (target instanceof HTMLElement) {
+            target.focus();
             return true;
         }
         return false;
@@ -419,8 +437,8 @@ export async function renderBuilder() {
                             Include Progress Log Appendix
                         </label>
                         <p>Evaluation item workflow data remains separate from audit findings and can be included as an appendix in Report Viewer and exports.</p>
-                        <button id="btn-progress-item-add" type="button">Add Evaluation Item</button>
                         ${buildProgressItemRows(progressTypeSuggestions, progressStatusOptions)}
+                        <button id="btn-progress-item-add" type="button">Add Evaluation Item</button>
                     ` : '<p>Progress Log is optional. Enable it to manage evaluation items for this Audit Log.</p>'}
                 </section>
             ` : ''}
@@ -618,12 +636,8 @@ export async function renderBuilder() {
         addProgressItemButton.addEventListener('click', () => {
             const created = addProgressItem({ type: progressTypeSuggestions[0], status: progressStatusOptions[0] });
             announce(`Added evaluation item ${getProgressItems().length}.`);
+            pendingFocus = { index: null, action: 'progress-item-name', itemId: created.id };
             renderBuilder();
-            pendingFocus = { index: null, action: '' };
-            window.setTimeout(() => {
-                const target = document.querySelector(`[data-progress-item-id="${created.id}"] [data-progress-field="name"]`);
-                target?.focus();
-            }, 0);
         });
     }
 
@@ -641,9 +655,17 @@ export async function renderBuilder() {
         });
 
         fieldset.querySelector('[data-progress-action="remove"]')?.addEventListener('click', () => {
+            const itemsBeforeRemove = getProgressItems();
+            const removedIndex = itemsBeforeRemove.findIndex((item) => item.id === itemId);
+            const nextFocusItem = removedIndex >= 0
+                ? (itemsBeforeRemove[removedIndex + 1] || itemsBeforeRemove[removedIndex - 1] || null)
+                : null;
             const removed = removeProgressItem(itemId);
             if (!removed) return;
             announce(`Removed evaluation item ${removed.name || ''}`.trim());
+            pendingFocus = nextFocusItem
+                ? { index: null, action: 'progress-item-name', itemId: nextFocusItem.id }
+                : { index: null, action: 'btn-progress-item-add' };
             renderBuilder();
         });
     });
