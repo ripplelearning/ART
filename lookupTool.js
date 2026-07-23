@@ -181,11 +181,11 @@ export async function initLookupTool() {
         if (searchInput) {
             searchInput.onchange = () => applyFilters();
             searchInput.oninput = () => applyFilters();
+            searchInput.addEventListener('focus', notifyLookupPanel);
         }
         ['ver-f', 'lvl-f', 'cat-f'].forEach((id) => {
             document.getElementById(id).onchange = () => applyFilters({ deferAnnouncement: true });
         });
-        document.getElementById('s').addEventListener('focus', notifyLookupPanel);
         document.getElementById('reset-btn').onclick = resetTool;
         lookupRegion?.addEventListener('focusin', notifyLookupPanel);
         lookupRegion?.addEventListener('click', notifyLookupPanel);

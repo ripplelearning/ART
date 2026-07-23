@@ -127,11 +127,6 @@ export async function getWcagCriteriaForStandard(standard) {
     return catalog.filter((item) => item.standard === standard);
 }
 
-export async function getWcagCriterionByIdentifier(identifier) {
-    const catalog = await loadWcagCatalog();
-    return catalog.find((item) => item.identifier === identifier) || null;
-}
-
 export async function getAvailableWcagStandards() {
     const catalog = await loadWcagCatalog();
     return [...new Set(catalog.map((item) => item.standard))];

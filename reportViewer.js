@@ -1,5 +1,5 @@
 import { appState, announce, getCurrentReportMetrics, getProgressItems, isProgressLogAppendixEnabled, isProgressLogEnabled, recordSecurityAudit, saveState, serializeArtJsonPayload, serializeArtProjectPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
-import { formatWcagCriterionDisplay, getWcagCriterionByIdentifier, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { formatWcagCriterionDisplay, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { openProgressLogDialog } from './progressLog.js';
 
 let openExportDialogOnRender = false;
@@ -1059,7 +1059,7 @@ function renderBrandingBlock() {
 
 function renderWcagViewerLink(entry, text) {
     const visibleText = normalizeAccessibilityLinkText(entry.rawValue, text);
-    return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" class="wcag-viewer-link" data-wcag-index="${entry.index}" data-wcag-identifier="${escapeHtml(entry.rawValue?.identifier || '')}" data-wcag-url="${escapeHtml(entry.url)}">${escapeHtml(visibleText)}</a>`;
+    return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" class="wcag-viewer-link">${escapeHtml(visibleText)}</a>`;
 }
 
 function getFocusableElements(dialog) {
@@ -1095,13 +1095,6 @@ export function renderViewer() {
                 <button id="btn-change-config" type="button">Change Report Configuration</button>
                 <button id="btn-edit-report" type="button">Edit Report</button>
                 <button id="btn-viewer-close-report" type="button">Close Report</button>
-            </div>
-
-            <div id="wcag-doc-dialog" role="dialog" aria-modal="true" aria-labelledby="wcag-doc-heading" aria-describedby="wcag-doc-description" hidden>
-                <button id="btn-close-wcag-doc" type="button">Close</button>
-                <h3 id="wcag-doc-heading">WCAG Documentation</h3>
-                <p id="wcag-doc-description">Official W3C Understanding documentation for the selected WCAG Success Criterion.</p>
-                <iframe id="wcag-doc-frame" title="Official WCAG Understanding documentation"></iframe>
             </div>
 
             <div id="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-dialog-heading" hidden>
@@ -1140,18 +1133,13 @@ export function renderViewer() {
     const exportSave = document.getElementById('btn-export-save');
     const exportCancel = document.getElementById('btn-export-cancel');
     const exportStatus = document.getElementById('export-status');
-    const wcagDocDialog = document.getElementById('wcag-doc-dialog');
-    const wcagDocFrame = document.getElementById('wcag-doc-frame');
-    const wcagDocClose = document.getElementById('btn-close-wcag-doc');
 
     if (
         !exportButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
-        || !exportFormat || !exportSave || !exportCancel || !exportStatus || !wcagDocDialog || !wcagDocFrame || !wcagDocClose
+        || !exportFormat || !exportSave || !exportCancel || !exportStatus
     ) return;
 
     let isExportDialogOpen = false;
-    let activeWcagLink = null;
-    let wcagDialogTimer = null;
 
     const trapExportDialogFocus = (event) => {
         if (!isExportDialogOpen || exportDialog.hidden) return;
@@ -1209,83 +1197,6 @@ export function renderViewer() {
         if (returnFocusToButton) exportButton.focus();
     }
 
-    const trapDialogFocus = (dialog, event, closeHandler) => {
-        if (dialog.hidden) return;
-
-        if (event.type === 'focusin') {
-            if (!dialog.contains(event.target)) {
-                const focusables = getFocusableElements(dialog);
-                if (focusables[0]) focusables[0].focus();
-            }
-            return;
-        }
-
-        if (event.key !== 'Tab' && event.key !== 'Escape') return;
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            closeHandler();
-            return;
-        }
-
-        const focusables = getFocusableElements(dialog);
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        const current = event.target;
-        if (event.shiftKey && current === first) {
-            event.preventDefault();
-            last.focus();
-        } else if (!event.shiftKey && current === last) {
-            event.preventDefault();
-            first.focus();
-        }
-    };
-
-    const wcagDialogFocusHandler = (event) => trapDialogFocus(wcagDocDialog, event, () => closeWcagDialog(true));
-
-    function closeWcagDialog(restoreFocus) {
-        wcagDocDialog.hidden = true;
-        wcagDocFrame.removeAttribute('src');
-        document.removeEventListener('keydown', wcagDialogFocusHandler);
-        document.removeEventListener('focusin', wcagDialogFocusHandler);
-        if (wcagDialogTimer) {
-            window.clearTimeout(wcagDialogTimer);
-            wcagDialogTimer = null;
-        }
-        if (restoreFocus && activeWcagLink) {
-            activeWcagLink.focus();
-        }
-    }
-
-    const openWcagDialog = async (triggerLink) => {
-        activeWcagLink = triggerLink;
-        const identifier = triggerLink.getAttribute('data-wcag-identifier');
-        const fallbackUrl = triggerLink.getAttribute('data-wcag-url') || '';
-        const criterion = identifier ? await getWcagCriterionByIdentifier(identifier) : null;
-        const targetUrl = criterion?.understandingUrl || fallbackUrl;
-        if (!targetUrl) return;
-
-        let loaded = false;
-        wcagDocDialog.hidden = false;
-        wcagDocFrame.onload = () => {
-            loaded = true;
-            if (wcagDialogTimer) {
-                window.clearTimeout(wcagDialogTimer);
-                wcagDialogTimer = null;
-            }
-        };
-        wcagDocFrame.src = targetUrl;
-        document.addEventListener('keydown', wcagDialogFocusHandler);
-        document.addEventListener('focusin', wcagDialogFocusHandler);
-        wcagDocClose.focus();
-
-        wcagDialogTimer = window.setTimeout(() => {
-            if (loaded) return;
-            window.open(targetUrl, '_blank', 'noopener');
-            closeWcagDialog(true);
-        }, 1500);
-    };
-
     const saveExport = async () => {
         const format = exportFormat.value;
         const fileNameInput = exportFileName.value.trim() || (appState.reportTitle || 'Report');
@@ -1330,8 +1241,6 @@ export function renderViewer() {
     });
 
     exportSave.addEventListener('click', saveExport);
-
-    wcagDocClose.addEventListener('click', () => closeWcagDialog(true));
 
     changeConfigButton.addEventListener('click', () => {
         const builderTab = document.getElementById('tab-builder');
