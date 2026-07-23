@@ -376,6 +376,12 @@ export function initNavigation() {
         }
         if (action === 'addField') {
             e.preventDefault();
+            const inlineAddButton = document.getElementById('btn-add-field');
+            if (inlineAddButton) {
+                inlineAddButton.click();
+                return;
+            }
+
             const tab = document.getElementById('tab-builder');
             if (tab) tab.click();
             window.setTimeout(() => {
