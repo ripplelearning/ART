@@ -1333,16 +1333,6 @@ export function renderViewer() {
 
     wcagDocClose.addEventListener('click', () => closeWcagDialog(true));
 
-    container.querySelectorAll('.wcag-viewer-link').forEach((link) => {
-        link.addEventListener('click', (event) => {
-            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) {
-                return;
-            }
-            event.preventDefault();
-            openWcagDialog(link);
-        });
-    });
-
     changeConfigButton.addEventListener('click', () => {
         const builderTab = document.getElementById('tab-builder');
         if (!builderTab) return;
