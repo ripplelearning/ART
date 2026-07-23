@@ -84,7 +84,7 @@ export async function initLookupTool() {
         container.innerHTML = `
             <fieldset style="margin:0; padding:0; border:0;">
                 <legend>Search and filter criteria</legend>
-                <label for="s">Search criteria</label>
+                <label for="s">Search For Accessibility Standard</label>
                 <input id="s" type="search" placeholder="Search... e.g. 1.1.1, buttons, tables" style="width:90%; padding:10px;">
                 <div style="margin:15px 0; display:grid; gap:10px;">
                     <label for="ver-f">Standard</label>
@@ -176,8 +176,12 @@ export async function initLookupTool() {
             );
         };
 
-        document.getElementById('s').onchange = () => applyFilters();
-        document.getElementById('s').oninput = () => applyFilters();
+        const searchInput = document.getElementById('s');
+        searchInput?.removeAttribute('aria-haspopup');
+        if (searchInput) {
+            searchInput.onchange = () => applyFilters();
+            searchInput.oninput = () => applyFilters();
+        }
         ['ver-f', 'lvl-f', 'cat-f'].forEach((id) => {
             document.getElementById(id).onchange = () => applyFilters({ deferAnnouncement: true });
         });
