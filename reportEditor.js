@@ -994,12 +994,10 @@ function renderClearDialog() {
 function renderValidationDialog() {
     return `
         <div id="editor-validation-dialog" role="dialog" aria-modal="true" aria-labelledby="editor-validation-heading" aria-describedby="editor-validation-desc" hidden>
+            <button id="btn-editor-validation-close" class="editor-modal-close-top" type="button">Close</button>
             <h3 id="editor-validation-heading">Validate Report</h3>
             <p id="editor-validation-desc">Review validation issues and activate an item to move to the related field.</p>
             <div id="editor-validation-results"></div>
-            <div class="viewer-dialog-actions">
-                <button id="btn-editor-validation-close" type="button">Close</button>
-            </div>
         </div>
     `;
 }
@@ -1007,6 +1005,7 @@ function renderValidationDialog() {
 function renderStatisticsDialog(metrics) {
     return `
         <div id="editor-statistics-dialog" role="dialog" aria-modal="true" aria-labelledby="editor-statistics-heading" aria-describedby="editor-statistics-desc" hidden>
+            <button id="btn-editor-statistics-close" class="editor-modal-close-top" type="button">Close</button>
             <h3 id="editor-statistics-heading">Report Statistics</h3>
             <p id="editor-statistics-desc">Summary statistics for the current report.</p>
             <ul class="editor-statistics-list">
@@ -1016,9 +1015,6 @@ function renderStatisticsDialog(metrics) {
                 <li>Unique Pages Tested: ${metrics.pagesTested}</li>
                 <li>WCAG Success Criteria Referenced: ${metrics.wcagCriteria}</li>
             </ul>
-            <div class="viewer-dialog-actions">
-                <button id="btn-editor-statistics-close" type="button">Close</button>
-            </div>
         </div>
     `;
 }

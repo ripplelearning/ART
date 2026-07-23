@@ -425,6 +425,10 @@ th { background-color: #f4f4f4; }
 .editor-statistics-list li + li { margin-top: 6px; }
 .btn-validation-issue { text-align: left; }
 
+.editor-modal-close-top {
+    justify-self: start;
+}
+
 #editor-metadata-dialog,
 #editor-clear-dialog,
 #editor-validation-dialog,
