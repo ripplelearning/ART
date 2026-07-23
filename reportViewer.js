@@ -60,6 +60,26 @@ function normalizeFieldType(type) {
     return type === 'select' ? 'dropdown' : type || 'text';
 }
 
+function normalizeAccessibilityLinkText(rawValue, fallbackText = '') {
+    const structured = rawValue && typeof rawValue === 'object' ? rawValue : null;
+    if (structured) {
+        const formatted = formatWcagCriterionDisplay(structured).trim();
+        if (formatted) return formatted;
+    }
+
+    return String(fallbackText || '')
+        .replace(/^Open official W3C Understanding documentation for\s+/i, '')
+        .trim();
+}
+
+function getAccessibilityLinkAriaLabel(rawValue, fallbackText = '') {
+    const visibleText = normalizeAccessibilityLinkText(rawValue, fallbackText);
+    if (!visibleText) {
+        return 'Open official W3C Understanding documentation in a new browser tab';
+    }
+    return `Open official W3C Understanding documentation for ${visibleText} in a new browser tab`;
+}
+
 function getBrandingState() {
     return {
         enabled: Boolean(appState.branding?.enabled),
@@ -122,7 +142,8 @@ function getResolvedFieldEntriesForValues(fieldValues, hideEmpty = true) {
 
         if (isWcagCriterionFieldType(type)) {
             const structured = rawValue && typeof rawValue === 'object' ? rawValue : null;
-            const displayText = structured ? formatWcagCriterionDisplay(structured) : String(rawValue || '');
+            const displaySource = structured ? formatWcagCriterionDisplay(structured) : String(rawValue || '');
+            const displayText = normalizeAccessibilityLinkText(rawValue, displaySource);
             const understandingUrl = structured ? String(structured.understandingUrl || '') : '';
             return {
                 index,
@@ -284,14 +305,14 @@ function buildHtmlSummary() {
     const fieldItems = appState.reportType === 'Audit Log'
         ? getAuditEntryGroups(false).map((group) => `<li><strong>${escapeHtml(group.title)}</strong><ul>${group.entries.map((entry) => {
             if (entry.url) {
-                return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.displayText)}</a></li>`;
+                return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(getAccessibilityLinkAriaLabel(entry.rawValue, entry.displayText))}">${escapeHtml(normalizeAccessibilityLinkText(entry.rawValue, entry.displayText))}</a></li>`;
             }
             return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
         }).join('')}</ul></li>`).join('')
         : getResolvedFieldEntries(false)
             .map((entry) => {
                 if (entry.url) {
-                    return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.displayText)}</a></li>`;
+                    return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(getAccessibilityLinkAriaLabel(entry.rawValue, entry.displayText))}">${escapeHtml(normalizeAccessibilityLinkText(entry.rawValue, entry.displayText))}</a></li>`;
                 }
                 return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
             })
@@ -1045,7 +1066,9 @@ function renderBrandingBlock() {
 }
 
 function renderWcagViewerLink(entry, text) {
-    return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" class="wcag-viewer-link" aria-label="Open official W3C Understanding documentation for ${escapeHtml(text)}" data-wcag-index="${entry.index}" data-wcag-identifier="${escapeHtml(entry.rawValue?.identifier || '')}" data-wcag-url="${escapeHtml(entry.url)}">${escapeHtml(text)}</a>`;
+    const visibleText = normalizeAccessibilityLinkText(entry.rawValue, text);
+    const ariaLabel = getAccessibilityLinkAriaLabel(entry.rawValue, text);
+    return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" class="wcag-viewer-link" aria-label="${escapeHtml(ariaLabel)}" data-wcag-index="${entry.index}" data-wcag-identifier="${escapeHtml(entry.rawValue?.identifier || '')}" data-wcag-url="${escapeHtml(entry.url)}">${escapeHtml(visibleText)}</a>`;
 }
 
 function getFocusableElements(dialog) {
