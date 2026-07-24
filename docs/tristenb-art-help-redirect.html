@@ -10,7 +10,7 @@
       var target = new URL('https://ripplelearning.github.io/ART/art-help/');
       target.search = window.location.search || '';
       target.hash = window.location.hash || '';
-      window.location.replace(target.toString());
+      window.location.href = target.toString();
     })();
   </script>
   <noscript>
