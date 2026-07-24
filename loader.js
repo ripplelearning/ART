@@ -6,7 +6,7 @@ import { initSettings } from './settings.js';
 import { renderWelcome } from './welcome.js';
 import { initApplicationIdentity } from './appIdentity.js';
 import { initResizableLayout } from './layout.js';
-import { initHelp } from './help.js';
+import { initHelp, openHelpDialog } from './help.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 
 /**
@@ -14,6 +14,37 @@ import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetw
  * only after the DOM is fully parsed.
  */
 let hasInitialized = false;
+
+function isHelpDirectLink() {
+    const path = String(window.location.pathname || '').toLowerCase();
+    return /\/art-help(?:\/|\/index\.html)?$/.test(path);
+}
+
+function openHelpFromDirectLink() {
+    if (!isHelpDirectLink()) return;
+
+    openHelpDialog(null);
+
+    const hash = String(window.location.hash || '');
+    if (!hash || !hash.startsWith('#help-')) return;
+
+    window.setTimeout(() => {
+        const target = document.querySelector(hash);
+        if (!target) return;
+
+        const headingId = target.getAttribute('aria-labelledby') || '';
+        const heading = headingId
+            ? document.getElementById(headingId)
+            : target.querySelector('h1, h2, h3, h4, h5, h6');
+
+        if (heading) {
+            if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+            heading.focus({ preventScroll: true });
+        }
+
+        target.scrollIntoView({ block: 'start' });
+    }, 0);
+}
 
 function isExternalHttpUrl(value) {
     try {
@@ -79,6 +110,9 @@ function initializeApp() {
     
     // 6. Set the default application view
     renderWelcome();
+
+    // 7. Support direct Help deep links without changing existing Help behavior
+    openHelpFromDirectLink();
     
     console.log("ART System fully initialized.");
 }

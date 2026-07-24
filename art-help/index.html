@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ART - Accessibility Reporting Tool</title>
+    <base href="../">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<h1 class="sr-only">Accessibility Reporting Tool</h1>
+<div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<div class="app-container">
+    <nav id="nav" aria-label="panel selector">
+    <div id="top-tabs" role="tablist">
+        <button role="tab" aria-selected="true" id="tab-welcome">Welcome</button> <button role="tab" aria-selected="false" id="tab-builder">Builder</button>
+        <button role="tab" aria-selected="false" id="tab-editor">Editor</button>
+        <button role="tab" aria-selected="false" id="tab-view">Report Viewer</button>
+    </div>
+</nav>
+    <section id="dashboard" role="complementary" aria-labelledby="dash-heading">
+        <h2 id="dash-heading">Dashboard</h2>
+        
+        <div class="action-group">
+            <button id="btn-new-report">New Report</button>
+            <button id="btn-open-report" title="Ctrl+O">Open ART Project...</button>
+            <button id="btn-save-project" title="Ctrl+S">Save Project</button>
+            <button id="btn-save-project-as" title="Ctrl+Shift+S">Save Project As...</button>
+            <button id="btn-import-data" title="Ctrl+Shift+I">Import...</button>
+            <button id="btn-app-settings" type="button">Application Settings</button>
+            <button id="btn-help" type="button">Help</button>
+        </div>
+
+        <div id="app-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="app-settings-heading" aria-describedby="app-settings-description" hidden>
+            <div class="settings-header">
+                <h3 id="app-settings-heading">Application Settings</h3>
+                <button id="btn-settings-close" type="button">Close</button>
+            </div>
+            <p id="app-settings-description">Manage keyboard shortcuts, accessibility standards, and application maintenance options.</p>
+
+            <section aria-labelledby="settings-shortcuts-heading">
+                <h4 id="settings-shortcuts-heading">Keyboard Shortcut Manager</h4>
+                <p id="settings-shortcuts-help">Use Change to capture a new shortcut. Conflicts are announced before saving.</p>
+                <table id="settings-shortcuts-table" aria-describedby="settings-shortcuts-help">
+                    <caption class="sr-only">Configurable keyboard shortcuts by action</caption>
+                    <thead>
+                        <tr><th scope="col">Action</th><th scope="col">Shortcut</th><th scope="col">Manage</th></tr>
+                    </thead>
+                    <tbody id="settings-shortcuts-body"></tbody>
+                </table>
+                <button id="btn-settings-shortcuts-reset" type="button">Restore Default Shortcuts</button>
+            </section>
+
+            <section aria-labelledby="settings-standards-heading">
+                <h4 id="settings-standards-heading">Accessibility Standards <span id="settings-standards-count" aria-live="polite">(0)</span></h4>
+                    <p>Import standards from a file or use Paste Standards As Table to add standards data copied from a spreadsheet or table. Imported names appear in Report Builder and the Accessibility Lookup Tool.</p>
+                <button id="btn-settings-import-standard" type="button">Import Accessibility Standard...</button>
+                    <button id="btn-settings-paste-standard" type="button">Paste Standards As Table...</button>
+                <button id="btn-settings-export-standards" type="button" disabled>Export Imported Standards...</button>
+                <button id="btn-settings-clear-standards" type="button" disabled>Clear Imported Standards...</button>
+                <ul id="settings-standards-list" aria-label="Available imported accessibility standards"></ul>
+            </section>
+
+            <section aria-labelledby="settings-security-heading">
+                <h4 id="settings-security-heading">Security and Privacy</h4>
+                <p>ART is privacy-first and non-destructive. External data transfer only occurs after explicit user approval.</p>
+                <label>
+                    <input id="settings-privacy-mode" type="checkbox">
+                    Enable Privacy Mode
+                </label>
+                <p id="settings-privacy-mode-status" role="status" aria-live="polite" aria-atomic="true">Privacy Mode disabled.</p>
+            </section>
+
+            <section aria-labelledby="settings-integrations-heading">
+                <h4 id="settings-integrations-heading">Integrations</h4>
+                <p id="settings-local-files-help">ART uses local and network-accessible file workflows for import, export, and project operations.</p>
+                <p id="settings-local-files-status-summary" role="status" aria-live="polite" aria-atomic="true">Local and network file workflows are available.</p>
+                <p id="settings-local-files-summary-note">Use these actions to import reports, templates, and standards from local or network file locations.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Local file import actions">
+                    <button id="btn-settings-import-report-file" type="button">Import Report File...</button>
+                    <button id="btn-settings-import-template-file" type="button">Import Template File...</button>
+                    <button id="btn-settings-import-standards-file" type="button">Import Standards File...</button>
+                </div>
+                <ul id="settings-integrations-list" aria-label="Configured integrations">
+                    <li><strong>Local Files:</strong> <span id="settings-integration-local-files-status">Available</span></li>
+                    <li><strong>Jira:</strong> <span id="settings-integration-jira-status">Not connected</span></li>
+                    <li><strong>GitHub Issues:</strong> <span id="settings-integration-github-status">Not connected</span></li>
+                    <li><strong>Azure DevOps:</strong> <span id="settings-integration-azure-status">Not connected</span></li>
+                </ul>
+            </section>
+
+            <section aria-labelledby="settings-about-heading">
+                <h4 id="settings-about-heading">About ART</h4>
+                <dl id="settings-about-list"></dl>
+                <p><a href="https://www.w3.org/WAI/standards-guidelines/wcag/" target="_blank" rel="noopener noreferrer">Documentation and Help</a></p>
+            </section>
+
+            <details id="settings-admin-tools" aria-labelledby="settings-admin-tools-summary">
+                <summary id="settings-admin-tools-summary">Administrator Tools</summary>
+                <section aria-labelledby="settings-backup-heading">
+                    <h4 id="settings-backup-heading">Backup and Recovery</h4>
+                    <p>Backups include ART-managed data only and never upload automatically.</p>
+                    <label>
+                        <input id="settings-backup-auto" type="checkbox">
+                        Enable automatic backups
+                    </label>
+                    <label for="settings-backup-frequency">Backup frequency</label>
+                    <select id="settings-backup-frequency">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                    <label for="settings-backup-retention">Backup retention (count)</label>
+                    <input id="settings-backup-retention" type="number" min="1" max="50" step="1" value="5">
+                    <div class="viewer-dialog-actions" role="group" aria-label="Backup and restore actions">
+                        <button id="btn-settings-backup-now" type="button">Create Backup</button>
+                        <button id="btn-settings-restore-import" type="button">Restore Backup...</button>
+                        <button id="btn-settings-restore-point-create" type="button">Create Restore Point</button>
+                    </div>
+                    <label for="settings-restore-point-select">Restore point</label>
+                    <select id="settings-restore-point-select" aria-label="Available restore points"></select>
+                    <button id="btn-settings-restore-point-apply" type="button">Restore Selected Point</button>
+                </section>
+
+                <section aria-labelledby="settings-data-management-heading">
+                    <h4 id="settings-data-management-heading">Data Management</h4>
+                    <p>Only ART-managed application data can be reset or removed from this interface.</p>
+                </section>
+
+                <section aria-labelledby="settings-diagnostics-heading">
+                    <h4 id="settings-diagnostics-heading">Diagnostics</h4>
+                    <p id="settings-security-diagnostics" role="status" aria-live="polite" aria-atomic="true">No diagnostics available.</p>
+                </section>
+
+                <section aria-labelledby="settings-reset-heading">
+                    <h4 id="settings-reset-heading">Reset</h4>
+                    <button id="btn-settings-reset-app" type="button">Reset ART Application Data</button>
+                </section>
+            </details>
+
+            <p id="settings-status" class="open-report-status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+            <div id="settings-shortcut-conflict-dialog" role="alertdialog" aria-modal="true" aria-labelledby="settings-shortcut-conflict-heading" aria-describedby="settings-shortcut-conflict-message" hidden>
+                <h4 id="settings-shortcut-conflict-heading">Shortcut conflict detected</h4>
+                <p id="settings-shortcut-conflict-message"></p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-shortcut-conflict-assign" type="button">Assign Anyway</button>
+                    <button id="btn-settings-shortcut-conflict-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-name-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-standard-name-heading" aria-describedby="settings-standard-name-desc" hidden>
+                <h4 id="settings-standard-name-heading">Accessibility Standard Name</h4>
+                <p id="settings-standard-name-desc">This name will be used throughout ART wherever accessibility standards are shown.</p>
+                <label for="settings-standard-name-input">Display Name</label>
+                <input id="settings-standard-name-input" type="text">
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-name-save" type="button">Save</button>
+                    <button id="btn-settings-standard-name-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-overwrite-dialog" role="alertdialog" aria-modal="true" aria-labelledby="settings-standard-overwrite-heading" aria-describedby="settings-standard-overwrite-message" hidden>
+                <h4 id="settings-standard-overwrite-heading">Standard already exists</h4>
+                <p id="settings-standard-overwrite-message"></p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-overwrite-yes" type="button">Overwrite Existing</button>
+                    <button id="btn-settings-standard-overwrite-no" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-paste-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-standard-paste-heading" aria-describedby="settings-standard-paste-desc" hidden>
+                <h4 id="settings-standard-paste-heading">Paste Accessibility Standards As Table</h4>
+                <p id="settings-standard-paste-desc">Paste a standards table copied from a spreadsheet or document, then use the import action to add it to ART.</p>
+                <label for="settings-standard-paste-input">Standards Table</label>
+                <textarea id="settings-standard-paste-input" rows="12" placeholder='Standard | Version | Number | Title | Level | Description | Link'></textarea>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-paste-import" type="button">Import Pasted Table</button>
+                    <button id="btn-settings-standard-paste-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-standard-json-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-standard-json-heading" aria-describedby="settings-standard-json-desc" hidden>
+                <h4 id="settings-standard-json-heading">Edit Accessibility Standard JSON</h4>
+                <p id="settings-standard-json-desc">Edit the raw JSON for this imported standard, then save the updated criteria and metadata back into ART.</p>
+                <label for="settings-standard-json-input">Standard JSON</label>
+                <textarea id="settings-standard-json-input" rows="14"></textarea>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-standard-json-save" type="button">Save JSON</button>
+                    <button id="btn-settings-standard-json-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-clear-standards-dialog" role="alertdialog" aria-modal="true" aria-labelledby="settings-clear-standards-heading" aria-describedby="settings-clear-standards-desc" hidden>
+                <h4 id="settings-clear-standards-heading">Clear imported standards?</h4>
+                <p id="settings-clear-standards-desc">This removes all imported accessibility standards from ART. Built-in standards remain available.</p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-clear-standards-confirm" type="button">Clear Imported Standards</button>
+                    <button id="btn-settings-clear-standards-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="settings-reset-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-reset-dialog-heading" aria-describedby="settings-reset-dialog-desc" hidden>
+                <h4 id="settings-reset-dialog-heading">Reset ART Application Data</h4>
+                <p id="settings-reset-dialog-desc">What would you like to reset?</p>
+                <fieldset>
+                    <legend class="sr-only">Reset options</legend>
+                    <label><input type="radio" name="settings-reset-option" value="preferences" checked> Reset user preferences only</label>
+                    <p>Keeps reports, templates, and imported standards.</p>
+                    <label><input type="radio" name="settings-reset-option" value="all"> Reset all application data</label>
+                    <p>Removes reports, templates, imported standards, local state, integration connections, and remembered login details.</p>
+                </fieldset>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-settings-reset-confirm" type="button">Reset</button>
+                    <button id="btn-settings-reset-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="new-report-options">
+            <label for="template-selection">Template Selection</label>
+            <p id="template-selection-help" class="sr-only">Use Up and Down arrow keys to move through templates, then activate a template action button.</p>
+            <select id="template-selection" aria-label="Template Selection" aria-describedby="template-selection-help">
+                <option value="scratch">Start from Scratch</option>
+            </select>
+            <div class="template-actions" role="group" aria-label="Template actions">
+                <button id="btn-template-create" type="button">Create Template</button>
+                <button id="btn-template-use" type="button" hidden>Use Template</button>
+                <button id="btn-template-open" type="button" hidden>View Template</button>
+                <button id="btn-template-edit" type="button" hidden>Edit Template</button>
+                <button id="btn-template-delete" type="button" hidden>Delete Template</button>
+                <button id="btn-template-import" type="button">Import Template...</button>
+                <button id="btn-template-export" type="button" hidden>Export Template...</button>
+            </div>
+            <p id="template-status" class="open-report-status" role="status" aria-live="polite"></p>
+            <div id="template-create-dialog" role="dialog" aria-modal="true" aria-labelledby="template-create-heading" hidden>
+                <h3 id="template-create-heading">Create Template</h3>
+                <label for="template-create-name">Template Name</label>
+                <input id="template-create-name" type="text">
+                <button id="btn-template-create-save" type="button">Create Template</button>
+                <button id="btn-template-create-cancel" type="button">Cancel</button>
+            </div>
+            <div id="template-import-conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="template-import-conflict-heading" aria-describedby="template-import-conflict-description" hidden>
+                <h3 id="template-import-conflict-heading">Template already exists</h3>
+                <p id="template-import-conflict-description"></p>
+                <fieldset>
+                    <legend class="sr-only">Import conflict actions</legend>
+                    <label><input type="radio" name="template-import-conflict" id="template-import-option-replace" value="replace" checked> Replace existing template</label>
+                    <label><input type="radio" name="template-import-conflict" id="template-import-option-copy" value="copy"> Create a copy</label>
+                </fieldset>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-template-import-confirm" type="button">Confirm</button>
+                    <button id="btn-template-import-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+            <div id="template-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-delete-heading" aria-describedby="template-delete-message" hidden>
+                <h3 id="template-delete-heading">Delete Template?</h3>
+                <p id="template-delete-message"></p>
+                <button id="btn-template-delete-yes" type="button">Delete</button>
+                <button id="btn-template-delete-no" type="button">Cancel</button>
+            </div>
+            <div id="template-edit-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-edit-confirm-heading" aria-describedby="template-edit-confirm-message" hidden>
+                <h3 id="template-edit-confirm-heading">Edit Template?</h3>
+                <p id="template-edit-confirm-message"></p>
+                <button id="btn-template-edit-yes" type="button">Create editable copy</button>
+                <button id="btn-template-edit-no" type="button">Cancel</button>
+            </div>
+        </div>
+
+        <div id="recent-reports-container">
+            <label for="recent-reports-select">Recent Projects and Reports</label>
+            <div class="recent-reports-row">
+                <select id="recent-reports-select" aria-label="Recent projects and reports"></select>
+                <button id="btn-close-active-report" type="button">Close Report</button>
+            </div>
+
+            <div class="report-actions" role="group" aria-label="Report actions">
+                <button id="btn-configure-report" type="button">Configure Report</button>
+                <button id="btn-edit-report-dashboard" type="button">Edit Report</button>
+                <button id="btn-view-report-dashboard" type="button">View Report</button>
+                <button id="btn-delete-report-dashboard" type="button">Delete Report</button>
+            </div>
+
+            <section id="report-metrics" aria-labelledby="report-metrics-heading">
+                <h3 id="report-metrics-heading">Report Metrics</h3>
+                <dl id="report-metrics-list"></dl>
+            </section>
+
+            <div id="report-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="report-delete-heading" aria-describedby="report-delete-message" hidden>
+                <h3 id="report-delete-heading">Delete Report?</h3>
+                <p id="report-delete-message"></p>
+                <button id="btn-report-delete-confirm" type="button">Delete</button>
+                <button id="btn-report-delete-cancel" type="button">Cancel</button>
+            </div>
+
+            <div id="import-conflict-dialog" role="alertdialog" aria-modal="true" aria-labelledby="import-conflict-heading" aria-describedby="import-conflict-message" hidden>
+                <h3 id="import-conflict-heading">Import Conflict</h3>
+                <p id="import-conflict-message"></p>
+                <button id="btn-import-replace" type="button">Replace existing report</button>
+                <button id="btn-import-copy" type="button">Create a copy</button>
+                <button id="btn-import-cancel" type="button">Cancel</button>
+            </div>
+
+            <section id="network-activity" aria-labelledby="network-activity-heading">
+                <h3 id="network-activity-heading">Network Activity</h3>
+                <p id="network-activity-status" role="status" aria-live="polite" aria-atomic="true">Offline</p>
+                <p id="network-activity-detail">No external connection activity.</p>
+            </section>
+        </div>
+    </section>
+
+    <main id="main-content" role="main" aria-label="main content">
+        <div id="main-inner"></div>
+    </main>
+
+    <aside id="lookup-tool" aria-labelledby="lookup-heading">
+        <h2 id="lookup-heading">Accessibility Lookup Tool</h2>
+        <div id="container"></div>
+    </aside>
+</div>
+
+<div id="help-dialog" role="dialog" aria-modal="false" aria-labelledby="help-heading" aria-describedby="help-description" hidden>
+    <div class="help-header">
+        <h2 id="help-heading">ART Help and Documentation</h2>
+        <button id="btn-help-close" type="button">Close Help</button>
+    </div>
+    <p id="help-description">Use this guide to learn ART features, navigation, shortcuts, and accessibility workflows. Help opens independently so your current work stays in place.</p>
+    <div class="help-layout">
+        <nav id="help-toc" aria-label="Help table of contents"></nav>
+        <article id="help-content"></article>
+    </div>
+</div>
+
+<script type="module" src="state.js"></script>
+<script type="module" src="navigation.js"></script>
+<script type="module" src="dashboard.js"></script>
+<script type="module" src="reportBuilder.js"></script>
+    <script type="module" src="lookupTool.js"></script>
+<script type="module" src="loader.js"></script>
+</body>
+</html>
