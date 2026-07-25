@@ -436,7 +436,6 @@ function renderAbout() {
         : 'None';
     const importedCount = info.importedStandards.length;
     const privacyMode = Boolean(info.security?.privacyModeEnabled) ? 'Enabled' : 'Disabled';
-    const networkStatus = String(info.security?.networkActivityStatus || 'Offline');
 
     aboutList.innerHTML = `
         <div><dt>Application</dt><dd>${info.applicationName}</dd></div>
@@ -446,7 +445,6 @@ function renderAbout() {
         <div><dt>Imported Accessibility Standard Count</dt><dd>${importedCount}</dd></div>
         <div><dt>Imported Accessibility Standards</dt><dd>${importedNames}</dd></div>
         <div><dt>Privacy Mode</dt><dd>${privacyMode}</dd></div>
-        <div><dt>Network Activity</dt><dd>${networkStatus}</dd></div>
     `;
 }
 
