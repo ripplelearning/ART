@@ -211,6 +211,13 @@ export function renderDashboard() {
     renderNetworkActivityIndicator();
     window.addEventListener('art-security-updated', renderNetworkActivityIndicator);
 
+    const hasOpenReportWithUnsavedChanges = () => {
+        if (!hasUnsavedProjectChanges()) return false;
+        const selectedReportId = String(appState.selectedReportId || '').trim();
+        if (!selectedReportId) return false;
+        return Boolean(getReportById(selectedReportId));
+    };
+
     const openProjectInput = document.createElement('input');
     openProjectInput.type = 'file';
     openProjectInput.accept = '.art,application/json';
@@ -514,7 +521,7 @@ export function renderDashboard() {
     });
 
     window.addEventListener('beforeunload', (event) => {
-        if (!hasUnsavedProjectChanges()) return;
+        if (!hasOpenReportWithUnsavedChanges()) return;
         markProjectRecovered('Recovered changes are available.');
         event.preventDefault();
         event.returnValue = '';
@@ -654,7 +661,7 @@ export function renderDashboard() {
             const recoverySuffix = project.status === 'recovered' ? ' - Recovered Changes Available' : '';
             return `<option value="project:${project.id}">${labelBase}${recoverySuffix}</option>`;
         });
-        if (projectInfo.hasRecoveredChanges) {
+        if (projectInfo.hasRecoveredChanges && hasOpenReportWithUnsavedChanges()) {
             projectOptions.unshift(`<option value="project:recovery">${projectInfo.fileName || 'Unsaved ART Project'} - Recovered Changes Available</option>`);
         }
 
@@ -1223,7 +1230,7 @@ export function renderDashboard() {
     window.addEventListener('art-progress-log-updated', refreshReportMetrics);
 
     const projectInfo = getProjectDocumentInfo();
-    if (projectInfo.hasRecoveredChanges || hasUnsavedProjectChanges()) {
+    if (projectInfo.hasRecoveredChanges && hasOpenReportWithUnsavedChanges()) {
         markProjectRecovered(projectInfo.recoveryLabel || 'Recovered changes are available.');
         announce(projectInfo.recoveryLabel || 'A previous unsaved version of this project was found.');
     }
