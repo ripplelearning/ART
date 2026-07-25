@@ -653,15 +653,16 @@ export function renderDashboard() {
         const recentProjects = getRecentProjectFiles();
         const projectInfo = getProjectDocumentInfo();
         const currentSelection = appState.selectedReportId;
+        const showRecentProjects = reports.length > 0;
 
-        const projectOptions = recentProjects.map((project) => {
+        const projectOptions = showRecentProjects ? recentProjects.map((project) => {
             const labelBase = project.filePath
                 ? `${project.fileName} - ${project.filePath}`
                 : project.fileName;
             const recoverySuffix = project.status === 'recovered' ? ' - Recovered Changes Available' : '';
             return `<option value="project:${project.id}">${labelBase}${recoverySuffix}</option>`;
-        });
-        if (projectInfo.hasRecoveredChanges && hasOpenReportWithUnsavedChanges()) {
+        }) : [];
+        if (showRecentProjects && projectInfo.hasRecoveredChanges && hasOpenReportWithUnsavedChanges()) {
             projectOptions.unshift(`<option value="project:recovery">${projectInfo.fileName || 'Unsaved ART Project'} - Recovered Changes Available</option>`);
         }
 
