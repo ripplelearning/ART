@@ -17,6 +17,7 @@ const reservedShortcutSet = new Set([
 
 let helpInitialized = false;
 let lastHelpTrigger = null;
+let previousDocumentTitle = '';
 
 function escapeHtml(value) {
     return String(value || '')
@@ -513,6 +514,10 @@ function closeHelpDialog(restoreFocus = true) {
     const dialog = document.getElementById('help-dialog');
     if (!dialog) return;
     dialog.hidden = true;
+    if (previousDocumentTitle) {
+        document.title = previousDocumentTitle;
+        previousDocumentTitle = '';
+    }
     if (restoreFocus && lastHelpTrigger && typeof lastHelpTrigger.focus === 'function') {
         lastHelpTrigger.focus();
     }
@@ -526,6 +531,8 @@ export function openHelpDialog(trigger = null) {
 
     if (trigger) lastHelpTrigger = trigger;
     renderHelpDocumentation();
+    if (!previousDocumentTitle) previousDocumentTitle = document.title;
+    document.title = 'User Guide | ART';
     dialog.hidden = false;
 
     window.setTimeout(() => {
