@@ -15,7 +15,6 @@ import {
     getAuditEntries,
     getBuiltInTemplates,
     getProjectDocumentInfo,
-    getRecentProjectFiles,
     getRecentReports,
     getReportById,
     getSecurityConfig,
@@ -650,28 +649,14 @@ export function renderDashboard() {
 
     const rebuildRecentReports = () => {
         const reports = getRecentReports();
-        const recentProjects = getRecentProjectFiles();
-        const projectInfo = getProjectDocumentInfo();
         const currentSelection = appState.selectedReportId;
-        const showRecentProjects = reports.length > 0;
-
-        const projectOptions = showRecentProjects ? recentProjects.map((project) => {
-            const labelBase = project.filePath
-                ? `${project.fileName} - ${project.filePath}`
-                : project.fileName;
-            const recoverySuffix = project.status === 'recovered' ? ' - Recovered Changes Available' : '';
-            return `<option value="project:${project.id}">${labelBase}${recoverySuffix}</option>`;
-        }) : [];
-        if (showRecentProjects && projectInfo.hasRecoveredChanges && hasOpenReportWithUnsavedChanges()) {
-            projectOptions.unshift(`<option value="project:recovery">${projectInfo.fileName || 'Unsaved ART Project'} - Recovered Changes Available</option>`);
-        }
 
         const reportOptions = reports.map((report) => `<option value="${report.id}">${report.name}</option>`);
-        const emptyLabel = (projectOptions.length > 0 || reportOptions.length > 0)
+        const emptyLabel = reportOptions.length > 0
             ? 'No item selected'
-            : 'No recent projects or reports';
+            : 'No recent reports';
 
-        recentReportsSelect.innerHTML = `<option value="">${emptyLabel}</option>${projectOptions.join('')}${reportOptions.join('')}`;
+        recentReportsSelect.innerHTML = `<option value="">${emptyLabel}</option>${reportOptions.join('')}`;
 
         if (reports.length > 0) {
             const hasCurrent = reports.some((report) => report.id === currentSelection);
