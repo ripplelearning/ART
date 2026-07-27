@@ -1,7 +1,7 @@
 # ART Development Standards
 
 ## Purpose
-This document defines development standards for the Accessibility Reporting Tool (ART).
+This document defines development standards for ART (the Accessibility Reporting Tool).
 
 These standards apply to:
 

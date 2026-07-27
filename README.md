@@ -1,4 +1,4 @@
-# Accessibility Reporting Tool (ART)
+# ART (the Accessibility Reporting Tool) Version 1.0
 
 ART is an accessibility-first reporting workspace for documenting accessibility findings, managing standards-based criteria, and exporting reports.
 

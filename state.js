@@ -420,8 +420,8 @@ const SHORTCUT_DEFINITIONS = [
 ];
 
 const APP_INFO = {
-    applicationName: 'Accessibility Reporting Tool (ART)',
-    version: '13.0.0',
+    applicationName: 'ART (the Accessibility Reporting Tool)',
+    version: '1.0',
     buildDate: '2026-07-16',
     dataSchemaVersion: '1.0'
 };
@@ -1192,7 +1192,7 @@ export function serializeArtJsonPayload(reportState) {
 function getAppVersionLabel() {
     const appName = String(APP_INFO.applicationName || 'ART').trim();
     const version = String(APP_INFO.version || 'unknown').trim();
-    return `${appName} ${version}`;
+    return `${appName} Version ${version}`;
 }
 
 function createProjectMetadata(overrides = {}) {

@@ -439,7 +439,7 @@ function renderAbout() {
 
     aboutList.innerHTML = `
         <div><dt>Application</dt><dd>${info.applicationName}</dd></div>
-        <div><dt>Version</dt><dd>${info.version}</dd></div>
+        <div><dt>Version</dt><dd>Version ${info.version}</dd></div>
         <div><dt>Build Date</dt><dd>${info.buildDate || 'Unavailable'}</dd></div>
         <div><dt>Data Schema Version</dt><dd>${info.dataSchemaVersion}</dd></div>
         <div><dt>Imported Accessibility Standard Count</dt><dd>${importedCount}</dd></div>

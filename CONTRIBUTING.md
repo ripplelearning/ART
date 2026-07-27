@@ -1,6 +1,6 @@
 # Contributing to ART
 
-Thank you for your interest in contributing to the Accessibility Reporting Tool (ART).
+Thank you for your interest in contributing to ART (the Accessibility Reporting Tool).
 
 ART is an open-source accessibility-focused project designed to help organizations identify, understand, document, and improve accessibility.
 

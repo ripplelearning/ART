@@ -93,7 +93,7 @@ function getHelpSections(rows) {
             id: 'help-getting-started',
             title: 'Getting Started',
             content: `
-                <p>ART is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
+                <p>ART (the Accessibility Reporting Tool) Version 1.0 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
                 <p>Use Dashboard actions to create or open reports, then use the panel tabs for Builder, Editor, Viewer, and Help tasks.</p>
             `
         },
@@ -297,11 +297,11 @@ function getHelpSections(rows) {
             id: 'help-about-art',
             title: 'About ART',
             content: `
-                <h3 id="help-about-art-name">Accessibility Reporting Tool (ART)</h3>
-                <p>The <strong>Accessibility Reporting Tool (ART)</strong> was created to provide accessibility professionals, quality assurance testers, developers, designers, educators, and organizations with a streamlined, accessible, and efficient way to document, organize, and communicate accessibility evaluation results.</p>
+                <h3 id="help-about-art-name">ART (the Accessibility Reporting Tool)</h3>
+                <p>The <strong>ART (the Accessibility Reporting Tool)</strong> was created to provide accessibility professionals, quality assurance testers, developers, designers, educators, and organizations with a streamlined, accessible, and efficient way to document, organize, and communicate accessibility evaluation results.</p>
                 <p>ART was born from the recognition that many existing accessibility reporting workflows rely on generic office applications, spreadsheets, or tools that were not specifically designed for accessibility reporting. These approaches often require repetitive manual work, inconsistent formatting, and additional effort to produce reports that are both comprehensive and easy for others to understand. In addition, those few reporting systems which do exist which focus on accessibility tend to be inaccessible, hidden behind a pay wall, or whose interface and reporting structure is so rigidly set in place that it becomes unusable for most accessibility professionals.</p>
                 <p>The goal of ART is to simplify that process by providing a dedicated application built specifically for creating, managing, and exporting accessibility reports. Rather than replacing accessibility expertise, ART is designed to support it by reducing administrative overhead and allowing evaluators to spend more time identifying issues, understanding standards, and communicating meaningful recommendations.</p>
-                <p>The name <strong>ART</strong> stands for <strong>Accessibility Reporting Tool</strong>. The name was chosen because accessibility reporting is both a technical discipline and a craft. Producing high-quality reports requires careful observation, attention to detail, knowledge of accessibility standards, and the ability to communicate findings clearly to diverse audiences, making the field of accessibility an art-form. ART aims to support that process by making report creation more efficient, more consistent, and more accessible.</p>
+                <p>The name <strong>ART</strong> reflects the craft and discipline of accessibility reporting. Producing high-quality reports requires careful observation, attention to detail, knowledge of accessibility standards, and the ability to communicate findings clearly to diverse audiences, making accessibility reporting an art form. ART aims to support that process by making report creation more efficient, more consistent, and more accessible.</p>
                 <p>From its inception, ART has been guided by an accessibility-first philosophy. Accessibility and universal design are not optional features or enhancements added later; they are the foundation upon which every aspect of the application is designed, implemented, and evaluated. Keyboard accessibility, screen reader compatibility, semantic HTML, adherence to web standards, and support for a wide range of users are core principles that influence every design and development decision.</p>
                 <p>ART is intended to serve users with a broad range of experience, from individuals learning accessibility evaluation to seasoned professionals conducting detailed audits for clients and organizations. The application emphasizes discoverability, efficiency, flexibility, and consistency while remaining approachable for new users.</p>
                 <p>As an open-source project, ART welcomes community participation. Constructive feedback, accessibility testing, documentation improvements, bug reports, feature suggestions, and well-documented code contributions all play an important role in helping the project grow. The long-term success of ART depends upon collaboration with people who share a commitment to improving digital accessibility.</p>
@@ -318,7 +318,7 @@ function getHelpSections(rows) {
             title: 'Licensing, Distribution, and Project Identity',
             content: `
                 <h3 id="help-license-commitment">MIT License and Open Source Commitment</h3>
-                <p>The Accessibility Reporting Tool (ART) is released under the MIT License.</p>
+                <p>ART is released under the MIT License.</p>
                 <p>The MIT License provides broad permission to use, modify, distribute, and incorporate ART into other projects, including commercial applications, subject to the terms of the license. A copy of the MIT License is included with the project and governs the use and distribution of the ART source code.</p>
                 <p>Legal terms are defined in the top-level <strong>LICENSE</strong> file. This Help section focuses on project philosophy, contribution expectations, and project identity guidance.</p>
 
@@ -333,7 +333,7 @@ function getHelpSections(rows) {
                 <p>Development of ART is assisted by GitHub Copilot, which is used as an AI-assisted software development tool, and ChatGPT, which assists with planning, accessibility guidance, UX refinement, workflow design, feature specification, and documentation development.</p>
 
                 <h3 id="help-license-identity">Project Identity</h3>
-                <p>The name Accessibility Reporting Tool (ART) identifies the official project.</p>
+                <p>The name ART identifies the official project.</p>
                 <p>If you create and distribute a substantially modified or forked version of ART, you are strongly encouraged to use a different project name and branding. Doing so helps avoid confusion between community-created derivatives and the official ART project.</p>
                 <p>Using a distinct name also allows users to clearly identify which version they are using, where to report issues, and where to obtain official documentation and updates.</p>
 
@@ -532,7 +532,7 @@ export function openHelpDialog(trigger = null) {
     if (trigger) lastHelpTrigger = trigger;
     renderHelpDocumentation();
     if (!previousDocumentTitle) previousDocumentTitle = document.title;
-    document.title = 'User Guide | ART';
+    document.title = 'User Guide | ART Version 1.0';
     dialog.hidden = false;
 
     window.setTimeout(() => {

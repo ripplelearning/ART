@@ -1,6 +1,7 @@
 import { appState } from './state.js';
 
 const APP_NAME = 'ART';
+const APP_VERSION = 'Version 1.0';
 const TAB_PANEL_MAP = {
     'tab-welcome': 'Welcome',
     'tab-builder': 'Report Builder',
@@ -48,8 +49,8 @@ export function syncDocumentTitle() {
     const panelName = getCurrentPanelName();
     const reportName = getReportName();
     const title = hasOpenReport() && reportName
-        ? `${reportName} – ${panelName} | ${APP_NAME}`
-        : `${panelName} | ${APP_NAME}`;
+        ? `${reportName} – ${panelName} | ${APP_NAME} ${APP_VERSION}`
+        : `${panelName} | ${APP_NAME} ${APP_VERSION}`;
 
     if (lastTitleSignature === title) return;
     document.title = title;
