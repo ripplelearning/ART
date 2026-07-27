@@ -2,6 +2,15 @@
 
 ART is an accessibility-first reporting workspace for documenting accessibility findings, managing standards-based criteria, and exporting reports.
 
+## Command Framework
+ART 2.0 introduces a centralized Application Command Framework that routes user actions through reusable commands instead of duplicated UI logic.
+
+See:
+
+- [Command Reference](COMMANDS.md)
+- [Architecture Overview](ARCHITECTURE.md)
+- [Change Log](CHANGELOG.md)
+
 ## Repository Documentation
 Use these documents as the primary source of development and contribution standards:
 

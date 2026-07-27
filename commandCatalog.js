@@ -75,13 +75,6 @@ function clickElementById(id) {
     return true;
 }
 
-function clickFirstAvailable(...ids) {
-    for (const id of ids) {
-        if (clickElementById(id)) return true;
-    }
-    return false;
-}
-
 function runLookupCopyWorkflow(action) {
     return executeLookupCopyActionFromCommand(action);
 }
