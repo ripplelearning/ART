@@ -1,5 +1,5 @@
 // navigation.js
-import { announce, appState, getShortcutForAction, redoState, saveState, undoState } from './state.js';
+import { announce, appState, closeCurrentReportSession, getShortcutForAction, redoState, saveState, undoState } from './state.js';
 import { renderBuilder } from './reportBuilder.js';
 import { activateAddEntryWorkflow, renderEditor } from './reportEditor.js';
 import { requestViewerExportDialog, renderViewer } from './reportViewer.js';
@@ -258,9 +258,24 @@ function closeActiveSessionFromShortcut() {
 
     const templateSelect = document.getElementById('template-selection');
     if (templateSelect && templateSelect.value && templateSelect.value !== 'scratch') {
+        closeCurrentReportSession();
         templateSelect.value = 'scratch';
         templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
         announce('Closed template selection.');
+        const welcomeTab = document.getElementById('tab-welcome');
+        welcomeTab?.click();
+        return true;
+    }
+
+    if (appState.templateCreateMode || appState.templateEditingId || String(appState.templateName || '').trim()) {
+        closeCurrentReportSession();
+        if (templateSelect) {
+            templateSelect.value = 'scratch';
+            templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        announce('Closed template session.');
+        const welcomeTab = document.getElementById('tab-welcome');
+        welcomeTab?.click();
         return true;
     }
 

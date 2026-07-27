@@ -63,7 +63,7 @@ const defaultState = {
         importData: 'Ctrl+Shift+I',
         openReport: '',
         exportReport: 'Ctrl+Shift+E',
-        newReport: 'Ctrl+N',
+        newReport: 'Alt+N',
         newReportFromTemplate: 'Ctrl+Shift+N',
         resetLookup: 'Alt+Shift+D',
         closeReport: 'Alt+Shift+C',
@@ -440,6 +440,11 @@ function normalizeShortcuts(rawShortcuts) {
     SHORTCUT_DEFINITIONS.forEach((definition) => {
         normalized[definition.action] = normalizeShortcutValue(source[definition.action], definition.defaultShortcut);
     });
+
+    const legacyNewReport = String(source.newReport || '').trim().toLowerCase();
+    if (!legacyNewReport || legacyNewReport === 'ctrl+n') {
+        normalized.newReport = defaultState.shortcuts.newReport;
+    }
 
     if (!hasProjectShortcutKeys) {
         normalized.openProject = defaultState.shortcuts.openProject;

@@ -37,6 +37,10 @@ function getCurrentPanelName() {
     return activePanelHint || getSelectedTabPanelName();
 }
 
+function sanitizeTitleText(value) {
+    return String(value || '').replace(/\s*\(\)\s*$/, '').trim();
+}
+
 export function setActivePanel(panelName) {
     const normalized = String(panelName || '').trim();
     if (!normalized) return;
@@ -48,9 +52,10 @@ export function setActivePanel(panelName) {
 export function syncDocumentTitle() {
     const panelName = getCurrentPanelName();
     const reportName = getReportName();
-    const title = hasOpenReport() && reportName
+    const rawTitle = hasOpenReport() && reportName
         ? `${reportName} – ${panelName} | ${APP_NAME} ${APP_VERSION}`
         : `${panelName} | ${APP_NAME} ${APP_VERSION}`;
+    const title = sanitizeTitleText(rawTitle);
 
     if (lastTitleSignature === title) return;
     document.title = title;
