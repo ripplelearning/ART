@@ -6,6 +6,7 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 
 ### Application
 - `openWelcome`
+- `openCommandPalette`
 - `openBuilder`
 - `openEditor`
 - `openViewer`
@@ -86,4 +87,6 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - Commands are registered centrally in [commandCatalog.js](commandCatalog.js).
 - Commands are executed through [commandExecutionService.js](commandExecutionService.js).
 - Keyboard shortcuts resolve to commands through the same execution layer.
+- The Command Palette is a registered Application Command and opens with Ctrl+Shift+P by default.
+- The Command Palette displays the current shortcut assignments from the Keyboard Shortcut Manager.
 - UI controls should prefer command execution instead of duplicating workflow logic.

@@ -419,6 +419,7 @@ th { background-color: #f4f4f4; }
 #editor-validation-dialog,
 #editor-statistics-dialog,
 #editor-spellcheck-dialog,
+#command-palette-dialog,
 #help-dialog {
     border: 1px solid #ccc;
     background: #fff;
@@ -426,6 +427,91 @@ th { background-color: #f4f4f4; }
     display: grid;
     gap: 10px;
     max-width: 720px;
+}
+
+#command-palette-dialog {
+    position: fixed;
+    inset: 4vh 4vw;
+    z-index: 1250;
+    max-width: 860px;
+    max-height: 92vh;
+    overflow: hidden;
+    gap: 12px;
+}
+
+.command-palette-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#command-palette-search {
+    width: 100%;
+}
+
+#command-palette-results {
+    display: grid;
+    gap: 12px;
+    overflow: auto;
+    min-height: 0;
+    padding-right: 2px;
+}
+
+.command-palette-group {
+    display: grid;
+    gap: 8px;
+}
+
+.command-palette-group h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.command-palette-options {
+    display: grid;
+    gap: 8px;
+}
+
+.command-palette-option {
+    border: 1px solid #ddd;
+    background: #fff;
+    padding: 10px 12px;
+    text-align: left;
+    display: grid;
+    gap: 4px;
+    border-radius: 6px;
+}
+
+.command-palette-option--active {
+    border-color: #005a9c;
+    box-shadow: 0 0 0 2px rgba(0, 90, 156, 0.15);
+    background: #f5faff;
+}
+
+.command-palette-option--disabled {
+    opacity: 0.65;
+}
+
+.command-palette-option-name {
+    font-weight: 700;
+}
+
+.command-palette-option-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #444;
+    font-size: 0.95rem;
+}
+
+.command-palette-option-shortcut {
+    font-weight: 700;
+}
+
+.command-palette-empty {
+    margin: 0;
+    padding: 10px 0;
 }
 
 #help-dialog {

@@ -129,6 +129,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-command-palette',
+            title: 'Command Palette',
+            content: `
+                <p>The Command Palette is ART's keyboard-first command launcher. It opens with <strong>Ctrl+Shift+P</strong> and lets you search registered Application Commands without leaving the keyboard.</p>
+                <p>Type to filter commands instantly, use the Arrow keys to move through results, and press <strong>Enter</strong> to execute the selected command.</p>
+                <p>The Command Palette always shows the current shortcut assignment for each command, so any change made in Application Settings is reflected immediately.</p>
+            `
+        },
+        {
             id: 'help-features-workflows',
             title: 'Features and Workflows',
             content: `

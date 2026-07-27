@@ -7,6 +7,7 @@ import { renderWelcome } from './welcome.js';
 import { initApplicationIdentity } from './appIdentity.js';
 import { initResizableLayout } from './layout.js';
 import { initHelp, openHelpDialog } from './help.js';
+import { initCommandPalette } from './commandPalette.js';
 import { registerApplicationCommands } from './commandCatalog.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 
@@ -107,13 +108,16 @@ function initializeApp() {
     // 4. Initialize application settings modal
     initSettings();
 
-    // 5. Initialize integrated help system
+    // 5. Initialize the Command Palette
+    initCommandPalette();
+
+    // 6. Initialize integrated help system
     initHelp();
     
-    // 6. Set the default application view
+    // 7. Set the default application view
     renderWelcome();
 
-    // 7. Support direct Help deep links without changing existing Help behavior
+    // 8. Support direct Help deep links without changing existing Help behavior
     openHelpFromDirectLink();
     
     console.log("ART System fully initialized.");

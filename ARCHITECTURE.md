@@ -23,6 +23,12 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Connects command names to existing ART workflows.
 - Reuses existing business logic where practical.
 
+### Command Palette
+- Reads command metadata from the Command Registry.
+- Reads current shortcut assignments from the Keyboard Shortcut Manager.
+- Searches and filters registered commands without storing its own command definitions.
+- Executes selected commands through the Command Execution Service.
+
 ## UI Integration
 
 - Dashboard actions resolve through commands.
@@ -31,6 +37,7 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Settings actions resolve through commands.
 - Lookup actions resolve through commands.
 - Keyboard shortcuts resolve through commands.
+- The Command Palette resolves through the same centralized command framework.
 
 ## Execution Pattern
 
@@ -39,6 +46,12 @@ The framework standardizes how user actions are defined, resolved, and executed.
 3. The command registry provides the command definition.
 4. The execution service runs the command handler.
 5. The command handler reuses existing ART workflows or business logic.
+
+## Shortcut Ownership
+
+- The Keyboard Shortcut Manager remains the single source of truth for shortcut assignments.
+- The Command Palette and Help pages read shortcut values dynamically.
+- Changing a shortcut in Settings updates the displayed shortcut everywhere that the application exposes it.
 
 ## Design Goals
 

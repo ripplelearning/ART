@@ -327,6 +327,18 @@
     </div>
 </div>
 
+<div id="command-palette-dialog" role="dialog" aria-modal="true" aria-labelledby="command-palette-heading" aria-describedby="command-palette-description" hidden>
+    <div class="command-palette-header">
+        <button id="btn-command-palette-close" type="button">Close</button>
+        <h2 id="command-palette-heading">Command Palette</h2>
+    </div>
+    <p id="command-palette-description">Search registered ART commands, review the current shortcut, and execute the selected command with Enter.</p>
+    <label for="command-palette-search">Search commands</label>
+    <input id="command-palette-search" type="search" autocomplete="off" spellcheck="false" aria-controls="command-palette-results" aria-describedby="command-palette-status">
+    <p id="command-palette-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div id="command-palette-results" role="listbox" aria-label="Command results"></div>
+</div>
+
 <script type="module" src="state.js"></script>
 <script type="module" src="navigation.js"></script>
 <script type="module" src="dashboard.js"></script>

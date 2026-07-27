@@ -22,6 +22,7 @@ import {
     saveState,
     serializeArtxTemplatePayload,
 } from './state.js';
+import { openCommandPalette } from './commandPalette.js';
 import { openHelpDialog } from './help.js';
 import {
     closeSettingsDialogFromCommand,
@@ -509,6 +510,13 @@ const COMMAND_DEFINITIONS = [
         category: 'Help',
         description: 'Open the integrated Help documentation.',
         handler: () => openHelpDialog(null)
+    },
+    {
+        action: 'openCommandPalette',
+        id: 'Application.OpenCommandPalette',
+        category: 'Application',
+        description: 'Open the Command Palette.',
+        handler: () => openCommandPalette(null)
     },
     {
         action: 'openBuilder',
