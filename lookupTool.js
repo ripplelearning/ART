@@ -1,6 +1,39 @@
 // lookupTool.js
+import { commandExecutionService } from './commandExecutionService.js';
+import { commandRegistry } from './commandRegistry.js';
 import { appState, getShortcutForAction } from './state.js';
 import { getAvailableWcagStandards, loadWcagCatalog } from './wcagCatalog.js';
+
+let runLookupResetWorkflow = null;
+
+async function executeLookupAction(action, context = {}) {
+    const command = commandRegistry.findCommands({ action })[0] || null;
+    if (!command?.id) return null;
+    return commandExecutionService.executeCommand(command.id, {
+        source: 'lookup-tool',
+        action,
+        ...context
+    });
+}
+
+export function resetLookupFromCommand() {
+    if (typeof runLookupResetWorkflow !== 'function') return false;
+    return runLookupResetWorkflow();
+}
+
+export async function executeLookupCopyActionFromCommand(action) {
+    const button = document.querySelector(`[data-copy-action="${action}"]`);
+    if (!(button instanceof HTMLElement)) return false;
+
+    const text = String(button.getAttribute('data-text') || '');
+    await navigator.clipboard.writeText(text);
+    const original = button.textContent;
+    button.textContent = 'Copied!';
+    window.setTimeout(() => {
+        button.textContent = original;
+    }, 2000);
+    return true;
+}
 
 export async function initLookupTool() {
     const container = document.getElementById('container');
@@ -75,6 +108,11 @@ export async function initLookupTool() {
         document.getElementById('s').dispatchEvent(new Event('input'));
     };
 
+    runLookupResetWorkflow = () => {
+        resetTool();
+        return true;
+    };
+
     try {
         const data = await loadWcagCatalog();
         const standards = await getAvailableWcagStandards();
@@ -128,11 +166,14 @@ export async function initLookupTool() {
                     const div = document.createElement('div');
                     div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName} (Level ${i.level})</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Description:</dt><dd>${formatParagraphs(i.desc)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Fixes:</dt><dd>${formatAsList(i.fixes)}</dd><dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>References:</dt><dd><a href="${i.understandingUrl || '#'}" target="_blank" rel="noopener noreferrer">Open official documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-copy-action="copyEntry" data-text="${displayName}\n\nDescription:\n${(i.desc || '').replace(/\|/g, ' ')}\n\nFailures:\n${(i.failures || '').replace(/\|/g, '\n')}\n\nFixes:\n${(i.fixes || '').replace(/\|/g, '\n')}\n\nDisabilities: ${formatAsCommaList(i.disabilitie)}\n\nReferences: ${i.understandingUrl || 'N/A'}">Copy Full Entry</button></li><li><button class="copy-btn" data-copy-action="copyName" data-text="${cleanForCopy(displayName)}">Copy Name</button></li><li><button class="copy-btn" data-copy-action="copyDescription" data-text="${cleanForCopy(i.desc)}">Copy Description</button></li><li><button class="copy-btn" data-copy-action="copyFailures" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-copy-action="copyFixes" data-text="${cleanForCopy(i.fixes)}">Copy Fixes</button></li><li><button class="copy-btn" data-copy-action="copyLink" data-text="${i.understandingUrl || ''}">Copy References</button></li></ul></fieldset></details>`;
                     div.querySelectorAll('.copy-btn').forEach(b => {
-                        b.onclick = () => {
-                            navigator.clipboard.writeText(b.getAttribute('data-text'));
-                            const original = b.textContent;
-                            b.textContent = "Copied!";
-                            setTimeout(() => b.textContent = original, 2000);
+                        b.onclick = async () => {
+                            const copyAction = String(b.getAttribute('data-copy-action') || '');
+                            const result = await executeLookupAction(copyAction, {
+                                text: b.getAttribute('data-text') || ''
+                            });
+                            if (!result?.ok) {
+                                await executeLookupCopyActionFromCommand(copyAction);
+                            }
                         };
                     });
                     listContainer.appendChild(div);
@@ -186,7 +227,12 @@ export async function initLookupTool() {
         ['ver-f', 'lvl-f', 'cat-f'].forEach((id) => {
             document.getElementById(id).onchange = () => applyFilters({ deferAnnouncement: true });
         });
-        document.getElementById('reset-btn').onclick = resetTool;
+        document.getElementById('reset-btn').onclick = async () => {
+            const result = await executeLookupAction('resetLookup');
+            if (!result?.ok) {
+                resetTool();
+            }
+        };
         lookupRegion?.addEventListener('focusin', notifyLookupPanel);
         lookupRegion?.addEventListener('click', notifyLookupPanel);
 

@@ -26,8 +26,9 @@ import {
     updateAuditEntryFieldValue,
     updateEditorFieldValue
 } from './state.js';
+import { commandExecutionService } from './commandExecutionService.js';
+import { commandRegistry } from './commandRegistry.js';
 import { formatWcagCriterionDisplay, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
-import { requestViewerExportDialog, requestViewerPrintPreview } from './reportViewer.js';
 import { openProgressLogDialog } from './progressLog.js';
 
 let pendingEntryFocus = null;
@@ -36,6 +37,7 @@ let activeModalDialog = null;
 let areModalListenersBound = false;
 let pendingEditorFocusTargetId = '';
 let spellSession = null;
+let runSpellDialogAction = null;
 
 function editorEventToShortcut(event) {
     const key = String(event.key || '');
@@ -86,6 +88,16 @@ const fallbackSpellDictionary = new Set([
 
 let spellDictionaryEngine = null;
 let spellDictionaryLoadPromise = null;
+
+async function executeEditorAction(action, context = {}) {
+    const command = commandRegistry.findCommands({ action })[0] || null;
+    if (!command?.id) return null;
+    return commandExecutionService.executeCommand(command.id, {
+        source: 'editor',
+        action,
+        ...context
+    });
+}
 
 function loadExternalScript(src) {
     return new Promise((resolve, reject) => {
@@ -346,9 +358,16 @@ function closeSpellDialog(restoreFocus = true) {
     const trigger = document.getElementById('btn-editor-spell-check');
     const shouldRestore = restoreFocus && trigger;
     spellSession = null;
+    runSpellDialogAction = null;
     if (shouldRestore) {
         window.setTimeout(() => trigger.focus(), 0);
     }
+}
+
+export function executeSpellDialogActionFromCommand(action) {
+    if (typeof runSpellDialogAction !== 'function') return false;
+    runSpellDialogAction(action);
+    return true;
 }
 
 function rerenderSpellDialog() {
@@ -457,6 +476,8 @@ function rerenderSpellDialog() {
         announceEditorStatus('Spell check canceled.');
     };
 
+    runSpellDialogAction = command;
+
     const buttonMap = [
         ['spellcheck-replace', 'replace'],
         ['spellcheck-replace-all', 'replaceAll'],
@@ -547,6 +568,12 @@ async function startSpellCheck() {
     };
     rerenderSpellDialog();
 }
+
+export async function startSpellCheckFromCommand() {
+    await startSpellCheck();
+    return true;
+}
+
 export function activateAddEntryWorkflow() {
     if (!currentReportSupportsAuditEntries()) {
         announce('Add Entry is unavailable for the current report type.');
@@ -1085,6 +1112,35 @@ function focusValidationTarget(issue) {
     }
 }
 
+export function openEditorValidationDialog(triggerButton = null) {
+    const validationDialog = document.getElementById('editor-validation-dialog');
+    const validationClose = document.getElementById('btn-editor-validation-close');
+    if (!validationDialog || !validationClose) return false;
+
+    const issues = validateCurrentReport();
+    renderValidationResults(issues);
+    validationDialog.querySelectorAll('.btn-validation-issue').forEach((button) => {
+        button.onclick = () => {
+            const index = Number(button.getAttribute('data-issue-index'));
+            const issue = issues[index];
+            closeModalDialog(false);
+            window.setTimeout(() => focusValidationTarget(issue), 0);
+        };
+    });
+
+    openModalDialog(validationDialog, validationClose, triggerButton || document.activeElement);
+    return true;
+}
+
+export function openEditorStatisticsDialog(triggerButton = null) {
+    const statisticsDialog = document.getElementById('editor-statistics-dialog');
+    const statisticsClose = document.getElementById('btn-editor-statistics-close');
+    if (!statisticsDialog || !statisticsClose) return false;
+
+    openModalDialog(statisticsDialog, statisticsClose, triggerButton || document.activeElement);
+    return true;
+}
+
 function renderAuditTable(criteria) {
     ensureAuditEntries();
     const entries = getAuditEntries();
@@ -1185,7 +1241,9 @@ function bindAuditTableEvents(criteria) {
 
     const addEntryButton = document.getElementById('btn-add-entry');
     if (addEntryButton) {
-        addEntryButton.addEventListener('click', () => {
+        addEntryButton.addEventListener('click', async () => {
+            const result = await executeEditorAction('addEntry');
+            if (result?.ok) return;
             if (!activateAddEntryWorkflow()) return;
             renderEditor();
         });
@@ -1338,68 +1396,42 @@ function bindEditorDialogEvents() {
     });
 
     configureReportButton?.addEventListener('click', () => {
-        upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
-        const builderTab = document.getElementById('tab-builder');
-        builderTab?.click();
-        window.setTimeout(() => {
-            document.getElementById('builder-heading')?.focus();
-        }, 0);
+        void executeEditorAction('openBuilder');
     });
 
     spellCheckButton?.addEventListener('click', () => {
-        startSpellCheck();
+        void executeEditorAction('spellCheck');
     });
 
     validateReportButton?.addEventListener('click', () => {
-        const issues = validateCurrentReport();
-        renderValidationResults(issues);
-        validationDialog.querySelectorAll('.btn-validation-issue').forEach((button) => {
-            button.addEventListener('click', () => {
-                const index = Number(button.getAttribute('data-issue-index'));
-                const issue = issues[index];
-                closeModalDialog(false);
-                window.setTimeout(() => focusValidationTarget(issue), 0);
-            });
-        });
-        openModalDialog(validationDialog, validationClose, validateReportButton);
+        void executeEditorAction('validateReport', { triggerButton: validateReportButton });
     });
 
     reportStatisticsButton?.addEventListener('click', () => {
-        openModalDialog(statisticsDialog, statisticsClose, reportStatisticsButton);
+        void executeEditorAction('reportStatistics', { triggerButton: reportStatisticsButton });
     });
 
-    progressLogButton?.addEventListener('click', () => {
-        openProgressLogDialog(progressLogButton);
+    progressLogButton?.addEventListener('click', async () => {
+        const result = await executeEditorAction('openProgressLog');
+        if (!result?.ok) {
+            openProgressLogDialog(progressLogButton);
+        }
     });
 
     viewReportButton?.addEventListener('click', () => {
-        const viewerTab = document.getElementById('tab-view');
-        viewerTab?.click();
-        window.setTimeout(() => document.getElementById('viewer-heading')?.focus(), 0);
+        void executeEditorAction('openViewer');
     });
 
     printPreviewButton?.addEventListener('click', () => {
-        requestViewerPrintPreview();
-        const viewerTab = document.getElementById('tab-view');
-        viewerTab?.click();
+        void executeEditorAction('printPreview');
     });
 
     exportReportButton?.addEventListener('click', () => {
-        requestViewerExportDialog();
-        const viewerTab = document.getElementById('tab-view');
-        viewerTab?.click();
+        void executeEditorAction('exportReport');
     });
 
     closeReportButton?.addEventListener('click', () => {
-        upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
-        const welcomeTab = document.getElementById('tab-welcome');
-        welcomeTab?.click();
-        window.setTimeout(() => {
-            const heading = document.getElementById('dash-heading');
-            if (!heading) return;
-            if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
-            heading.focus();
-        }, 0);
+        void executeEditorAction('closeReport');
     });
 
     metadataCancel.addEventListener('click', () => closeModalDialog(true));

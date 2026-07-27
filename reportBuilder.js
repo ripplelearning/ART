@@ -1,9 +1,21 @@
 // reportBuilder.js
+import { commandExecutionService } from './commandExecutionService.js';
+import { commandRegistry } from './commandRegistry.js';
 import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 let pendingFocus = null;
 let pendingDelete = null;
+
+async function executeBuilderAction(action, context = {}) {
+    const command = commandRegistry.findCommands({ action })[0] || null;
+    if (!command?.id) return null;
+    return commandExecutionService.executeCommand(command.id, {
+        source: 'builder',
+        action,
+        ...context
+    });
+}
 
 function normalizeFieldType(type) {
     return type === 'select' ? 'dropdown' : type || 'text';
@@ -260,6 +272,61 @@ function setupSelectAnnouncement(selectElement, label) {
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) return;
         window.setTimeout(announceCurrentOption, 20);
     });
+}
+
+export function executeAddFieldFromCommand() {
+    const isAdding = appState.editingIndex === -1;
+    addOrUpdateField();
+    if (isAdding) {
+        pendingFocus = { index: null, action: 'field-label-input' };
+    }
+    renderBuilder();
+    return true;
+}
+
+export function executeDoneFromCommand() {
+    if (!validateBrandingInputs(true)) return false;
+
+    if (appState.templateCreateMode) {
+        const baseName = (appState.templateName || appState.reportTitle || 'Untitled Template').trim();
+        const existing = new Set((appState.userTemplates || []).map((t) => String(t.name || '').toLowerCase()));
+        let resolvedName = baseName || 'Untitled Template';
+        let suffix = 2;
+        while (existing.has(resolvedName.toLowerCase())) {
+            resolvedName = `${baseName || 'Untitled Template'} ${suffix}`;
+            suffix += 1;
+        }
+
+        const created = createUserTemplate(resolvedName);
+        if (created) {
+            appState.lastCreatedTemplateId = created.id;
+            appState.templateCreateMode = false;
+            announce(`${created.name} template created`);
+            window.dispatchEvent(new Event('art-templates-updated'));
+        }
+    }
+
+    if (appState.templateEditingId && appState.templateEditingId.startsWith('user-')) {
+        const updated = saveCurrentReportToUserTemplate(appState.templateEditingId);
+        if (updated) {
+            appState.lastCreatedTemplateId = updated.id;
+            window.dispatchEvent(new Event('art-templates-updated'));
+        }
+    }
+    appState.editorUsesReportTitle = true;
+    appState.editorReadOnly = false;
+    appState.templateEditingId = null;
+    saveState({ action: 'Completed report configuration' });
+    upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
+    window.dispatchEvent(new Event('art-reports-updated'));
+    announce('Report moved to Editor.');
+    const editorTab = document.getElementById('tab-editor');
+    if (editorTab) editorTab.click();
+    window.setTimeout(() => {
+        const editorHeading = document.getElementById('editor-heading');
+        if (editorHeading) editorHeading.focus();
+    }, 30);
+    return true;
 }
 
 export async function renderBuilder() {
@@ -746,13 +813,11 @@ export async function renderBuilder() {
         commitFieldType();
     }
 
-    document.getElementById('btn-add-field').addEventListener('click', () => {
-        const isAdding = appState.editingIndex === -1;
-        addOrUpdateField();
-        if (isAdding) {
-            pendingFocus = { index: null, action: 'field-label-input' };
+    document.getElementById('btn-add-field').addEventListener('click', async () => {
+        const result = await executeBuilderAction('addField');
+        if (!result?.ok) {
+            executeAddFieldFromCommand();
         }
-        renderBuilder();
     });
 
     const deleteDialog = document.getElementById('delete-confirm-dialog');
@@ -785,48 +850,11 @@ export async function renderBuilder() {
 
     const doneButton = document.getElementById('btn-done');
     if (doneButton) {
-        doneButton.addEventListener('click', () => {
-            if (!validateBrandingInputs(true)) return;
-
-            if (appState.templateCreateMode) {
-                const baseName = (appState.templateName || appState.reportTitle || 'Untitled Template').trim();
-                const existing = new Set((appState.userTemplates || []).map((t) => String(t.name || '').toLowerCase()));
-                let resolvedName = baseName || 'Untitled Template';
-                let suffix = 2;
-                while (existing.has(resolvedName.toLowerCase())) {
-                    resolvedName = `${baseName || 'Untitled Template'} ${suffix}`;
-                    suffix += 1;
-                }
-
-                const created = createUserTemplate(resolvedName);
-                if (created) {
-                    appState.lastCreatedTemplateId = created.id;
-                    appState.templateCreateMode = false;
-                    announce(`${created.name} template created`);
-                    window.dispatchEvent(new Event('art-templates-updated'));
-                }
+        doneButton.addEventListener('click', async () => {
+            const result = await executeBuilderAction('done');
+            if (!result?.ok) {
+                executeDoneFromCommand();
             }
-
-            if (appState.templateEditingId && appState.templateEditingId.startsWith('user-')) {
-                const updated = saveCurrentReportToUserTemplate(appState.templateEditingId);
-                if (updated) {
-                    appState.lastCreatedTemplateId = updated.id;
-                    window.dispatchEvent(new Event('art-templates-updated'));
-                }
-            }
-            appState.editorUsesReportTitle = true;
-            appState.editorReadOnly = false;
-            appState.templateEditingId = null;
-            saveState({ action: 'Completed report configuration' });
-            upsertCurrentReport({ name: appState.reportTitle || appState.templateName || 'Untitled Report' });
-            window.dispatchEvent(new Event('art-reports-updated'));
-            announce('Report moved to Editor.');
-            const editorTab = document.getElementById('tab-editor');
-            if (editorTab) editorTab.click();
-            window.setTimeout(() => {
-                const editorHeading = document.getElementById('editor-heading');
-                if (editorHeading) editorHeading.focus();
-            }, 30);
         });
     }
 

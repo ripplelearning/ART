@@ -49,6 +49,36 @@ function moveFocusToEditorHeading() {
 }
 
 let activeProjectFileHandle = null;
+let runDashboardOpenProjectWorkflow = null;
+let runDashboardSaveProjectWorkflow = null;
+let runDashboardSaveProjectAsWorkflow = null;
+let runDashboardImportReportPickerWorkflow = null;
+let runDashboardImportTemplatePickerWorkflow = null;
+
+export async function openDashboardProjectFromCommand() {
+    if (typeof runDashboardOpenProjectWorkflow !== 'function') return false;
+    return runDashboardOpenProjectWorkflow();
+}
+
+export async function saveDashboardProjectFromCommand() {
+    if (typeof runDashboardSaveProjectWorkflow !== 'function') return false;
+    return runDashboardSaveProjectWorkflow();
+}
+
+export async function saveDashboardProjectAsFromCommand() {
+    if (typeof runDashboardSaveProjectAsWorkflow !== 'function') return false;
+    return runDashboardSaveProjectAsWorkflow();
+}
+
+export function startDashboardImportReportFromCommand() {
+    if (typeof runDashboardImportReportPickerWorkflow !== 'function') return false;
+    return runDashboardImportReportPickerWorkflow();
+}
+
+export function startDashboardImportTemplateFromCommand() {
+    if (typeof runDashboardImportTemplatePickerWorkflow !== 'function') return false;
+    return runDashboardImportTemplatePickerWorkflow();
+}
 
 function sanitizeFileName(name, fallback = 'ART Project') {
     const safe = String(name || fallback).replace(/[\\/:*?"<>|]+/g, '-').trim();
@@ -421,17 +451,9 @@ export function renderDashboard() {
         return runSaveProject();
     };
 
-    btnSaveProject.addEventListener('click', async () => {
-        await runSaveProject();
-    });
-
-    btnSaveProjectAs.addEventListener('click', async () => {
-        await runSaveProjectAs();
-    });
-
-    btnOpenReport.addEventListener('click', async () => {
+    const runOpenProjectPicker = async () => {
         const proceed = await confirmProceedWithUnsavedChanges();
-        if (!proceed) return;
+        if (!proceed) return false;
 
         if (typeof window.showOpenFilePicker === 'function') {
             try {
@@ -442,12 +464,11 @@ export function renderDashboard() {
                         accept: { 'application/json': ['.art'] }
                     }]
                 });
-                if (!handle) return;
+                if (!handle) return false;
                 const file = await handle.getFile();
                 const text = await file.text();
                 activeProjectFileHandle = handle;
-                openProjectFromText(text, file.name || handle.name || 'project.art');
-                return;
+                return openProjectFromText(text, file.name || handle.name || 'project.art');
             } catch (error) {
                 // Fallback to hidden input when picker is unavailable or cancelled.
             }
@@ -455,6 +476,33 @@ export function renderDashboard() {
 
         openProjectInput.value = '';
         openProjectInput.click();
+        return true;
+    };
+
+    runDashboardSaveProjectWorkflow = runSaveProject;
+    runDashboardSaveProjectAsWorkflow = runSaveProjectAs;
+    runDashboardOpenProjectWorkflow = runOpenProjectPicker;
+    runDashboardImportReportPickerWorkflow = () => {
+        importReportInput.value = '';
+        importReportInput.click();
+        return true;
+    };
+    runDashboardImportTemplatePickerWorkflow = () => {
+        importTemplateInput.value = '';
+        importTemplateInput.click();
+        return true;
+    };
+
+    btnSaveProject.addEventListener('click', async () => {
+        await runSaveProject();
+    });
+
+    btnSaveProjectAs.addEventListener('click', async () => {
+        await runSaveProjectAs();
+    });
+
+    btnOpenReport.addEventListener('click', async () => {
+        await executeDashboardAction('openProject');
     });
 
     openProjectInput.addEventListener('change', async () => {
@@ -470,7 +518,6 @@ export function renderDashboard() {
     });
 
     btnImportData.addEventListener('click', () => {
-        importReportInput.value = '';
         void executeDashboardAction('importData');
     });
 
@@ -538,7 +585,6 @@ export function renderDashboard() {
     };
 
     btnTemplateImport.addEventListener('click', () => {
-        importTemplateInput.value = '';
         void executeDashboardAction('importTemplate');
     });
 

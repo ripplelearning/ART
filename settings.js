@@ -37,6 +37,8 @@ import {
     validateTemplateJsonPayload,
     validateAccessibilityStandardPayload
 } from './state.js';
+import { commandExecutionService } from './commandExecutionService.js';
+import { commandRegistry } from './commandRegistry.js';
 
 let isInitialized = false;
 let activeSubDialog = null;
@@ -49,6 +51,23 @@ let pendingOverwrite = false;
 let pendingClearStandards = false;
 let lastTrigger = null;
 let statusTick = 0;
+let startSettingsStandardImportPicker = null;
+let openSettingsPasteStandardsDialog = null;
+let startSettingsReportImportPicker = null;
+let startSettingsTemplateImportPicker = null;
+let toggleSettingsPrivacyMode = null;
+let createSettingsBackupNow = null;
+let openSettingsResetDialog = null;
+
+async function executeSettingsAction(action, context = {}) {
+    const command = commandRegistry.findCommands({ action })[0] || null;
+    if (!command?.id) return null;
+    return commandExecutionService.executeCommand(command.id, {
+        source: 'settings',
+        action,
+        ...context
+    });
+}
 
 function getFocusableElements(container) {
     return Array.from(container.querySelectorAll(
@@ -580,6 +599,55 @@ function bindIntegrationSettings() {
     importStandardsFileInput.hidden = true;
     document.body.appendChild(importStandardsFileInput);
 
+    const startReportImportPicker = () => {
+        if (!canPerformExternalCommunication()) {
+            writeStatus('Privacy Mode is enabled. Import from file is currently blocked.');
+            return false;
+        }
+        importReportInput.value = '';
+        importReportInput.click();
+        return true;
+    };
+
+    const startTemplateImportPicker = () => {
+        if (!canPerformExternalCommunication()) {
+            writeStatus('Privacy Mode is enabled. Import from file is currently blocked.');
+            return false;
+        }
+        importTemplateInput.value = '';
+        importTemplateInput.click();
+        return true;
+    };
+
+    const runCreateBackupNow = () => {
+        const payload = createArtBackupPayload('Manual Backup');
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const stamp = payload.createdAt.slice(0, 19).replace(/[:T]/g, '-');
+        link.href = objectUrl;
+        link.download = `art-backup-${stamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+        recordSecurityAudit('Manual backup created', `Backup created at ${payload.createdAt}`);
+        writeStatus('Backup created and downloaded.');
+        renderIntegrationSettings();
+        return true;
+    };
+
+    const runTogglePrivacyMode = () => {
+        privacyModeInput.checked = !privacyModeInput.checked;
+        privacyModeInput.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    };
+
+    startSettingsReportImportPicker = startReportImportPicker;
+    startSettingsTemplateImportPicker = startTemplateImportPicker;
+    createSettingsBackupNow = runCreateBackupNow;
+    toggleSettingsPrivacyMode = runTogglePrivacyMode;
+
     privacyModeInput.addEventListener('change', () => {
         const enable = privacyModeInput.checked;
         updateSecurityConfig({ privacyModeEnabled: enable }, { action: enable ? 'Enabled Privacy Mode' : 'Disabled Privacy Mode' });
@@ -596,12 +664,7 @@ function bindIntegrationSettings() {
     });
 
     importReportButton.addEventListener('click', () => {
-        if (!canPerformExternalCommunication()) {
-            writeStatus('Privacy Mode is enabled. Import from file is currently blocked.');
-            return;
-        }
-        importReportInput.value = '';
-        importReportInput.click();
+        void executeSettingsAction('settingsImportReportFile');
     });
 
     importReportInput.addEventListener('change', async () => {
@@ -632,12 +695,7 @@ function bindIntegrationSettings() {
     });
 
     importTemplateButton.addEventListener('click', () => {
-        if (!canPerformExternalCommunication()) {
-            writeStatus('Privacy Mode is enabled. Import from file is currently blocked.');
-            return;
-        }
-        importTemplateInput.value = '';
-        importTemplateInput.click();
+        void executeSettingsAction('settingsImportTemplateFile');
     });
 
     importTemplateInput.addEventListener('change', async () => {
@@ -763,20 +821,7 @@ function bindIntegrationSettings() {
     });
 
     backupNowButton.addEventListener('click', () => {
-        const payload = createArtBackupPayload('Manual Backup');
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const stamp = payload.createdAt.slice(0, 19).replace(/[:T]/g, '-');
-        link.href = objectUrl;
-        link.download = `art-backup-${stamp}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(objectUrl);
-        recordSecurityAudit('Manual backup created', `Backup created at ${payload.createdAt}`);
-        writeStatus('Backup created and downloaded.');
-        renderIntegrationSettings();
+        void executeSettingsAction('settingsCreateBackup');
     });
 
     restoreImportButton.addEventListener('click', () => {
@@ -890,6 +935,62 @@ function closeSettingsDialog(restoreFocus) {
     if (restoreFocus && lastTrigger) {
         lastTrigger.focus();
     }
+}
+
+export function openSettingsDialogFromCommand() {
+    const openButton = document.getElementById('btn-app-settings');
+    if (!openButton) return false;
+    openSettingsDialog(openButton);
+    return true;
+}
+
+export function closeSettingsDialogFromCommand() {
+    const dialog = document.getElementById('app-settings-dialog');
+    if (!dialog || dialog.hidden) return false;
+    closeSettingsDialog(true);
+    return true;
+}
+
+export function restoreSettingsShortcutsFromCommand() {
+    resetShortcutsToDefault();
+    refreshSettingsView();
+    writeStatus('Default keyboard shortcuts restored.');
+    return true;
+}
+
+export function startSettingsImportStandardFromCommand() {
+    if (typeof startSettingsStandardImportPicker !== 'function') return false;
+    return startSettingsStandardImportPicker();
+}
+
+export function openSettingsPasteStandardTableFromCommand() {
+    if (typeof openSettingsPasteStandardsDialog !== 'function') return false;
+    return openSettingsPasteStandardsDialog();
+}
+
+export function startSettingsImportReportFileFromCommand() {
+    if (typeof startSettingsReportImportPicker !== 'function') return false;
+    return startSettingsReportImportPicker();
+}
+
+export function startSettingsImportTemplateFileFromCommand() {
+    if (typeof startSettingsTemplateImportPicker !== 'function') return false;
+    return startSettingsTemplateImportPicker();
+}
+
+export function toggleSettingsPrivacyModeFromCommand() {
+    if (typeof toggleSettingsPrivacyMode !== 'function') return false;
+    return toggleSettingsPrivacyMode();
+}
+
+export function createSettingsBackupFromCommand() {
+    if (typeof createSettingsBackupNow !== 'function') return false;
+    return createSettingsBackupNow();
+}
+
+export function openSettingsResetDialogFromCommand() {
+    if (typeof openSettingsResetDialog !== 'function') return false;
+    return openSettingsResetDialog();
 }
 
 function bindShortcutCapture() {
@@ -1028,6 +1129,21 @@ function bindStandardImport() {
         openSubDialog(nameDialog, nameInput, importButton);
     };
 
+    const startStandardImportPicker = () => {
+        fileInput.value = '';
+        fileInput.click();
+        return true;
+    };
+
+    const openPasteStandardsDialog = () => {
+        pasteInput.value = '';
+        openSubDialog(pasteDialog, pasteInput, pasteButton);
+        return true;
+    };
+
+    startSettingsStandardImportPicker = startStandardImportPicker;
+    openSettingsPasteStandardsDialog = openPasteStandardsDialog;
+
     const processImportedText = async (text, triggerButton) => {
         const pastedText = String(text || '').trim();
         const tableStandards = parsePastedStandardsTable(pastedText);
@@ -1094,13 +1210,11 @@ function bindStandardImport() {
     };
 
     importButton.addEventListener('click', () => {
-        fileInput.value = '';
-        fileInput.click();
+        void executeSettingsAction('settingsImportStandard');
     });
 
     pasteButton.addEventListener('click', () => {
-        pasteInput.value = '';
-        openSubDialog(pasteDialog, pasteInput, pasteButton);
+        void executeSettingsAction('settingsPasteStandardTable');
     });
 
     jsonSave.addEventListener('click', () => {
@@ -1290,10 +1404,17 @@ function bindResetActions() {
 
     if (!resetButton || !resetDialog || !resetConfirm || !resetCancel) return;
 
-    resetButton.addEventListener('click', () => {
+    const runOpenResetDialog = () => {
         const defaultOption = resetDialog.querySelector('input[name="settings-reset-option"][value="preferences"]');
         if (defaultOption) defaultOption.checked = true;
         openSubDialog(resetDialog, defaultOption || resetConfirm, resetButton);
+        return true;
+    };
+
+    openSettingsResetDialog = runOpenResetDialog;
+
+    resetButton.addEventListener('click', () => {
+        void executeSettingsAction('settingsResetApp');
     });
 
     resetConfirm.addEventListener('click', () => {
@@ -1335,13 +1456,15 @@ export function initSettings() {
 
     if (!openButton || !closeButton || !restoreShortcutsButton) return;
 
-    openButton.addEventListener('click', () => openSettingsDialog(openButton));
-    closeButton.addEventListener('click', () => closeSettingsDialog(true));
+    openButton.addEventListener('click', () => {
+        void executeSettingsAction('openSettings');
+    });
+    closeButton.addEventListener('click', () => {
+        void executeSettingsAction('settingsClose');
+    });
 
     restoreShortcutsButton.addEventListener('click', () => {
-        resetShortcutsToDefault();
-        refreshSettingsView();
-        writeStatus('Default keyboard shortcuts restored.');
+        void executeSettingsAction('settingsRestoreShortcuts');
     });
 
     bindShortcutCapture();

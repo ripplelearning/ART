@@ -24,6 +24,18 @@ import {
 } from './state.js';
 import { openHelpDialog } from './help.js';
 import {
+    closeSettingsDialogFromCommand,
+    createSettingsBackupFromCommand,
+    openSettingsPasteStandardTableFromCommand,
+    openSettingsResetDialogFromCommand,
+    openSettingsDialogFromCommand,
+    restoreSettingsShortcutsFromCommand,
+    startSettingsImportReportFileFromCommand,
+    startSettingsImportStandardFromCommand,
+    startSettingsImportTemplateFileFromCommand,
+    toggleSettingsPrivacyModeFromCommand
+} from './settings.js';
+import {
     activateTabCommand,
     closeActiveSession,
     focusDashboardRegion,
@@ -32,9 +44,24 @@ import {
     focusNavigationRegion,
     navigateApplicationLandmarks
 } from './navigation.js';
-import { activateAddEntryWorkflow } from './reportEditor.js';
+import {
+    activateAddEntryWorkflow,
+    executeSpellDialogActionFromCommand,
+    startSpellCheckFromCommand,
+    openEditorStatisticsDialog,
+    openEditorValidationDialog
+} from './reportEditor.js';
 import { openProgressLogDialog } from './progressLog.js';
-import { requestViewerExportDialog, renderViewer } from './reportViewer.js';
+import { requestViewerExportDialog, requestViewerPrintPreview, renderViewer } from './reportViewer.js';
+import { executeLookupCopyActionFromCommand, resetLookupFromCommand } from './lookupTool.js';
+import { executeAddFieldFromCommand, executeDoneFromCommand } from './reportBuilder.js';
+import {
+    openDashboardProjectFromCommand,
+    saveDashboardProjectAsFromCommand,
+    saveDashboardProjectFromCommand,
+    startDashboardImportReportFromCommand,
+    startDashboardImportTemplateFromCommand
+} from './dashboard.js';
 
 let commandsRegistered = false;
 
@@ -55,11 +82,8 @@ function clickFirstAvailable(...ids) {
     return false;
 }
 
-function clickCopyAction(action) {
-    const button = document.querySelector(`[data-copy-action="${action}"]`);
-    if (!(button instanceof HTMLElement)) return false;
-    button.click();
-    return true;
+function runLookupCopyWorkflow(action) {
+    return executeLookupCopyActionFromCommand(action);
 }
 
 function getFirstTemplateOption() {
@@ -69,32 +93,16 @@ function getFirstTemplateOption() {
 }
 
 function runAddFieldWorkflow() {
-    const inlineAddButton = document.getElementById('btn-add-field');
-    if (inlineAddButton) {
-        inlineAddButton.click();
-        return true;
-    }
-
     clickElementById('tab-builder');
-    window.setTimeout(() => {
-        if (!document.getElementById('btn-add-field')) {
-            document.getElementById('btn-toggle-config')?.click();
-            window.setTimeout(() => {
-                document.getElementById('btn-add-field')?.click();
-            }, 0);
-            return;
-        }
-        document.getElementById('btn-add-field')?.click();
-    }, 0);
-    return true;
+    if (!document.getElementById('btn-add-field')) {
+        document.getElementById('btn-toggle-config')?.click();
+    }
+    return executeAddFieldFromCommand();
 }
 
 function runDoneWorkflow() {
     clickElementById('tab-builder');
-    window.setTimeout(() => {
-        document.getElementById('btn-done')?.click();
-    }, 0);
-    return true;
+    return executeDoneFromCommand();
 }
 
 function runAddEntryWorkflow() {
@@ -112,12 +120,28 @@ function runExportWorkflow() {
     return true;
 }
 
+function runPrintPreviewWorkflow() {
+    clickElementById('tab-view');
+    requestViewerPrintPreview();
+    renderViewer();
+    return true;
+}
+
 function runSpellCheckWorkflow() {
     clickElementById('tab-editor');
-    window.setTimeout(() => {
-        clickElementById('btn-editor-spell-check');
-    }, 0);
-    return true;
+    return startSpellCheckFromCommand();
+}
+
+function runValidateReportWorkflow(context = {}) {
+    clickElementById('tab-editor');
+    const triggerButton = context.triggerButton || document.getElementById('btn-editor-validate-report') || document.activeElement;
+    return openEditorValidationDialog(triggerButton);
+}
+
+function runReportStatisticsWorkflow(context = {}) {
+    clickElementById('tab-editor');
+    const triggerButton = context.triggerButton || document.getElementById('btn-editor-report-statistics') || document.activeElement;
+    return openEditorStatisticsDialog(triggerButton);
 }
 
 function runNewReportFromTemplateWorkflow() {
@@ -131,7 +155,7 @@ function runNewReportFromTemplateWorkflow() {
 }
 
 function focusIntegrationsSection() {
-    if (!clickElementById('btn-app-settings')) return false;
+    if (!openSettingsDialogFromCommand()) return false;
     window.setTimeout(() => {
         const integrationsHeading = document.getElementById('settings-integrations-heading');
         if (!integrationsHeading) return;
@@ -337,7 +361,7 @@ function runImportReportWorkflow(context = {}) {
         return activateTabCommand('tab-view', 'viewer-heading', 'Report Viewer');
     }
 
-    return clickElementById('report-import-file-input');
+    return startDashboardImportReportFromCommand();
 }
 
 function runImportTemplateWorkflow(context = {}) {
@@ -377,7 +401,7 @@ function runImportTemplateWorkflow(context = {}) {
         return true;
     }
 
-    return clickElementById('template-import-file-input');
+    return startDashboardImportTemplateFromCommand();
 }
 
 function runConfigureReportWorkflow(context = {}) {
@@ -520,7 +544,7 @@ const COMMAND_DEFINITIONS = [
         category: 'Tools',
         description: 'Open the Progress Log dialog.',
         enabled: () => isProgressLogEnabled(),
-        handler: () => clickFirstAvailable('btn-editor-progress-log', 'btn-viewer-progress-log') || Boolean(openProgressLogDialog(document.activeElement || null))
+        handler: () => Boolean(openProgressLogDialog(document.activeElement || null))
     },
     {
         action: 'focusNavigation',
@@ -591,14 +615,14 @@ const COMMAND_DEFINITIONS = [
         id: 'Lookup.Reset',
         category: 'Lookup',
         description: 'Clear the Accessibility Lookup search and filters.',
-        handler: () => clickElementById('reset-btn')
+        handler: () => resetLookupFromCommand()
     },
     {
         action: 'openProject',
         id: 'File.OpenProject',
         category: 'File',
         description: 'Open an ART project file.',
-        handler: () => clickElementById('btn-open-report')
+        handler: () => openDashboardProjectFromCommand()
     },
     {
         action: 'saveProject',
@@ -606,14 +630,14 @@ const COMMAND_DEFINITIONS = [
         category: 'File',
         description: 'Save the current ART project.',
         enabled: () => hasUnsavedProjectChanges(),
-        handler: () => clickElementById('btn-save-project')
+        handler: () => saveDashboardProjectFromCommand()
     },
     {
         action: 'saveProjectAs',
         id: 'File.SaveProjectAs',
         category: 'File',
         description: 'Save the current ART project under a new name.',
-        handler: () => clickElementById('btn-save-project-as')
+        handler: () => saveDashboardProjectAsFromCommand()
     },
     {
         action: 'importData',
@@ -635,6 +659,13 @@ const COMMAND_DEFINITIONS = [
         category: 'Report',
         description: 'Open the report export workflow.',
         handler: () => runExportWorkflow()
+    },
+    {
+        action: 'printPreview',
+        id: 'Report.PrintPreview',
+        category: 'Report',
+        description: 'Open print preview for the current report.',
+        handler: () => runPrintPreviewWorkflow()
     },
     {
         action: 'newReport',
@@ -749,49 +780,49 @@ const COMMAND_DEFINITIONS = [
         id: 'Settings.Open',
         category: 'Settings',
         description: 'Open Application Settings.',
-        handler: () => clickElementById('btn-app-settings')
+        handler: () => openSettingsDialogFromCommand()
     },
     {
         action: 'settingsClose',
         id: 'Settings.Close',
         category: 'Settings',
         description: 'Close Application Settings.',
-        handler: () => clickElementById('btn-settings-close')
+        handler: () => closeSettingsDialogFromCommand()
     },
     {
         action: 'settingsRestoreShortcuts',
         id: 'Settings.RestoreShortcuts',
         category: 'Settings',
         description: 'Restore the default keyboard shortcuts.',
-        handler: () => clickElementById('btn-settings-shortcuts-reset')
+        handler: () => restoreSettingsShortcutsFromCommand()
     },
     {
         action: 'settingsImportStandard',
         id: 'Settings.ImportStandard',
         category: 'Settings',
         description: 'Import an accessibility standard.',
-        handler: () => clickElementById('btn-settings-import-standard')
+        handler: () => startSettingsImportStandardFromCommand()
     },
     {
         action: 'settingsPasteStandardTable',
         id: 'Settings.PasteStandardTable',
         category: 'Settings',
         description: 'Paste accessibility standards from a table.',
-        handler: () => clickElementById('btn-settings-paste-standard')
+        handler: () => openSettingsPasteStandardTableFromCommand()
     },
     {
         action: 'settingsImportReportFile',
         id: 'Settings.ImportReportFile',
         category: 'Settings',
         description: 'Import a report file from the device.',
-        handler: () => clickElementById('btn-settings-import-report-file')
+        handler: () => startSettingsImportReportFileFromCommand()
     },
     {
         action: 'settingsImportTemplateFile',
         id: 'Settings.ImportTemplateFile',
         category: 'Settings',
         description: 'Import a template file from the device.',
-        handler: () => clickElementById('btn-settings-import-template-file')
+        handler: () => startSettingsImportTemplateFileFromCommand()
     },
     {
         action: 'settingsOpenIntegrations',
@@ -805,21 +836,21 @@ const COMMAND_DEFINITIONS = [
         id: 'Settings.TogglePrivacyMode',
         category: 'Settings',
         description: 'Toggle Privacy Mode.',
-        handler: () => clickElementById('settings-privacy-mode')
+        handler: () => toggleSettingsPrivacyModeFromCommand()
     },
     {
         action: 'settingsCreateBackup',
         id: 'Settings.CreateBackup',
         category: 'Settings',
         description: 'Create a backup of ART data.',
-        handler: () => clickElementById('btn-settings-backup-now')
+        handler: () => createSettingsBackupFromCommand()
     },
     {
         action: 'settingsResetApp',
         id: 'Settings.ResetApp',
         category: 'Settings',
         description: 'Reset ART application data.',
-        handler: () => clickElementById('btn-settings-reset-app')
+        handler: () => openSettingsResetDialogFromCommand()
     },
     {
         action: 'settingsCloseReport',
@@ -834,42 +865,42 @@ const COMMAND_DEFINITIONS = [
         id: 'Tools.CopyEntry',
         category: 'Tools',
         description: 'Copy the current entry.',
-        handler: () => clickCopyAction('copyEntry')
+        handler: () => runLookupCopyWorkflow('copyEntry')
     },
     {
         action: 'copyName',
         id: 'Tools.CopyName',
         category: 'Tools',
         description: 'Copy the current name.',
-        handler: () => clickCopyAction('copyName')
+        handler: () => runLookupCopyWorkflow('copyName')
     },
     {
         action: 'copyDescription',
         id: 'Tools.CopyDescription',
         category: 'Tools',
         description: 'Copy the current description.',
-        handler: () => clickCopyAction('copyDescription')
+        handler: () => runLookupCopyWorkflow('copyDescription')
     },
     {
         action: 'copyFailures',
         id: 'Tools.CopyFailures',
         category: 'Tools',
         description: 'Copy failures text.',
-        handler: () => clickCopyAction('copyFailures')
+        handler: () => runLookupCopyWorkflow('copyFailures')
     },
     {
         action: 'copyFixes',
         id: 'Tools.CopyFixes',
         category: 'Tools',
         description: 'Copy fixes text.',
-        handler: () => clickCopyAction('copyFixes')
+        handler: () => runLookupCopyWorkflow('copyFixes')
     },
     {
         action: 'copyLink',
         id: 'Tools.CopyLink',
         category: 'Tools',
         description: 'Copy references or links.',
-        handler: () => clickCopyAction('copyLink')
+        handler: () => runLookupCopyWorkflow('copyLink')
     },
     {
         action: 'spellCheck',
@@ -879,53 +910,67 @@ const COMMAND_DEFINITIONS = [
         handler: () => runSpellCheckWorkflow()
     },
     {
+        action: 'validateReport',
+        id: 'Report.Validate',
+        category: 'Report',
+        description: 'Validate the current report and show validation issues.',
+        handler: (context) => runValidateReportWorkflow(context)
+    },
+    {
+        action: 'reportStatistics',
+        id: 'Report.Statistics',
+        category: 'Report',
+        description: 'Open report statistics for the current report.',
+        handler: (context) => runReportStatisticsWorkflow(context)
+    },
+    {
         action: 'spellReplace',
         id: 'Tools.SpellReplace',
         category: 'Tools',
         description: 'Replace the selected misspelling.',
-        handler: () => clickElementById('spellcheck-replace')
+        handler: () => executeSpellDialogActionFromCommand('replace')
     },
     {
         action: 'spellReplaceAll',
         id: 'Tools.SpellReplaceAll',
         category: 'Tools',
         description: 'Replace all occurrences of the selected misspelling.',
-        handler: () => clickElementById('spellcheck-replace-all')
+        handler: () => executeSpellDialogActionFromCommand('replaceAll')
     },
     {
         action: 'spellIgnore',
         id: 'Tools.SpellIgnore',
         category: 'Tools',
         description: 'Ignore the selected misspelling.',
-        handler: () => clickElementById('spellcheck-ignore')
+        handler: () => executeSpellDialogActionFromCommand('ignore')
     },
     {
         action: 'spellIgnoreAll',
         id: 'Tools.SpellIgnoreAll',
         category: 'Tools',
         description: 'Ignore all occurrences of the selected misspelling.',
-        handler: () => clickElementById('spellcheck-ignore-all')
+        handler: () => executeSpellDialogActionFromCommand('ignoreAll')
     },
     {
         action: 'spellAddToDictionary',
         id: 'Tools.SpellAddToDictionary',
         category: 'Tools',
         description: 'Add a word to the spell dictionary.',
-        handler: () => clickElementById('spellcheck-add-dictionary')
+        handler: () => executeSpellDialogActionFromCommand('addDictionary')
     },
     {
         action: 'spellUndoLastCorrection',
         id: 'Tools.SpellUndoLastCorrection',
         category: 'Tools',
         description: 'Undo the last spell correction.',
-        handler: () => clickElementById('spellcheck-undo')
+        handler: () => executeSpellDialogActionFromCommand('undo')
     },
     {
         action: 'spellCancel',
         id: 'Tools.SpellCancel',
         category: 'Tools',
         description: 'Cancel spell checking.',
-        handler: () => clickElementById('spellcheck-cancel')
+        handler: () => executeSpellDialogActionFromCommand('cancel')
     }
 ];
 
