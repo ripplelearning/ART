@@ -7,6 +7,7 @@ import { renderWelcome } from './welcome.js';
 import { initApplicationIdentity } from './appIdentity.js';
 import { initResizableLayout } from './layout.js';
 import { initHelp, openHelpDialog } from './help.js';
+import { registerApplicationCommands } from './commandCatalog.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 
 /**
@@ -91,6 +92,7 @@ function initializeApp() {
 
     // 1. Initialize global navigation and keyboard shortcuts
     initResizableLayout();
+    registerApplicationCommands();
     initNavListener();
     setupTabs();
     initApplicationIdentity();

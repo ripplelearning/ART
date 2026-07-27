@@ -1,10 +1,11 @@
 // navigation.js
-import { announce, appState, closeCurrentReportSession, getShortcutForAction, redoState, saveState, undoState } from './state.js';
+import { announce, appState, closeCurrentReportSession, getShortcutForAction, redoState, undoState } from './state.js';
+import { commandExecutionService } from './commandExecutionService.js';
+import { commandRegistry } from './commandRegistry.js';
 import { renderBuilder } from './reportBuilder.js';
-import { activateAddEntryWorkflow, renderEditor } from './reportEditor.js';
-import { requestViewerExportDialog, renderViewer } from './reportViewer.js';
+import { renderEditor } from './reportEditor.js';
+import { renderViewer } from './reportViewer.js';
 import { renderWelcome } from './welcome.js';
-import { openHelpDialog } from './help.js';
 
 const landmarks = ['top-tabs', 'dashboard', 'main-content', 'lookup-tool'];
 const renderMap = {
@@ -173,6 +174,30 @@ function focusMainContentRegion() {
     focusElementWithLabel(main, 'Active report panel');
 }
 
+export function focusNavigationRegion() {
+    focusElementWithLabel(document.querySelector('#top-tabs [role="tab"][aria-selected="true"]') || document.getElementById('top-tabs'), 'Navigation');
+    return true;
+}
+
+export function focusDashboardRegion() {
+    focusElementWithLabel(document.getElementById('dashboard'), 'Dashboard');
+    notifyPanelChanged('Dashboard');
+    return true;
+}
+
+export function focusMainContentArea() {
+    const main = document.getElementById('main-content');
+    focusElementWithLabel(main, 'Main content');
+    return true;
+}
+
+export function focusLookupRegion() {
+    const search = document.getElementById('s');
+    if (search) search.focus();
+    notifyPanelChanged('Accessibility Lookup Tool');
+    return Boolean(search);
+}
+
 function navigateLandmarks(direction) {
     const activeEl = document.activeElement;
     const currentLandmarkId = activeEl?.closest?.('#top-tabs') || activeEl?.closest?.('#nav')
@@ -206,6 +231,13 @@ function navigateLandmarks(direction) {
     focusElementWithLabel(targetElement, fallbackMap[targetId] || 'Region');
 }
 
+export function navigateApplicationLandmarks(direction) {
+    const normalizedDirection = Number(direction);
+    if (normalizedDirection === 0 || Number.isNaN(normalizedDirection)) return false;
+    navigateLandmarks(normalizedDirection > 0 ? 1 : -1);
+    return true;
+}
+
 function activateTabAndFocusHeading(tabId, headingId, fallbackLabel) {
     const tab = document.getElementById(tabId);
     if (!tab) return;
@@ -223,6 +255,11 @@ function activateTabAndFocusHeading(tabId, headingId, fallbackLabel) {
             }
         }
     }, 0);
+}
+
+export function activateTabCommand(tabId, headingId, fallbackLabel) {
+    activateTabAndFocusHeading(tabId, headingId, fallbackLabel);
+    return true;
 }
 
 function clickElementById(id) {
@@ -282,6 +319,29 @@ function closeActiveSessionFromShortcut() {
     return false;
 }
 
+function getCommandIdForAction(action) {
+    const matches = commandRegistry.findCommands({ action });
+    return matches[0]?.id || '';
+}
+
+function executeShortcutCommand(action, event) {
+    const commandId = getCommandIdForAction(action);
+    if (!commandId) return false;
+
+    void commandExecutionService.executeCommand(commandId, {
+        invocation: 'keyboard-shortcut',
+        action,
+        shortcut: eventToShortcut(event),
+        triggerEvent: event,
+        activeElement: document.activeElement
+    });
+    return true;
+}
+
+export function closeActiveSession() {
+    return closeActiveSessionFromShortcut();
+}
+
 export function initNavigation() {
     applyShortcutTooltips();
     watchShortcutTargets();
@@ -292,12 +352,6 @@ export function initNavigation() {
     });
 
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'F1') {
-            e.preventDefault();
-            openHelpDialog(document.activeElement);
-            return;
-        }
-
         const spellDialog = document.getElementById('editor-spellcheck-dialog');
         if (spellDialog && !spellDialog.hidden && spellDialog.contains(e.target)) return;
 
@@ -324,305 +378,13 @@ export function initNavigation() {
         const action = findShortcutAction(e);
         if (!action) return;
 
-        if (action === 'nextLandmark') {
-            e.preventDefault();
-            navigateLandmarks(1);
-            return;
-        }
-        if (action === 'previousLandmark') {
-            e.preventDefault();
-            navigateLandmarks(-1);
-            return;
-        }
-        if (action === 'focusNavigation') {
-            e.preventDefault();
-            focusElementWithLabel(document.querySelector('#top-tabs [role="tab"][aria-selected="true"]') || document.getElementById('top-tabs'), 'Navigation');
-            return;
-        }
-        if (action === 'focusDashboard') {
-            e.preventDefault();
-            focusElementWithLabel(document.getElementById('dashboard'), 'Dashboard');
-            notifyPanelChanged('Dashboard');
-            return;
-        }
-        if (action === 'focusMainContent') {
-            e.preventDefault();
-            const main = document.getElementById('main-content');
-            focusElementWithLabel(main, 'Main content');
-            return;
-        }
-        if (action === 'openBuilder') {
-            e.preventDefault();
-            activateTabAndFocusHeading('tab-builder', 'builder-heading', 'Report Builder');
-            return;
-        }
-        if (action === 'openWelcome') {
-            e.preventDefault();
-            activateTabAndFocusHeading('tab-welcome', 'welcome-heading', 'Welcome');
-            return;
-        }
-        if (action === 'openHelp') {
-            e.preventDefault();
-            openHelpDialog(document.activeElement);
-            return;
-        }
-        if (action === 'openEditor') {
-            e.preventDefault();
-            activateTabAndFocusHeading('tab-editor', 'editor-heading', 'Report Editor');
-            return;
-        }
-        if (action === 'openViewer') {
-            e.preventDefault();
-            activateTabAndFocusHeading('tab-view', 'viewer-heading', 'Report Viewer');
-            return;
-        }
-        if (action === 'openProgressLog') {
-            e.preventDefault();
-            if (clickElementById('btn-editor-progress-log')) return;
-            clickElementById('btn-viewer-progress-log');
-            return;
-        }
-        if (action === 'focusLookup') {
-            e.preventDefault();
-            const search = document.getElementById('s');
-            if (search) search.focus();
-            notifyPanelChanged('Accessibility Lookup Tool');
-            return;
-        }
-        if (action === 'addField') {
-            e.preventDefault();
-            const inlineAddButton = document.getElementById('btn-add-field');
-            if (inlineAddButton) {
-                inlineAddButton.click();
-                return;
-            }
+        const isRegisteredShortcutAction = action === 'newReportFromTemplate'
+            || action === 'exportReport'
+            || Boolean(getCommandIdForAction(action));
+        if (!isRegisteredShortcutAction) return;
 
-            const tab = document.getElementById('tab-builder');
-            if (tab) tab.click();
-            window.setTimeout(() => {
-                if (!document.getElementById('btn-add-field')) {
-                    document.getElementById('btn-toggle-config')?.click();
-                    window.setTimeout(() => {
-                        document.getElementById('btn-add-field')?.click();
-                    }, 0);
-                    return;
-                }
-                document.getElementById('btn-add-field')?.click();
-            }, 0);
-            return;
-        }
-        if (action === 'addEntry') {
-            e.preventDefault();
-            if (!activateAddEntryWorkflow()) return;
-            appState.editorReadOnly = false;
-            saveState({ action: 'Opened add entry workflow', recordHistory: false });
-            const tab = document.getElementById('tab-editor');
-            if (tab) tab.click();
-            return;
-        }
-        if (action === 'done') {
-            e.preventDefault();
-            const tab = document.getElementById('tab-builder');
-            if (tab) tab.click();
-            window.setTimeout(() => {
-                document.getElementById('btn-done')?.click();
-            }, 0);
-            return;
-        }
-        if (action === 'openReport') {
-            e.preventDefault();
-            document.getElementById('btn-import-data')?.click();
-            return;
-        }
-        if (action === 'openProject') {
-            e.preventDefault();
-            document.getElementById('btn-open-report')?.click();
-            return;
-        }
-        if (action === 'saveProject') {
-            e.preventDefault();
-            document.getElementById('btn-save-project')?.click();
-            return;
-        }
-        if (action === 'saveProjectAs') {
-            e.preventDefault();
-            document.getElementById('btn-save-project-as')?.click();
-            return;
-        }
-        if (action === 'importData') {
-            e.preventDefault();
-            document.getElementById('btn-import-data')?.click();
-            return;
-        }
-        if (action === 'newReport') {
-            e.preventDefault();
-            document.getElementById('btn-new-report')?.click();
-            return;
-        }
-        if (action === 'newReportFromTemplate') {
-            e.preventDefault();
-            const templateSelect = document.getElementById('template-selection');
-            if (templateSelect) {
-                const firstTemplate = [...templateSelect.options].find((option) => option.value && option.value !== 'scratch');
-                if (firstTemplate) {
-                    templateSelect.value = firstTemplate.value;
-                    templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
-            document.getElementById('btn-template-use')?.click();
-            return;
-        }
-        if (action === 'exportReport') {
-            e.preventDefault();
-            const viewerTab = document.getElementById('tab-view');
-            if (viewerTab) viewerTab.click();
-            requestViewerExportDialog();
-            renderViewer();
-            return;
-        }
-        if (action === 'resetLookup') {
-            e.preventDefault();
-            document.getElementById('reset-btn')?.click();
-            return;
-        }
-        if (action === 'spellCheck') {
-            e.preventDefault();
-            const tab = document.getElementById('tab-editor');
-            if (tab) tab.click();
-            window.setTimeout(() => {
-                clickElementById('btn-editor-spell-check');
-            }, 0);
-            return;
-        }
-        if (['copyEntry', 'copyName', 'copyDescription', 'copyFailures', 'copyFixes', 'copyLink'].includes(action)) {
-            e.preventDefault();
-            activateLookupCopyButton(action);
-            return;
-        }
-        if (action === 'closeReport') {
-            e.preventDefault();
-            closeActiveSessionFromShortcut();
-            return;
-        }
-        if (action === 'configureReport') {
-            e.preventDefault();
-            clickElementById('btn-configure-report');
-            return;
-        }
-        if (action === 'editReport') {
-            e.preventDefault();
-            clickElementById('btn-edit-report-dashboard');
-            return;
-        }
-        if (action === 'viewReport') {
-            e.preventDefault();
-            clickElementById('btn-view-report-dashboard');
-            return;
-        }
-        if (action === 'deleteReport') {
-            e.preventDefault();
-            clickElementById('btn-delete-report-dashboard');
-            return;
-        }
-        if (action === 'openSettings') {
-            e.preventDefault();
-            clickElementById('btn-app-settings');
-            return;
-        }
-        if (action === 'settingsClose') {
-            e.preventDefault();
-            clickElementById('btn-settings-close');
-            return;
-        }
-        if (action === 'settingsRestoreShortcuts') {
-            e.preventDefault();
-            clickElementById('btn-settings-shortcuts-reset');
-            return;
-        }
-        if (action === 'settingsImportStandard') {
-            e.preventDefault();
-            clickElementById('btn-settings-import-standard');
-            return;
-        }
-        if (action === 'settingsPasteStandardTable') {
-            e.preventDefault();
-            clickElementById('btn-settings-paste-standard');
-            return;
-        }
-        if (action === 'settingsOpenIntegrations') {
-            e.preventDefault();
-            const integrationsHeading = document.getElementById('settings-integrations-heading');
-            if (integrationsHeading) {
-                integrationsHeading.scrollIntoView({ block: 'start' });
-                if (!integrationsHeading.hasAttribute('tabindex')) integrationsHeading.setAttribute('tabindex', '-1');
-                integrationsHeading.focus();
-            }
-            return;
-        }
-        if (action === 'settingsImportReportFile') {
-            e.preventDefault();
-            clickElementById('btn-settings-import-report-file');
-            return;
-        }
-        if (action === 'settingsImportTemplateFile') {
-            e.preventDefault();
-            clickElementById('btn-settings-import-template-file');
-            return;
-        }
-        if (action === 'settingsTogglePrivacyMode') {
-            e.preventDefault();
-            clickElementById('settings-privacy-mode');
-            return;
-        }
-        if (action === 'settingsCreateBackup') {
-            e.preventDefault();
-            clickElementById('btn-settings-backup-now');
-            return;
-        }
-        if (action === 'settingsResetApp') {
-            e.preventDefault();
-            clickElementById('btn-settings-reset-app');
-            return;
-        }
-        if (action === 'settingsCloseReport') {
-            e.preventDefault();
-            closeActiveSessionFromShortcut();
-            return;
-        }
-        if (action === 'newTemplate') {
-            e.preventDefault();
-            clickElementById('btn-template-create');
-            return;
-        }
-        if (action === 'useTemplate') {
-            e.preventDefault();
-            clickElementById('btn-template-use');
-            return;
-        }
-        if (action === 'openTemplate') {
-            e.preventDefault();
-            clickElementById('btn-template-open');
-            return;
-        }
-        if (action === 'editTemplate') {
-            e.preventDefault();
-            clickElementById('btn-template-edit');
-            return;
-        }
-        if (action === 'deleteTemplate') {
-            e.preventDefault();
-            clickElementById('btn-template-delete');
-            return;
-        }
-        if (action === 'importTemplate') {
-            e.preventDefault();
-            clickElementById('btn-template-import');
-            return;
-        }
-        if (action === 'exportTemplate') {
-            e.preventDefault();
-            clickElementById('btn-template-export');
-        }
+        e.preventDefault();
+        executeShortcutCommand(action, e);
     }, true);
 }
 
