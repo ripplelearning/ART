@@ -206,6 +206,7 @@
 }
 
 .app-menu-bar__search {
+    position: relative;
     margin-left: auto;
     min-width: min(360px, 100%);
     flex: 1 1 320px;
@@ -214,6 +215,21 @@
 .app-menu-bar__search input {
     width: 100%;
     box-sizing: border-box;
+}
+
+.app-menu-bar__search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 320px;
+    overflow: auto;
+    background: var(--art-surface-background);
+    border: var(--art-border-width) solid var(--art-border-color);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 10px 20px rgba(16, 33, 43, 0.14);
 }
 
 .app-menu-bar__panel {

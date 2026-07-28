@@ -4,10 +4,13 @@ import { searchCommands } from './commandSearchEngine.js';
 import { announce } from './state.js';
 
 let menuBarInitialized = false;
-let lastFocusedMenuIndex = 0;
-let activeMenuLabel = '';
+let menubarFocusIndex = 0;
+let openPath = [];
+let menuFocusIndexByPath = new Map();
 let searchResults = [];
-let activeSearchIndex = 0;
+let searchActiveIndex = -1;
+let focusBeforeMenubar = null;
+let inMenubarSession = false;
 let suppressNextMenuButtonClick = false;
 
 const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Report', 'Tools', 'Templates', 'Window', 'Help'];
@@ -109,41 +112,71 @@ function splitMenuPath(location) {
         .filter(Boolean);
 }
 
-function createNode(label) {
+function createNode(label, path) {
     return {
         label,
+        path,
         commands: [],
-        children: new Map()
+        children: []
     };
 }
 
-function buildTree(commands) {
-    const root = new Map();
+function getChildNode(parent, label) {
+    let child = parent.children.find((item) => item.label === label) || null;
+    if (!child) {
+        const path = parent.path ? `${parent.path}>${label}` : label;
+        child = createNode(label, path);
+        parent.children.push(child);
+    }
+    return child;
+}
+
+function buildMenuTree(commands) {
+    const roots = [];
+
+    function getRoot(label) {
+        let root = roots.find((item) => item.label === label) || null;
+        if (!root) {
+            root = createNode(label, label);
+            roots.push(root);
+        }
+        return root;
+    }
 
     for (const command of commands) {
         const path = splitMenuPath(getMenuLocation(command));
         const topLevel = path[0] || command.category || 'Application';
-        const topNode = root.get(topLevel) || createNode(topLevel);
-        root.set(topLevel, topNode);
+        const root = getRoot(topLevel);
 
         if (path.length <= 1) {
-            topNode.commands.push(command);
+            root.commands.push(command);
             continue;
         }
 
-        let current = topNode;
+        let current = root;
         for (let index = 1; index < path.length; index += 1) {
             const segment = path[index];
-            const child = current.children.get(segment) || createNode(segment);
-            current.children.set(segment, child);
-            current = child;
+            current = getChildNode(current, segment);
             if (index === path.length - 1) {
                 current.commands.push(command);
             }
         }
     }
 
-    return root;
+    return roots;
+}
+
+function sortTopLevelMenus(roots) {
+    return [...roots].sort((left, right) => {
+        const leftIndex = TOP_LEVEL_MENU_ORDER.indexOf(left.label);
+        const rightIndex = TOP_LEVEL_MENU_ORDER.indexOf(right.label);
+        if (leftIndex !== -1 || rightIndex !== -1) {
+            const a = leftIndex === -1 ? TOP_LEVEL_MENU_ORDER.length : leftIndex;
+            const b = rightIndex === -1 ? TOP_LEVEL_MENU_ORDER.length : rightIndex;
+            return a - b;
+        }
+        return left.label.localeCompare(right.label, undefined, { sensitivity: 'base' });
+    });
 }
 
 function getVisibleCommands() {
@@ -156,26 +189,17 @@ function getVisibleCommands() {
 }
 
 function getTopLevelMenus() {
-    const tree = buildTree(getVisibleCommands());
-    return [...tree.values()]
-        .filter((menu) => menu.commands.length || menu.children.size)
-        .sort((left, right) => {
-            const leftIndex = TOP_LEVEL_MENU_ORDER.indexOf(left.label);
-            const rightIndex = TOP_LEVEL_MENU_ORDER.indexOf(right.label);
-            if (leftIndex !== -1 || rightIndex !== -1) {
-                return (leftIndex === -1 ? TOP_LEVEL_MENU_ORDER.length : leftIndex) - (rightIndex === -1 ? TOP_LEVEL_MENU_ORDER.length : rightIndex);
-            }
-            return left.label.localeCompare(right.label, undefined, { sensitivity: 'base' });
-        });
+    return sortTopLevelMenus(buildMenuTree(getVisibleCommands()));
 }
 
 function getContainer() {
     const container = document.getElementById('menu-bar');
-    const menuBar = document.getElementById('menu-bar-menubar');
-    const searchInput = document.getElementById('menu-bar-search');
+    const menubar = document.getElementById('menu-bar-menubar');
     const panel = document.getElementById('menu-bar-panel');
+    const searchInput = document.getElementById('menu-bar-search');
+    const searchResultsList = document.getElementById('menu-bar-search-results');
     const status = document.getElementById('menu-bar-status');
-    return { container, menuBar, searchInput, panel, status };
+    return { container, menubar, panel, searchInput, searchResultsList, status };
 }
 
 function setStatus(message) {
@@ -183,15 +207,76 @@ function setStatus(message) {
     if (status) status.textContent = message;
 }
 
-function renderCommandButton(command, className = 'app-menu-bar__menu-item') {
+function getNodeByPath(path, roots) {
+    if (!path) return null;
+    const segments = path.split('>');
+    let current = roots.find((node) => node.label === segments[0]) || null;
+    if (!current) return null;
+    for (let i = 1; i < segments.length; i += 1) {
+        current = current.children.find((node) => node.label === segments[i]) || null;
+        if (!current) return null;
+    }
+    return current;
+}
+
+function getIsNodeOpen(path) {
+    return openPath.includes(path);
+}
+
+function getLastOpenPath() {
+    return openPath.length ? openPath[openPath.length - 1] : '';
+}
+
+function getCurrentOpenNode(roots) {
+    return getNodeByPath(getLastOpenPath(), roots);
+}
+
+function rememberFocusBeforeMenubar() {
+    if (!inMenubarSession) {
+        const active = document.activeElement;
+        focusBeforeMenubar = active instanceof HTMLElement ? active : null;
+        inMenubarSession = true;
+    }
+}
+
+function clearMenubarSession() {
+    inMenubarSession = false;
+    focusBeforeMenubar = null;
+}
+
+function renderTopLevelButtons(roots) {
+    return roots.map((menu, index) => {
+        const isExpanded = getIsNodeOpen(menu.path);
+        return `
+            <button
+                type="button"
+                role="menuitem"
+                class="app-menu-bar__button ${isExpanded ? 'is-active' : ''}"
+                data-menu-button="true"
+                data-menu-label="${escapeHtml(menu.label)}"
+                data-menu-path="${escapeHtml(menu.path)}"
+                aria-haspopup="true"
+                aria-expanded="${String(isExpanded)}"
+                tabindex="${index === menubarFocusIndex ? 0 : -1}"
+            >
+                ${escapeHtml(menu.label)}
+            </button>
+        `;
+    }).join('');
+}
+
+function renderCommandItem(command, depth, itemIndex, parentPath) {
     const shortcut = command.keyboardShortcut || 'Unassigned';
     return `
         <button
             type="button"
             role="menuitem"
-            class="${className} ${command.canExecute ? '' : 'is-disabled'}"
-            data-command-id="${escapeHtml(command.id)}"
+            class="app-menu-bar__menu-item ${command.canExecute ? '' : 'is-disabled'}"
             data-menu-item="true"
+            data-menu-depth="${depth}"
+            data-item-index="${itemIndex}"
+            data-parent-path="${escapeHtml(parentPath)}"
+            data-command-id="${escapeHtml(command.id)}"
             aria-disabled="${String(!command.canExecute)}"
             tabindex="-1"
         >
@@ -201,18 +286,66 @@ function renderCommandButton(command, className = 'app-menu-bar__menu-item') {
     `;
 }
 
+function renderSubmenuTrigger(childNode, depth, itemIndex, parentPath) {
+    const isExpanded = getIsNodeOpen(childNode.path);
+    return `
+        <button
+            type="button"
+            role="menuitem"
+            class="app-menu-bar__menu-item app-menu-bar__menu-item--submenu"
+            data-menu-item="true"
+            data-menu-depth="${depth}"
+            data-item-index="${itemIndex}"
+            data-parent-path="${escapeHtml(parentPath)}"
+            data-submenu-path="${escapeHtml(childNode.path)}"
+            aria-haspopup="true"
+            aria-expanded="${String(isExpanded)}"
+            tabindex="-1"
+        >
+            <span>${escapeHtml(childNode.label)}</span>
+            <span class="app-menu-bar__shortcut" aria-hidden="true">›</span>
+        </button>
+    `;
+}
+
 function renderMenuNode(node, depth = 0) {
-    const groups = [...node.children.values()]
-        .sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+    const items = [];
+    let itemIndex = 0;
+
+    node.commands.forEach((command) => {
+        items.push(renderCommandItem(command, depth, itemIndex, node.path));
+        itemIndex += 1;
+    });
+
+    node.children
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+        .forEach((child) => {
+            items.push(renderSubmenuTrigger(child, depth, itemIndex, node.path));
+            itemIndex += 1;
+            if (getIsNodeOpen(child.path)) {
+                items.push(`
+                    <div class="app-menu-bar__submenu-panel" data-submenu-panel="${escapeHtml(child.path)}" role="menu" aria-label="${escapeHtml(child.label)}">
+                        ${renderMenuNode(child, depth + 1)}
+                    </div>
+                `);
+            }
+        });
 
     return `
-        <section class="app-menu-bar__menu-group app-menu-bar__menu-group--depth-${depth}">
-            <h3 class="app-menu-bar__menu-group-title">${escapeHtml(node.label)}</h3>
-            <div class="app-menu-bar__menu-items">
-                ${node.commands.map((command) => renderCommandButton(command)).join('')}
-            </div>
-            ${groups.map((group) => renderMenuNode(group, depth + 1)).join('')}
-        </section>
+        <div class="app-menu-bar__menu-level" role="menu" aria-label="${escapeHtml(node.label)}" data-menu-level="${depth}" data-menu-path="${escapeHtml(node.path)}">
+            ${items.join('')}
+        </div>
+    `;
+}
+
+function renderOpenMenuPanel(roots) {
+    const current = getCurrentOpenNode(roots);
+    if (!current) return '';
+
+    return `
+        <div class="app-menu-bar__menu-shell" data-menu-shell="${escapeHtml(current.path)}">
+            ${renderMenuNode(current, 0)}
+        </div>
     `;
 }
 
@@ -223,16 +356,18 @@ function renderSearchResults() {
 
     return searchResults.map((command, index) => {
         const shortcut = command.keyboardShortcut || 'Unassigned';
-        const isSelected = index === activeSearchIndex;
+        const isSelected = index === searchActiveIndex;
         return `
             <button
                 type="button"
                 role="option"
                 class="app-menu-bar__search-result ${isSelected ? 'is-selected' : ''} ${command.canExecute ? '' : 'is-disabled'}"
                 data-search-result="true"
+                data-search-index="${index}"
                 data-command-id="${escapeHtml(command.id)}"
                 aria-selected="${String(isSelected)}"
                 aria-disabled="${String(!command.canExecute)}"
+                tabindex="-1"
             >
                 <span class="app-menu-bar__search-result-name">${escapeHtml(command.displayName)}</span>
                 <span class="app-menu-bar__search-result-meta">${escapeHtml(shortcut)} · ${escapeHtml(command.category)}</span>
@@ -243,51 +378,26 @@ function renderSearchResults() {
 }
 
 function renderMenuBar() {
-    const { menuBar, searchInput, panel } = getContainer();
-    if (!menuBar || !searchInput || !panel) return;
+    const { menubar, panel, searchInput, searchResultsList } = getContainer();
+    if (!menubar || !panel || !searchInput || !searchResultsList) return;
 
-    const menus = getTopLevelMenus();
-    const searchValue = normalizeText(searchInput.value);
+    const roots = getTopLevelMenus();
+    menubar.innerHTML = renderTopLevelButtons(roots);
 
-    menuBar.innerHTML = menus.map((menu, index) => `
-        <button
-            type="button"
-            class="app-menu-bar__button ${activeMenuLabel === menu.label ? 'is-active' : ''}"
-            data-menu-button="true"
-            data-menu-label="${escapeHtml(menu.label)}"
-            role="menuitem"
-            aria-haspopup="true"
-            aria-expanded="${String(activeMenuLabel === menu.label)}"
-            tabindex="${index === lastFocusedMenuIndex ? 0 : -1}"
-        >
-            ${escapeHtml(menu.label)}
-        </button>
-    `).join('');
-
-    if (searchValue || document.activeElement === searchInput) {
-        searchResults = searchCommands(searchValue, { context: { source: 'menu-bar' } });
-        activeSearchIndex = Math.max(0, searchResults.findIndex((command) => command.canExecute));
-        panel.hidden = false;
-        panel.innerHTML = `
-            <div class="app-menu-bar__search-panel" aria-live="polite">
-                <p class="app-menu-bar__search-summary">${searchResults.length ? `${searchResults.length} command${searchResults.length === 1 ? '' : 's'} found.` : 'Type to search registered commands.'}</p>
-                <div id="menu-bar-search-results" role="listbox" aria-label="Command search results">
-                    ${renderSearchResults()}
-                </div>
-            </div>
-        `;
-        return;
+    const query = normalizeText(searchInput.value);
+    searchResults = query ? searchCommands(query, { context: { source: 'menu-bar-search' } }) : [];
+    if (!searchResults.length) {
+        searchActiveIndex = -1;
+    } else if (searchActiveIndex < 0 || searchActiveIndex >= searchResults.length) {
+        searchActiveIndex = 0;
     }
 
-    const activeMenu = menus.find((menu) => menu.label === activeMenuLabel) || null;
-    if (!activeMenu) {
-        panel.hidden = true;
-        panel.innerHTML = '';
-        return;
-    }
+    searchResultsList.innerHTML = renderSearchResults();
+    searchResultsList.hidden = !query;
 
-    panel.hidden = false;
-    panel.innerHTML = `<div role="menu" aria-label="${escapeHtml(activeMenu.label)}">${renderMenuNode(activeMenu)}</div>`;
+    const openPanelHtml = renderOpenMenuPanel(roots);
+    panel.innerHTML = openPanelHtml;
+    panel.hidden = !openPanelHtml;
 }
 
 function executeCommand(command) {
@@ -306,7 +416,7 @@ function executeCommand(command) {
     }).then((result) => {
         if (result?.ok) {
             announce(`Executed ${command.displayName}.`);
-            closeMenus();
+            closeAllMenus(true);
             return;
         }
 
@@ -315,89 +425,397 @@ function executeCommand(command) {
     });
 }
 
-function focusMenuButton(index = lastFocusedMenuIndex) {
-    const { menuBar } = getContainer();
-    const buttons = [...(menuBar?.querySelectorAll('[data-menu-button]') || [])];
-    if (!buttons.length) return;
-    const nextIndex = Math.max(0, Math.min(index, buttons.length - 1));
-    lastFocusedMenuIndex = nextIndex;
-    buttons[nextIndex]?.focus();
+function getTopLevelButtons() {
+    const { menubar } = getContainer();
+    return [...(menubar?.querySelectorAll('[data-menu-button="true"]') || [])];
 }
 
-function getMenuItems() {
-    return [...document.querySelectorAll('#menu-bar-panel [data-menu-item="true"]')];
-}
-
-function focusFirstMenuItem() {
-    const items = getMenuItems();
-    if (!items.length) return false;
-    const firstEnabled = items.find((item) => item.getAttribute('aria-disabled') !== 'true') || items[0];
-    firstEnabled?.focus();
+function focusTopLevelButton(index = menubarFocusIndex) {
+    const buttons = getTopLevelButtons();
+    if (!buttons.length) return false;
+    const next = ((index % buttons.length) + buttons.length) % buttons.length;
+    menubarFocusIndex = next;
+    buttons[next]?.focus();
     return true;
 }
 
-function focusLastMenuItem() {
-    const items = getMenuItems();
+function getFocusableMenuItemsForPath(path) {
+    return [...document.querySelectorAll(`[data-parent-path="${CSS.escape(path)}"]`)];
+}
+
+function focusMenuItemByPath(path, desiredIndex = 0) {
+    const items = getFocusableMenuItemsForPath(path).filter((item) => item.getAttribute('aria-disabled') !== 'true');
     if (!items.length) return false;
-    const lastEnabled = [...items].reverse().find((item) => item.getAttribute('aria-disabled') !== 'true') || items[items.length - 1];
-    lastEnabled?.focus();
+    const index = Math.max(0, Math.min(desiredIndex, items.length - 1));
+    menuFocusIndexByPath.set(path, index);
+    items[index]?.focus();
     return true;
 }
 
-function moveMenuItemFocus(offset) {
-    const items = getMenuItems().filter((item) => item.getAttribute('aria-disabled') !== 'true');
+function focusFirstMenuItem(path) {
+    return focusMenuItemByPath(path, 0);
+}
+
+function focusLastMenuItem(path) {
+    const items = getFocusableMenuItemsForPath(path).filter((item) => item.getAttribute('aria-disabled') !== 'true');
     if (!items.length) return false;
-    const currentIndex = items.indexOf(document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    const nextIndex = currentIndex < 0 ? 0 : Math.max(0, Math.min(items.length - 1, currentIndex + offset));
-    items[nextIndex]?.focus();
+    return focusMenuItemByPath(path, items.length - 1);
+}
+
+function moveMenuItemFocus(path, delta) {
+    const items = getFocusableMenuItemsForPath(path).filter((item) => item.getAttribute('aria-disabled') !== 'true');
+    if (!items.length) return false;
+
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const currentIndex = items.indexOf(current);
+    const base = currentIndex >= 0 ? currentIndex : (menuFocusIndexByPath.get(path) || 0);
+    const next = ((base + delta) % items.length + items.length) % items.length;
+    menuFocusIndexByPath.set(path, next);
+    items[next]?.focus();
     return true;
+}
+
+function openTopLevelMenuByIndex(index, focusMode = 'first') {
+    const roots = getTopLevelMenus();
+    if (!roots.length) return false;
+
+    const nextIndex = ((index % roots.length) + roots.length) % roots.length;
+    menubarFocusIndex = nextIndex;
+    const node = roots[nextIndex];
+
+    openPath = [node.path];
+    renderMenuBar();
+
+    if (focusMode === 'first') {
+        window.setTimeout(() => focusFirstMenuItem(node.path), 0);
+    } else if (focusMode === 'last') {
+        window.setTimeout(() => focusLastMenuItem(node.path), 0);
+    }
+
+    return true;
+}
+
+function openCurrentTopLevelMenu(focusMode = 'first') {
+    return openTopLevelMenuByIndex(menubarFocusIndex, focusMode);
+}
+
+function closeSubmenuAndFocusParent(submenuPath) {
+    const parentPath = submenuPath.split('>').slice(0, -1).join('>');
+    if (!parentPath) return false;
+
+    openPath = openPath.filter((path) => !(path === submenuPath || path.startsWith(`${submenuPath}>`)));
+    renderMenuBar();
+
+    window.setTimeout(() => {
+        const trigger = document.querySelector(`[data-submenu-path="${CSS.escape(submenuPath)}"]`);
+        if (trigger instanceof HTMLElement) trigger.focus();
+    }, 0);
+
+    return true;
+}
+
+function closeAllMenus(restoreToMenubar = true) {
+    openPath = [];
+    renderMenuBar();
+
+    if (restoreToMenubar) {
+        window.setTimeout(() => {
+            focusTopLevelButton(menubarFocusIndex);
+            setStatus('Menu bar focused.');
+        }, 0);
+    }
+}
+
+function exitMenubarSession() {
+    const target = focusBeforeMenubar;
+    closeAllMenus(false);
+    clearMenubarSession();
+
+    if (target && typeof target.focus === 'function') {
+        window.setTimeout(() => target.focus(), 0);
+    }
+}
+
+function openSubmenuFromTrigger(trigger, focusFirst = true) {
+    const submenuPath = trigger.getAttribute('data-submenu-path') || '';
+    if (!submenuPath) return false;
+
+    const depth = Number(trigger.getAttribute('data-menu-depth') || 0);
+    const expectedLength = depth + 2;
+
+    openPath = openPath.slice(0, expectedLength - 1);
+    if (!openPath.includes(submenuPath)) openPath.push(submenuPath);
+    renderMenuBar();
+
+    window.setTimeout(() => {
+        if (focusFirst) {
+            focusFirstMenuItem(submenuPath);
+        } else {
+            focusLastMenuItem(submenuPath);
+        }
+    }, 0);
+
+    return true;
+}
+
+function getCurrentMenuPathFromFocus() {
+    const element = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!element) return '';
+
+    const path = element.getAttribute('data-parent-path') || '';
+    return path;
+}
+
+function handleSearchResultExecute(index) {
+    const command = searchResults[index] || null;
+    if (!command) return;
+    executeCommand(command);
+}
+
+function focusSearchResult(index) {
+    const list = document.querySelectorAll('[data-search-result="true"]');
+    if (!list.length) return false;
+    const bounded = Math.max(0, Math.min(index, list.length - 1));
+    searchActiveIndex = bounded;
+    renderMenuBar();
+    window.setTimeout(() => {
+        const target = document.querySelector(`[data-search-result="true"][data-search-index="${bounded}"]`);
+        if (target instanceof HTMLElement) target.focus();
+    }, 0);
+    return true;
+}
+
+function handleMenuButtonKeydown(event, activeElement) {
+    if (!(activeElement instanceof HTMLElement) || !activeElement.matches('[data-menu-button="true"]')) return false;
+
+    const buttons = getTopLevelButtons();
+    if (!buttons.length) return false;
+
+    if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        focusTopLevelButton(menubarFocusIndex + 1);
+        return true;
+    }
+
+    if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        focusTopLevelButton(menubarFocusIndex - 1);
+        return true;
+    }
+
+    if (event.key === 'Home') {
+        event.preventDefault();
+        focusTopLevelButton(0);
+        return true;
+    }
+
+    if (event.key === 'End') {
+        event.preventDefault();
+        focusTopLevelButton(buttons.length - 1);
+        return true;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        suppressNextMenuButtonClick = true;
+        openCurrentTopLevelMenu('first');
+        return true;
+    }
+
+    if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        suppressNextMenuButtonClick = true;
+        openCurrentTopLevelMenu('last');
+        return true;
+    }
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        if (openPath.length) {
+            closeAllMenus(true);
+        } else {
+            exitMenubarSession();
+        }
+        return true;
+    }
+
+    return false;
+}
+
+function handleMenuItemKeydown(event, activeElement) {
+    if (!(activeElement instanceof HTMLElement) || !activeElement.matches('[data-menu-item="true"]')) return false;
+
+    const currentPath = getCurrentMenuPathFromFocus();
+    if (!currentPath) return false;
+
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveMenuItemFocus(currentPath, 1);
+        return true;
+    }
+
+    if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveMenuItemFocus(currentPath, -1);
+        return true;
+    }
+
+    if (event.key === 'Home') {
+        event.preventDefault();
+        focusFirstMenuItem(currentPath);
+        return true;
+    }
+
+    if (event.key === 'End') {
+        event.preventDefault();
+        focusLastMenuItem(currentPath);
+        return true;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        const submenuPath = activeElement.getAttribute('data-submenu-path') || '';
+        if (submenuPath) {
+            openSubmenuFromTrigger(activeElement, true);
+            return true;
+        }
+
+        const commandId = activeElement.getAttribute('data-command-id') || '';
+        const command = commandRegistry.getCommand(commandId);
+        if (command) {
+            executeCommand({
+                ...command,
+                ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
+            });
+        }
+        return true;
+    }
+
+    if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        const submenuPath = activeElement.getAttribute('data-submenu-path') || '';
+        if (submenuPath) {
+            openSubmenuFromTrigger(activeElement, true);
+            return true;
+        }
+
+        closeAllMenus(false);
+        openTopLevelMenuByIndex(menubarFocusIndex + 1, 'first');
+        return true;
+    }
+
+    if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        const parentDepth = Number(activeElement.getAttribute('data-menu-depth') || 0);
+        if (parentDepth > 0) {
+            const parentPath = currentPath;
+            closeSubmenuAndFocusParent(parentPath);
+            return true;
+        }
+
+        closeAllMenus(false);
+        openTopLevelMenuByIndex(menubarFocusIndex - 1, 'first');
+        return true;
+    }
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        const parentDepth = Number(activeElement.getAttribute('data-menu-depth') || 0);
+        if (parentDepth > 0) {
+            closeSubmenuAndFocusParent(currentPath);
+        } else {
+            closeAllMenus(true);
+        }
+        return true;
+    }
+
+    return false;
+}
+
+function handleSearchKeydown(event, activeElement) {
+    const { searchInput } = getContainer();
+    if (!searchInput) return false;
+
+    if (activeElement === searchInput) {
+        if (event.key === 'Escape') {
+            if (!searchInput.value) return false;
+            event.preventDefault();
+            searchInput.value = '';
+            renderMenuBar();
+            return true;
+        }
+
+        if (event.key === 'ArrowDown') {
+            if (!searchResults.length) return false;
+            event.preventDefault();
+            focusSearchResult(0);
+            return true;
+        }
+
+        if (event.key === 'Enter') {
+            if (!searchResults.length) return false;
+            event.preventDefault();
+            handleSearchResultExecute(Math.max(searchActiveIndex, 0));
+            return true;
+        }
+    }
+
+    if (activeElement instanceof HTMLElement && activeElement.matches('[data-search-result="true"]')) {
+        const currentIndex = Number(activeElement.getAttribute('data-search-index') || 0);
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            focusSearchResult(Math.min(currentIndex + 1, searchResults.length - 1));
+            return true;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (currentIndex === 0) {
+                searchInput.focus();
+                return true;
+            }
+            focusSearchResult(Math.max(currentIndex - 1, 0));
+            return true;
+        }
+
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleSearchResultExecute(currentIndex);
+            return true;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            searchInput.focus();
+            searchInput.select();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function focusMenuBar() {
+    rememberFocusBeforeMenubar();
+    closeAllMenus(false);
     renderMenuBar();
-    focusMenuButton();
+    focusTopLevelButton(menubarFocusIndex);
+    setStatus('Menu bar focused.');
     announce('Menu bar focused.');
 }
 
 function focusMenuSearch(selectText = true) {
+    rememberFocusBeforeMenubar();
     const { searchInput } = getContainer();
     if (!searchInput) return;
-    activeMenuLabel = '';
-    renderMenuBar();
+    closeAllMenus(false);
     searchInput.focus();
     if (selectText) searchInput.select();
     announce('Command search focused.');
 }
 
-function openFocusedMenu() {
-    const { menuBar } = getContainer();
-    const activeButton = document.activeElement instanceof HTMLElement && document.activeElement.matches('[data-menu-button]')
-        ? document.activeElement
-        : menuBar?.querySelector('[data-menu-button]') || null;
-    const menuLabel = activeButton?.getAttribute('data-menu-label') || '';
-    if (!menuLabel) return;
-    activeMenuLabel = menuLabel;
-    suppressNextMenuButtonClick = true;
-    renderMenuBar();
-    window.setTimeout(() => {
-        if (!focusFirstMenuItem()) {
-            focusMenuButton(lastFocusedMenuIndex);
-        }
-    }, 0);
-}
-
-function closeMenus(restoreFocus = true) {
-    activeMenuLabel = '';
-    searchResults = [];
-    activeSearchIndex = 0;
-    renderMenuBar();
-
-    if (restoreFocus) {
-        window.setTimeout(() => focusMenuButton(), 0);
-    }
-}
-
-function handleKeydown(event) {
+function handleGlobalKeydown(event) {
     if (event.key === 'F10') {
         event.preventDefault();
         focusMenuBar();
@@ -427,153 +845,57 @@ function handleKeydown(event) {
         return;
     }
 
-    const { searchInput, menuBar } = getContainer();
     const activeElement = document.activeElement;
 
-    if (activeMenuLabel && event.key === 'Escape') {
-        event.preventDefault();
-        closeMenus(true);
+    if (handleSearchKeydown(event, activeElement)) return;
+    if (handleMenuButtonKeydown(event, activeElement)) return;
+    if (handleMenuItemKeydown(event, activeElement)) return;
+}
+
+function handleMenubarClick(event) {
+    const target = event.target instanceof Element ? event.target.closest('[data-menu-button="true"]') : null;
+    if (!target) return;
+
+    if (suppressNextMenuButtonClick) {
+        suppressNextMenuButtonClick = false;
         return;
     }
 
-    if (activeElement === searchInput) {
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            if (searchInput.value) {
-                searchInput.value = '';
-                renderMenuBar();
-                setStatus('Search cleared.');
-            } else {
-                focusMenuBar();
-            }
-            return;
-        }
+    rememberFocusBeforeMenubar();
 
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter') {
-            if (!searchResults.length) return;
-            event.preventDefault();
-            if (event.key === 'ArrowDown') {
-                activeSearchIndex = Math.min(activeSearchIndex + 1, searchResults.length - 1);
-                renderMenuBar();
-            } else if (event.key === 'ArrowUp') {
-                activeSearchIndex = Math.max(activeSearchIndex - 1, 0);
-                renderMenuBar();
-            } else {
-                executeCommand(searchResults[activeSearchIndex]);
-            }
-        }
+    const buttons = getTopLevelButtons();
+    menubarFocusIndex = Math.max(0, buttons.indexOf(target));
+
+    if (openPath.length && openPath[0] === target.getAttribute('data-menu-path')) {
+        closeAllMenus(true);
         return;
     }
 
-    if (activeElement instanceof HTMLElement && activeElement.matches('[data-menu-button]')) {
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            const buttons = [...(menuBar?.querySelectorAll('[data-menu-button]') || [])];
-            if (!buttons.length) return;
-            const nextIndex = (lastFocusedMenuIndex + 1) % buttons.length;
-            focusMenuButton(nextIndex);
-        } else if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            const buttons = [...(menuBar?.querySelectorAll('[data-menu-button]') || [])];
-            if (!buttons.length) return;
-            const nextIndex = (lastFocusedMenuIndex - 1 + buttons.length) % buttons.length;
-            focusMenuButton(nextIndex);
-        } else if (event.key === 'Home') {
-            event.preventDefault();
-            focusMenuButton(0);
-        } else if (event.key === 'End') {
-            event.preventDefault();
-            const buttons = [...(menuBar?.querySelectorAll('[data-menu-button]') || [])];
-            focusMenuButton(buttons.length - 1);
-        } else if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
-            event.preventDefault();
-            openFocusedMenu();
-        } else if (event.key === 'Escape') {
-            event.preventDefault();
-            closeMenus(true);
-        }
+    openTopLevelMenuByIndex(menubarFocusIndex, 'first');
+}
+
+function handlePanelClick(event) {
+    const target = event.target instanceof Element ? event.target.closest('[data-menu-item="true"]') : null;
+    if (!target) return;
+
+    const submenuPath = target.getAttribute('data-submenu-path') || '';
+    if (submenuPath) {
+        openSubmenuFromTrigger(target, true);
         return;
     }
 
-    if (activeElement instanceof HTMLElement && activeElement.closest('#menu-bar-panel')) {
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            moveMenuItemFocus(1);
-            return;
-        }
+    const commandId = target.getAttribute('data-command-id') || '';
+    const command = commandRegistry.getCommand(commandId);
+    if (!command) return;
 
-        if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            moveMenuItemFocus(-1);
-            return;
-        }
+    executeCommand({
+        ...command,
+        ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
+    });
+}
 
-        if (event.key === 'Home') {
-            event.preventDefault();
-            focusFirstMenuItem();
-            return;
-        }
-
-        if (event.key === 'End') {
-            event.preventDefault();
-            focusLastMenuItem();
-            return;
-        }
-
-        if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            closeMenus(true);
-            return;
-        }
-
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            closeMenus(true);
-            moveMenuFocus(1);
-            return;
-        }
-
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            const target = activeElement.closest('[data-command-id]');
-            if (!target) return;
-            const commandId = target.getAttribute('data-command-id') || '';
-            const command = commandRegistry.getCommand(commandId);
-            if (command) {
-                executeCommand({
-                    ...command,
-                    ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
-                });
-            }
-        }
-
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            closeMenus(true);
-        }
-        return;
-    }
-
-    const menuItem = activeElement instanceof HTMLElement ? activeElement.closest('[data-command-id]') : null;
-    if (!menuItem || !menuBar?.contains(menuItem)) return;
-
-    if (event.key === 'Escape') {
-        event.preventDefault();
-        closeMenus(true);
-        return;
-    }
-
-    if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        const commandId = menuItem.getAttribute('data-command-id') || '';
-        const command = commandRegistry.getCommand(commandId);
-        if (command) {
-            executeCommand({
-                ...command,
-                ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
-            });
-        }
-    }
+function handleSearchInput() {
+    renderMenuBar();
 }
 
 function bindEvents() {
@@ -582,56 +904,41 @@ function bindEvents() {
 
     container.innerHTML = `
         <div class="app-menu-bar__row">
-            <nav id="menu-bar-menubar" class="app-menu-bar__menubar" role="menubar" aria-label="Application menus"></nav>
+            <nav aria-label="Application menus">
+                <div id="menu-bar-menubar" class="app-menu-bar__menubar" role="menubar" aria-label="Application menus"></div>
+            </nav>
             <div class="app-menu-bar__search">
                 <label class="sr-only" for="menu-bar-search">Menu Bar Command Search</label>
-                <input id="menu-bar-search" type="search" autocomplete="off" spellcheck="false" aria-controls="menu-bar-panel" aria-describedby="menu-bar-status" placeholder="Search commands">
+                <input
+                    id="menu-bar-search"
+                    type="search"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-controls="menu-bar-search-results"
+                    aria-describedby="menu-bar-status"
+                    placeholder="Search commands"
+                >
+                <div id="menu-bar-search-results" class="app-menu-bar__search-results" role="listbox" aria-label="Command search results" hidden></div>
             </div>
         </div>
         <div id="menu-bar-panel" class="app-menu-bar__panel" hidden></div>
         <p id="menu-bar-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     `;
 
-    const { menuBar, searchInput, panel } = getContainer();
-    if (!menuBar || !searchInput || !panel) return false;
+    const { menubar, panel, searchInput } = getContainer();
+    if (!menubar || !panel || !searchInput) return false;
 
-    document.addEventListener('keydown', handleKeydown, true);
+    document.addEventListener('keydown', handleGlobalKeydown, true);
+    menubar.addEventListener('click', handleMenubarClick);
+    panel.addEventListener('click', handlePanelClick);
+    searchInput.addEventListener('input', handleSearchInput);
+    searchInput.addEventListener('focus', () => {
+        rememberFocusBeforeMenubar();
+        renderMenuBar();
+    });
+
     window.addEventListener('art-shortcuts-updated', () => renderMenuBar());
     window.addEventListener('art-visual-accessibility-updated', () => renderMenuBar());
-
-    const resolvedSearchInput = document.getElementById('menu-bar-search');
-    const resolvedMenuBar = document.getElementById('menu-bar-menubar');
-    const resolvedPanel = document.getElementById('menu-bar-panel');
-
-    resolvedSearchInput?.addEventListener('input', () => renderMenuBar());
-    resolvedSearchInput?.addEventListener('focus', () => renderMenuBar());
-
-    resolvedMenuBar?.addEventListener('click', (event) => {
-        const target = event.target instanceof Element ? event.target.closest('[data-menu-button]') : null;
-        if (!target) return;
-        if (suppressNextMenuButtonClick) {
-            suppressNextMenuButtonClick = false;
-            return;
-        }
-        const buttons = [...resolvedMenuBar.querySelectorAll('[data-menu-button]')];
-        lastFocusedMenuIndex = buttons.indexOf(target);
-        activeMenuLabel = target.getAttribute('data-menu-label') || '';
-        renderMenuBar();
-        window.setTimeout(() => focusFirstMenuItem(), 0);
-    });
-
-    resolvedPanel?.addEventListener('click', (event) => {
-        const target = event.target instanceof Element ? event.target.closest('[data-command-id]') : null;
-        if (!target) return;
-        const commandId = target.getAttribute('data-command-id') || '';
-        const command = commandRegistry.getCommand(commandId);
-        if (command) {
-            executeCommand({
-                ...command,
-                ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
-            });
-        }
-    });
 
     renderMenuBar();
     return true;
