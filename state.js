@@ -145,6 +145,18 @@ const defaultState = {
         },
         restorePoints: [],
         auditLog: []
+    },
+    visualAccessibility: {
+        activeProfile: 'Default',
+        customProfiles: [],
+        theme: 'light',
+        zoom: 100,
+        fontSize: 100,
+        density: 'standard',
+        enhancedFocusIndicators: false,
+        reducedMotion: false,
+        borderVisibility: false,
+        followSystemTheme: false
     }
 };
 
@@ -320,6 +332,29 @@ function normalizeSecurityConfig(config) {
                 detail: String(entry?.detail || '')
             }))
             : []
+    };
+}
+
+function normalizeVisualAccessibilityConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    const allowedThemes = new Set(['light', 'dark', 'high-contrast-light', 'high-contrast-dark', 'system']);
+    const allowedDensity = new Set(['standard', 'comfortable', 'compact']);
+    const theme = String(source.theme || defaultState.visualAccessibility.theme).trim().toLowerCase();
+    const density = String(source.density || defaultState.visualAccessibility.density).trim().toLowerCase();
+    const zoomValue = Number(source.zoom);
+    const fontSizeValue = Number(source.fontSize);
+
+    return {
+        activeProfile: String(source.activeProfile || defaultState.visualAccessibility.activeProfile || 'Default').trim() || 'Default',
+        customProfiles: Array.isArray(source.customProfiles) ? source.customProfiles.map((profile) => String(profile || '').trim()).filter(Boolean) : [],
+        theme: allowedThemes.has(theme) ? theme : defaultState.visualAccessibility.theme,
+        zoom: Number.isFinite(zoomValue) ? Math.min(200, Math.max(80, Math.round(zoomValue))) : defaultState.visualAccessibility.zoom,
+        fontSize: Number.isFinite(fontSizeValue) ? Math.min(200, Math.max(80, Math.round(fontSizeValue))) : defaultState.visualAccessibility.fontSize,
+        density: allowedDensity.has(density) ? density : defaultState.visualAccessibility.density,
+        enhancedFocusIndicators: Boolean(source.enhancedFocusIndicators),
+        reducedMotion: Boolean(source.reducedMotion),
+        borderVisibility: Boolean(source.borderVisibility),
+        followSystemTheme: Boolean(source.followSystemTheme)
     };
 }
 
@@ -788,6 +823,7 @@ export let appState = {
     recentProjectFiles: normalizeRecentProjectFiles(storedState.recentProjectFiles),
     hasUnsavedChanges: Boolean(storedState.hasUnsavedChanges),
     security: normalizeSecurityConfig(storedState.security),
+    visualAccessibility: normalizeVisualAccessibilityConfig(storedState.visualAccessibility),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
         : []
@@ -811,6 +847,7 @@ function normalizeStateSnapshot(rawState) {
         recentProjectFiles: normalizeRecentProjectFiles(base.recentProjectFiles),
         hasUnsavedChanges: Boolean(base.hasUnsavedChanges),
         security: normalizeSecurityConfig(base.security),
+        visualAccessibility: normalizeVisualAccessibilityConfig(base.visualAccessibility),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -2140,9 +2177,11 @@ export function resetUserPreferences() {
     appState.shortcuts = normalizeShortcuts(defaultState.shortcuts);
     appState.standard = defaultState.standard;
     appState.security = normalizeSecurityConfig(defaultState.security);
+    appState.visualAccessibility = normalizeVisualAccessibilityConfig(defaultState.visualAccessibility);
     saveState({ action: 'Reset user preferences' });
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
+    window.dispatchEvent(new Event('art-visual-accessibility-updated'));
     window.dispatchEvent(new CustomEvent('art-standard-changed', {
         detail: { standard: appState.standard }
     }));
@@ -2160,6 +2199,7 @@ export function resetAllApplicationData() {
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-accessibility-standards-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
+    window.dispatchEvent(new Event('art-visual-accessibility-updated'));
     window.dispatchEvent(new CustomEvent('art-standard-changed', {
         detail: { standard: appState.standard }
     }));
@@ -2178,7 +2218,8 @@ export function getApplicationInfo() {
             version: standard.version,
             source: standard.source,
             criteriaCount: Array.isArray(standard.criteria) ? standard.criteria.length : 0
-        }))
+        })),
+        visualAccessibility: getVisualAccessibilityConfig()
     };
 }
 
@@ -2259,6 +2300,30 @@ export function updateSecurityConfig(updates = {}, options = {}) {
     }
     window.dispatchEvent(new Event('art-security-updated'));
     return next;
+}
+
+export function getVisualAccessibilityConfig() {
+    return normalizeVisualAccessibilityConfig(appState.visualAccessibility);
+}
+
+export function updateVisualAccessibilityConfig(updates = {}, options = {}) {
+    const next = normalizeVisualAccessibilityConfig({
+        ...appState.visualAccessibility,
+        ...(updates && typeof updates === 'object' ? updates : {})
+    });
+    appState.visualAccessibility = next;
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated visual accessibility settings') });
+    }
+    window.dispatchEvent(new Event('art-visual-accessibility-updated'));
+    return next;
+}
+
+export function resetVisualAccessibilityConfig(options = {}) {
+    return updateVisualAccessibilityConfig(defaultState.visualAccessibility, {
+        ...options,
+        action: String(options.action || 'Reset visual accessibility settings')
+    });
 }
 
 export function setNetworkActivity(status, detail = '') {

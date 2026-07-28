@@ -8,6 +8,12 @@ The Command Palette provides keyboard-first access to those commands and opens w
 
 Shortcut changes made in Application Settings are reflected throughout ART, including the Command Palette and other shortcut displays.
 
+## Visual Accessibility
+ART 2.0 also introduces a centralized Theme Engine for visual accessibility and personalization.
+It supports built-in themes, zoom, font size, interface density, enhanced focus indicators, reduced motion, border visibility, live preview, and future appearance profiles.
+
+Visual settings are managed from Application Settings and are applied consistently throughout ART.
+
 See:
 
 - [Command Reference](COMMANDS.md)

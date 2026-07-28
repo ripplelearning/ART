@@ -1,4 +1,4 @@
-import { getShortcutDefinitions, getShortcutForAction } from './state.js';
+import { getShortcutDefinitions, getShortcutForAction, getVisualAccessibilityConfig } from './state.js';
 
 let welcomeShortcutSyncBound = false;
 
@@ -30,6 +30,26 @@ function getDynamicShortcutLines() {
     return lines;
 }
 
+function getVisualAccessibilitySummary() {
+    const settings = getVisualAccessibilityConfig();
+    const themeLabels = {
+        light: 'Light Theme',
+        dark: 'Dark Theme',
+        'high-contrast-light': 'High Contrast Light',
+        'high-contrast-dark': 'High Contrast Dark',
+        system: 'Follow System Theme'
+    };
+
+    return [
+        `Current Theme: ${themeLabels[settings.theme] || 'Light Theme'}`,
+        `Current Zoom: ${settings.zoom}%`,
+        `Current Font Size: ${settings.fontSize}%`,
+        `Enhanced Focus Indicators: ${settings.enhancedFocusIndicators ? 'On' : 'Off'}`,
+        `Reduced Motion: ${settings.reducedMotion ? 'On' : 'Off'}`,
+        `Interface Density: ${settings.density}`
+    ];
+}
+
 function bindWelcomeShortcutSync() {
     if (welcomeShortcutSyncBound) return;
     const refreshIfVisible = () => {
@@ -39,6 +59,7 @@ function bindWelcomeShortcutSync() {
     };
 
     window.addEventListener('art-shortcuts-updated', refreshIfVisible);
+    window.addEventListener('art-visual-accessibility-updated', refreshIfVisible);
     welcomeShortcutSyncBound = true;
 }
 
@@ -46,6 +67,7 @@ function bindWelcomeShortcutSync() {
 export function renderWelcome() {
     const container = document.getElementById('main-inner');
     const shortcuts = getDynamicShortcutLines();
+    const visualSummary = getVisualAccessibilitySummary();
     container.innerHTML = `
         <section id="welcome-view" aria-labelledby="welcome-heading">
             <h1 id="welcome-heading">Welcome to ART</h1>
@@ -63,6 +85,13 @@ export function renderWelcome() {
                 <ul>
                     ${shortcuts.map((shortcut) => `<li>${shortcut}</li>`).join('')}
                 </ul>
+            </section>
+            <section aria-labelledby="welcome-visual-heading">
+                <h2 id="welcome-visual-heading">Visual Accessibility</h2>
+                <ul>
+                    ${visualSummary.map((item) => `<li>${item}</li>`).join('')}
+                </ul>
+                <p>Open Application Settings to adjust appearance preferences at any time.</p>
             </section>
         </section>
     `;

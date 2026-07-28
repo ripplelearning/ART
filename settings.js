@@ -25,12 +25,15 @@ import {
     resetAllApplicationData,
     resetShortcutsToDefault,
     resetUserPreferences,
+    getVisualAccessibilityConfig,
+    resetVisualAccessibilityConfig,
     reportNameExists,
     recordSecurityAudit,
     serializeAccessibilityStandardsJsonPayload,
     undoState,
     updateImportedAccessibilityStandard,
     updateSecurityConfig,
+    updateVisualAccessibilityConfig,
     updateShortcut,
     templateNameExists,
     validateArtJsonPayload,
@@ -58,6 +61,8 @@ let startSettingsTemplateImportPicker = null;
 let toggleSettingsPrivacyMode = null;
 let createSettingsBackupNow = null;
 let openSettingsResetDialog = null;
+let pendingVisualAccessibilitySnapshot = null;
+let pendingVisualAccessibilityDirty = false;
 
 async function executeSettingsAction(action, context = {}) {
     const command = commandRegistry.findCommands({ action })[0] || null;
@@ -467,6 +472,87 @@ function renderAbout() {
     `;
 }
 
+function getVisualAccessibilityControls() {
+    return {
+        theme: document.getElementById('settings-visual-theme'),
+        zoom: document.getElementById('settings-visual-zoom'),
+        fontSize: document.getElementById('settings-visual-font-size'),
+        density: document.getElementById('settings-visual-density'),
+        enhancedFocusIndicators: document.getElementById('settings-visual-focus-indicators'),
+        reducedMotion: document.getElementById('settings-visual-reduced-motion'),
+        borderVisibility: document.getElementById('settings-visual-border-visibility'),
+        followSystemTheme: document.getElementById('settings-visual-follow-system-theme'),
+        summary: document.getElementById('settings-visual-summary'),
+        applyButton: document.getElementById('btn-settings-visual-apply'),
+        cancelButton: document.getElementById('btn-settings-visual-cancel'),
+        defaultsButton: document.getElementById('btn-settings-visual-defaults')
+    };
+}
+
+function getVisualAccessibilityFormValues() {
+    const controls = getVisualAccessibilityControls();
+    return {
+        activeProfile: 'Default',
+        theme: controls.theme?.value || 'light',
+        zoom: Number(controls.zoom?.value || 100),
+        fontSize: Number(controls.fontSize?.value || 100),
+        density: controls.density?.value || 'standard',
+        enhancedFocusIndicators: Boolean(controls.enhancedFocusIndicators?.checked),
+        reducedMotion: Boolean(controls.reducedMotion?.checked),
+        borderVisibility: Boolean(controls.borderVisibility?.checked),
+        followSystemTheme: Boolean(controls.followSystemTheme?.checked)
+    };
+}
+
+function setVisualAccessibilityFormValues(config) {
+    const controls = getVisualAccessibilityControls();
+    if (controls.theme) controls.theme.value = config.theme;
+    if (controls.zoom) controls.zoom.value = String(config.zoom);
+    if (controls.fontSize) controls.fontSize.value = String(config.fontSize);
+    if (controls.density) controls.density.value = config.density;
+    if (controls.enhancedFocusIndicators) controls.enhancedFocusIndicators.checked = Boolean(config.enhancedFocusIndicators);
+    if (controls.reducedMotion) controls.reducedMotion.checked = Boolean(config.reducedMotion);
+    if (controls.borderVisibility) controls.borderVisibility.checked = Boolean(config.borderVisibility);
+    if (controls.followSystemTheme) controls.followSystemTheme.checked = Boolean(config.followSystemTheme);
+    if (controls.summary) {
+        controls.summary.textContent = `Theme ${config.theme}. Zoom ${config.zoom} percent. Font size ${config.fontSize} percent. Density ${config.density}.`;
+    }
+}
+
+function previewVisualAccessibilitySettings(nextConfig) {
+    updateVisualAccessibilityConfig(nextConfig, { persist: false, action: 'Preview visual accessibility settings' });
+    pendingVisualAccessibilityDirty = true;
+    setVisualAccessibilityFormValues(getVisualAccessibilityConfig());
+    writeStatus('Visual accessibility preview updated.');
+}
+
+function applyVisualAccessibilitySettings() {
+    const nextConfig = getVisualAccessibilityFormValues();
+    updateVisualAccessibilityConfig(nextConfig, { persist: true, action: 'Updated visual accessibility settings' });
+    pendingVisualAccessibilitySnapshot = getVisualAccessibilityConfig();
+    pendingVisualAccessibilityDirty = false;
+    setVisualAccessibilityFormValues(pendingVisualAccessibilitySnapshot);
+    writeStatus('Visual accessibility settings applied.');
+}
+
+function revertVisualAccessibilityPreview() {
+    if (!pendingVisualAccessibilityDirty || !pendingVisualAccessibilitySnapshot) return;
+    updateVisualAccessibilityConfig(pendingVisualAccessibilitySnapshot, { persist: false, action: 'Reverted visual accessibility preview' });
+    pendingVisualAccessibilityDirty = false;
+    setVisualAccessibilityFormValues(pendingVisualAccessibilitySnapshot);
+}
+
+function resetVisualAccessibilityPreviewToDefaults() {
+    resetVisualAccessibilityConfig({ persist: false, action: 'Preview default visual accessibility settings' });
+    pendingVisualAccessibilityDirty = true;
+    setVisualAccessibilityFormValues(getVisualAccessibilityConfig());
+    writeStatus('Default visual accessibility settings previewed.');
+}
+
+function renderVisualAccessibilitySettings() {
+    setVisualAccessibilityFormValues(getVisualAccessibilityConfig());
+}
+
 function importAccessibilityStandardList(standards, overwrite = false) {
     const list = Array.isArray(standards) ? standards : [];
     if (list.length === 0) return { ok: false, reason: 'empty' };
@@ -549,6 +635,7 @@ function refreshSettingsView() {
     renderShortcuts();
     renderImportedStandards();
     renderIntegrationSettings();
+    renderVisualAccessibilitySettings();
     renderAbout();
 }
 
@@ -923,6 +1010,8 @@ function openSettingsDialog(trigger) {
     if (!dialog || !closeButton) return;
 
     lastTrigger = trigger || document.getElementById('btn-app-settings');
+    pendingVisualAccessibilitySnapshot = getVisualAccessibilityConfig();
+    pendingVisualAccessibilityDirty = false;
     refreshSettingsView();
     dialog.hidden = false;
     window.setTimeout(() => closeButton.focus(), 0);
@@ -931,6 +1020,7 @@ function openSettingsDialog(trigger) {
 function closeSettingsDialog(restoreFocus) {
     const dialog = document.getElementById('app-settings-dialog');
     if (!dialog) return;
+    revertVisualAccessibilityPreview();
     dialog.hidden = true;
     if (restoreFocus && lastTrigger) {
         lastTrigger.focus();
@@ -955,6 +1045,24 @@ export function restoreSettingsShortcutsFromCommand() {
     resetShortcutsToDefault();
     refreshSettingsView();
     writeStatus('Default keyboard shortcuts restored.');
+    return true;
+}
+
+export function applyVisualAccessibilitySettingsFromCommand() {
+    applyVisualAccessibilitySettings();
+    return true;
+}
+
+export function cancelVisualAccessibilitySettingsFromCommand() {
+    revertVisualAccessibilityPreview();
+    refreshSettingsView();
+    writeStatus('Visual accessibility changes discarded.');
+    return true;
+}
+
+export function restoreVisualAccessibilityDefaultsFromCommand() {
+    resetVisualAccessibilityPreviewToDefaults();
+    refreshSettingsView();
     return true;
 }
 
@@ -1440,6 +1548,44 @@ function bindResetActions() {
     });
 }
 
+function bindVisualAccessibilitySettings() {
+    const themeSelect = document.getElementById('settings-visual-theme');
+    const zoomSelect = document.getElementById('settings-visual-zoom');
+    const fontSizeSelect = document.getElementById('settings-visual-font-size');
+    const densitySelect = document.getElementById('settings-visual-density');
+    const enhancedFocus = document.getElementById('settings-visual-focus-indicators');
+    const reducedMotion = document.getElementById('settings-visual-reduced-motion');
+    const borderVisibility = document.getElementById('settings-visual-border-visibility');
+    const followSystemTheme = document.getElementById('settings-visual-follow-system-theme');
+    const applyButton = document.getElementById('btn-settings-visual-apply');
+    const cancelButton = document.getElementById('btn-settings-visual-cancel');
+    const defaultsButton = document.getElementById('btn-settings-visual-defaults');
+
+    if (!themeSelect || !zoomSelect || !fontSizeSelect || !densitySelect || !enhancedFocus || !reducedMotion || !borderVisibility || !followSystemTheme || !applyButton || !cancelButton || !defaultsButton) return;
+
+    const previewNow = () => previewVisualAccessibilitySettings(getVisualAccessibilityFormValues());
+
+    [themeSelect, zoomSelect, fontSizeSelect, densitySelect, enhancedFocus, reducedMotion, borderVisibility, followSystemTheme]
+        .forEach((control) => {
+            control.addEventListener('change', previewNow);
+            control.addEventListener('input', previewNow);
+        });
+
+    applyButton.addEventListener('click', () => {
+        applyVisualAccessibilitySettings();
+    });
+
+    cancelButton.addEventListener('click', () => {
+        revertVisualAccessibilityPreview();
+        refreshSettingsView();
+        writeStatus('Visual accessibility changes discarded.');
+    });
+
+    defaultsButton.addEventListener('click', () => {
+        resetVisualAccessibilityPreviewToDefaults();
+    });
+}
+
 function bindStandardExport() {
     const exportButton = document.getElementById('btn-settings-export-standards');
     if (!exportButton) return;
@@ -1468,6 +1614,7 @@ export function initSettings() {
     });
 
     bindShortcutCapture();
+    bindVisualAccessibilitySettings();
     bindStandardImport();
     bindStandardExport();
     bindIntegrationSettings();
@@ -1477,6 +1624,7 @@ export function initSettings() {
     document.addEventListener('focusin', trapSettingsFocus);
 
     window.addEventListener('art-shortcuts-updated', refreshSettingsView);
+    window.addEventListener('art-visual-accessibility-updated', refreshSettingsView);
     window.addEventListener('art-accessibility-standards-updated', refreshSettingsView);
     window.addEventListener('art-security-updated', refreshSettingsView);
 

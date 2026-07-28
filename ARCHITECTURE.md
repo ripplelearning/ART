@@ -23,6 +23,12 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Connects command names to existing ART workflows.
 - Reuses existing business logic where practical.
 
+### Theme Engine
+- Stores the application-wide visual accessibility state.
+- Applies theme, zoom, font size, density, focus, motion, and border preferences to the document.
+- Supports live preview from Application Settings.
+- Provides a foundation for future named appearance profiles.
+
 ### Command Palette
 - Reads command metadata from the Command Registry.
 - Reads current shortcut assignments from the Keyboard Shortcut Manager.
@@ -38,6 +44,7 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Lookup actions resolve through commands.
 - Keyboard shortcuts resolve through commands.
 - The Command Palette resolves through the same centralized command framework.
+- Visual accessibility settings are centralized in the Theme Engine and applied globally.
 
 ## Execution Pattern
 
@@ -59,3 +66,4 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Avoid duplicate logic.
 - Keep user workflows stable.
 - Provide a foundation for future menu, palette, and automation features.
+- Provide a foundation for future appearance profiles and desktop-friendly personalization.

@@ -161,6 +161,62 @@
 
 [hidden] { display: none !important; }
 
+:root {
+    --art-page-background: #f4f7fb;
+    --art-surface-background: #ffffff;
+    --art-surface-alt-background: #f8fafc;
+    --art-text-color: #10212b;
+    --art-muted-text-color: #44515d;
+    --art-border-color: #c7d1db;
+    --art-focus-color: #005a9c;
+    --art-accent-color: #0d6efd;
+    --art-button-background: #f7fafc;
+    --art-button-text: #10212b;
+    --art-input-background: #ffffff;
+    --art-input-text: #10212b;
+    --art-ui-font-scale: 1;
+    --art-ui-zoom: 1;
+    --art-ui-density-multiplier: 1;
+    --art-focus-outline-width: 3px;
+    --art-border-width: 1px;
+}
+
+html {
+    background: var(--art-page-background);
+    color: var(--art-text-color);
+}
+
+body {
+    background: var(--art-page-background);
+    color: var(--art-text-color);
+    font-size: calc(16px * var(--art-ui-font-scale));
+}
+
+.app-container {
+    color: inherit;
+    background: transparent;
+    font-family: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+    background-color: var(--art-input-background);
+    color: var(--art-input-text);
+    border-color: var(--art-border-color);
+}
+
+button {
+    background-color: var(--art-button-background);
+    color: var(--art-button-text);
+    border-width: var(--art-border-width);
+}
+
+a {
+    color: var(--art-accent-color);
+}
+
 #builder-view { display: flex; flex-direction: column; gap: 12px; }
 .metadata-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .metadata-grid label,
@@ -707,6 +763,115 @@ th { background-color: #f4f4f4; }
     margin: 0;
 }
 
+#app-settings-dialog,
+#settings-shortcut-conflict-dialog,
+#settings-standard-name-dialog,
+#settings-standard-overwrite-dialog,
+#settings-standard-paste-dialog,
+#settings-standard-json-dialog,
+#settings-clear-standards-dialog,
+#settings-reset-dialog,
+#command-palette-dialog,
+#help-dialog,
+#progress-log-dialog,
+#template-create-dialog,
+#template-delete-dialog,
+#template-edit-confirm-dialog,
+#report-delete-dialog,
+#import-conflict-dialog,
+#entry-delete-dialog,
+#editor-metadata-dialog,
+#editor-clear-dialog,
+#editor-validation-dialog,
+#editor-statistics-dialog,
+#editor-spellcheck-dialog {
+    background: var(--art-surface-background);
+    border-color: var(--art-border-color);
+    color: var(--art-text-color);
+}
+
+#app-settings-dialog section,
+#app-settings-dialog details,
+#app-settings-dialog .settings-visual-preview,
+#help-content section,
+#report-metrics,
+#network-activity,
+#progress-log-dialog,
+#command-palette-dialog,
+#help-toc,
+.viewer-field-card,
+.template-config,
+.branding-config,
+.editor-instructions,
+.spellcheck-context {
+    background: var(--art-surface-alt-background);
+    border-color: var(--art-border-color);
+    color: var(--art-text-color);
+}
+
+.settings-visual-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: calc(12px * var(--art-ui-density-multiplier));
+}
+
+.settings-visual-grid > div,
+.settings-visual-checklist {
+    display: grid;
+    gap: 6px;
+}
+
+.settings-visual-checklist {
+    margin-top: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.settings-visual-preview {
+    display: grid;
+    gap: 10px;
+    border: 1px solid var(--art-border-color);
+    background: var(--art-surface-background);
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.settings-visual-preview table {
+    margin: 0;
+}
+
+body[data-art-border-visibility='enhanced'] button,
+body[data-art-border-visibility='enhanced'] input,
+body[data-art-border-visibility='enhanced'] select,
+body[data-art-border-visibility='enhanced'] textarea,
+body[data-art-border-visibility='enhanced'] table,
+body[data-art-border-visibility='enhanced'] section,
+body[data-art-border-visibility='enhanced'] .settings-visual-preview,
+body[data-art-border-visibility='enhanced'] .viewer-field-card,
+body[data-art-border-visibility='enhanced'] .template-config,
+body[data-art-border-visibility='enhanced'] .branding-config,
+body[data-art-border-visibility='enhanced'] #report-metrics {
+    border-width: var(--art-border-width);
+    border-style: solid;
+}
+
+body[data-art-reduced-motion='true'] *,
+body[data-art-reduced-motion='true'] *::before,
+body[data-art-reduced-motion='true'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+body[data-art-enhanced-focus='true'] button:focus-visible,
+body[data-art-enhanced-focus='true'] input:focus-visible,
+body[data-art-enhanced-focus='true'] select:focus-visible,
+body[data-art-enhanced-focus='true'] textarea:focus-visible,
+body[data-art-enhanced-focus='true'] a:focus-visible,
+body[data-art-enhanced-focus='true'] [tabindex]:focus-visible {
+    outline-width: var(--art-focus-outline-width);
+}
+
 /* Accessibility helper class */
 .sr-only { 
     position: absolute; width: 1px; height: 1px; padding: 0; 
@@ -720,7 +885,7 @@ select:focus-visible,
 textarea:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
-    outline: 3px solid #005a9c;
+    outline: var(--art-focus-outline-width) solid var(--art-focus-color);
     outline-offset: 2px;
 }
 

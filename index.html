@@ -72,6 +72,90 @@
                 <p id="settings-privacy-mode-status" role="status" aria-live="polite" aria-atomic="true">Privacy Mode disabled.</p>
             </section>
 
+            <section aria-labelledby="settings-visual-heading">
+                <h4 id="settings-visual-heading">Visual Accessibility &amp; Personalization</h4>
+                <p id="settings-visual-summary">Theme light. Zoom 100 percent. Font size 100 percent. Density standard.</p>
+                <div class="settings-visual-grid">
+                    <div>
+                        <label for="settings-visual-theme">Application Theme</label>
+                        <select id="settings-visual-theme">
+                            <option value="light">Light Theme</option>
+                            <option value="dark">Dark Theme</option>
+                            <option value="high-contrast-light">High Contrast Light</option>
+                            <option value="high-contrast-dark">High Contrast Dark</option>
+                            <option value="system">Follow System Theme</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="settings-visual-zoom">Application Zoom</label>
+                        <select id="settings-visual-zoom">
+                            <option value="80">80%</option>
+                            <option value="90">90%</option>
+                            <option value="100">100%</option>
+                            <option value="110">110%</option>
+                            <option value="125">125%</option>
+                            <option value="150">150%</option>
+                            <option value="200">200%</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="settings-visual-font-size">User Interface Font Size</label>
+                        <select id="settings-visual-font-size">
+                            <option value="80">80%</option>
+                            <option value="90">90%</option>
+                            <option value="100">100%</option>
+                            <option value="110">110%</option>
+                            <option value="125">125%</option>
+                            <option value="150">150%</option>
+                            <option value="200">200%</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="settings-visual-density">Interface Density</label>
+                        <select id="settings-visual-density">
+                            <option value="standard">Standard</option>
+                            <option value="comfortable">Comfortable</option>
+                            <option value="compact">Compact</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-visual-checklist">
+                    <label><input id="settings-visual-focus-indicators" type="checkbox"> Enhanced Focus Indicators</label>
+                    <label><input id="settings-visual-reduced-motion" type="checkbox"> Reduced Motion</label>
+                    <label><input id="settings-visual-border-visibility" type="checkbox"> Border Visibility</label>
+                    <label><input id="settings-visual-follow-system-theme" type="checkbox"> Follow System Theme</label>
+                </div>
+                <div class="viewer-dialog-actions" role="group" aria-label="Visual accessibility actions">
+                    <button id="btn-settings-visual-apply" type="button">Apply</button>
+                    <button id="btn-settings-visual-cancel" type="button">Cancel</button>
+                    <button id="btn-settings-visual-defaults" type="button">Restore Defaults</button>
+                </div>
+                <div id="settings-visual-preview" class="settings-visual-preview" aria-label="Accessibility preview panel">
+                    <h5>Preview Heading</h5>
+                    <p>Preview paragraph text demonstrates the current application theme and typography choices.</p>
+                    <div class="viewer-dialog-actions">
+                        <button type="button">Preview Button</button>
+                        <a href="#" id="settings-visual-preview-link">Preview Link</a>
+                    </div>
+                    <label for="settings-visual-preview-input">Preview Textbox</label>
+                    <input id="settings-visual-preview-input" type="text" value="Sample input">
+                    <label for="settings-visual-preview-select">Preview Dropdown</label>
+                    <select id="settings-visual-preview-select">
+                        <option>Option One</option>
+                        <option>Option Two</option>
+                    </select>
+                    <table aria-label="Preview table">
+                        <thead>
+                            <tr><th scope="col">Item</th><th scope="col">Value</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Status</td><td>Visible</td></tr>
+                        </tbody>
+                    </table>
+                    <p role="status" aria-live="polite">Preview status message.</p>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-integrations-heading">
                 <h4 id="settings-integrations-heading">Integrations</h4>
                 <p id="settings-local-files-help">ART uses local and network-accessible file workflows for import, export, and project operations.</p>

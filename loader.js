@@ -7,6 +7,7 @@ import { renderWelcome } from './welcome.js';
 import { initApplicationIdentity } from './appIdentity.js';
 import { initResizableLayout } from './layout.js';
 import { initHelp, openHelpDialog } from './help.js';
+import { initThemeEngine } from './themeEngine.js';
 import { initCommandPalette } from './commandPalette.js';
 import { registerApplicationCommands } from './commandCatalog.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
@@ -97,6 +98,7 @@ function initializeApp() {
     initNavListener();
     setupTabs();
     initApplicationIdentity();
+    initThemeEngine();
     bindExternalNavigationGuard();
     
     // 2. Initialize side-panel tools

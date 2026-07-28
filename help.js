@@ -138,6 +138,16 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-visual-accessibility',
+            title: 'Visual Accessibility and Personalization',
+            content: `
+                <p>Application Settings includes a centralized Theme Engine for visual accessibility and personalization.</p>
+                <p>Use it to choose a built-in theme, adjust zoom and font size, switch interface density, enable enhanced focus indicators, reduce motion, and change border visibility.</p>
+                <p>Settings changes use live preview, so you can review appearance updates before applying them. Restore Defaults returns ART to its built-in visual configuration.</p>
+                <p>Future versions can introduce named appearance profiles without redesigning the existing settings flow.</p>
+            `
+        },
+        {
             id: 'help-features-workflows',
             title: 'Features and Workflows',
             content: `
