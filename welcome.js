@@ -26,6 +26,10 @@ function getDynamicShortcutLines() {
     if (nextLandmark) lines.push(`${nextLandmark}: Next Landmark`);
     const openCommandPalette = getShortcutForAction('openCommandPalette');
     if (openCommandPalette) lines.push(`${openCommandPalette}: Open Command Palette`);
+    const focusMenuBar = getShortcutForAction('focusMenuBar');
+    if (focusMenuBar) lines.push(`${focusMenuBar}: Focus Menu Bar`);
+    const focusMenuSearch = getShortcutForAction('focusMenuSearch');
+    if (focusMenuSearch) lines.push(`${focusMenuSearch}: Focus Menu Bar Command Search`);
 
     return lines;
 }
@@ -79,6 +83,7 @@ export function renderWelcome() {
                 <h2 id="welcome-getting-started-heading">Getting Started</h2>
                 <p>The best place to begin is the <strong>Dashboard</strong>, where you can create a new report, open an existing project, or configure ART through <strong>Application Settings</strong>.</p>
                     <p>Use <strong>Ctrl+Shift+P</strong> to open the Command Palette and search or execute commands from anywhere in ART.</p>
+                <p>Press <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and press <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search.</p>
                 <p>Press <strong>F1</strong> at any time to open the built-in Help system, which includes comprehensive documentation, tutorials, keyboard shortcuts, and detailed information about every feature in ART.</p>
                 <p>The keyboard shortcuts below are updated automatically to reflect your current shortcut assignments.</p>
             </div>

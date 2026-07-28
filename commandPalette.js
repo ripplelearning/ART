@@ -1,6 +1,6 @@
 import { commandExecutionService } from './commandExecutionService.js';
-import { commandRegistry } from './commandRegistry.js';
-import { announce, getShortcutForAction } from './state.js';
+import { announce } from './state.js';
+import { searchCommands } from './commandSearchEngine.js';
 
 const COMMAND_PALETTE_COMMAND_ID = 'Application.OpenCommandPalette';
 
@@ -20,18 +20,6 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function normalizeText(value) {
-    return String(value || '').trim();
-}
-
-function normalizeSearchText(value) {
-    return normalizeText(value).toLowerCase();
-}
-
-function normalizeShortcutText(value) {
-    return normalizeText(value).toLowerCase().replace(/[\s+]/g, '');
-}
-
 function getDialogElements() {
     const dialog = document.getElementById('command-palette-dialog');
     const closeButton = document.getElementById('btn-command-palette-close');
@@ -41,69 +29,9 @@ function getDialogElements() {
     return { dialog, closeButton, searchInput, results, status };
 }
 
-function getSearchableText(command, shortcut) {
-    return [
-        command.id,
-        command.action,
-        command.displayName,
-        command.description,
-        command.category,
-        shortcut,
-        command.helpTopic,
-        command.menuLocation,
-        command.notes
-    ].join(' ').toLowerCase();
-}
-
-function getCommandsForPalette() {
-    return commandRegistry.getCommands()
-        .map((command) => {
-            const state = commandExecutionService.getCommandExecutionState(command.id, {
-                source: 'command-palette'
-            });
-            const shortcut = getShortcutForAction(command.action) || command.keyboardShortcut || '';
-            return {
-                ...command,
-                ...state,
-                keyboardShortcut: shortcut,
-                searchableText: getSearchableText(command, shortcut)
-            };
-        })
-        .filter((command) => command.visible !== false);
-}
-
-function scoreCommand(command, query) {
-    if (!query) return 0;
-
-    const shortcut = normalizeShortcutText(command.keyboardShortcut);
-    const compactQuery = query.replace(/[\s+]/g, '');
-    const displayName = command.displayName.toLowerCase();
-    const category = command.category.toLowerCase();
-    const searchableText = command.searchableText;
-
-    if (displayName === query) return 0;
-    if (displayName.startsWith(query)) return 1;
-    if (searchableText.includes(query)) return 2;
-    if (searchableText.includes(compactQuery)) return 3;
-    if (category === query || category.startsWith(query)) return 4;
-    if (shortcut && (shortcut === compactQuery || shortcut.includes(compactQuery))) return 5;
-    return 6;
-}
-
 function getFilteredCommands() {
     const { searchInput } = getDialogElements();
-    const query = normalizeSearchText(searchInput?.value || '');
-
-    return getCommandsForPalette()
-        .map((command) => ({ command, score: scoreCommand(command, query) }))
-        .filter((item) => item.score < 6 || !query)
-        .sort((left, right) => {
-            if (left.score !== right.score) return left.score - right.score;
-            const categoryComparison = left.command.category.localeCompare(right.command.category, undefined, { sensitivity: 'base' });
-            if (categoryComparison !== 0) return categoryComparison;
-            return left.command.displayName.localeCompare(right.command.displayName, undefined, { sensitivity: 'base' });
-        })
-        .map((item) => item.command);
+    return searchCommands(searchInput?.value || '', { context: { source: 'command-palette' } });
 }
 
 function getSelectedCommand() {

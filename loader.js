@@ -9,6 +9,7 @@ import { initResizableLayout } from './layout.js';
 import { initHelp, openHelpDialog } from './help.js';
 import { initThemeEngine } from './themeEngine.js';
 import { initCommandPalette } from './commandPalette.js';
+import { initMenuBar } from './menuBar.js';
 import { registerApplicationCommands } from './commandCatalog.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 
@@ -100,6 +101,7 @@ function initializeApp() {
     initApplicationIdentity();
     initThemeEngine();
     bindExternalNavigationGuard();
+    initMenuBar();
     
     // 2. Initialize side-panel tools
     initLookupTool();

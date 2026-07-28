@@ -138,6 +138,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-menu-bar',
+            title: 'Menu Bar and Command Search',
+            content: `
+                <p>ART includes a keyboard-first Menu Bar that groups application commands into familiar menus such as File, Edit, View, Report, Tools, Templates, and Help.</p>
+                <p>Use <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and use <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search from anywhere in ART.</p>
+                <p>Menu Bar Command Search uses the same centralized command search engine as the Command Palette, so both surfaces stay synchronized with current commands and shortcuts.</p>
+            `
+        },
+        {
             id: 'help-visual-accessibility',
             title: 'Visual Accessibility and Personalization',
             content: `

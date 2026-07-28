@@ -161,6 +161,110 @@
 
 [hidden] { display: none !important; }
 
+.app-menu-bar {
+    display: grid;
+    gap: 10px;
+    padding: 12px 20px 0;
+}
+
+.app-menu-bar__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--art-surface-background);
+    border: var(--art-border-width) solid var(--art-border-color);
+    border-radius: 14px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 0 rgba(16, 33, 43, 0.04);
+}
+
+.app-menu-bar__menubar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.app-menu-bar__button,
+.app-menu-bar__menu-item,
+.app-menu-bar__search-result {
+    border: var(--art-border-width) solid var(--art-border-color);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--art-button-background);
+    color: var(--art-button-text);
+}
+
+.app-menu-bar__button.is-active,
+.app-menu-bar__button:focus-visible,
+.app-menu-bar__menu-item:focus-visible,
+.app-menu-bar__search-result:focus-visible,
+.app-menu-bar__search-result.is-selected {
+    outline: var(--art-focus-outline-width) solid var(--art-focus-color);
+    outline-offset: 2px;
+}
+
+.app-menu-bar__search {
+    margin-left: auto;
+    min-width: min(360px, 100%);
+    flex: 1 1 320px;
+}
+
+.app-menu-bar__search input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.app-menu-bar__panel {
+    background: var(--art-surface-background);
+    border: var(--art-border-width) solid var(--art-border-color);
+    border-radius: 14px;
+    padding: 12px;
+}
+
+.app-menu-bar__menu-group,
+.app-menu-bar__search-panel {
+    display: grid;
+    gap: 8px;
+}
+
+.app-menu-bar__menu-group {
+    padding: 6px 0;
+}
+
+.app-menu-bar__menu-group-title,
+.app-menu-bar__search-summary,
+.app-menu-bar__empty {
+    margin: 0;
+    color: var(--art-muted-text-color);
+}
+
+.app-menu-bar__menu-items {
+    display: grid;
+    gap: 6px;
+}
+
+.app-menu-bar__menu-item,
+.app-menu-bar__search-result {
+    display: grid;
+    gap: 4px;
+    text-align: left;
+    width: 100%;
+}
+
+.app-menu-bar__menu-item.is-disabled,
+.app-menu-bar__search-result.is-disabled {
+    opacity: 0.55;
+}
+
+.app-menu-bar__shortcut,
+.app-menu-bar__search-result-meta,
+.app-menu-bar__search-result-description {
+    color: var(--art-muted-text-color);
+    font-size: 0.875em;
+}
+
 :root {
     --art-page-background: #f4f7fb;
     --art-surface-background: #ffffff;

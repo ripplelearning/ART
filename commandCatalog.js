@@ -23,6 +23,7 @@ import {
     serializeArtxTemplatePayload,
 } from './state.js';
 import { openCommandPalette } from './commandPalette.js';
+import { focusMenuBarFromCommand, focusMenuSearchFromCommand } from './menuBar.js';
 import { openHelpDialog } from './help.js';
 import {
     closeSettingsDialogFromCommand,
@@ -68,6 +69,80 @@ let commandsRegistered = false;
 
 const shortcutByAction = new Map(getShortcutDefinitions().map((definition) => [definition.action, definition.shortcut]));
 const labelByAction = new Map(getAssignableActions().map((item) => [item.action, item.label]));
+
+function getDefaultMenuLocation(action, category) {
+    switch (action) {
+        case 'openWelcome': return 'View>Welcome Screen';
+        case 'openCommandPalette': return 'View>Command Palette';
+        case 'focusMenuBar': return 'View>Menu Bar';
+        case 'focusMenuSearch': return 'View>Command Search';
+        case 'openBuilder': return 'View>Report Builder';
+        case 'openEditor': return 'View>Report Editor';
+        case 'openViewer': return 'View>Report Viewer';
+        case 'focusNavigation': return 'View>Navigation';
+        case 'focusDashboard': return 'View>Dashboard';
+        case 'focusMainContent': return 'View>Main Content';
+        case 'nextLandmark':
+        case 'previousLandmark': return 'View>Application Landmarks';
+        case 'openHelp': return 'Help>User Guide';
+        case 'openProgressLog': return 'Tools>Progress Log';
+        case 'focusLookup':
+        case 'resetLookup': return 'Tools>Accessibility Lookup Tool';
+        case 'spellCheck':
+        case 'spellReplace':
+        case 'spellReplaceAll':
+        case 'spellIgnore':
+        case 'spellIgnoreAll':
+        case 'spellAddToDictionary':
+        case 'spellUndoLastCorrection':
+        case 'spellCancel': return 'Tools>Spell Check';
+        case 'openSettings':
+        case 'settingsClose':
+        case 'settingsRestoreShortcuts':
+        case 'settingsImportStandard':
+        case 'settingsPasteStandardTable':
+        case 'settingsImportReportFile':
+        case 'settingsImportTemplateFile':
+        case 'settingsOpenIntegrations':
+        case 'settingsTogglePrivacyMode':
+        case 'settingsCreateBackup':
+        case 'settingsResetApp':
+        case 'settingsCloseReport': return 'Edit>Application Settings';
+        case 'copyEntry':
+        case 'copyName':
+        case 'copyDescription':
+        case 'copyFailures':
+        case 'copyFixes':
+        case 'copyLink': return 'Edit>Copy';
+        case 'newReport':
+        case 'newReportFromTemplate':
+        case 'openProject':
+        case 'saveProject':
+        case 'saveProjectAs':
+        case 'importData':
+        case 'openReport': return 'File';
+        case 'exportReport':
+        case 'printPreview': return 'File>Export';
+        case 'closeReport': return 'File>Close';
+        case 'configureReport':
+        case 'editReport':
+        case 'viewReport':
+        case 'deleteReport':
+        case 'addField':
+        case 'done':
+        case 'addEntry':
+        case 'validateReport':
+        case 'reportStatistics': return 'Report';
+        case 'newTemplate':
+        case 'useTemplate':
+        case 'openTemplate':
+        case 'editTemplate':
+        case 'deleteTemplate':
+        case 'importTemplate':
+        case 'exportTemplate': return 'Templates';
+        default: return category || 'Application';
+    }
+}
 
 function clickElementById(id) {
     const element = document.getElementById(id);
@@ -517,6 +592,20 @@ const COMMAND_DEFINITIONS = [
         category: 'Application',
         description: 'Open the Command Palette.',
         handler: () => openCommandPalette(null)
+    },
+    {
+        action: 'focusMenuBar',
+        id: 'Application.FocusMenuBar',
+        category: 'Application',
+        description: 'Move focus to the Menu Bar.',
+        handler: () => focusMenuBarFromCommand()
+    },
+    {
+        action: 'focusMenuSearch',
+        id: 'Application.FocusMenuSearch',
+        category: 'Application',
+        description: 'Move focus to the Menu Bar Command Search.',
+        handler: () => focusMenuSearchFromCommand()
     },
     {
         action: 'openBuilder',
@@ -978,6 +1067,7 @@ const COMMAND_DEFINITIONS = [
 function buildCommandDefinition(definition) {
     const displayName = labelByAction.get(definition.action) || definition.action;
     const keyboardShortcut = shortcutByAction.get(definition.action) || '';
+    const menuLocation = definition.menuLocation || getDefaultMenuLocation(definition.action, definition.category);
 
     return {
         action: definition.action,
@@ -990,7 +1080,7 @@ function buildCommandDefinition(definition) {
         visible: definition.visible || (() => true),
         keyboardShortcut,
         helpTopic: definition.helpTopic || '',
-        menuLocation: definition.menuLocation || definition.category,
+        menuLocation,
         commandPaletteVisible: definition.commandPaletteVisible !== false,
         contextMenuVisible: Boolean(definition.contextMenuVisible),
         notes: definition.notes || ''

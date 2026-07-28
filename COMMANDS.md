@@ -7,6 +7,8 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 ### Application
 - `openWelcome`
 - `openCommandPalette`
+- `focusMenuBar`
+- `focusMenuSearch`
 - `openBuilder`
 - `openEditor`
 - `openViewer`
@@ -89,4 +91,7 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - Keyboard shortcuts resolve to commands through the same execution layer.
 - The Command Palette is a registered Application Command and opens with Ctrl+Shift+P by default.
 - The Command Palette displays the current shortcut assignments from the Keyboard Shortcut Manager.
+- The Menu Bar and Menu Bar Command Search are registered Application Commands and use the shared command search engine.
+- Menu Bar focus uses F10, with Alt+/ as an alternate shortcut in the web application.
+- Menu Bar Command Search uses Alt+Q.
 - UI controls should prefer command execution instead of duplicating workflow logic.

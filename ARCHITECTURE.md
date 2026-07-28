@@ -35,6 +35,12 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Searches and filters registered commands without storing its own command definitions.
 - Executes selected commands through the Command Execution Service.
 
+### Menu Bar
+- Renders commands from the Command Registry using menu-path metadata.
+- Uses the shared command search engine for inline command search.
+- Displays current shortcut assignments dynamically.
+- Executes commands through the Command Execution Service.
+
 ## UI Integration
 
 - Dashboard actions resolve through commands.
@@ -44,6 +50,7 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Lookup actions resolve through commands.
 - Keyboard shortcuts resolve through commands.
 - The Command Palette resolves through the same centralized command framework.
+- The Menu Bar and Menu Bar Command Search resolve through the same centralized command framework.
 - Visual accessibility settings are centralized in the Theme Engine and applied globally.
 
 ## Execution Pattern
@@ -66,4 +73,15 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Avoid duplicate logic.
 - Keep user workflows stable.
 - Provide a foundation for future menu, palette, and automation features.
+- Provide a foundation for future menu, search, and automation features.
 - Provide a foundation for future appearance profiles and desktop-friendly personalization.
+
+## Primary Source Files
+
+- Menu rendering: [menuBar.js](menuBar.js)
+- Menu navigation: [menuBar.js](menuBar.js)
+- Command search: [commandSearchEngine.js](commandSearchEngine.js)
+- Dynamic menu generation: [commandCatalog.js](commandCatalog.js) and [menuBar.js](menuBar.js)
+- Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
+- Keyboard interaction: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
+- Command execution: [commandExecutionService.js](commandExecutionService.js)
