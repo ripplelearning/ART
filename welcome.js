@@ -41,12 +41,14 @@ function getVisualAccessibilitySummary() {
     };
 
     return [
+        `Current Profile: ${settings.activeProfile || 'Default'}`,
         `Current Theme: ${themeLabels[settings.theme] || 'Light Theme'}`,
         `Current Zoom: ${settings.zoom}%`,
         `Current Font Size: ${settings.fontSize}%`,
         `Enhanced Focus Indicators: ${settings.enhancedFocusIndicators ? 'On' : 'Off'}`,
         `Reduced Motion: ${settings.reducedMotion ? 'On' : 'Off'}`,
-        `Interface Density: ${settings.density}`
+        `Interface Density: ${settings.density}`,
+        `Border Visibility: ${settings.borderVisibility ? 'Enhanced' : 'Standard'}`
     ];
 }
 
