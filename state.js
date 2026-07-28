@@ -46,6 +46,7 @@ const defaultState = {
         previousLandmark: 'Ctrl+Shift+F6',
         focusNavigation: 'Alt+Shift+N',
         focusDashboard: 'Alt+Shift+S',
+        configureDashboard: 'Alt+Shift+G',
         focusMainContent: '',
         openWelcome: 'Alt+Shift+W',
         openHelp: 'F1',
@@ -159,6 +160,53 @@ const defaultState = {
         reducedMotion: false,
         borderVisibility: false,
         followSystemTheme: false
+    },
+    dashboard: {
+        layout: 'cards',
+        widgetOrder: [
+            'quick-actions',
+            'continue-working',
+            'current-project',
+            'current-report',
+            'report-metrics',
+            'recent-activity',
+            'notifications',
+            'dashboard-search'
+        ],
+        visibleWidgetIds: [
+            'quick-actions',
+            'continue-working',
+            'current-project',
+            'current-report',
+            'report-metrics',
+            'recent-activity',
+            'notifications',
+            'dashboard-search'
+        ],
+        collapsedWidgets: {},
+        tabs: [
+            {
+                id: 'workspace',
+                name: 'Workspace',
+                widgetIds: ['quick-actions', 'continue-working', 'recent-activity', 'notifications', 'dashboard-search']
+            },
+            {
+                id: 'projects',
+                name: 'Projects',
+                widgetIds: ['current-project']
+            },
+            {
+                id: 'reports',
+                name: 'Reports',
+                widgetIds: ['current-report', 'report-metrics']
+            },
+            {
+                id: 'analytics',
+                name: 'Analytics',
+                widgetIds: ['recent-activity']
+            }
+        ],
+        customWidgets: []
     }
 };
 
@@ -392,6 +440,62 @@ function normalizeRecentProjectFiles(list) {
     return normalized.slice(0, 25);
 }
 
+function normalizeDashboardConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    const allowedLayouts = new Set(['cards', 'tabs', 'compact']);
+
+    const widgetOrder = Array.isArray(source.widgetOrder)
+        ? source.widgetOrder.map((value) => String(value || '').trim()).filter(Boolean)
+        : [...defaultState.dashboard.widgetOrder];
+
+    const visibleWidgetIds = Array.isArray(source.visibleWidgetIds)
+        ? source.visibleWidgetIds.map((value) => String(value || '').trim()).filter(Boolean)
+        : [...defaultState.dashboard.visibleWidgetIds];
+
+    const collapsedWidgets = source.collapsedWidgets && typeof source.collapsedWidgets === 'object'
+        ? Object.fromEntries(Object.entries(source.collapsedWidgets).map(([key, value]) => [String(key), Boolean(value)]))
+        : {};
+
+    const tabs = Array.isArray(source.tabs) && source.tabs.length > 0
+        ? source.tabs.map((tab, index) => ({
+            id: String(tab?.id || `tab-${index + 1}`).trim() || `tab-${index + 1}`,
+            name: String(tab?.name || `Tab ${index + 1}`).trim() || `Tab ${index + 1}`,
+            widgetIds: Array.isArray(tab?.widgetIds)
+                ? tab.widgetIds.map((value) => String(value || '').trim()).filter(Boolean)
+                : []
+        }))
+        : defaultState.dashboard.tabs.map((tab) => ({ ...tab, widgetIds: [...tab.widgetIds] }));
+
+    const customWidgets = Array.isArray(source.customWidgets)
+        ? source.customWidgets.map((item, index) => ({
+            id: String(item?.id || `custom-widget-${Date.now()}-${index}`).trim() || `custom-widget-${Date.now()}-${index}`,
+            kind: 'custom',
+            name: String(item?.name || item?.heading || `Custom Widget ${index + 1}`).trim() || `Custom Widget ${index + 1}`,
+            heading: String(item?.heading || item?.name || `Custom Widget ${index + 1}`).trim() || `Custom Widget ${index + 1}`,
+            regionLabel: String(item?.regionLabel || '').trim(),
+            description: String(item?.description || '').trim(),
+            category: String(item?.category || 'Custom').trim() || 'Custom',
+            priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : 5000 + index,
+            refreshPolicy: String(item?.refreshPolicy || 'manual').trim() || 'manual',
+            helpTopic: String(item?.helpTopic || '').trim(),
+            minimumVersion: String(item?.minimumVersion || '2.0').trim() || '2.0',
+            markdown: String(item?.markdown || ''),
+            commandAction: String(item?.commandAction || '').trim(),
+            linkUrl: String(item?.linkUrl || '').trim(),
+            linkText: String(item?.linkText || '').trim()
+        }))
+        : [];
+
+    return {
+        layout: allowedLayouts.has(String(source.layout || '').trim()) ? String(source.layout).trim() : defaultState.dashboard.layout,
+        widgetOrder,
+        visibleWidgetIds,
+        collapsedWidgets,
+        tabs,
+        customWidgets
+    };
+}
+
 const SHORTCUT_DEFINITIONS = [
     { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
     { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
@@ -405,6 +509,7 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'previousLandmark', label: 'Navigate to previous application region', defaultShortcut: defaultState.shortcuts.previousLandmark },
     { action: 'focusNavigation', label: 'Focus navigation tablist', defaultShortcut: defaultState.shortcuts.focusNavigation },
     { action: 'focusDashboard', label: 'Focus dashboard region', defaultShortcut: defaultState.shortcuts.focusDashboard },
+    { action: 'configureDashboard', label: 'Configure Dashboard', defaultShortcut: defaultState.shortcuts.configureDashboard },
     { action: 'focusMainContent', label: 'Focus main content region', defaultShortcut: defaultState.shortcuts.focusMainContent },
     { action: 'openWelcome', label: 'Open Welcome tab', defaultShortcut: defaultState.shortcuts.openWelcome },
     { action: 'openHelp', label: 'Open Help documentation', defaultShortcut: defaultState.shortcuts.openHelp },
@@ -520,6 +625,7 @@ export function getAssignableActions() {
         { action: 'previousLandmark', label: 'Navigate to previous application region' },
         { action: 'focusNavigation', label: 'Focus navigation tablist' },
         { action: 'focusDashboard', label: 'Focus dashboard region' },
+        { action: 'configureDashboard', label: 'Configure Dashboard' },
         { action: 'focusMainContent', label: 'Focus main content region' },
         { action: 'openWelcome', label: 'Open Welcome tab' },
         { action: 'openHelp', label: 'Open Help documentation' },
@@ -830,7 +936,8 @@ export let appState = {
     visualAccessibility: normalizeVisualAccessibilityConfig(storedState.visualAccessibility),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
-        : []
+        : [],
+    dashboard: normalizeDashboardConfig(storedState.dashboard)
 };
 
 function normalizeStateSnapshot(rawState) {
@@ -852,6 +959,7 @@ function normalizeStateSnapshot(rawState) {
         hasUnsavedChanges: Boolean(base.hasUnsavedChanges),
         security: normalizeSecurityConfig(base.security),
         visualAccessibility: normalizeVisualAccessibilityConfig(base.visualAccessibility),
+        dashboard: normalizeDashboardConfig(base.dashboard),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -2182,10 +2290,12 @@ export function resetUserPreferences() {
     appState.standard = defaultState.standard;
     appState.security = normalizeSecurityConfig(defaultState.security);
     appState.visualAccessibility = normalizeVisualAccessibilityConfig(defaultState.visualAccessibility);
+    appState.dashboard = normalizeDashboardConfig(defaultState.dashboard);
     saveState({ action: 'Reset user preferences' });
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
     window.dispatchEvent(new Event('art-visual-accessibility-updated'));
+    window.dispatchEvent(new Event('art-dashboard-config-updated'));
     window.dispatchEvent(new CustomEvent('art-standard-changed', {
         detail: { standard: appState.standard }
     }));
@@ -2259,6 +2369,7 @@ function createManagedDataSnapshot() {
         userStandards: appState.userStandards,
         importedStandards: appState.importedStandards,
         shortcuts: appState.shortcuts,
+        dashboard: appState.dashboard,
         branding: appState.branding,
         spellUserDictionary: appState.spellUserDictionary
     };

@@ -58,6 +58,7 @@ import { requestViewerExportDialog, requestViewerPrintPreview, renderViewer } fr
 import { executeLookupCopyActionFromCommand, resetLookupFromCommand } from './lookupTool.js';
 import { executeAddFieldFromCommand, executeDoneFromCommand } from './reportBuilder.js';
 import {
+    openConfigureDashboardFromCommand,
     openDashboardProjectFromCommand,
     saveDashboardProjectAsFromCommand,
     saveDashboardProjectFromCommand,
@@ -81,6 +82,7 @@ function getDefaultMenuLocation(action, category) {
         case 'openViewer': return 'View>Report Viewer';
         case 'focusNavigation': return 'View>Navigation';
         case 'focusDashboard': return 'View>Dashboard';
+        case 'configureDashboard': return 'View>Dashboard';
         case 'focusMainContent': return 'View>Main Content';
         case 'nextLandmark':
         case 'previousLandmark': return 'View>Application Landmarks';
@@ -649,6 +651,13 @@ const COMMAND_DEFINITIONS = [
         category: 'Application',
         description: 'Move focus to the dashboard region.',
         handler: () => focusDashboardRegion()
+    },
+    {
+        action: 'configureDashboard',
+        id: 'Application.ConfigureDashboard',
+        category: 'Application',
+        description: 'Open the Configure Dashboard dialog.',
+        handler: () => openConfigureDashboardFromCommand()
     },
     {
         action: 'focusMainContent',

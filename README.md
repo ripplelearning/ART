@@ -15,6 +15,18 @@ It supports built-in themes, zoom, font size, interface density, enhanced focus 
 
 Visual settings are managed from Application Settings and are applied consistently throughout ART.
 
+## Dashboard Widget Framework
+ART 2.0 now includes a dashboard widget framework that turns Dashboard into a configurable workspace.
+Widgets are dynamically registered and rendered as independent regions with level 3 heading toggles for expand/collapse state.
+
+Current capabilities include:
+
+- Dashboard Cards, Dashboard Tabs, and Compact Dashboard layouts.
+- Configure Dashboard dialog for layout changes, widget visibility, widget ordering, and tab assignment.
+- Built-in widgets for Quick Actions, Continue Working, Current Project, Current Report, Report Metrics, Recent Activity, Notifications, and Dashboard Search.
+- Custom widget creation with markdown content, optional command action, links, and import/export.
+- Persisted dashboard configuration and widget expand/collapse state between sessions.
+
 See:
 
 - [Command Reference](COMMANDS.md)

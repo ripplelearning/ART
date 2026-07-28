@@ -2,6 +2,13 @@
 
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
+import {
+    initializeDashboardWidgetFramework,
+    openConfigureDashboardDialogFromCommand,
+    refreshDashboardWidgetFramework,
+    registerDashboardWidget,
+    runDashboardSearch
+} from './dashboardWidgetFramework.js';
 
 import {
     addAuditEntry,
@@ -54,6 +61,8 @@ let runDashboardSaveProjectWorkflow = null;
 let runDashboardSaveProjectAsWorkflow = null;
 let runDashboardImportReportPickerWorkflow = null;
 let runDashboardImportTemplatePickerWorkflow = null;
+let runDashboardConfigureWorkflow = null;
+let dashboardWidgetsRegistered = false;
 
 export async function openDashboardProjectFromCommand() {
     if (typeof runDashboardOpenProjectWorkflow !== 'function') return false;
@@ -78,6 +87,11 @@ export function startDashboardImportReportFromCommand() {
 export function startDashboardImportTemplateFromCommand() {
     if (typeof runDashboardImportTemplatePickerWorkflow !== 'function') return false;
     return runDashboardImportTemplatePickerWorkflow();
+}
+
+export function openConfigureDashboardFromCommand() {
+    if (typeof runDashboardConfigureWorkflow !== 'function') return false;
+    return runDashboardConfigureWorkflow();
 }
 
 function sanitizeFileName(name, fallback = 'ART Project') {
@@ -144,6 +158,313 @@ function getDialogFocusableElements(dialog) {
     )).filter((element) => element.offsetParent !== null);
 }
 
+function ensureDashboardStateShape() {
+    const defaults = {
+        layout: 'cards',
+        widgetOrder: [
+            'quick-actions',
+            'continue-working',
+            'current-project',
+            'current-report',
+            'report-metrics',
+            'recent-activity',
+            'notifications',
+            'dashboard-search'
+        ],
+        visibleWidgetIds: [
+            'quick-actions',
+            'continue-working',
+            'current-project',
+            'current-report',
+            'report-metrics',
+            'recent-activity',
+            'notifications',
+            'dashboard-search'
+        ],
+        collapsedWidgets: {},
+        tabs: [
+            { id: 'workspace', name: 'Workspace', widgetIds: ['quick-actions', 'continue-working', 'recent-activity', 'notifications', 'dashboard-search'] },
+            { id: 'projects', name: 'Projects', widgetIds: ['current-project'] },
+            { id: 'reports', name: 'Reports', widgetIds: ['current-report', 'report-metrics'] },
+            { id: 'analytics', name: 'Analytics', widgetIds: ['recent-activity'] }
+        ],
+        customWidgets: []
+    };
+
+    const current = appState.dashboard && typeof appState.dashboard === 'object'
+        ? appState.dashboard
+        : {};
+
+    appState.dashboard = {
+        ...defaults,
+        ...current,
+        widgetOrder: Array.isArray(current.widgetOrder) && current.widgetOrder.length > 0
+            ? current.widgetOrder
+            : defaults.widgetOrder,
+        visibleWidgetIds: Array.isArray(current.visibleWidgetIds) && current.visibleWidgetIds.length > 0
+            ? current.visibleWidgetIds
+            : defaults.visibleWidgetIds,
+        collapsedWidgets: current.collapsedWidgets && typeof current.collapsedWidgets === 'object'
+            ? current.collapsedWidgets
+            : {},
+        tabs: Array.isArray(current.tabs) && current.tabs.length > 0
+            ? current.tabs
+            : defaults.tabs,
+        customWidgets: Array.isArray(current.customWidgets)
+            ? current.customWidgets
+            : []
+    };
+
+    return appState.dashboard;
+}
+
+function extractReportMetricsSection() {
+    const container = document.getElementById('recent-reports-container');
+    const metrics = document.getElementById('report-metrics');
+    if (!container || !metrics) return;
+    if (!container.contains(metrics)) return;
+    container.parentElement?.insertBefore(metrics, container.nextSibling);
+}
+
+function renderCurrentProjectWidget(container) {
+    const documentInfo = getProjectDocumentInfo();
+    const projectName = String(appState.projectName || '').trim();
+    const hasProject = Boolean(projectName || documentInfo.fileName);
+
+    if (!hasProject) {
+        container.innerHTML = '<p>No project is currently open.</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <dl class="dashboard-widget__definition-list">
+            <div><dt>Project Name</dt><dd>${projectName || 'Untitled Project'}</dd></div>
+            <div><dt>Project File</dt><dd>${documentInfo.fileName || 'Not yet saved'}</dd></div>
+            <div><dt>Last Modified</dt><dd>${documentInfo.lastModifiedAt ? new Date(documentInfo.lastModifiedAt).toLocaleString() : 'Unknown'}</dd></div>
+            <div><dt>Unsaved Changes</dt><dd>${hasUnsavedProjectChanges() ? 'Yes' : 'No'}</dd></div>
+        </dl>
+    `;
+}
+
+function renderCurrentReportWidget(container) {
+    const selectedId = String(appState.selectedReportId || '').trim();
+    const report = selectedId ? getReportById(selectedId) : null;
+
+    if (!report) {
+        container.innerHTML = '<p>No report is currently open.</p>';
+        return;
+    }
+
+    const reportData = report.data || {};
+    container.innerHTML = `
+        <dl class="dashboard-widget__definition-list">
+            <div><dt>Report Name</dt><dd>${report.name || 'Untitled Report'}</dd></div>
+            <div><dt>Report Type</dt><dd>${reportData.reportType || 'Not specified'}</dd></div>
+            <div><dt>Template</dt><dd>${reportData.templateName || 'Not specified'}</dd></div>
+            <div><dt>Last Modified</dt><dd>${report.updatedAt ? new Date(report.updatedAt).toLocaleString() : 'Unknown'}</dd></div>
+        </dl>
+    `;
+}
+
+function renderRecentActivityWidget(container) {
+    const reports = getRecentReports().slice(0, 6);
+    const security = getSecurityConfig();
+    const audit = Array.isArray(security.auditLog) ? security.auditLog.slice(-6).reverse() : [];
+
+    if (reports.length === 0 && audit.length === 0) {
+        container.innerHTML = '<p>No recent activity is available yet.</p>';
+        return;
+    }
+
+    const reportItems = reports.map((report) => `<li>Report updated: ${report.name} (${new Date(report.updatedAt || Date.now()).toLocaleString()})</li>`);
+    const auditItems = audit.map((entry) => `<li>${entry.action} (${new Date(entry.at || Date.now()).toLocaleString()})</li>`);
+    container.innerHTML = `
+        <ul>
+            ${[...reportItems, ...auditItems].slice(0, 8).join('')}
+        </ul>
+    `;
+}
+
+function renderNotificationsWidget(container) {
+    const notices = [];
+    const security = getSecurityConfig();
+
+    if (hasUnsavedProjectChanges()) {
+        notices.push('Project has unsaved changes.');
+    }
+    if (security.privacyModeEnabled) {
+        notices.push('Privacy Mode is enabled. External integrations are blocked.');
+    }
+    if (String(security.networkActivityStatus || '').trim()) {
+        notices.push(`Network activity status: ${security.networkActivityStatus}`);
+    }
+
+    if (notices.length === 0) {
+        container.innerHTML = '<p>No notifications are available.</p>';
+        return;
+    }
+
+    container.innerHTML = `<ul>${notices.map((notice) => `<li>${notice}</li>`).join('')}</ul>`;
+}
+
+function renderDashboardSearchWidget(container) {
+    container.innerHTML = `
+        <label for="dashboard-widget-search-input">Search Dashboard and Commands</label>
+        <input id="dashboard-widget-search-input" type="search" autocomplete="off" spellcheck="false" aria-describedby="dashboard-widget-search-status" />
+        <p id="dashboard-widget-search-status" class="open-report-status" role="status" aria-live="polite"></p>
+        <div id="dashboard-widget-search-results" class="dashboard-widget__search-results" role="listbox" aria-label="Dashboard search results"></div>
+    `;
+
+    const input = container.querySelector('#dashboard-widget-search-input');
+    const status = container.querySelector('#dashboard-widget-search-status');
+    const results = container.querySelector('#dashboard-widget-search-results');
+
+    const renderResults = () => {
+        if (!input || !results || !status) return;
+        const query = String(input.value || '').trim();
+
+        const commandResults = runDashboardSearch(query).slice(0, 8);
+        const reportResults = getRecentReports()
+            .filter((report) => report.name.toLowerCase().includes(query.toLowerCase()))
+            .slice(0, 4)
+            .map((report) => ({
+                type: 'report',
+                label: report.name,
+                meta: 'Recent report',
+                reportId: report.id
+            }));
+
+        const items = [
+            ...commandResults.map((command) => ({
+                type: 'command',
+                label: command.displayName,
+                meta: command.category,
+                commandId: command.id,
+                disabled: command.enabled === false
+            })),
+            ...reportResults
+        ];
+
+        if (items.length === 0) {
+            results.innerHTML = '<p class="dashboard-widget__status">No matching dashboard content found.</p>';
+            status.textContent = 'No matches found.';
+            return;
+        }
+
+        results.innerHTML = '';
+        items.forEach((item, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'dashboard-widget__search-result';
+            button.setAttribute('role', 'option');
+            button.id = `dashboard-search-result-${index}`;
+            button.disabled = item.disabled === true;
+            button.innerHTML = `<span>${item.label}</span><span class="dashboard-widget__search-result-meta">${item.meta}</span>`;
+
+            button.addEventListener('click', async () => {
+                if (item.type === 'command' && item.commandId) {
+                    await commandExecutionService.executeCommand(item.commandId, {
+                        source: 'dashboard-widget-search',
+                        query
+                    });
+                }
+                if (item.type === 'report' && item.reportId) {
+                    const select = document.getElementById('recent-reports-select');
+                    if (select) {
+                        select.value = item.reportId;
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            });
+
+            results.appendChild(button);
+        });
+
+        status.textContent = `${items.length} result${items.length === 1 ? '' : 's'} available.`;
+    };
+
+    input?.addEventListener('input', renderResults);
+    renderResults();
+}
+
+function registerDashboardWidgetsIfNeeded() {
+    if (dashboardWidgetsRegistered) return;
+
+    registerDashboardWidget({
+        id: 'quick-actions',
+        name: 'Quick Actions',
+        heading: 'Quick Actions',
+        description: 'Primary project and report actions.',
+        category: 'Workspace',
+        resolveElement: () => document.querySelector('.action-group')
+    });
+
+    registerDashboardWidget({
+        id: 'continue-working',
+        name: 'Continue Working',
+        heading: 'Continue Working',
+        description: 'Resume recent report activity.',
+        category: 'Workspace',
+        resolveElement: () => document.getElementById('recent-reports-container')
+    });
+
+    registerDashboardWidget({
+        id: 'current-project',
+        name: 'Current Project',
+        heading: 'Current Project',
+        description: 'Project details and save state.',
+        category: 'Projects',
+        render: renderCurrentProjectWidget
+    });
+
+    registerDashboardWidget({
+        id: 'current-report',
+        name: 'Current Report',
+        heading: 'Current Report',
+        description: 'Current report details.',
+        category: 'Reports',
+        render: renderCurrentReportWidget
+    });
+
+    registerDashboardWidget({
+        id: 'report-metrics',
+        name: 'Report Metrics',
+        heading: 'Report Metrics',
+        description: 'Metrics for the selected report.',
+        category: 'Reports',
+        resolveElement: () => document.getElementById('report-metrics')
+    });
+
+    registerDashboardWidget({
+        id: 'recent-activity',
+        name: 'Recent Activity',
+        heading: 'Recent Activity',
+        description: 'Recent report and security activity.',
+        category: 'Analytics',
+        render: renderRecentActivityWidget
+    });
+
+    registerDashboardWidget({
+        id: 'notifications',
+        name: 'Notifications',
+        heading: 'Notifications',
+        description: 'Current dashboard notifications.',
+        category: 'Workspace',
+        render: renderNotificationsWidget
+    });
+
+    registerDashboardWidget({
+        id: 'dashboard-search',
+        name: 'Dashboard Search',
+        heading: 'Dashboard Search',
+        description: 'Search commands and recent reports.',
+        category: 'Workspace',
+        render: renderDashboardSearchWidget
+    });
+
+    dashboardWidgetsRegistered = true;
+}
+
 /**
  * Initializes the dashboard buttons.
  * This is called by loader.js once the DOM is ready.
@@ -154,6 +475,7 @@ export function renderDashboard() {
     const btnSaveProject = document.getElementById('btn-save-project');
     const btnSaveProjectAs = document.getElementById('btn-save-project-as');
     const btnImportData = document.getElementById('btn-import-data');
+    const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
     const builderTab = document.getElementById('tab-builder');
     const editorTab = document.getElementById('tab-editor');
     const viewerTab = document.getElementById('tab-view');
@@ -492,6 +814,27 @@ export function renderDashboard() {
         importTemplateInput.click();
         return true;
     };
+    runDashboardConfigureWorkflow = () => openConfigureDashboardDialogFromCommand();
+
+    ensureDashboardStateShape();
+    extractReportMetricsSection();
+    registerDashboardWidgetsIfNeeded();
+    initializeDashboardWidgetFramework({
+        dashboardElement: document.getElementById('dashboard'),
+        announce,
+        executeAction: executeDashboardAction,
+        loadConfig: () => appState.dashboard,
+        persistConfig: (nextConfig, actionText) => {
+            appState.dashboard = nextConfig;
+            saveState({ action: actionText || 'Updated dashboard configuration', recordHistory: false });
+            window.dispatchEvent(new Event('art-dashboard-config-updated'));
+        },
+        getContext: () => ({
+            appState,
+            reports: getRecentReports(),
+            security: getSecurityConfig()
+        })
+    });
 
     btnSaveProject.addEventListener('click', async () => {
         await runSaveProject();
@@ -519,6 +862,10 @@ export function renderDashboard() {
 
     btnImportData.addEventListener('click', () => {
         void executeDashboardAction('importData');
+    });
+
+    btnConfigureDashboard?.addEventListener('click', () => {
+        void executeDashboardAction('configureDashboard');
     });
 
     importReportInput.addEventListener('change', async () => {
@@ -663,6 +1010,7 @@ export function renderDashboard() {
             reportMetricsList.innerHTML = `
                 <div><dd>There are no open reports to show metrics for.</dd></div>
             `;
+            refreshDashboardWidgetFramework();
             return;
         }
         const metrics = computeReportMetrics(selectedReport);
@@ -685,6 +1033,7 @@ export function renderDashboard() {
                 ${progressMetrics.notApplicable > 0 ? `<div><dt>Not Applicable</dt><dd>${progressMetrics.notApplicable}</dd></div>` : ''}
             ` : ''}
         `;
+        refreshDashboardWidgetFramework();
     };
 
     const rebuildRecentReports = () => {
@@ -715,6 +1064,7 @@ export function renderDashboard() {
         btnDeleteReportDashboard.disabled = !hasReportSelection;
         btnCloseActiveReport.disabled = !hasReportSelection;
         refreshReportMetrics();
+        refreshDashboardWidgetFramework();
     };
 
     const focusEditorHeadingSoon = () => {
@@ -1106,6 +1456,8 @@ export function renderDashboard() {
     window.addEventListener('art-reports-updated', rebuildRecentReports);
     window.addEventListener('art-state-restored', rebuildRecentReports);
     window.addEventListener('art-progress-log-updated', refreshReportMetrics);
+    window.addEventListener('art-security-updated', refreshDashboardWidgetFramework);
+    window.addEventListener('art-dashboard-config-updated', refreshDashboardWidgetFramework);
 
     const projectInfo = getProjectDocumentInfo();
     if (projectInfo.hasRecoveredChanges && hasOpenReportWithUnsavedChanges()) {
@@ -1113,4 +1465,5 @@ export function renderDashboard() {
         announce(projectInfo.recoveryLabel || 'A previous unsaved version of this project was found.');
     }
     rebuildRecentReports();
+    refreshDashboardWidgetFramework();
 }

@@ -4,6 +4,7 @@
 
 ART 2.0 introduces a centralized Application Command Framework.
 The framework standardizes how user actions are defined, resolved, and executed.
+ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a configurable workspace composed of independent widgets.
 
 ## Core Layers
 
@@ -41,6 +42,13 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Displays current shortcut assignments dynamically.
 - Executes commands through the Command Execution Service.
 
+### Dashboard Widget Framework
+- Stores widget metadata in a widget registry and renders widgets dynamically.
+- Supports cards, tabs, and compact dashboard layouts.
+- Persists dashboard layout, widget order, visibility, tab assignments, custom widgets, and collapsed states.
+- Exposes a Configure Dashboard dialog for user personalization.
+- Reuses command execution through the centralized Application Command Framework.
+
 ## UI Integration
 
 - Dashboard actions resolve through commands.
@@ -52,6 +60,7 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - The Command Palette resolves through the same centralized command framework.
 - The Menu Bar and Menu Bar Command Search resolve through the same centralized command framework.
 - Visual accessibility settings are centralized in the Theme Engine and applied globally.
+- Dashboard widgets expose commands through the same centralized command framework.
 
 ## Execution Pattern
 
@@ -75,9 +84,17 @@ The framework standardizes how user actions are defined, resolved, and executed.
 - Provide a foundation for future menu, palette, and automation features.
 - Provide a foundation for future menu, search, and automation features.
 - Provide a foundation for future appearance profiles and desktop-friendly personalization.
+- Provide a foundation for future plugin, integration, and analytics dashboard widgets.
 
 ## Primary Source Files
 
+- Dashboard widget registration and rendering: [dashboardWidgetFramework.js](dashboardWidgetFramework.js)
+- Dashboard widget integration and built-in widgets: [dashboard.js](dashboard.js)
+- Dashboard command registration and menu placement: [commandCatalog.js](commandCatalog.js)
+- Dashboard search indexing and ranking: [commandSearchEngine.js](commandSearchEngine.js)
+- Dashboard persistence and shortcut ownership: [state.js](state.js)
+- Dashboard layouts and widget UI styles: [style.css](style.css)
+- Dashboard shell and action controls: [index.html](index.html)
 - Menu rendering: [menuBar.js](menuBar.js)
 - Menu navigation: [menuBar.js](menuBar.js)
 - Command search: [commandSearchEngine.js](commandSearchEngine.js)

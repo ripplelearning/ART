@@ -147,6 +147,16 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-dashboard-widgets',
+            title: 'Dashboard Widgets and Layouts',
+            content: `
+                <p>The Dashboard now uses a widget framework that dynamically renders registered dashboard widgets instead of relying on a fixed dashboard structure.</p>
+                <p>Use <strong>Configure Dashboard</strong> to select Dashboard Cards, Dashboard Tabs, or Compact Dashboard layouts; show or hide widgets; reorder widgets; and assign widgets to tabs.</p>
+                <p>Custom widgets support heading text, descriptions, markdown content, optional command actions, links, and import/export workflows.</p>
+                <p>Widget expand/collapse state and dashboard configuration are persisted between sessions.</p>
+            `
+        },
+        {
             id: 'help-visual-accessibility',
             title: 'Visual Accessibility and Personalization',
             content: `
