@@ -8,6 +8,7 @@ let lastFocusedMenuIndex = 0;
 let activeMenuLabel = '';
 let searchResults = [];
 let activeSearchIndex = 0;
+let suppressNextMenuButtonClick = false;
 
 const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Report', 'Tools', 'Templates', 'Window', 'Help'];
 
@@ -187,9 +188,12 @@ function renderCommandButton(command, className = 'app-menu-bar__menu-item') {
     return `
         <button
             type="button"
+            role="menuitem"
             class="${className} ${command.canExecute ? '' : 'is-disabled'}"
             data-command-id="${escapeHtml(command.id)}"
+            data-menu-item="true"
             aria-disabled="${String(!command.canExecute)}"
+            tabindex="-1"
         >
             <span>${escapeHtml(command.displayName)}</span>
             <span class="app-menu-bar__shortcut">${escapeHtml(shortcut)}</span>
@@ -251,6 +255,7 @@ function renderMenuBar() {
             class="app-menu-bar__button ${activeMenuLabel === menu.label ? 'is-active' : ''}"
             data-menu-button="true"
             data-menu-label="${escapeHtml(menu.label)}"
+            role="menuitem"
             aria-haspopup="true"
             aria-expanded="${String(activeMenuLabel === menu.label)}"
             tabindex="${index === lastFocusedMenuIndex ? 0 : -1}"
@@ -319,6 +324,35 @@ function focusMenuButton(index = lastFocusedMenuIndex) {
     buttons[nextIndex]?.focus();
 }
 
+function getMenuItems() {
+    return [...document.querySelectorAll('#menu-bar-panel [data-menu-item="true"]')];
+}
+
+function focusFirstMenuItem() {
+    const items = getMenuItems();
+    if (!items.length) return false;
+    const firstEnabled = items.find((item) => item.getAttribute('aria-disabled') !== 'true') || items[0];
+    firstEnabled?.focus();
+    return true;
+}
+
+function focusLastMenuItem() {
+    const items = getMenuItems();
+    if (!items.length) return false;
+    const lastEnabled = [...items].reverse().find((item) => item.getAttribute('aria-disabled') !== 'true') || items[items.length - 1];
+    lastEnabled?.focus();
+    return true;
+}
+
+function moveMenuItemFocus(offset) {
+    const items = getMenuItems().filter((item) => item.getAttribute('aria-disabled') !== 'true');
+    if (!items.length) return false;
+    const currentIndex = items.indexOf(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    const nextIndex = currentIndex < 0 ? 0 : Math.max(0, Math.min(items.length - 1, currentIndex + offset));
+    items[nextIndex]?.focus();
+    return true;
+}
+
 function focusMenuBar() {
     renderMenuBar();
     focusMenuButton();
@@ -343,7 +377,13 @@ function openFocusedMenu() {
     const menuLabel = activeButton?.getAttribute('data-menu-label') || '';
     if (!menuLabel) return;
     activeMenuLabel = menuLabel;
+    suppressNextMenuButtonClick = true;
     renderMenuBar();
+    window.setTimeout(() => {
+        if (!focusFirstMenuItem()) {
+            focusMenuButton(lastFocusedMenuIndex);
+        }
+    }, 0);
 }
 
 function closeMenus(restoreFocus = true) {
@@ -389,6 +429,12 @@ function handleKeydown(event) {
 
     const { searchInput, menuBar } = getContainer();
     const activeElement = document.activeElement;
+
+    if (activeMenuLabel && event.key === 'Escape') {
+        event.preventDefault();
+        closeMenus(true);
+        return;
+    }
 
     if (activeElement === searchInput) {
         if (event.key === 'Escape') {
@@ -443,6 +489,65 @@ function handleKeydown(event) {
             event.preventDefault();
             openFocusedMenu();
         } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closeMenus(true);
+        }
+        return;
+    }
+
+    if (activeElement instanceof HTMLElement && activeElement.closest('#menu-bar-panel')) {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveMenuItemFocus(1);
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            moveMenuItemFocus(-1);
+            return;
+        }
+
+        if (event.key === 'Home') {
+            event.preventDefault();
+            focusFirstMenuItem();
+            return;
+        }
+
+        if (event.key === 'End') {
+            event.preventDefault();
+            focusLastMenuItem();
+            return;
+        }
+
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            closeMenus(true);
+            return;
+        }
+
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            closeMenus(true);
+            moveMenuFocus(1);
+            return;
+        }
+
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            const target = activeElement.closest('[data-command-id]');
+            if (!target) return;
+            const commandId = target.getAttribute('data-command-id') || '';
+            const command = commandRegistry.getCommand(commandId);
+            if (command) {
+                executeCommand({
+                    ...command,
+                    ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
+                });
+            }
+        }
+
+        if (event.key === 'Escape') {
             event.preventDefault();
             closeMenus(true);
         }
@@ -504,10 +609,15 @@ function bindEvents() {
     resolvedMenuBar?.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target.closest('[data-menu-button]') : null;
         if (!target) return;
+        if (suppressNextMenuButtonClick) {
+            suppressNextMenuButtonClick = false;
+            return;
+        }
         const buttons = [...resolvedMenuBar.querySelectorAll('[data-menu-button]')];
         lastFocusedMenuIndex = buttons.indexOf(target);
         activeMenuLabel = target.getAttribute('data-menu-label') || '';
         renderMenuBar();
+        window.setTimeout(() => focusFirstMenuItem(), 0);
     });
 
     resolvedPanel?.addEventListener('click', (event) => {
