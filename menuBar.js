@@ -11,6 +11,7 @@ let searchResults = [];
 let searchActiveIndex = -1;
 let searchEscapeArmed = false;
 let focusBeforeMenubar = null;
+let lastFocusOutsideMenubar = null;
 let inMenubarSession = false;
 let suppressNextMenuButtonClick = false;
 
@@ -236,7 +237,10 @@ function getCurrentOpenNode(roots) {
 function rememberFocusBeforeMenubar(force = false) {
     if (!inMenubarSession || force) {
         const active = document.activeElement;
-        focusBeforeMenubar = active instanceof HTMLElement ? active : null;
+        const activeOutsideMenubar = active instanceof HTMLElement && !active.closest('#menu-bar')
+            ? active
+            : null;
+        focusBeforeMenubar = activeOutsideMenubar || lastFocusOutsideMenubar || null;
         inMenubarSession = true;
     }
 }
@@ -545,7 +549,10 @@ function exitMenubarSession() {
     clearMenubarSession();
 
     if (target && typeof target.focus === 'function') {
-        window.setTimeout(() => target.focus(), 0);
+        target.focus();
+        if (document.activeElement !== target) {
+            window.setTimeout(() => target.focus(), 0);
+        }
     }
 }
 
@@ -597,10 +604,15 @@ function focusSearchResult(index) {
     searchActiveIndex = bounded;
     searchEscapeArmed = false;
     renderMenuBar();
-    window.setTimeout(() => {
-        const target = document.querySelector(`[data-search-result="true"][data-search-index="${bounded}"]`);
-        if (target instanceof HTMLElement) target.focus();
-    }, 0);
+    const target = document.querySelector(`[data-search-result="true"][data-search-index="${bounded}"]`);
+    if (target instanceof HTMLElement) {
+        target.focus();
+    } else {
+        window.setTimeout(() => {
+            const fallback = document.querySelector(`[data-search-result="true"][data-search-index="${bounded}"]`);
+            if (fallback instanceof HTMLElement) fallback.focus();
+        }, 0);
+    }
     return true;
 }
 
@@ -965,6 +977,12 @@ function bindEvents() {
     if (!menubar || !panel || !searchInput) return false;
 
     document.addEventListener('keydown', handleGlobalKeydown, true);
+    document.addEventListener('focusin', (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+        if (target.closest('#menu-bar')) return;
+        lastFocusOutsideMenubar = target;
+    }, true);
     menubar.addEventListener('click', handleMenubarClick);
     panel.addEventListener('click', handlePanelClick);
     searchInput.addEventListener('input', handleSearchInput);
