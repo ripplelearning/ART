@@ -82,7 +82,7 @@ function getDefaultMenuLocation(action, category) {
         case 'openViewer': return 'View>Report Viewer';
         case 'focusNavigation': return 'View>Navigation';
         case 'focusDashboard': return 'View>Dashboard';
-        case 'configureDashboard': return 'View>Dashboard';
+        case 'configureDashboard': return 'View';
         case 'focusMainContent': return 'View>Main Content';
         case 'nextLandmark':
         case 'previousLandmark': return 'View>Application Landmarks';

@@ -9,6 +9,7 @@ let openPath = [];
 let menuFocusIndexByPath = new Map();
 let searchResults = [];
 let searchActiveIndex = -1;
+let searchEscapeArmed = false;
 let focusBeforeMenubar = null;
 let inMenubarSession = false;
 let suppressNextMenuButtonClick = false;
@@ -42,6 +43,7 @@ function getMenuLocation(command) {
         case 'openViewer': return 'View>Report Viewer';
         case 'focusNavigation': return 'View>Navigation';
         case 'focusDashboard': return 'View>Dashboard';
+        case 'configureDashboard': return 'View';
         case 'focusMainContent': return 'View>Main Content';
         case 'nextLandmark':
         case 'previousLandmark': return 'View>Application Landmarks';
@@ -231,8 +233,8 @@ function getCurrentOpenNode(roots) {
     return getNodeByPath(getLastOpenPath(), roots);
 }
 
-function rememberFocusBeforeMenubar() {
-    if (!inMenubarSession) {
+function rememberFocusBeforeMenubar(force = false) {
+    if (!inMenubarSession || force) {
         const active = document.activeElement;
         focusBeforeMenubar = active instanceof HTMLElement ? active : null;
         inMenubarSession = true;
@@ -506,16 +508,27 @@ function closeSubmenuAndFocusParent(submenuPath) {
     openPath = openPath.filter((path) => !(path === submenuPath || path.startsWith(`${submenuPath}>`)));
     renderMenuBar();
 
-    window.setTimeout(() => {
+    const focusParentTrigger = () => {
         const trigger = document.querySelector(`[data-submenu-path="${CSS.escape(submenuPath)}"]`);
-        if (trigger instanceof HTMLElement) trigger.focus();
-    }, 0);
+        if (trigger instanceof HTMLElement) {
+            trigger.focus();
+            return true;
+        }
+        return false;
+    };
+
+    if (!focusParentTrigger()) {
+        window.setTimeout(() => {
+            focusParentTrigger();
+        }, 0);
+    }
 
     return true;
 }
 
 function closeAllMenus(restoreToMenubar = true) {
     openPath = [];
+    searchEscapeArmed = false;
     renderMenuBar();
 
     if (restoreToMenubar) {
@@ -547,13 +560,18 @@ function openSubmenuFromTrigger(trigger, focusFirst = true) {
     if (!openPath.includes(submenuPath)) openPath.push(submenuPath);
     renderMenuBar();
 
-    window.setTimeout(() => {
+    const focusTargetItem = () => {
         if (focusFirst) {
-            focusFirstMenuItem(submenuPath);
-        } else {
-            focusLastMenuItem(submenuPath);
+            return focusFirstMenuItem(submenuPath);
         }
-    }, 0);
+        return focusLastMenuItem(submenuPath);
+    };
+
+    if (!focusTargetItem()) {
+        window.setTimeout(() => {
+            focusTargetItem();
+        }, 0);
+    }
 
     return true;
 }
@@ -575,8 +593,9 @@ function handleSearchResultExecute(index) {
 function focusSearchResult(index) {
     const list = document.querySelectorAll('[data-search-result="true"]');
     if (!list.length) return false;
-    const bounded = Math.max(0, Math.min(index, list.length - 1));
+    const bounded = ((index % list.length) + list.length) % list.length;
     searchActiveIndex = bounded;
+    searchEscapeArmed = false;
     renderMenuBar();
     window.setTimeout(() => {
         const target = document.querySelector(`[data-search-result="true"][data-search-index="${bounded}"]`);
@@ -706,10 +725,8 @@ function handleMenuItemKeydown(event, activeElement) {
 
     if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        const parentDepth = Number(activeElement.getAttribute('data-menu-depth') || 0);
-        if (parentDepth > 0) {
-            const parentPath = currentPath;
-            closeSubmenuAndFocusParent(parentPath);
+        if (currentPath.includes('>')) {
+            closeSubmenuAndFocusParent(currentPath);
             return true;
         }
 
@@ -720,8 +737,7 @@ function handleMenuItemKeydown(event, activeElement) {
 
     if (event.key === 'Escape') {
         event.preventDefault();
-        const parentDepth = Number(activeElement.getAttribute('data-menu-depth') || 0);
-        if (parentDepth > 0) {
+        if (currentPath.includes('>')) {
             closeSubmenuAndFocusParent(currentPath);
         } else {
             closeAllMenus(true);
@@ -738,10 +754,24 @@ function handleSearchKeydown(event, activeElement) {
 
     if (activeElement === searchInput) {
         if (event.key === 'Escape') {
-            if (!searchInput.value) return false;
             event.preventDefault();
-            searchInput.value = '';
-            renderMenuBar();
+
+            if (searchEscapeArmed) {
+                searchInput.value = '';
+                searchEscapeArmed = false;
+                renderMenuBar();
+                exitMenubarSession();
+                return true;
+            }
+
+            if (searchInput.value) {
+                searchInput.select();
+                searchEscapeArmed = true;
+                setStatus('Press Escape again to exit command search.');
+                return true;
+            }
+
+            exitMenubarSession();
             return true;
         }
 
@@ -749,6 +779,13 @@ function handleSearchKeydown(event, activeElement) {
             if (!searchResults.length) return false;
             event.preventDefault();
             focusSearchResult(0);
+            return true;
+        }
+
+        if (event.key === 'ArrowUp') {
+            if (!searchResults.length) return false;
+            event.preventDefault();
+            focusSearchResult(searchResults.length - 1);
             return true;
         }
 
@@ -765,17 +802,13 @@ function handleSearchKeydown(event, activeElement) {
 
         if (event.key === 'ArrowDown') {
             event.preventDefault();
-            focusSearchResult(Math.min(currentIndex + 1, searchResults.length - 1));
+            focusSearchResult(currentIndex + 1);
             return true;
         }
 
         if (event.key === 'ArrowUp') {
             event.preventDefault();
-            if (currentIndex === 0) {
-                searchInput.focus();
-                return true;
-            }
-            focusSearchResult(Math.max(currentIndex - 1, 0));
+            focusSearchResult(currentIndex - 1);
             return true;
         }
 
@@ -787,8 +820,10 @@ function handleSearchKeydown(event, activeElement) {
 
         if (event.key === 'Escape') {
             event.preventDefault();
+            searchEscapeArmed = true;
             searchInput.focus();
             searchInput.select();
+            setStatus('Press Escape again to exit command search.');
             return true;
         }
     }
@@ -806,7 +841,7 @@ function focusMenuBar() {
 }
 
 function focusMenuSearch(selectText = true) {
-    rememberFocusBeforeMenubar();
+    rememberFocusBeforeMenubar(true);
     const { searchInput } = getContainer();
     if (!searchInput) return;
     closeAllMenus(false);
@@ -895,6 +930,7 @@ function handlePanelClick(event) {
 }
 
 function handleSearchInput() {
+    searchEscapeArmed = false;
     renderMenuBar();
 }
 

@@ -104,7 +104,6 @@ function renderResults() {
     }, {});
 
     results.innerHTML = Object.entries(grouped)
-        .sort(([left], [right]) => left.localeCompare(right, undefined, { sensitivity: 'base' }))
         .map(([category, commands]) => `
             <section class="command-palette-group" aria-labelledby="command-palette-group-${escapeHtml(category)}">
                 <h3 id="command-palette-group-${escapeHtml(category)}">${escapeHtml(category)}</h3>
@@ -189,7 +188,9 @@ async function executeSelectedCommand() {
 
 function moveSelection(offset) {
     if (!commandResults.length) return;
-    setActiveIndex(activeIndex + offset);
+    const base = activeIndex >= 0 ? activeIndex : 0;
+    const next = ((base + offset) % commandResults.length + commandResults.length) % commandResults.length;
+    setActiveIndex(next);
 }
 
 function openCommandPalette(trigger = null) {
