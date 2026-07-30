@@ -27,6 +27,20 @@ Current capabilities include:
 - Custom widget creation with markdown content, optional command action, links, and import/export.
 - Persisted dashboard configuration and widget expand/collapse state between sessions.
 
+## Project Workspace Framework
+ART 2.0 now includes a Project Workspace Framework that organizes reports, templates, project assets, and workspace state inside a single accessibility project context.
+
+Current capabilities include:
+
+- One active Project Workspace at a time, with architecture prepared for future multi-workspace support.
+- Project Workspace lifecycle commands: create, open, open recent, close, save, save as, rename, duplicate, import, export, and delete.
+- Project Workspace persistence using Project.artproj metadata and a standard workspace folder structure.
+- Resource Navigator (Workspace Explorer) for grouped resource navigation using headings, regions, and keyboard-friendly controls.
+- Project Asset management with metadata, report linkage, relationship tracking, and read-only-in-ART handling.
+- Continue Working command support to restore the most recent Project Workspace context.
+- Project Properties and Project Statistics/Health summaries sourced from workspace-level metrics.
+- Workspace events for open/save/close/asset/validation activity, enabling future integrations and plugin hooks.
+
 See:
 
 - [Command Reference](COMMANDS.md)

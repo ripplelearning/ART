@@ -15,9 +15,30 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - `focusNavigation`
 - `focusDashboard`
 - `configureDashboard`
+- `continueWorking`
 - `focusMainContent`
 - `nextLandmark`
 - `previousLandmark`
+
+### Workspace
+- `newProjectWorkspace`
+- `openProjectWorkspace`
+- `openRecentProjectWorkspace`
+- `closeProjectWorkspace`
+- `saveProjectWorkspace`
+- `saveProjectWorkspaceAs`
+- `renameProjectWorkspace`
+- `duplicateProjectWorkspace`
+- `importProjectWorkspace`
+- `exportProjectWorkspace`
+- `deleteProjectWorkspace`
+- `addProjectAsset`
+- `createAssetFolder`
+- `removeProjectAsset`
+- `refreshWorkspaceAssets`
+- `openProjectProperties`
+- `openProjectStatistics`
+- `openWorkspaceSettings`
 
 ### Report
 - `newReport`
@@ -95,4 +116,5 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - The Menu Bar and Menu Bar Command Search are registered Application Commands and use the shared command search engine.
 - Menu Bar focus uses F10, with Alt+/ as an alternate shortcut in the web application.
 - Menu Bar Command Search uses Alt+Q.
+- Project Workspace lifecycle and Project Asset operations are also registered commands, so they are available in Menu Bar, Command Search, Command Palette, and shortcut customization.
 - UI controls should prefer command execution instead of duplicating workflow logic.

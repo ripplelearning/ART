@@ -52,7 +52,16 @@ const shortcutControlMap = [
     { id: 'btn-settings-import-template-file', action: 'settingsImportTemplateFile', label: 'Import Template File from Device' },
     { id: 'btn-app-settings', action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
     { id: 'settings-privacy-mode', action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
-    { id: 'btn-settings-backup-now', action: 'settingsCreateBackup', label: 'Create Backup' }
+    { id: 'btn-settings-backup-now', action: 'settingsCreateBackup', label: 'Create Backup' },
+    { id: 'btn-workspace-new', action: 'newProjectWorkspace', label: 'New Workspace' },
+    { id: 'btn-workspace-open', action: 'openProjectWorkspace', label: 'Open Workspace' },
+    { id: 'btn-workspace-save', action: 'saveProjectWorkspace', label: 'Save Workspace' },
+    { id: 'btn-workspace-save-as', action: 'saveProjectWorkspaceAs', label: 'Save Workspace As' },
+    { id: 'btn-workspace-export', action: 'exportProjectWorkspace', label: 'Export Workspace' },
+    { id: 'btn-continue-working', action: 'continueWorking', label: 'Continue Working' },
+    { id: 'btn-workspace-add-asset', action: 'addProjectAsset', label: 'Add Project Asset' },
+    { id: 'btn-workspace-properties', action: 'openProjectProperties', label: 'Project Properties' },
+    { id: 'btn-workspace-refresh', action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets' }
 ];
 
 function eventToShortcut(event) {

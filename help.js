@@ -94,7 +94,7 @@ function getHelpSections(rows) {
             title: 'Getting Started',
             content: `
                 <p>ART (the Accessibility Reporting Tool) Version 1.0 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
-                <p>Use Dashboard actions to create or open reports, then use the panel tabs for Builder, Editor, Viewer, and Help tasks.</p>
+                <p>Use Dashboard actions to create or open a Project Workspace, then use the panel tabs for Builder, Editor, Viewer, and Help tasks.</p>
             `
         },
         {
@@ -154,6 +154,17 @@ function getHelpSections(rows) {
                 <p>Use <strong>Configure Dashboard</strong> to select Dashboard Cards, Dashboard Tabs, or Compact Dashboard layouts; show or hide widgets; reorder widgets; and assign widgets to tabs.</p>
                 <p>Custom widgets support heading text, descriptions, markdown content, optional command actions, links, and import/export workflows.</p>
                 <p>Widget expand/collapse state and dashboard configuration are persisted between sessions.</p>
+                <p>The Continue Working workflow restores the most recent Project Workspace context when available.</p>
+            `
+        },
+        {
+            id: 'help-project-workspace',
+            title: 'Project Workspace Framework',
+            content: `
+                <p>ART uses a Project Workspace model so reports, templates, assets, and workspace context can be managed as one accessibility project.</p>
+                <p>Project Workspace commands include create, open, open recent, close, save, save as, rename, duplicate, import, export, and delete.</p>
+                <p>One Project Workspace is active at a time in Version 2.0. The underlying architecture is prepared for future multi-workspace support without redesign.</p>
+                <p>Resource Navigator groups workspace resources by category and supports keyboard-first navigation and filtering.</p>
             `
         },
         {
@@ -279,11 +290,14 @@ function getHelpSections(rows) {
             id: 'help-import-export',
             title: 'Import and Export',
             content: `
-                <p>ART supports portable project and template workflows using .art (project) and .artx (template) formats.</p>
-                <p>Open ART Project loads .art files, Save Project writes to the current .art file, and Save Project As creates a new .art file.</p>
+                <p>ART supports Project Workspace portability through Project.artproj and folder-based workspace organization.</p>
+                <p>Workspace export supports Project Workspace Folder output and a portable JSON package path for browser-based ZIP-style workflows.</p>
+                <p>Workspace import supports Project Workspace folders and Project.artproj-compatible payloads.</p>
+                <p>ART also supports report and template workflows using .art (project payload) and .artx (template) formats.</p>
+                <p>Open ART Project continues to support .art (project) files for report/project payload compatibility workflows.</p>
+                <p>ZIP exports include the selected output format, ART JSON payload, and an editable .art project file.</p>
                 <p>Import supports legacy report/template JSON and standards table workflows, including Settings-based standards import.</p>
                 <p>ART validates format headers and version fields during import. Files may be rejected when formatVersion or schemaVersion is missing or not supported by the current ART version.</p>
-                <p>ZIP exports include the selected output format, ART JSON payload, and an editable .art project file.</p>
                 <p>Import and export workflows use local or network-accessible file locations selected by the user.</p>
                 <p>Export output reflects current report values and selected layout at export time.</p>
             `

@@ -65,6 +65,25 @@ const defaultState = {
         saveProject: 'Ctrl+S',
         saveProjectAs: 'Ctrl+Shift+S',
         importData: 'Ctrl+Shift+I',
+        newProjectWorkspace: 'Ctrl+Alt+N',
+        openProjectWorkspace: 'Ctrl+Alt+O',
+        openRecentProjectWorkspace: '',
+        continueWorking: 'Ctrl+Alt+R',
+        closeProjectWorkspace: 'Ctrl+Alt+W',
+        saveProjectWorkspace: 'Ctrl+Alt+S',
+        saveProjectWorkspaceAs: 'Ctrl+Alt+Shift+S',
+        renameProjectWorkspace: '',
+        duplicateProjectWorkspace: '',
+        importProjectWorkspace: '',
+        exportProjectWorkspace: '',
+        deleteProjectWorkspace: '',
+        addProjectAsset: 'Ctrl+Alt+A',
+        createAssetFolder: '',
+        removeProjectAsset: '',
+        refreshWorkspaceAssets: '',
+        openProjectProperties: 'Ctrl+Alt+P',
+        openProjectStatistics: '',
+        openWorkspaceSettings: '',
         openReport: '',
         exportReport: 'Ctrl+Shift+E',
         newReport: 'Alt+N',
@@ -207,7 +226,10 @@ const defaultState = {
             }
         ],
         customWidgets: []
-    }
+    },
+    workspaces: [],
+    activeWorkspaceId: '',
+    recentProjectWorkspaces: []
 };
 
 const reportDefaults = {
@@ -496,6 +518,153 @@ function normalizeDashboardConfig(config) {
     };
 }
 
+function normalizeWorkspaceAsset(asset, index = 0) {
+    const source = asset && typeof asset === 'object' ? asset : {};
+    const now = new Date().toISOString();
+    const id = String(source.id || `asset-${Date.now()}-${index}`).trim() || `asset-${Date.now()}-${index}`;
+    return {
+        id,
+        title: String(source.title || source.fileName || `Asset ${index + 1}`).trim() || `Asset ${index + 1}`,
+        fileName: String(source.fileName || '').trim(),
+        extension: String(source.extension || '').trim(),
+        mimeType: String(source.mimeType || '').trim(),
+        category: String(source.category || 'Other').trim() || 'Other',
+        description: String(source.description || '').trim(),
+        dateAdded: String(source.dateAdded || now),
+        lastModified: String(source.lastModified || now),
+        addedBy: String(source.addedBy || '').trim(),
+        tags: Array.isArray(source.tags) ? source.tags.map((tag) => String(tag || '').trim()).filter(Boolean) : [],
+        linkedReportIds: Array.isArray(source.linkedReportIds)
+            ? source.linkedReportIds.map((idValue) => String(idValue || '').trim()).filter(Boolean)
+            : [],
+        linkedFindingIds: Array.isArray(source.linkedFindingIds)
+            ? source.linkedFindingIds.map((idValue) => String(idValue || '').trim()).filter(Boolean)
+            : [],
+        relativePath: String(source.relativePath || '').trim(),
+        sourceFileName: String(source.sourceFileName || source.fileName || '').trim(),
+        sourceSize: Number.isFinite(Number(source.sourceSize)) ? Number(source.sourceSize) : 0,
+        metadata: source.metadata && typeof source.metadata === 'object' ? { ...source.metadata } : {}
+    };
+}
+
+function normalizeWorkspaceRelationship(relationship, index = 0) {
+    const source = relationship && typeof relationship === 'object' ? relationship : {};
+    return {
+        id: String(source.id || `relationship-${Date.now()}-${index}`).trim() || `relationship-${Date.now()}-${index}`,
+        type: String(source.type || 'resource-link').trim() || 'resource-link',
+        fromType: String(source.fromType || '').trim(),
+        fromId: String(source.fromId || '').trim(),
+        toType: String(source.toType || '').trim(),
+        toId: String(source.toId || '').trim(),
+        label: String(source.label || '').trim(),
+        metadata: source.metadata && typeof source.metadata === 'object' ? { ...source.metadata } : {}
+    };
+}
+
+function normalizeProjectWorkspace(workspace, index = 0) {
+    const source = workspace && typeof workspace === 'object' ? workspace : {};
+    const now = new Date().toISOString();
+    const id = String(source.id || source.workspaceId || `workspace-${Date.now()}-${index}`).trim() || `workspace-${Date.now()}-${index}`;
+    const name = String(source.name || source.projectName || `Project Workspace ${index + 1}`).trim() || `Project Workspace ${index + 1}`;
+    const resources = source.resources && typeof source.resources === 'object' ? source.resources : {};
+    const workspaceState = source.workspaceState && typeof source.workspaceState === 'object' ? source.workspaceState : {};
+    const extensions = source.extensions && typeof source.extensions === 'object' ? source.extensions : {};
+
+    return {
+        id,
+        name,
+        description: String(source.description || '').trim(),
+        owner: String(source.owner || '').trim(),
+        organization: String(source.organization || '').trim(),
+        status: String(source.status || 'Draft').trim() || 'Draft',
+        version: String(source.version || '2.0').trim() || '2.0',
+        createdAt: String(source.createdAt || now),
+        lastModifiedAt: String(source.lastModifiedAt || now),
+        folderName: String(source.folderName || name).trim() || name,
+        folderPath: String(source.folderPath || '').trim(),
+        projectFileName: String(source.projectFileName || 'Project.artproj').trim() || 'Project.artproj',
+        projectVersion: String(source.projectVersion || '2.0').trim() || '2.0',
+        associatedReportIds: Array.isArray(source.associatedReportIds)
+            ? source.associatedReportIds.map((value) => String(value || '').trim()).filter(Boolean)
+            : [],
+        associatedTemplateIds: Array.isArray(source.associatedTemplateIds)
+            ? source.associatedTemplateIds.map((value) => String(value || '').trim()).filter(Boolean)
+            : [],
+        resources: {
+            reports: Array.isArray(resources.reports) ? resources.reports.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            templates: Array.isArray(resources.templates) ? resources.templates.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            auditLogs: Array.isArray(resources.auditLogs) ? resources.auditLogs.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            progressLogs: Array.isArray(resources.progressLogs) ? resources.progressLogs.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            projectAssets: Array.isArray(resources.projectAssets) ? resources.projectAssets.map((item, itemIndex) => normalizeWorkspaceAsset(item, itemIndex)) : [],
+            attachments: Array.isArray(resources.attachments) ? resources.attachments.map((item, itemIndex) => normalizeWorkspaceAsset(item, itemIndex)) : [],
+            exports: Array.isArray(resources.exports) ? resources.exports.map((item) => String(item || '').trim()).filter(Boolean) : [],
+            backups: Array.isArray(resources.backups) ? resources.backups.map((item) => String(item || '').trim()).filter(Boolean) : [],
+            extensions: resources.extensions && typeof resources.extensions === 'object' ? { ...resources.extensions } : {}
+        },
+        relationships: Array.isArray(source.relationships)
+            ? source.relationships.map((item, relationshipIndex) => normalizeWorkspaceRelationship(item, relationshipIndex))
+            : [],
+        tags: Array.isArray(source.tags) ? source.tags.map((item) => String(item || '').trim()).filter(Boolean) : [],
+        integrationMetadata: source.integrationMetadata && typeof source.integrationMetadata === 'object' ? { ...source.integrationMetadata } : {},
+        pluginMetadata: source.pluginMetadata && typeof source.pluginMetadata === 'object' ? { ...source.pluginMetadata } : {},
+        workspaceState: {
+            openReportIds: Array.isArray(workspaceState.openReportIds)
+                ? workspaceState.openReportIds.map((value) => String(value || '').trim()).filter(Boolean)
+                : [],
+            activeReportId: String(workspaceState.activeReportId || '').trim(),
+            selectedEvaluationItem: String(workspaceState.selectedEvaluationItem || '').trim(),
+            cursorPosition: workspaceState.cursorPosition && typeof workspaceState.cursorPosition === 'object'
+                ? { ...workspaceState.cursorPosition }
+                : null,
+            expandedSections: workspaceState.expandedSections && typeof workspaceState.expandedSections === 'object'
+                ? { ...workspaceState.expandedSections }
+                : {},
+            searchFilters: workspaceState.searchFilters && typeof workspaceState.searchFilters === 'object'
+                ? { ...workspaceState.searchFilters }
+                : {},
+            sortOrder: String(workspaceState.sortOrder || '').trim(),
+            dashboardConfig: workspaceState.dashboardConfig && typeof workspaceState.dashboardConfig === 'object'
+                ? { ...workspaceState.dashboardConfig }
+                : null,
+            dashboardLayout: String(workspaceState.dashboardLayout || '').trim(),
+            widgetState: workspaceState.widgetState && typeof workspaceState.widgetState === 'object'
+                ? { ...workspaceState.widgetState }
+                : {},
+            resourceNavigator: workspaceState.resourceNavigator && typeof workspaceState.resourceNavigator === 'object'
+                ? { ...workspaceState.resourceNavigator }
+                : {},
+            keyboardFocusTarget: String(workspaceState.keyboardFocusTarget || '').trim()
+        },
+        statistics: source.statistics && typeof source.statistics === 'object' ? { ...source.statistics } : {},
+        health: source.health && typeof source.health === 'object' ? { ...source.health } : {},
+        extensions: { ...extensions }
+    };
+}
+
+function normalizeProjectWorkspaces(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map((workspace, index) => normalizeProjectWorkspace(workspace, index));
+}
+
+function normalizeRecentProjectWorkspaces(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+        .map((item, index) => {
+            const source = item && typeof item === 'object' ? item : {};
+            const id = String(source.id || source.workspaceId || `recent-workspace-${Date.now()}-${index}`).trim() || `recent-workspace-${Date.now()}-${index}`;
+            return {
+                id,
+                workspaceId: String(source.workspaceId || source.id || '').trim(),
+                name: String(source.name || source.projectName || 'Project Workspace').trim() || 'Project Workspace',
+                folderPath: String(source.folderPath || '').trim(),
+                lastOpenedAt: String(source.lastOpenedAt || new Date().toISOString()),
+                pinned: Boolean(source.pinned)
+            };
+        })
+        .filter((item, index, array) => array.findIndex((candidate) => candidate.id === item.id) === index)
+        .slice(0, 20);
+}
+
 const SHORTCUT_DEFINITIONS = [
     { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
     { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
@@ -528,6 +697,25 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'saveProject', label: 'Save ART Project', defaultShortcut: defaultState.shortcuts.saveProject },
     { action: 'saveProjectAs', label: 'Save ART Project As', defaultShortcut: defaultState.shortcuts.saveProjectAs },
     { action: 'importData', label: 'Import Data', defaultShortcut: defaultState.shortcuts.importData },
+    { action: 'newProjectWorkspace', label: 'Create new Project Workspace', defaultShortcut: defaultState.shortcuts.newProjectWorkspace },
+    { action: 'openProjectWorkspace', label: 'Open Project Workspace', defaultShortcut: defaultState.shortcuts.openProjectWorkspace },
+    { action: 'openRecentProjectWorkspace', label: 'Open recent Project Workspace', defaultShortcut: defaultState.shortcuts.openRecentProjectWorkspace },
+    { action: 'continueWorking', label: 'Continue Working', defaultShortcut: defaultState.shortcuts.continueWorking },
+    { action: 'closeProjectWorkspace', label: 'Close Project Workspace', defaultShortcut: defaultState.shortcuts.closeProjectWorkspace },
+    { action: 'saveProjectWorkspace', label: 'Save Project Workspace', defaultShortcut: defaultState.shortcuts.saveProjectWorkspace },
+    { action: 'saveProjectWorkspaceAs', label: 'Save Project Workspace As', defaultShortcut: defaultState.shortcuts.saveProjectWorkspaceAs },
+    { action: 'renameProjectWorkspace', label: 'Rename Project Workspace', defaultShortcut: defaultState.shortcuts.renameProjectWorkspace },
+    { action: 'duplicateProjectWorkspace', label: 'Duplicate Project Workspace', defaultShortcut: defaultState.shortcuts.duplicateProjectWorkspace },
+    { action: 'importProjectWorkspace', label: 'Import Project Workspace', defaultShortcut: defaultState.shortcuts.importProjectWorkspace },
+    { action: 'exportProjectWorkspace', label: 'Export Project Workspace', defaultShortcut: defaultState.shortcuts.exportProjectWorkspace },
+    { action: 'deleteProjectWorkspace', label: 'Delete Project Workspace', defaultShortcut: defaultState.shortcuts.deleteProjectWorkspace },
+    { action: 'addProjectAsset', label: 'Add Project Asset', defaultShortcut: defaultState.shortcuts.addProjectAsset },
+    { action: 'createAssetFolder', label: 'Create Asset Folder', defaultShortcut: defaultState.shortcuts.createAssetFolder },
+    { action: 'removeProjectAsset', label: 'Remove Project Asset', defaultShortcut: defaultState.shortcuts.removeProjectAsset },
+    { action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets', defaultShortcut: defaultState.shortcuts.refreshWorkspaceAssets },
+    { action: 'openProjectProperties', label: 'Open Project Properties', defaultShortcut: defaultState.shortcuts.openProjectProperties },
+    { action: 'openProjectStatistics', label: 'Open Project Statistics', defaultShortcut: defaultState.shortcuts.openProjectStatistics },
+    { action: 'openWorkspaceSettings', label: 'Open Workspace Settings', defaultShortcut: defaultState.shortcuts.openWorkspaceSettings },
     { action: 'openReport', label: 'Open/Import report', defaultShortcut: defaultState.shortcuts.openReport },
     { action: 'exportReport', label: 'Export report', defaultShortcut: defaultState.shortcuts.exportReport },
     { action: 'newReport', label: 'Create new report', defaultShortcut: defaultState.shortcuts.newReport },
@@ -642,6 +830,25 @@ export function getAssignableActions() {
         { action: 'saveProject', label: 'Save ART Project' },
         { action: 'saveProjectAs', label: 'Save ART Project As' },
         { action: 'importData', label: 'Import Data' },
+        { action: 'newProjectWorkspace', label: 'Create new Project Workspace' },
+        { action: 'openProjectWorkspace', label: 'Open Project Workspace' },
+        { action: 'openRecentProjectWorkspace', label: 'Open recent Project Workspace' },
+        { action: 'continueWorking', label: 'Continue Working' },
+        { action: 'closeProjectWorkspace', label: 'Close Project Workspace' },
+        { action: 'saveProjectWorkspace', label: 'Save Project Workspace' },
+        { action: 'saveProjectWorkspaceAs', label: 'Save Project Workspace As' },
+        { action: 'renameProjectWorkspace', label: 'Rename Project Workspace' },
+        { action: 'duplicateProjectWorkspace', label: 'Duplicate Project Workspace' },
+        { action: 'importProjectWorkspace', label: 'Import Project Workspace' },
+        { action: 'exportProjectWorkspace', label: 'Export Project Workspace' },
+        { action: 'deleteProjectWorkspace', label: 'Delete Project Workspace' },
+        { action: 'addProjectAsset', label: 'Add Project Asset' },
+        { action: 'createAssetFolder', label: 'Create Asset Folder' },
+        { action: 'removeProjectAsset', label: 'Remove Project Asset' },
+        { action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets' },
+        { action: 'openProjectProperties', label: 'Open Project Properties' },
+        { action: 'openProjectStatistics', label: 'Open Project Statistics' },
+        { action: 'openWorkspaceSettings', label: 'Open Workspace Settings' },
         { action: 'openReport', label: 'Open/Import report' },
         { action: 'exportReport', label: 'Export report' },
         { action: 'newReport', label: 'Create new report' },
@@ -937,7 +1144,10 @@ export let appState = {
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
         : [],
-    dashboard: normalizeDashboardConfig(storedState.dashboard)
+    dashboard: normalizeDashboardConfig(storedState.dashboard),
+    workspaces: normalizeProjectWorkspaces(storedState.workspaces),
+    activeWorkspaceId: String(storedState.activeWorkspaceId || ''),
+    recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces)
 };
 
 function normalizeStateSnapshot(rawState) {
@@ -960,6 +1170,9 @@ function normalizeStateSnapshot(rawState) {
         security: normalizeSecurityConfig(base.security),
         visualAccessibility: normalizeVisualAccessibilityConfig(base.visualAccessibility),
         dashboard: normalizeDashboardConfig(base.dashboard),
+        workspaces: normalizeProjectWorkspaces(base.workspaces),
+        activeWorkspaceId: String(base.activeWorkspaceId || ''),
+        recentProjectWorkspaces: normalizeRecentProjectWorkspaces(base.recentProjectWorkspaces),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -1827,6 +2040,365 @@ export function getRecentProjectFiles() {
     return normalizeRecentProjectFiles(appState.recentProjectFiles);
 }
 
+function dispatchWorkspaceEvent(type, detail = {}) {
+    const payload = {
+        type: String(type || 'WorkspaceUpdated'),
+        at: new Date().toISOString(),
+        ...detail
+    };
+    window.dispatchEvent(new CustomEvent('art-workspace-event', { detail: payload }));
+    window.dispatchEvent(new CustomEvent(`art-workspace-${payload.type}`, { detail: payload }));
+}
+
+function withWorkspaceIndex(workspaceId) {
+    const id = String(workspaceId || appState.activeWorkspaceId || '').trim();
+    const index = (appState.workspaces || []).findIndex((workspace) => workspace.id === id);
+    return { id, index };
+}
+
+export function getProjectWorkspaces() {
+    return normalizeProjectWorkspaces(appState.workspaces);
+}
+
+export function getActiveProjectWorkspace() {
+    const { index } = withWorkspaceIndex(appState.activeWorkspaceId);
+    if (index < 0) return null;
+    return normalizeProjectWorkspace(appState.workspaces[index]);
+}
+
+export function getRecentProjectWorkspaces() {
+    return normalizeRecentProjectWorkspaces(appState.recentProjectWorkspaces);
+}
+
+export function updateRecentProjectWorkspaces(list, action = 'Updated recent project workspaces') {
+    appState.recentProjectWorkspaces = normalizeRecentProjectWorkspaces(list);
+    saveState({ action, recordHistory: false });
+    dispatchWorkspaceEvent('RecentUpdated', { recentCount: appState.recentProjectWorkspaces.length });
+    return getRecentProjectWorkspaces();
+}
+
+export function addRecentProjectWorkspace(entry, options = {}) {
+    const normalized = normalizeRecentProjectWorkspaces([entry])[0];
+    if (!normalized) return getRecentProjectWorkspaces();
+
+    const existing = normalizeRecentProjectWorkspaces(appState.recentProjectWorkspaces);
+    const merged = [normalized, ...existing.filter((item) => item.id !== normalized.id && item.workspaceId !== normalized.workspaceId)];
+    appState.recentProjectWorkspaces = normalizeRecentProjectWorkspaces(merged);
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated recent project workspaces'), recordHistory: false });
+    }
+    dispatchWorkspaceEvent('RecentUpdated', { recentCount: appState.recentProjectWorkspaces.length });
+    return getRecentProjectWorkspaces();
+}
+
+export function upsertProjectWorkspace(workspace, options = {}) {
+    const normalized = normalizeProjectWorkspace(workspace);
+    const { index } = withWorkspaceIndex(normalized.id);
+
+    if (index >= 0) {
+        appState.workspaces[index] = normalized;
+    } else {
+        appState.workspaces = [...(appState.workspaces || []), normalized];
+    }
+
+    if (options.setActive !== false) {
+        appState.activeWorkspaceId = normalized.id;
+    }
+
+    addRecentProjectWorkspace({
+        id: normalized.id,
+        workspaceId: normalized.id,
+        name: normalized.name,
+        folderPath: normalized.folderPath,
+        lastOpenedAt: new Date().toISOString(),
+        pinned: false
+    }, { persist: false });
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated project workspace'), recordHistory: false });
+    }
+
+    dispatchWorkspaceEvent(index >= 0 ? 'WorkspaceUpdated' : 'WorkspaceCreated', {
+        workspaceId: normalized.id,
+        workspaceName: normalized.name
+    });
+
+    return normalized;
+}
+
+export function setActiveProjectWorkspace(workspaceId, options = {}) {
+    const { id, index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return false;
+
+    appState.activeWorkspaceId = id;
+    const active = appState.workspaces[index];
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || `Opened project workspace ${active.name}`), recordHistory: false });
+    }
+
+    addRecentProjectWorkspace({
+        id: active.id,
+        workspaceId: active.id,
+        name: active.name,
+        folderPath: active.folderPath,
+        lastOpenedAt: new Date().toISOString(),
+        pinned: false
+    }, { persist: false });
+
+    dispatchWorkspaceEvent('WorkspaceOpened', {
+        workspaceId: active.id,
+        workspaceName: active.name
+    });
+    return true;
+}
+
+export function closeActiveProjectWorkspace(options = {}) {
+    const active = getActiveProjectWorkspace();
+    appState.activeWorkspaceId = '';
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Closed project workspace'), recordHistory: false });
+    }
+    dispatchWorkspaceEvent('WorkspaceClosed', {
+        workspaceId: active?.id || '',
+        workspaceName: active?.name || ''
+    });
+    return true;
+}
+
+export function renameProjectWorkspace(workspaceId, newName, options = {}) {
+    const { index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return null;
+    const name = String(newName || '').trim();
+    if (!name) return null;
+
+    const current = appState.workspaces[index];
+    const next = normalizeProjectWorkspace({
+        ...current,
+        name,
+        folderName: String(options.folderName || name),
+        lastModifiedAt: new Date().toISOString()
+    });
+    appState.workspaces[index] = next;
+    addRecentProjectWorkspace({
+        id: next.id,
+        workspaceId: next.id,
+        name: next.name,
+        folderPath: next.folderPath,
+        lastOpenedAt: new Date().toISOString(),
+        pinned: false
+    }, { persist: false });
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || `Renamed project workspace ${next.name}`), recordHistory: false });
+    }
+    dispatchWorkspaceEvent('WorkspaceRenamed', {
+        workspaceId: next.id,
+        workspaceName: next.name
+    });
+    return next;
+}
+
+export function duplicateProjectWorkspace(workspaceId, options = {}) {
+    const { index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return null;
+    const source = appState.workspaces[index];
+    const duplicate = normalizeProjectWorkspace({
+        ...source,
+        id: `workspace-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        name: String(options.name || `${source.name} Copy`).trim() || `${source.name} Copy`,
+        folderName: String(options.folderName || `${source.folderName} Copy`).trim() || `${source.folderName} Copy`,
+        createdAt: new Date().toISOString(),
+        lastModifiedAt: new Date().toISOString()
+    });
+
+    appState.workspaces = [...(appState.workspaces || []), duplicate];
+    appState.activeWorkspaceId = duplicate.id;
+    addRecentProjectWorkspace({
+        id: duplicate.id,
+        workspaceId: duplicate.id,
+        name: duplicate.name,
+        folderPath: duplicate.folderPath,
+        lastOpenedAt: new Date().toISOString(),
+        pinned: false
+    }, { persist: false });
+    saveState({ action: String(options.action || `Duplicated project workspace ${source.name}`), recordHistory: false });
+    dispatchWorkspaceEvent('WorkspaceDuplicated', {
+        workspaceId: duplicate.id,
+        workspaceName: duplicate.name,
+        sourceWorkspaceId: source.id
+    });
+    return duplicate;
+}
+
+export function deleteProjectWorkspace(workspaceId, options = {}) {
+    const targetId = String(workspaceId || '').trim();
+    const before = normalizeProjectWorkspaces(appState.workspaces);
+    const target = before.find((item) => item.id === targetId) || null;
+    if (!target) return null;
+
+    appState.workspaces = before.filter((item) => item.id !== targetId);
+    if (appState.activeWorkspaceId === targetId) appState.activeWorkspaceId = '';
+    appState.recentProjectWorkspaces = normalizeRecentProjectWorkspaces((appState.recentProjectWorkspaces || []).filter((item) => item.id !== targetId && item.workspaceId !== targetId));
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || `Deleted project workspace ${target.name}`), recordHistory: false });
+    }
+
+    dispatchWorkspaceEvent('WorkspaceDeleted', {
+        workspaceId: target.id,
+        workspaceName: target.name
+    });
+    return target;
+}
+
+export function addProjectWorkspaceAsset(workspaceId, asset, options = {}) {
+    const { index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return null;
+    const workspace = normalizeProjectWorkspace(appState.workspaces[index]);
+    const nextAsset = normalizeWorkspaceAsset(asset, workspace.resources.projectAssets.length);
+
+    workspace.resources.projectAssets = [...workspace.resources.projectAssets, nextAsset];
+    workspace.lastModifiedAt = new Date().toISOString();
+    appState.workspaces[index] = workspace;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || `Added project asset ${nextAsset.title}`), recordHistory: false });
+    }
+
+    dispatchWorkspaceEvent('ProjectAssetAdded', {
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        assetId: nextAsset.id,
+        assetTitle: nextAsset.title
+    });
+    return nextAsset;
+}
+
+export function removeProjectWorkspaceAsset(workspaceId, assetId, options = {}) {
+    const { index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return null;
+    const workspace = normalizeProjectWorkspace(appState.workspaces[index]);
+    const before = workspace.resources.projectAssets;
+    const removed = before.find((asset) => asset.id === assetId) || null;
+    if (!removed) return null;
+
+    workspace.resources.projectAssets = before.filter((asset) => asset.id !== assetId);
+    workspace.relationships = workspace.relationships.filter((relationship) => relationship.fromId !== assetId && relationship.toId !== assetId);
+    workspace.lastModifiedAt = new Date().toISOString();
+    appState.workspaces[index] = workspace;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || `Removed project asset ${removed.title}`), recordHistory: false });
+    }
+
+    dispatchWorkspaceEvent('ProjectAssetRemoved', {
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        assetId: removed.id,
+        assetTitle: removed.title
+    });
+    return removed;
+}
+
+export function addProjectWorkspaceRelationship(workspaceId, relationship, options = {}) {
+    const { index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return null;
+    const workspace = normalizeProjectWorkspace(appState.workspaces[index]);
+    const nextRelationship = normalizeWorkspaceRelationship(relationship, workspace.relationships.length);
+    workspace.relationships = [...workspace.relationships, nextRelationship];
+    workspace.lastModifiedAt = new Date().toISOString();
+    appState.workspaces[index] = workspace;
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated workspace relationships'), recordHistory: false });
+    }
+    dispatchWorkspaceEvent('RelationshipUpdated', {
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        relationshipId: nextRelationship.id
+    });
+    return nextRelationship;
+}
+
+export function updateProjectWorkspaceState(workspaceId, updates = {}, options = {}) {
+    const { index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return null;
+    const workspace = normalizeProjectWorkspace(appState.workspaces[index]);
+    workspace.workspaceState = {
+        ...workspace.workspaceState,
+        ...(updates && typeof updates === 'object' ? updates : {})
+    };
+    workspace.lastModifiedAt = new Date().toISOString();
+    appState.workspaces[index] = workspace;
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated workspace state'), recordHistory: false });
+    }
+    dispatchWorkspaceEvent('WorkspaceRestored', {
+        workspaceId: workspace.id,
+        workspaceName: workspace.name
+    });
+    return workspace;
+}
+
+export function calculateProjectWorkspaceStatistics(workspaceId) {
+    const { index } = withWorkspaceIndex(workspaceId);
+    if (index < 0) return null;
+
+    const workspace = normalizeProjectWorkspace(appState.workspaces[index]);
+    const reportIds = new Set([
+        ...workspace.associatedReportIds,
+        ...workspace.resources.reports
+    ]);
+    const templateIds = new Set([
+        ...workspace.associatedTemplateIds,
+        ...workspace.resources.templates
+    ]);
+
+    const reports = (appState.reports || []).filter((report) => reportIds.size === 0 || reportIds.has(report.id));
+    const completeReports = reports.filter((report) => String(report.data?.reportType || '').trim() !== '').length;
+    const draftReports = Math.max(0, reports.length - completeReports);
+    const findings = reports.reduce((sum, report) => {
+        const entries = Array.isArray(report.data?.auditEntries) ? report.data.auditEntries.length : 0;
+        return sum + entries;
+    }, 0);
+
+    return {
+        totalReports: reports.length,
+        completedReports: completeReports,
+        draftReports,
+        templates: templateIds.size,
+        projectAssets: workspace.resources.projectAssets.length,
+        attachments: workspace.resources.attachments.length,
+        auditLogs: workspace.resources.auditLogs.length,
+        progressLogs: workspace.resources.progressLogs.length,
+        relationships: workspace.relationships.length,
+        accessibilityFindings: findings,
+        openFindings: findings,
+        resolvedFindings: 0,
+        deferredFindings: 0,
+        exports: workspace.resources.exports.length,
+        imports: normalizeRecentProjectWorkspaces(appState.recentProjectWorkspaces)
+            .filter((item) => item.workspaceId === workspace.id).length
+    };
+}
+
+export function calculateProjectWorkspaceHealth(workspaceId) {
+    const statistics = calculateProjectWorkspaceStatistics(workspaceId);
+    if (!statistics) return null;
+
+    const total = statistics.totalReports;
+    const completion = total > 0 ? Math.round((statistics.completedReports / total) * 100) : 0;
+    const validationStatus = statistics.relationships >= statistics.projectAssets ? 'stable' : 'needs-review';
+
+    return {
+        projectCompletion: completion,
+        reportsRemaining: Math.max(0, statistics.totalReports - statistics.completedReports),
+        outstandingFindings: statistics.openFindings,
+        criticalFindings: 0,
+        projectActivity: statistics.imports + statistics.exports,
+        recentChanges: statistics.relationships,
+        validationStatus
+    };
+}
+
 export function getShortcutDefinitions() {
     return SHORTCUT_DEFINITIONS.map((definition) => ({
         ...definition,
@@ -2370,6 +2942,9 @@ function createManagedDataSnapshot() {
         importedStandards: appState.importedStandards,
         shortcuts: appState.shortcuts,
         dashboard: appState.dashboard,
+        workspaces: appState.workspaces,
+        activeWorkspaceId: appState.activeWorkspaceId,
+        recentProjectWorkspaces: appState.recentProjectWorkspaces,
         branding: appState.branding,
         spellUserDictionary: appState.spellUserDictionary
     };

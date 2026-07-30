@@ -85,6 +85,25 @@ function getMenuLocation(command) {
         case 'saveProjectAs':
         case 'importData':
         case 'openReport': return 'File';
+        case 'newProjectWorkspace':
+        case 'openProjectWorkspace':
+        case 'openRecentProjectWorkspace':
+        case 'closeProjectWorkspace':
+        case 'saveProjectWorkspace':
+        case 'saveProjectWorkspaceAs':
+        case 'renameProjectWorkspace':
+        case 'duplicateProjectWorkspace':
+        case 'importProjectWorkspace':
+        case 'exportProjectWorkspace':
+        case 'deleteProjectWorkspace': return 'File>Project Workspace';
+        case 'openProjectProperties':
+        case 'openProjectStatistics':
+        case 'openWorkspaceSettings': return 'View>Project Workspace';
+        case 'continueWorking': return 'View>Dashboard';
+        case 'addProjectAsset':
+        case 'createAssetFolder':
+        case 'removeProjectAsset':
+        case 'refreshWorkspaceAssets': return 'Tools>Project Assets';
         case 'exportReport':
         case 'printPreview': return 'File>Export';
         case 'closeReport': return 'File>Close';

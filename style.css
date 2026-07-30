@@ -632,6 +632,102 @@ a {
         grid-template-columns: 1fr;
     }
 }
+
+.workspace-explorer {
+    margin-top: 14px;
+    border: 1px solid var(--art-border-color);
+    background: var(--art-surface-alt-background);
+    border-radius: 10px;
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+}
+
+.workspace-explorer__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.workspace-explorer__toolbar label {
+    font-weight: 700;
+}
+
+.workspace-explorer__toolbar input[type="search"] {
+    min-width: 220px;
+    flex: 1 1 260px;
+}
+
+.workspace-explorer__groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 8px;
+}
+
+.workspace-explorer__group {
+    border: 1px solid var(--art-border-color);
+    background: var(--art-surface-background);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.workspace-explorer__group h4 {
+    margin: 0 0 6px;
+}
+
+.workspace-explorer__group ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.workspace-explorer__group button {
+    width: 100%;
+    text-align: left;
+}
+
+.workspace-explorer__empty {
+    color: var(--art-muted-text-color);
+}
+
+.workspace-dialog {
+    position: fixed;
+    inset: 10vh auto auto 50%;
+    transform: translateX(-50%);
+    width: min(760px, 92vw);
+    max-height: 82vh;
+    overflow: auto;
+    border: 1px solid var(--art-border-color);
+    background: var(--art-surface-background);
+    border-radius: 10px;
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+    z-index: 1300;
+}
+
+.workspace-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.workspace-dialog__content {
+    display: grid;
+    gap: 8px;
+}
+
+.workspace-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
 #template-create-dialog,
 #template-delete-dialog,
 #template-edit-confirm-dialog,

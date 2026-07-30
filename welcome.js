@@ -81,8 +81,9 @@ export function renderWelcome() {
             <p>ART is built on an accessibility-first philosophy. Keyboard accessibility, screen reader compatibility, semantic HTML, and support for a wide range of users are fundamental to every aspect of the application.</p>
             <div>
                 <h2 id="welcome-getting-started-heading">Getting Started</h2>
-                <p>The best place to begin is the <strong>Dashboard</strong>, where you can create a new report, open an existing project, or configure ART through <strong>Application Settings</strong>.</p>
+                <p>The best place to begin is the <strong>Dashboard</strong>, where you can create or open a <strong>Project Workspace</strong>, manage reports and assets, and configure ART through <strong>Application Settings</strong>.</p>
                 <p>Select <strong>Configure Dashboard</strong> to choose a layout, show or hide widgets, reorder cards, manage dashboard tabs, and build custom widgets.</p>
+                <p>Use <strong>Continue Working</strong> to restore the most recent Project Workspace context when available.</p>
                     <p>Use <strong>Ctrl+Shift+P</strong> to open the Command Palette and search or execute commands from anywhere in ART.</p>
                 <p>Press <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and press <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search.</p>
                 <p>Press <strong>F1</strong> at any time to open the built-in Help system, which includes comprehensive documentation, tutorials, keyboard shortcuts, and detailed information about every feature in ART.</p>

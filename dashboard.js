@@ -9,6 +9,10 @@ import {
     registerDashboardWidget,
     runDashboardSearch
 } from './dashboardWidgetFramework.js';
+import {
+    getWorkspaceExplorerSummary,
+    initProjectWorkspaceFramework
+} from './projectWorkspaceFramework.js';
 
 import {
     addAuditEntry,
@@ -227,6 +231,22 @@ function extractReportMetricsSection() {
 }
 
 function renderCurrentProjectWidget(container) {
+    const workspaceSummary = getWorkspaceExplorerSummary();
+    if (workspaceSummary.hasWorkspace) {
+        const stats = workspaceSummary.statistics || {};
+        const health = workspaceSummary.health || {};
+        container.innerHTML = `
+            <dl class="dashboard-widget__definition-list">
+                <div><dt>Workspace Name</dt><dd>${workspaceSummary.workspaceName || 'Untitled Workspace'}</dd></div>
+                <div><dt>Total Reports</dt><dd>${stats.totalReports || 0}</dd></div>
+                <div><dt>Project Assets</dt><dd>${stats.projectAssets || 0}</dd></div>
+                <div><dt>Completion</dt><dd>${health.projectCompletion || 0}%</dd></div>
+                <div><dt>Validation Issues</dt><dd>${Array.isArray(workspaceSummary.validationIssues) ? workspaceSummary.validationIssues.length : 0}</dd></div>
+            </dl>
+        `;
+        return;
+    }
+
     const documentInfo = getProjectDocumentInfo();
     const projectName = String(appState.projectName || '').trim();
     const hasProject = Boolean(projectName || documentInfo.fileName);
@@ -596,6 +616,15 @@ export function renderDashboard() {
         actionGroup.parentElement.insertBefore(openStatus, actionGroup.nextSibling);
     }
 
+    const continueWorkingButton = document.createElement('button');
+    continueWorkingButton.type = 'button';
+    continueWorkingButton.id = 'btn-continue-working';
+    continueWorkingButton.textContent = 'Continue Working';
+    const recentReportsContainer = document.getElementById('recent-reports-container');
+    if (recentReportsContainer && !document.getElementById('btn-continue-working')) {
+        recentReportsContainer.insertBefore(continueWorkingButton, recentReportsContainer.firstChild);
+    }
+
     const reasonMap = {
         'invalid-json': 'File is not valid JSON.',
         'invalid-payload': 'JSON payload is not in ART format.',
@@ -816,6 +845,12 @@ export function renderDashboard() {
     };
     runDashboardConfigureWorkflow = () => openConfigureDashboardDialogFromCommand();
 
+    initProjectWorkspaceFramework({
+        onWorkspaceChanged: () => {
+            refreshDashboardWidgetFramework();
+        }
+    });
+
     ensureDashboardStateShape();
     extractReportMetricsSection();
     registerDashboardWidgetsIfNeeded();
@@ -866,6 +901,10 @@ export function renderDashboard() {
 
     btnConfigureDashboard?.addEventListener('click', () => {
         void executeDashboardAction('configureDashboard');
+    });
+
+    continueWorkingButton.addEventListener('click', () => {
+        void executeDashboardAction('continueWorking');
     });
 
     importReportInput.addEventListener('change', async () => {

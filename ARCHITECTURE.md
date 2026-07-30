@@ -5,6 +5,7 @@
 ART 2.0 introduces a centralized Application Command Framework.
 The framework standardizes how user actions are defined, resolved, and executed.
 ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a configurable workspace composed of independent widgets.
+ART 2.0 now also introduces a Project Workspace Framework that provides project-level lifecycle, storage, resource management, workspace restoration, and extensibility points.
 
 ## Core Layers
 
@@ -49,6 +50,73 @@ ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a
 - Exposes a Configure Dashboard dialog for user personalization.
 - Reuses command execution through the centralized Application Command Framework.
 
+### Project Workspace Framework
+- Provides a centralized project management layer for ART resources.
+- Stores one active workspace at a time while preserving a multi-workspace-ready internal architecture.
+- Registers workspace lifecycle, asset, and project intelligence commands through the command framework.
+- Persists workspace metadata, workspace state, resource metadata, and relationships through the shared state layer.
+- Supports portable folder-based workspace persistence with Project.artproj as the authoritative descriptor.
+- Publishes workspace events for open, close, save, restore, validation, relationship, and asset activity.
+
+## Project Workspace Lifecycle
+
+Lifecycle commands are command-driven and include:
+
+1. Create Project Workspace
+2. Open Project Workspace
+3. Open Recent Project Workspace
+4. Close Project Workspace
+5. Save Project Workspace
+6. Save Project Workspace As
+7. Rename Project Workspace
+8. Duplicate Project Workspace
+9. Import Project Workspace
+10. Export Project Workspace
+11. Delete Project Workspace
+
+## Workspace Persistence and Restoration
+
+- Workspace state captures open report ids, active report id, dashboard configuration, resource navigator state, and related context needed for resume workflows.
+- Continue Working restores the most recent workspace and rehydrates workspace-level state where practical.
+- Workspace statistics and health are recalculated whenever workspace resources change.
+
+## Workspace Storage and Portability
+
+- Workspace save operations create and maintain a portable folder structure.
+- Project.artproj stores metadata, relationships, workspace state, integration/plugin metadata, and an ART project payload for report/template restoration.
+- ART uses user-selected destinations for workspace save and export operations.
+- Relative workspace paths are used for project asset metadata whenever practical.
+
+Standard workspace folders:
+
+- Reports
+- Audit Logs
+- Progress Logs
+- Templates
+- Project Assets (Planning, Requirements, Timeline, Documentation, Credentials, Designs, Meeting Notes, Images, Other)
+- Attachments
+- Exports
+- Backups
+- .art
+
+## Resource Management and Relationships
+
+- Project Assets are tracked as first-class workspace resources.
+- Asset metadata includes filename, category, tags, linked report ids, linked finding ids, timestamps, and relative paths.
+- Workspace relationships are modeled in a normalized structure suitable for future integration and plugin extension.
+
+## Validation Architecture
+
+- Project workspace validation currently checks required project identity, resource structure availability, and duplicate relationship edges.
+- Validation publishes workspace validation events for observability and future UI integration.
+
+## Extensibility Points
+
+- Workspace events are emitted through shared custom events and namespaced event channels.
+- Workspace resources support extension metadata for future plugin resource types.
+- Integration metadata and plugin metadata are persisted at workspace scope.
+- Command registration supports future provider commands without architectural redesign.
+
 ## UI Integration
 
 - Dashboard actions resolve through commands.
@@ -90,15 +158,16 @@ ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a
 
 - Dashboard widget registration and rendering: [dashboardWidgetFramework.js](dashboardWidgetFramework.js)
 - Dashboard widget integration and built-in widgets: [dashboard.js](dashboard.js)
+- Project Workspace orchestration, storage/export/import logic, Resource Navigator, and properties/export dialogs: [projectWorkspaceFramework.js](projectWorkspaceFramework.js)
 - Dashboard command registration and menu placement: [commandCatalog.js](commandCatalog.js)
 - Dashboard search indexing and ranking: [commandSearchEngine.js](commandSearchEngine.js)
-- Dashboard persistence and shortcut ownership: [state.js](state.js)
+- Dashboard and Project Workspace persistence, shortcut ownership, statistics, health, relationships, and event state: [state.js](state.js)
 - Dashboard layouts and widget UI styles: [style.css](style.css)
-- Dashboard shell and action controls: [index.html](index.html)
+- Dashboard shell, action controls, and Resource Navigator host: [index.html](index.html)
 - Menu rendering: [menuBar.js](menuBar.js)
 - Menu navigation: [menuBar.js](menuBar.js)
 - Command search: [commandSearchEngine.js](commandSearchEngine.js)
-- Dynamic menu generation: [commandCatalog.js](commandCatalog.js) and [menuBar.js](menuBar.js)
+- Dynamic menu generation and workspace command placement: [commandCatalog.js](commandCatalog.js) and [menuBar.js](menuBar.js)
 - Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
-- Keyboard interaction: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
+- Keyboard interaction and workspace shortcut tooltip synchronization: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
 - Command execution: [commandExecutionService.js](commandExecutionService.js)

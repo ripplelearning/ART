@@ -1,4 +1,4 @@
-import { appState } from './state.js';
+import { appState, getActiveProjectWorkspace } from './state.js';
 
 const APP_NAME = 'ART';
 const APP_VERSION = 'Version 1.0';
@@ -22,6 +22,12 @@ function getReportName() {
     const selectedReport = (appState.reports || []).find((report) => report.id === appState.selectedReportId);
     const preferred = String(appState.reportTitle || selectedReport?.name || appState.templateName || '').trim();
     return preferred;
+}
+
+function getWorkspaceName() {
+    const activeWorkspace = getActiveProjectWorkspace();
+    if (!activeWorkspace) return '';
+    return String(activeWorkspace.name || '').trim();
 }
 
 function hasOpenReport() {
@@ -52,9 +58,11 @@ export function setActivePanel(panelName) {
 export function syncDocumentTitle() {
     const panelName = getCurrentPanelName();
     const reportName = getReportName();
+    const workspaceName = getWorkspaceName();
+    const panelPrefix = workspaceName ? `${workspaceName} - ${panelName}` : panelName;
     const rawTitle = hasOpenReport() && reportName
-        ? `${reportName} – ${panelName} | ${APP_NAME} ${APP_VERSION}`
-        : `${panelName} | ${APP_NAME} ${APP_VERSION}`;
+        ? `${reportName} - ${panelPrefix} | ${APP_NAME} ${APP_VERSION}`
+        : `${panelPrefix} | ${APP_NAME} ${APP_VERSION}`;
     const title = sanitizeTitleText(rawTitle);
 
     if (lastTitleSignature === title) return;

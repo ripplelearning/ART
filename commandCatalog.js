@@ -65,6 +65,27 @@ import {
     startDashboardImportReportFromCommand,
     startDashboardImportTemplateFromCommand
 } from './dashboard.js';
+import {
+    addProjectAssetFromCommand,
+    closeProjectWorkspaceFromCommand,
+    continueWorkingFromCommand,
+    createAssetFolderFromCommand,
+    createProjectWorkspaceFromCommand,
+    deleteProjectWorkspaceFromCommand,
+    duplicateProjectWorkspaceFromCommand,
+    exportProjectWorkspaceFromCommand,
+    importProjectWorkspaceFromCommand,
+    openProjectPropertiesFromCommand,
+    openProjectStatisticsFromCommand,
+    openProjectWorkspaceFromCommand,
+    openRecentProjectWorkspaceFromCommand,
+    openWorkspaceSettingsFromCommand,
+    refreshWorkspaceAssetsFromCommand,
+    removeProjectAssetFromCommand,
+    renameProjectWorkspaceFromCommand,
+    saveProjectWorkspaceAsFromCommand,
+    saveProjectWorkspaceFromCommand
+} from './projectWorkspaceFramework.js';
 
 let commandsRegistered = false;
 
@@ -123,6 +144,25 @@ function getDefaultMenuLocation(action, category) {
         case 'saveProjectAs':
         case 'importData':
         case 'openReport': return 'File';
+        case 'newProjectWorkspace':
+        case 'openProjectWorkspace':
+        case 'openRecentProjectWorkspace':
+        case 'closeProjectWorkspace':
+        case 'saveProjectWorkspace':
+        case 'saveProjectWorkspaceAs':
+        case 'renameProjectWorkspace':
+        case 'duplicateProjectWorkspace':
+        case 'importProjectWorkspace':
+        case 'exportProjectWorkspace':
+        case 'deleteProjectWorkspace': return 'File>Project Workspace';
+        case 'openProjectProperties':
+        case 'openProjectStatistics':
+        case 'openWorkspaceSettings': return 'View>Project Workspace';
+        case 'continueWorking': return 'View>Dashboard';
+        case 'addProjectAsset':
+        case 'createAssetFolder':
+        case 'removeProjectAsset':
+        case 'refreshWorkspaceAssets': return 'Tools>Project Assets';
         case 'exportReport':
         case 'printPreview': return 'File>Export';
         case 'closeReport': return 'File>Close';
@@ -722,6 +762,139 @@ const COMMAND_DEFINITIONS = [
         category: 'File',
         description: 'Open an ART project file.',
         handler: () => openDashboardProjectFromCommand()
+    },
+    {
+        action: 'newProjectWorkspace',
+        id: 'Workspace.New',
+        category: 'Workspace',
+        description: 'Create a new Project Workspace.',
+        handler: () => createProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'openProjectWorkspace',
+        id: 'Workspace.Open',
+        category: 'Workspace',
+        description: 'Open an existing Project Workspace.',
+        handler: () => openProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'openRecentProjectWorkspace',
+        id: 'Workspace.OpenRecent',
+        category: 'Workspace',
+        description: 'Open the most recent Project Workspace from local state.',
+        handler: () => openRecentProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'continueWorking',
+        id: 'Workspace.ContinueWorking',
+        category: 'Workspace',
+        description: 'Restore the most recently used Project Workspace and working context.',
+        handler: () => continueWorkingFromCommand()
+    },
+    {
+        action: 'closeProjectWorkspace',
+        id: 'Workspace.Close',
+        category: 'Workspace',
+        description: 'Close the active Project Workspace.',
+        handler: () => closeProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'saveProjectWorkspace',
+        id: 'Workspace.Save',
+        category: 'Workspace',
+        description: 'Save the active Project Workspace.',
+        handler: () => saveProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'saveProjectWorkspaceAs',
+        id: 'Workspace.SaveAs',
+        category: 'Workspace',
+        description: 'Save the active Project Workspace to a selected location.',
+        handler: () => saveProjectWorkspaceAsFromCommand()
+    },
+    {
+        action: 'renameProjectWorkspace',
+        id: 'Workspace.Rename',
+        category: 'Workspace',
+        description: 'Rename the active Project Workspace.',
+        handler: () => renameProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'duplicateProjectWorkspace',
+        id: 'Workspace.Duplicate',
+        category: 'Workspace',
+        description: 'Duplicate the active Project Workspace in ART state.',
+        handler: () => duplicateProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'importProjectWorkspace',
+        id: 'Workspace.Import',
+        category: 'Workspace',
+        description: 'Import a Project Workspace from folder or project file.',
+        handler: () => importProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'exportProjectWorkspace',
+        id: 'Workspace.Export',
+        category: 'Workspace',
+        description: 'Export the active Project Workspace.',
+        handler: () => exportProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'deleteProjectWorkspace',
+        id: 'Workspace.Delete',
+        category: 'Workspace',
+        description: 'Delete the active Project Workspace from ART state.',
+        handler: () => deleteProjectWorkspaceFromCommand()
+    },
+    {
+        action: 'addProjectAsset',
+        id: 'Workspace.AddAsset',
+        category: 'Workspace',
+        description: 'Add one or more project assets to the active Project Workspace.',
+        handler: () => addProjectAssetFromCommand()
+    },
+    {
+        action: 'createAssetFolder',
+        id: 'Workspace.CreateAssetFolder',
+        category: 'Workspace',
+        description: 'Create a custom project asset folder.',
+        handler: () => createAssetFolderFromCommand()
+    },
+    {
+        action: 'removeProjectAsset',
+        id: 'Workspace.RemoveAsset',
+        category: 'Workspace',
+        description: 'Remove a project asset from the active workspace.',
+        handler: () => removeProjectAssetFromCommand()
+    },
+    {
+        action: 'refreshWorkspaceAssets',
+        id: 'Workspace.RefreshAssets',
+        category: 'Workspace',
+        description: 'Refresh workspace resources and validate project relationships.',
+        handler: () => refreshWorkspaceAssetsFromCommand()
+    },
+    {
+        action: 'openProjectProperties',
+        id: 'Workspace.Properties',
+        category: 'Workspace',
+        description: 'Open Project Properties.',
+        handler: () => openProjectPropertiesFromCommand()
+    },
+    {
+        action: 'openProjectStatistics',
+        id: 'Workspace.Statistics',
+        category: 'Workspace',
+        description: 'Open project statistics and health summary.',
+        handler: () => openProjectStatisticsFromCommand()
+    },
+    {
+        action: 'openWorkspaceSettings',
+        id: 'Workspace.Settings',
+        category: 'Workspace',
+        description: 'Open workspace settings.',
+        handler: () => openWorkspaceSettingsFromCommand()
     },
     {
         action: 'saveProject',
