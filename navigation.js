@@ -29,6 +29,7 @@ const shortcutControlMap = [
     { id: 'tab-welcome', action: 'openWelcome', label: 'Welcome tab' },
     { id: 'tab-builder', action: 'openBuilder', label: 'Builder tab' },
     { id: 'tab-editor', action: 'openEditor', label: 'Editor tab' },
+    { id: 'tab-view', action: 'openViewer', label: 'Report Viewer tab' },
     { id: 'btn-editor-progress-log', action: 'openProgressLog', label: 'Open Progress Log' },
     { id: 'btn-add-entry', action: 'addEntry', label: 'Add entry' },
     { id: 'btn-editor-spell-check', action: 'spellCheck', label: 'Spell check' },
@@ -42,15 +43,21 @@ const shortcutControlMap = [
     { id: 'btn-import-data', action: 'importData', label: 'Import data file' },
     { id: 'btn-import-data', action: 'openReport', label: 'Import report JSON file' },
     { id: 'btn-new-report', action: 'newReport', label: 'New report' },
+    { id: 'btn-configure-dashboard', action: 'configureDashboard', label: 'Configure Dashboard' },
+    { id: 'btn-create-custom-widget', action: 'configureDashboard', label: 'Create Custom Widget' },
     { id: 'btn-help', action: 'openHelp', label: 'Help' },
     { id: 'top-tabs', action: 'focusNavigation', label: 'Navigation tablist' },
     { id: 'btn-export-options', action: 'exportReport', label: 'Export report' },
     { id: 'btn-viewer-progress-log', action: 'openProgressLog', label: 'Open Progress Log' },
     { id: 'btn-settings-import-standard', action: 'settingsImportStandard', label: 'Import Accessibility Standard' },
+    { id: 'btn-settings-import-standards-file', action: 'settingsImportStandard', label: 'Import Standards File' },
     { id: 'btn-settings-paste-standard', action: 'settingsPasteStandardTable', label: 'Paste Standards As Table' },
     { id: 'btn-settings-import-report-file', action: 'settingsImportReportFile', label: 'Import Report File from Device' },
     { id: 'btn-settings-import-template-file', action: 'settingsImportTemplateFile', label: 'Import Template File from Device' },
-    { id: 'btn-app-settings', action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
+    { id: 'btn-settings-shortcuts-reset', action: 'settingsRestoreShortcuts', label: 'Restore Default Shortcuts' },
+    { id: 'btn-settings-reset-app', action: 'settingsResetApp', label: 'Reset ART Application Data' },
+    { id: 'btn-settings-close', action: 'settingsClose', label: 'Close Application Settings' },
+    { id: 'btn-app-settings', action: 'openSettings', label: 'Open Application Settings' },
     { id: 'settings-privacy-mode', action: 'settingsTogglePrivacyMode', label: 'Toggle Privacy Mode' },
     { id: 'btn-settings-backup-now', action: 'settingsCreateBackup', label: 'Create Backup' },
     { id: 'btn-workspace-new', action: 'newProjectWorkspace', label: 'New Workspace' },
@@ -62,6 +69,19 @@ const shortcutControlMap = [
     { id: 'btn-workspace-add-asset', action: 'addProjectAsset', label: 'Add Project Asset' },
     { id: 'btn-workspace-properties', action: 'openProjectProperties', label: 'Project Properties' },
     { id: 'btn-workspace-refresh', action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets' },
+    { id: 'btn-template-create', action: 'newTemplate', label: 'Create Template' },
+    { id: 'btn-template-create-save', action: 'newTemplate', label: 'Create Template' },
+    { id: 'btn-template-use', action: 'useTemplate', label: 'Use Template' },
+    { id: 'btn-template-open', action: 'openTemplate', label: 'View Template' },
+    { id: 'btn-template-edit', action: 'editTemplate', label: 'Edit Template' },
+    { id: 'btn-template-delete', action: 'deleteTemplate', label: 'Delete Template' },
+    { id: 'btn-template-import', action: 'importTemplate', label: 'Import Template' },
+    { id: 'btn-template-export', action: 'exportTemplate', label: 'Export Template' },
+    { id: 'btn-close-active-report', action: 'closeReport', label: 'Close Report' },
+    { id: 'btn-configure-report', action: 'configureReport', label: 'Configure Report' },
+    { id: 'btn-edit-report-dashboard', action: 'editReport', label: 'Edit Report' },
+    { id: 'btn-view-report-dashboard', action: 'viewReport', label: 'View Report' },
+    { id: 'btn-delete-report-dashboard', action: 'deleteReport', label: 'Delete Report' },
     { id: 'menu-bar-search', action: 'searchCommands', label: 'Menu Bar Command Search' },
     { id: 'dashboard-widget-search-input', action: 'searchDashboard', label: 'Dashboard Search' },
     { id: 'search-everywhere-input', action: 'searchEverywhere', label: 'Search Everywhere' },
@@ -104,41 +124,71 @@ function findShortcutAction(event) {
 }
 
 function ensureShortcutDescription(element, shortcut) {
-    const describedById = `shortcut-desc-${element.id || Math.random().toString(36).slice(2)}`;
+    const existingId = String(element.dataset.shortcutDescId || '').trim();
+    const describedById = existingId || `shortcut-desc-${element.id || Math.random().toString(36).slice(2)}`;
     let description = document.getElementById(describedById);
     if (!description) {
         description = document.createElement('span');
         description.id = describedById;
         description.className = 'sr-only';
-        description.textContent = shortcut;
         element.insertAdjacentElement('afterend', description);
     }
+    description.textContent = shortcut;
     const describedBy = element.getAttribute('aria-describedby') || '';
     const tokens = describedBy.split(/\s+/).filter(Boolean);
     if (!tokens.includes(describedById)) {
         tokens.push(describedById);
         element.setAttribute('aria-describedby', tokens.join(' '));
     }
+    element.dataset.shortcutDescId = describedById;
+}
+
+function removeShortcutTooltip(element) {
+    if (!element) return;
+
+    element.classList.remove('shortcut-tooltip');
+    delete element.dataset.shortcutHint;
+    element.removeAttribute('title');
+    element.removeAttribute('aria-keyshortcuts');
+
+    const describedById = String(element.dataset.shortcutDescId || '').trim();
+    if (describedById) {
+        const describedBy = element.getAttribute('aria-describedby') || '';
+        const tokens = describedBy.split(/\s+/).filter(Boolean).filter((token) => token !== describedById);
+        if (tokens.length > 0) {
+            element.setAttribute('aria-describedby', tokens.join(' '));
+        } else {
+            element.removeAttribute('aria-describedby');
+        }
+        document.getElementById(describedById)?.remove();
+        delete element.dataset.shortcutDescId;
+    }
 }
 
 function applyShortcutTooltip(element, shortcut, label) {
-    if (!element || element.dataset.shortcutTooltipBound === 'true') return;
-    element.classList.add('shortcut-tooltip');
-    element.dataset.shortcutHint = shortcut;
-    element.setAttribute('title', shortcut);
-    element.setAttribute('aria-keyshortcuts', shortcut);
-    ensureShortcutDescription(element, shortcut);
-    if (!element.getAttribute('aria-label') && label) {
-        element.setAttribute('aria-label', `${label}. Shortcut: ${shortcut}`);
+    if (!element) return;
+    const normalizedShortcut = String(shortcut || '').trim();
+
+    if (!normalizedShortcut) {
+        removeShortcutTooltip(element);
+        return;
     }
-    element.dataset.shortcutTooltipBound = 'true';
+
+    element.classList.add('shortcut-tooltip');
+    element.dataset.shortcutHint = normalizedShortcut;
+    element.setAttribute('title', normalizedShortcut);
+    element.setAttribute('aria-keyshortcuts', normalizedShortcut);
+    ensureShortcutDescription(element, normalizedShortcut);
+    if (!element.getAttribute('aria-label') && label) {
+        element.setAttribute('aria-label', `${label}. Shortcut: ${normalizedShortcut}`);
+    }
 }
 
 function applyShortcutTooltips() {
     shortcutControlMap.forEach(({ id, action, label }) => {
         const element = document.getElementById(id);
         const shortcut = getShortcutForAction(action);
-        if (element && shortcut) applyShortcutTooltip(element, shortcut, label);
+        applyShortcutTooltip(element, shortcut, label);
     });
 }
 
