@@ -185,9 +185,25 @@ function applyShortcutTooltip(element, shortcut, label) {
 }
 
 function applyShortcutTooltips() {
+    const seenTargets = new Set();
+
     shortcutControlMap.forEach(({ id, action, label }) => {
         const element = document.getElementById(id);
+        if (!element) return;
+        const targetKey = `${id}:${action}`;
+        seenTargets.add(targetKey);
         const shortcut = getShortcutForAction(action);
+        applyShortcutTooltip(element, shortcut, label);
+    });
+
+    document.querySelectorAll('[data-shortcut-action]').forEach((element) => {
+        const action = String(element.getAttribute('data-shortcut-action') || '').trim();
+        if (!action) return;
+        const targetKey = `${element.id || element.tagName}:${action}`;
+        if (seenTargets.has(targetKey)) return;
+        seenTargets.add(targetKey);
+        const shortcut = getShortcutForAction(action);
+        const label = String(element.getAttribute('data-shortcut-label') || element.getAttribute('aria-label') || element.textContent || '').trim();
         applyShortcutTooltip(element, shortcut, label);
     });
 }
