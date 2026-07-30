@@ -97,14 +97,18 @@ function parseSearchQuery(rawQuery) {
 function matchesQueryText(text, queryModel) {
     const haystack = normalizeSearchText(text);
 
-    for (const term of queryModel.exclude) {
-        if (!term) continue;
+    const termMatches = (term) => {
+        if (!term) return false;
         if (term.includes('*') || term.includes('?')) {
             const regex = wildcardToRegExp(term);
-            if (haystack.split(/\s+/).some((word) => regex.test(word))) return false;
-            continue;
+            return haystack.split(/\s+/).some((word) => regex.test(word));
         }
-        if (haystack.includes(term)) return false;
+        return haystack.includes(term);
+    };
+
+    for (const term of queryModel.exclude) {
+        if (!term) continue;
+        if (termMatches(term)) return false;
     }
 
     for (const phrase of queryModel.phrases) {
@@ -113,12 +117,12 @@ function matchesQueryText(text, queryModel) {
 
     for (const term of queryModel.include) {
         if (!term) continue;
-        if (term.includes('*') || term.includes('?')) {
-            const regex = wildcardToRegExp(term);
-            if (!haystack.split(/\s+/).some((word) => regex.test(word))) return false;
-            continue;
-        }
-        if (!haystack.includes(term)) return false;
+        if (!termMatches(term)) return false;
+    }
+
+    if (queryModel.optional.length > 0) {
+        const hasOptionalMatch = queryModel.optional.some((term) => termMatches(term));
+        if (!hasOptionalMatch) return false;
     }
 
     return true;
