@@ -1,4 +1,4 @@
-import { searchCommands } from './commandSearchEngine.js';
+import { runUniversalSearch } from './universalSearchFramework.js';
 
 const DEFAULT_WIDGET_IDS = [
     'quick-actions',
@@ -1119,9 +1119,11 @@ export function initializeDashboardWidgetFramework(options = {}) {
 }
 
 export function runDashboardSearch(query = '') {
-    return searchCommands(query, {
-        context: {
-            source: 'dashboard-search-widget'
-        }
+    const output = runUniversalSearch(query, {
+        source: 'dashboard-search-widget',
+        providerIds: ['commands', 'reports', 'dashboard-widgets'],
+        scope: 'workspace',
+        limit: 20
     });
+    return output.results || [];
 }

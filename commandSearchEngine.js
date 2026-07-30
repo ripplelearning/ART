@@ -1,6 +1,7 @@
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { getShortcutForAction } from './state.js';
+import { runUniversalSearch } from './universalSearchFramework.js';
 
 function normalizeText(value) {
     return String(value || '').trim();
@@ -65,6 +66,19 @@ export function getSearchableCommands(options = {}) {
 
 export function searchCommands(query = '', options = {}) {
     const normalizedQuery = normalizeSearchText(query);
+    const output = runUniversalSearch(query, {
+        source: options?.context?.source || 'command-search-engine',
+        providerIds: ['commands'],
+        scope: 'commands'
+    });
+
+    const mapped = (output.results || [])
+        .map((result) => result.raw?.command)
+        .filter(Boolean);
+
+    if (mapped.length > 0 || normalizedQuery) {
+        return mapped;
+    }
 
     return getSearchableCommands(options)
         .map((command) => ({ command, score: scoreCommand(command, normalizedQuery) }))

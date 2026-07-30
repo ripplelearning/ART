@@ -12,6 +12,7 @@ import { initCommandPalette } from './commandPalette.js';
 import { initMenuBar } from './menuBar.js';
 import { registerApplicationCommands } from './commandCatalog.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
+import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -100,6 +101,7 @@ function initializeApp() {
     setupTabs();
     initApplicationIdentity();
     initThemeEngine();
+    initializeUniversalSearchFramework();
     bindExternalNavigationGuard();
     initMenuBar();
     

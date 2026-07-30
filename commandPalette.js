@@ -1,6 +1,7 @@
 import { commandExecutionService } from './commandExecutionService.js';
 import { announce } from './state.js';
 import { searchCommands } from './commandSearchEngine.js';
+import { createSearchResultsController } from './searchResultsFramework.js';
 
 const COMMAND_PALETTE_COMMAND_ID = 'Application.OpenCommandPalette';
 
@@ -10,15 +11,7 @@ let previousFocus = null;
 let isOpen = false;
 let activeIndex = 0;
 let commandResults = [];
-
-function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+let resultsController = null;
 
 function getDialogElements() {
     const dialog = document.getElementById('command-palette-dialog');
@@ -35,11 +28,11 @@ function getFilteredCommands() {
 }
 
 function getSelectedCommand() {
+    if (resultsController) {
+        const selected = resultsController.getActiveResult();
+        return selected?.command || null;
+    }
     return commandResults[activeIndex] || null;
-}
-
-function getCommandOptionId(command) {
-    return `command-palette-option-${command.id}`;
 }
 
 function updateStatus(message) {
@@ -47,99 +40,57 @@ function updateStatus(message) {
     if (status) status.textContent = message;
 }
 
-function setActiveIndex(nextIndex, options = {}) {
-    if (!commandResults.length) {
-        activeIndex = -1;
-        const { searchInput } = getDialogElements();
-        if (searchInput) searchInput.removeAttribute('aria-activedescendant');
-        return;
-    }
+function ensureResultsController() {
+    if (resultsController) return resultsController;
+    const { results, searchInput } = getDialogElements();
+    if (!results || !searchInput) return null;
 
-    const boundedIndex = Math.max(0, Math.min(nextIndex, commandResults.length - 1));
-    activeIndex = boundedIndex;
-    const command = getSelectedCommand();
-    const { searchInput, results } = getDialogElements();
-    if (searchInput && command) {
-        searchInput.setAttribute('aria-activedescendant', getCommandOptionId(command));
-    }
+    resultsController = createSearchResultsController({
+        container: results,
+        statusElement: getDialogElements().status,
+        idPrefix: 'command-palette',
+        listboxLabel: 'Command results',
+        itemClass: 'command-palette-option',
+        itemActiveClass: 'command-palette-option--active',
+        itemDisabledClass: 'command-palette-option--disabled',
+        titleClass: 'command-palette-option-name',
+        subtitleClass: 'command-palette-option-shortcut',
+        descriptionClass: 'command-palette-option-description',
+        emptyClass: 'command-palette-empty',
+        emptyMessage: 'No matching commands found.',
+        onActivate: () => {
+            void executeSelectedCommand();
+        },
+        onSelectionChange: () => {
+            const optionId = resultsController?.getActiveOptionId() || '';
+            if (optionId) {
+                searchInput.setAttribute('aria-activedescendant', optionId);
+            } else {
+                searchInput.removeAttribute('aria-activedescendant');
+            }
+        }
+    });
 
-    if (results) {
-        results.querySelectorAll('[data-command-option]').forEach((option) => {
-            const isSelected = option.getAttribute('data-command-id') === command?.id;
-            option.setAttribute('aria-selected', String(isSelected));
-            option.classList.toggle('command-palette-option--active', isSelected);
-        });
-    }
-
-    if (options.scrollIntoView !== false && command) {
-        const activeOption = document.getElementById(getCommandOptionId(command));
-        activeOption?.scrollIntoView({ block: 'nearest' });
-    }
-
-    if (options.announce !== false && command) {
-        const shortcut = command.keyboardShortcut ? ` Shortcut ${command.keyboardShortcut}.` : '';
-        const state = command.canExecute ? 'Press Enter to execute.' : 'Command unavailable.';
-        updateStatus(`${command.displayName}. ${command.category}.${shortcut} ${state}`);
-    }
+    return resultsController;
 }
 
 function renderResults() {
-    const { results, searchInput } = getDialogElements();
-    if (!results || !searchInput) return;
+    const { searchInput } = getDialogElements();
+    const controller = ensureResultsController();
+    if (!searchInput || !controller) return;
 
     commandResults = getFilteredCommands();
+    const items = commandResults.map((command) => ({
+        id: command.id,
+        title: command.displayName,
+        subtitle: `${command.category}${command.keyboardShortcut ? ` | ${command.keyboardShortcut}` : ''}`,
+        description: command.description || '',
+        disabled: !command.canExecute,
+        command
+    }));
 
-    if (commandResults.length === 0) {
-        activeIndex = -1;
-        searchInput.removeAttribute('aria-activedescendant');
-        results.innerHTML = '<p class="command-palette-empty">No matching commands found.</p>';
-        updateStatus('No matching commands found.');
-        return;
-    }
+    controller.setResults(items);
 
-    const grouped = commandResults.reduce((accumulator, command) => {
-        if (!accumulator[command.category]) accumulator[command.category] = [];
-        accumulator[command.category].push(command);
-        return accumulator;
-    }, {});
-
-    results.innerHTML = Object.entries(grouped)
-        .map(([category, commands]) => `
-            <section class="command-palette-group" aria-labelledby="command-palette-group-${escapeHtml(category)}">
-                <h3 id="command-palette-group-${escapeHtml(category)}">${escapeHtml(category)}</h3>
-                <div class="command-palette-options">
-                    ${commands.map((command) => {
-                        const commandId = getCommandOptionId(command);
-                        const shortcut = command.keyboardShortcut ? escapeHtml(command.keyboardShortcut) : 'Unassigned';
-                        const stateLabel = command.canExecute ? 'Ready' : 'Unavailable';
-                        return `
-                            <div
-                                id="${commandId}"
-                                role="option"
-                                tabindex="-1"
-                                data-command-option="true"
-                                data-command-id="${escapeHtml(command.id)}"
-                                aria-selected="false"
-                                aria-disabled="${String(!command.canExecute)}"
-                                class="command-palette-option ${command.canExecute ? '' : 'command-palette-option--disabled'}"
-                            >
-                                <div class="command-palette-option-name">${escapeHtml(command.displayName)}</div>
-                                <div class="command-palette-option-meta">
-                                    <span class="command-palette-option-shortcut">${shortcut}</span>
-                                    <span>${escapeHtml(command.category)}</span>
-                                    <span>${escapeHtml(stateLabel)}</span>
-                                </div>
-                                ${command.description ? `<div>${escapeHtml(command.description)}</div>` : ''}
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </section>
-        `)
-        .join('');
-
-    const preferredIndex = commandResults.findIndex((command) => command.canExecute);
-    setActiveIndex(preferredIndex >= 0 ? preferredIndex : 0, { announce: false });
     const selected = getSelectedCommand();
     if (selected) {
         const shortcut = selected.keyboardShortcut ? ` Shortcut ${selected.keyboardShortcut}.` : '';
@@ -186,13 +137,6 @@ async function executeSelectedCommand() {
     return true;
 }
 
-function moveSelection(offset) {
-    if (!commandResults.length) return;
-    const base = activeIndex >= 0 ? activeIndex : 0;
-    const next = ((base + offset) % commandResults.length + commandResults.length) % commandResults.length;
-    setActiveIndex(next);
-}
-
 function openCommandPalette(trigger = null) {
     const { dialog, searchInput } = getDialogElements();
     if (!dialog || !searchInput) return false;
@@ -224,6 +168,7 @@ function closeCommandPalette(restoreFocus = true) {
     isOpen = false;
     activeIndex = 0;
     commandResults = [];
+    resultsController?.setResults([]);
     if (searchInput) {
         searchInput.value = '';
         searchInput.removeAttribute('aria-activedescendant');
@@ -274,14 +219,8 @@ function trapCommandPaletteFocus(event) {
     }
 
     if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageUp', 'PageDown', 'Enter'].includes(event.key)) {
-        event.preventDefault();
-        if (event.key === 'ArrowDown') moveSelection(1);
-        if (event.key === 'ArrowUp') moveSelection(-1);
-        if (event.key === 'Home') setActiveIndex(0);
-        if (event.key === 'End') setActiveIndex(commandResults.length - 1);
-        if (event.key === 'PageDown') moveSelection(5);
-        if (event.key === 'PageUp') moveSelection(-5);
-        if (event.key === 'Enter') void executeSelectedCommand();
+        const controller = ensureResultsController();
+        if (controller?.handleKeydown(event)) return;
     }
 }
 
@@ -297,23 +236,7 @@ function bindCommandPaletteEvents() {
         renderResults();
     });
 
-    results.addEventListener('click', (event) => {
-        const option = event.target instanceof Element ? event.target.closest('[data-command-option]') : null;
-        if (!option) return;
-        const command = commandResults.find((item) => item.id === option.getAttribute('data-command-id')) || null;
-        if (!command) return;
-        setActiveIndex(commandResults.findIndex((item) => item.id === command.id), { announce: false });
-        void executeSelectedCommand();
-    });
-
-    results.addEventListener('mousemove', (event) => {
-        const option = event.target instanceof Element ? event.target.closest('[data-command-option]') : null;
-        if (!option) return;
-        const index = commandResults.findIndex((item) => item.id === option.getAttribute('data-command-id'));
-        if (index >= 0 && index !== activeIndex) {
-            setActiveIndex(index);
-        }
-    });
+    ensureResultsController();
 
     document.addEventListener('keydown', trapCommandPaletteFocus, true);
     document.addEventListener('focusin', trapCommandPaletteFocus);

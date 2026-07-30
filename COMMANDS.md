@@ -20,6 +20,28 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - `nextLandmark`
 - `previousLandmark`
 
+### Search
+- `searchEverywhere`
+- `searchCurrentReport`
+- `searchCurrentProjectWorkspace`
+- `searchAllProjects`
+- `searchAccessibilityStandards`
+- `searchHelpDocumentation`
+- `searchCommands`
+- `searchKeyboardShortcuts`
+- `searchProjectAssets`
+- `searchTemplates`
+- `searchDashboard`
+- `findInCurrentResource`
+- `findNextMatch`
+- `findPreviousMatch`
+- `nextSearchResult`
+- `previousSearchResult`
+- `clearSearchHighlights`
+- `clearSearchHistory`
+- `saveCurrentSearch`
+- `openSavedSearches`
+
 ### Workspace
 - `newProjectWorkspace`
 - `openProjectWorkspace`
@@ -114,6 +136,8 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - The Command Palette is a registered Application Command and opens with Ctrl+Shift+P by default.
 - The Command Palette displays the current shortcut assignments from the Keyboard Shortcut Manager.
 - The Menu Bar and Menu Bar Command Search are registered Application Commands and use the shared command search engine.
+- Search Everywhere and scope-specific search commands run through the Universal Search Framework provider registry.
+- Search result surfaces use a shared Search Results Framework for consistent keyboard behavior and status announcements.
 - Menu Bar focus uses F10, with Alt+/ as an alternate shortcut in the web application.
 - Menu Bar Command Search uses Alt+Q.
 - Project Workspace lifecycle and Project Asset operations are also registered commands, so they are available in Menu Bar, Command Search, Command Palette, and shortcut customization.

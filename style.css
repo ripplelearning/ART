@@ -531,6 +531,13 @@ a {
     gap: 4px;
 }
 
+.dashboard-widget__search-result.is-selected,
+.dashboard-widget__search-result:focus-visible {
+    border-color: var(--art-focus-color);
+    box-shadow: 0 0 0 2px rgba(0, 90, 156, 0.15);
+    background: #f5faff;
+}
+
 .dashboard-widget__search-result-meta {
     color: var(--art-muted-text-color);
     font-size: 0.9em;
@@ -864,6 +871,7 @@ th { background-color: #f4f4f4; }
 #editor-statistics-dialog,
 #editor-spellcheck-dialog,
 #command-palette-dialog,
+#search-everywhere-dialog,
 #help-dialog {
     border: 1px solid #ccc;
     background: #fff;
@@ -879,6 +887,16 @@ th { background-color: #f4f4f4; }
     z-index: 1250;
     max-width: 860px;
     max-height: 92vh;
+    overflow: hidden;
+    gap: 12px;
+}
+
+#search-everywhere-dialog {
+    position: fixed;
+    inset: 6vh 8vw;
+    z-index: 1240;
+    max-width: 900px;
+    max-height: 88vh;
     overflow: hidden;
     gap: 12px;
 }
@@ -951,6 +969,16 @@ th { background-color: #f4f4f4; }
 
 .command-palette-option-shortcut {
     font-weight: 700;
+}
+
+.command-palette-option-description {
+    color: var(--art-muted-text-color);
+}
+
+.search-highlight {
+    background: #ffef8c;
+    color: inherit;
+    padding: 0 1px;
 }
 
 .command-palette-empty {
@@ -1160,6 +1188,7 @@ th { background-color: #f4f4f4; }
 #settings-clear-standards-dialog,
 #settings-reset-dialog,
 #command-palette-dialog,
+#search-everywhere-dialog,
 #help-dialog,
 #progress-log-dialog,
 #template-create-dialog,
@@ -1186,6 +1215,7 @@ th { background-color: #f4f4f4; }
 #network-activity,
 #progress-log-dialog,
 #command-palette-dialog,
+#search-everywhere-dialog,
 #help-toc,
 .viewer-field-card,
 .template-config,

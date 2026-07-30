@@ -1,6 +1,7 @@
 import { commandRegistry } from './commandRegistry.js';
 import {
     announce,
+    clearUniversalSearchHistory,
     createUserTemplateFromSelection,
     closeCurrentReportSession,
     deleteReportById,
@@ -66,6 +67,14 @@ import {
     startDashboardImportTemplateFromCommand
 } from './dashboard.js';
 import {
+    clearUniversalSearchHighlights,
+    findInCurrentResource,
+    getActiveUniversalSearchSession,
+    moveUniversalSearchSelection,
+    openSearchEverywhereDialog,
+    runUniversalSearch
+} from './universalSearchFramework.js';
+import {
     addProjectAssetFromCommand,
     closeProjectWorkspaceFromCommand,
     continueWorkingFromCommand,
@@ -98,6 +107,26 @@ function getDefaultMenuLocation(action, category) {
         case 'openCommandPalette': return 'View>Command Palette';
         case 'focusMenuBar': return 'View>Menu Bar';
         case 'focusMenuSearch': return 'View>Command Search';
+        case 'searchEverywhere':
+        case 'searchCurrentReport':
+        case 'searchCurrentProjectWorkspace':
+        case 'searchAllProjects':
+        case 'searchAccessibilityStandards':
+        case 'searchHelpDocumentation':
+        case 'searchCommands':
+        case 'searchKeyboardShortcuts':
+        case 'searchProjectAssets':
+        case 'searchTemplates':
+        case 'searchDashboard':
+        case 'findInCurrentResource':
+        case 'findNextMatch':
+        case 'findPreviousMatch':
+        case 'nextSearchResult':
+        case 'previousSearchResult':
+        case 'clearSearchHighlights':
+        case 'clearSearchHistory':
+        case 'saveCurrentSearch':
+        case 'openSavedSearches': return 'Search';
         case 'openBuilder': return 'View>Report Builder';
         case 'openEditor': return 'View>Report Editor';
         case 'openViewer': return 'View>Report Viewer';
@@ -613,6 +642,70 @@ function runDeleteReportWorkflow(context = {}) {
     return true;
 }
 
+function runSearchEverywhereWorkflow(context = {}) {
+    return openSearchEverywhereDialog(context.triggerElement || document.activeElement || null, context.query || '', 'workspace');
+}
+
+function runSearchWithScope(scope, context = {}) {
+    const query = String(context.query || '').trim();
+    const output = runUniversalSearch(query, {
+        source: 'command-catalog',
+        scope,
+        limit: 60
+    });
+    if (!query) {
+        return openSearchEverywhereDialog(context.triggerElement || document.activeElement || null, query, scope);
+    }
+    announce(`Search returned ${output.totalResults} result${output.totalResults === 1 ? '' : 's'} in ${scope.replace(/-/g, ' ')}.`);
+    return true;
+}
+
+function runFindInCurrentResourceWorkflow(context = {}) {
+    const query = String(context.query || '').trim();
+    if (query) {
+        return Boolean(findInCurrentResource(query)?.ok);
+    }
+    const active = getActiveUniversalSearchSession();
+    if (active?.query) {
+        return Boolean(findInCurrentResource(active.query)?.ok);
+    }
+    return openSearchEverywhereDialog(context.triggerElement || document.activeElement || null, '');
+}
+
+function runSaveCurrentSearchWorkflow() {
+    const active = getActiveUniversalSearchSession();
+    if (!active?.query) {
+        announce('Run a search before saving.');
+        return false;
+    }
+    const saveButton = document.getElementById('btn-search-everywhere-save');
+    if (saveButton) {
+        saveButton.click();
+        return true;
+    }
+    return openSearchEverywhereDialog(document.activeElement || null, active.query);
+}
+
+function runOpenSavedSearchesWorkflow() {
+    const savedButton = document.getElementById('btn-search-everywhere-saved');
+    if (savedButton) {
+        savedButton.click();
+        return true;
+    }
+    return openSearchEverywhereDialog(document.activeElement || null, '');
+}
+
+function runClearSearchHistoryWorkflow() {
+    const clearButton = document.getElementById('btn-search-everywhere-clear-history');
+    if (clearButton) {
+        clearButton.click();
+        return true;
+    }
+    clearUniversalSearchHistory();
+    announce('Universal search history cleared.');
+    return true;
+}
+
 const COMMAND_DEFINITIONS = [
     {
         action: 'openWelcome',
@@ -648,6 +741,146 @@ const COMMAND_DEFINITIONS = [
         category: 'Application',
         description: 'Move focus to the Menu Bar Command Search.',
         handler: () => focusMenuSearchFromCommand()
+    },
+    {
+        action: 'searchEverywhere',
+        id: 'Search.Everywhere',
+        category: 'Search',
+        description: 'Open Search Everywhere for commands, reports, templates, workspaces, help, and standards.',
+        handler: (context) => runSearchEverywhereWorkflow(context)
+    },
+    {
+        action: 'searchCurrentReport',
+        id: 'Search.CurrentReport',
+        category: 'Search',
+        description: 'Search in the current report scope.',
+        handler: (context) => runSearchWithScope('current-report', context)
+    },
+    {
+        action: 'searchCurrentProjectWorkspace',
+        id: 'Search.CurrentProjectWorkspace',
+        category: 'Search',
+        description: 'Search in the active project workspace scope.',
+        handler: (context) => runSearchWithScope('current-project-workspace', context)
+    },
+    {
+        action: 'searchAllProjects',
+        id: 'Search.AllProjects',
+        category: 'Search',
+        description: 'Search across all projects and reports.',
+        handler: (context) => runSearchWithScope('workspace', context)
+    },
+    {
+        action: 'searchAccessibilityStandards',
+        id: 'Search.AccessibilityStandards',
+        category: 'Search',
+        description: 'Search imported accessibility standards and criteria.',
+        handler: (context) => runSearchWithScope('standards', context)
+    },
+    {
+        action: 'searchHelpDocumentation',
+        id: 'Search.HelpDocumentation',
+        category: 'Search',
+        description: 'Search help documentation topics.',
+        handler: (context) => runSearchWithScope('help', context)
+    },
+    {
+        action: 'searchCommands',
+        id: 'Search.Commands',
+        category: 'Search',
+        description: 'Search command definitions.',
+        handler: (context) => runSearchWithScope('commands', context)
+    },
+    {
+        action: 'searchKeyboardShortcuts',
+        id: 'Search.KeyboardShortcuts',
+        category: 'Search',
+        description: 'Search keyboard shortcut assignments.',
+        handler: (context) => runSearchWithScope('shortcuts', context)
+    },
+    {
+        action: 'searchProjectAssets',
+        id: 'Search.ProjectAssets',
+        category: 'Search',
+        description: 'Search project assets in workspaces.',
+        handler: (context) => runSearchWithScope('project-assets', context)
+    },
+    {
+        action: 'searchTemplates',
+        id: 'Search.Templates',
+        category: 'Search',
+        description: 'Search report templates.',
+        handler: (context) => runSearchWithScope('templates', context)
+    },
+    {
+        action: 'searchDashboard',
+        id: 'Search.Dashboard',
+        category: 'Search',
+        description: 'Search dashboard widgets and commands.',
+        handler: (context) => runSearchWithScope('dashboard', context)
+    },
+    {
+        action: 'findInCurrentResource',
+        id: 'Search.FindInCurrentResource',
+        category: 'Search',
+        description: 'Find the active search query in the current resource.',
+        handler: (context) => runFindInCurrentResourceWorkflow(context)
+    },
+    {
+        action: 'findNextMatch',
+        id: 'Search.FindNextMatch',
+        category: 'Search',
+        description: 'Move to the next search result match.',
+        handler: () => Boolean(moveUniversalSearchSelection(1))
+    },
+    {
+        action: 'findPreviousMatch',
+        id: 'Search.FindPreviousMatch',
+        category: 'Search',
+        description: 'Move to the previous search result match.',
+        handler: () => Boolean(moveUniversalSearchSelection(-1))
+    },
+    {
+        action: 'nextSearchResult',
+        id: 'Search.NextResult',
+        category: 'Search',
+        description: 'Select the next universal search result.',
+        handler: () => Boolean(moveUniversalSearchSelection(1))
+    },
+    {
+        action: 'previousSearchResult',
+        id: 'Search.PreviousResult',
+        category: 'Search',
+        description: 'Select the previous universal search result.',
+        handler: () => Boolean(moveUniversalSearchSelection(-1))
+    },
+    {
+        action: 'clearSearchHighlights',
+        id: 'Search.ClearHighlights',
+        category: 'Search',
+        description: 'Clear in-page search highlights.',
+        handler: () => clearUniversalSearchHighlights()
+    },
+    {
+        action: 'clearSearchHistory',
+        id: 'Search.ClearHistory',
+        category: 'Search',
+        description: 'Clear universal search history.',
+        handler: () => runClearSearchHistoryWorkflow()
+    },
+    {
+        action: 'saveCurrentSearch',
+        id: 'Search.SaveCurrent',
+        category: 'Search',
+        description: 'Save the active universal search query.',
+        handler: () => runSaveCurrentSearchWorkflow()
+    },
+    {
+        action: 'openSavedSearches',
+        id: 'Search.OpenSaved',
+        category: 'Search',
+        description: 'Open the saved searches list.',
+        handler: () => runOpenSavedSearchesWorkflow()
     },
     {
         action: 'openBuilder',

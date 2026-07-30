@@ -58,6 +58,26 @@ const defaultState = {
         focusLookup: 'Alt+Shift+L',
         focusMenuBar: 'F10',
         focusMenuSearch: 'Alt+Q',
+        searchEverywhere: 'Ctrl+K',
+        searchCurrentReport: '',
+        searchCurrentProjectWorkspace: '',
+        searchAllProjects: '',
+        searchAccessibilityStandards: '',
+        searchHelpDocumentation: '',
+        searchCommands: '',
+        searchKeyboardShortcuts: '',
+        searchProjectAssets: '',
+        searchTemplates: '',
+        searchDashboard: '',
+        findInCurrentResource: 'Ctrl+F',
+        findNextMatch: 'F3',
+        findPreviousMatch: 'Shift+F3',
+        nextSearchResult: 'Alt+F3',
+        previousSearchResult: 'Alt+Shift+F3',
+        clearSearchHighlights: 'Alt+Shift+H',
+        clearSearchHistory: '',
+        saveCurrentSearch: 'Ctrl+Shift+K',
+        openSavedSearches: 'Ctrl+Alt+K',
         addField: 'Alt+Shift+F',
         done: 'Alt+Shift+O',
         addEntry: 'Alt+Shift+A',
@@ -229,7 +249,36 @@ const defaultState = {
     },
     workspaces: [],
     activeWorkspaceId: '',
-    recentProjectWorkspaces: []
+    recentProjectWorkspaces: [],
+    universalSearch: {
+        scopePreference: 'auto',
+        defaultScopeOverride: '',
+        history: [],
+        savedSearches: [],
+        collections: [],
+        favorites: [],
+        providers: [],
+        activeSession: {
+            id: '',
+            query: '',
+            scope: 'workspace',
+            filters: {},
+            sortBy: 'relevance',
+            sortDirection: 'desc',
+            results: [],
+            selectedResultIndex: -1,
+            selectedMatchIndex: 0,
+            navigationHistory: [],
+            highlights: [],
+            resultCounts: {}
+        },
+        indexStatus: {
+            lastIndexedAt: '',
+            providerStatuses: {},
+            isIndexing: false,
+            indexedItemCount: 0
+        }
+    }
 };
 
 const reportDefaults = {
@@ -665,6 +714,100 @@ function normalizeRecentProjectWorkspaces(list) {
         .slice(0, 20);
 }
 
+function normalizeSearchScopePreference(value) {
+    const normalized = String(value || '').trim();
+    const allowed = new Set(['auto', 'current-report', 'current-project-workspace', 'entire-workspace', 'prompt']);
+    return allowed.has(normalized) ? normalized : 'auto';
+}
+
+function normalizeSearchCollection(item, index = 0) {
+    const source = item && typeof item === 'object' ? item : {};
+    return {
+        id: String(source.id || `search-collection-${Date.now()}-${index}`).trim() || `search-collection-${Date.now()}-${index}`,
+        name: String(source.name || `Search Collection ${index + 1}`).trim() || `Search Collection ${index + 1}`,
+        queryIds: Array.isArray(source.queryIds) ? source.queryIds.map((id) => String(id || '').trim()).filter(Boolean) : []
+    };
+}
+
+function normalizeSavedSearch(item, index = 0) {
+    const source = item && typeof item === 'object' ? item : {};
+    const name = String(source.name || source.query || `Saved Search ${index + 1}`).trim() || `Saved Search ${index + 1}`;
+    return {
+        id: String(source.id || `saved-search-${Date.now()}-${index}`).trim() || `saved-search-${Date.now()}-${index}`,
+        name,
+        query: String(source.query || '').trim(),
+        scope: String(source.scope || 'workspace').trim() || 'workspace',
+        filters: source.filters && typeof source.filters === 'object' ? { ...source.filters } : {},
+        sortBy: String(source.sortBy || 'relevance').trim() || 'relevance',
+        sortDirection: String(source.sortDirection || 'desc').trim() || 'desc',
+        createdAt: String(source.createdAt || new Date().toISOString()),
+        updatedAt: String(source.updatedAt || new Date().toISOString())
+    };
+}
+
+function normalizeSearchHistoryEntry(item, index = 0) {
+    const source = item && typeof item === 'object' ? item : {};
+    return {
+        id: String(source.id || `search-history-${Date.now()}-${index}`).trim() || `search-history-${Date.now()}-${index}`,
+        query: String(source.query || '').trim(),
+        scope: String(source.scope || 'workspace').trim() || 'workspace',
+        workspaceId: String(source.workspaceId || '').trim(),
+        reportId: String(source.reportId || '').trim(),
+        resultCount: Number.isFinite(Number(source.resultCount)) ? Number(source.resultCount) : 0,
+        searchedAt: String(source.searchedAt || new Date().toISOString())
+    };
+}
+
+function normalizeSearchSession(session) {
+    const source = session && typeof session === 'object' ? session : {};
+    return {
+        id: String(source.id || '').trim(),
+        query: String(source.query || '').trim(),
+        scope: String(source.scope || 'workspace').trim() || 'workspace',
+        filters: source.filters && typeof source.filters === 'object' ? { ...source.filters } : {},
+        sortBy: String(source.sortBy || 'relevance').trim() || 'relevance',
+        sortDirection: String(source.sortDirection || 'desc').trim() || 'desc',
+        results: Array.isArray(source.results) ? source.results.map((item) => ({ ...item })) : [],
+        selectedResultIndex: Number.isInteger(Number(source.selectedResultIndex)) ? Number(source.selectedResultIndex) : -1,
+        selectedMatchIndex: Number.isInteger(Number(source.selectedMatchIndex)) ? Number(source.selectedMatchIndex) : 0,
+        navigationHistory: Array.isArray(source.navigationHistory) ? source.navigationHistory.map((item) => ({ ...item })) : [],
+        highlights: Array.isArray(source.highlights) ? source.highlights.map((item) => ({ ...item })) : [],
+        resultCounts: source.resultCounts && typeof source.resultCounts === 'object' ? { ...source.resultCounts } : {}
+    };
+}
+
+function normalizeUniversalSearchConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    return {
+        scopePreference: normalizeSearchScopePreference(source.scopePreference),
+        defaultScopeOverride: String(source.defaultScopeOverride || '').trim(),
+        history: Array.isArray(source.history)
+            ? source.history.map((item, index) => normalizeSearchHistoryEntry(item, index)).slice(0, 100)
+            : [],
+        savedSearches: Array.isArray(source.savedSearches)
+            ? source.savedSearches.map((item, index) => normalizeSavedSearch(item, index)).slice(0, 100)
+            : [],
+        collections: Array.isArray(source.collections)
+            ? source.collections.map((item, index) => normalizeSearchCollection(item, index)).slice(0, 100)
+            : [],
+        favorites: Array.isArray(source.favorites)
+            ? source.favorites.map((value) => String(value || '').trim()).filter(Boolean)
+            : [],
+        providers: Array.isArray(source.providers)
+            ? source.providers.map((item) => String(item || '').trim()).filter(Boolean)
+            : [],
+        activeSession: normalizeSearchSession(source.activeSession),
+        indexStatus: {
+            lastIndexedAt: String(source.indexStatus?.lastIndexedAt || ''),
+            providerStatuses: source.indexStatus?.providerStatuses && typeof source.indexStatus.providerStatuses === 'object'
+                ? { ...source.indexStatus.providerStatuses }
+                : {},
+            isIndexing: Boolean(source.indexStatus?.isIndexing),
+            indexedItemCount: Number.isFinite(Number(source.indexStatus?.indexedItemCount)) ? Number(source.indexStatus.indexedItemCount) : 0
+        }
+    };
+}
+
 const SHORTCUT_DEFINITIONS = [
     { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
     { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
@@ -690,6 +833,26 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'focusLookup', label: 'Focus Accessibility Lookup search', defaultShortcut: defaultState.shortcuts.focusLookup },
     { action: 'focusMenuBar', label: 'Focus Menu Bar', defaultShortcut: defaultState.shortcuts.focusMenuBar },
     { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search', defaultShortcut: defaultState.shortcuts.focusMenuSearch },
+    { action: 'searchEverywhere', label: 'Search Everywhere', defaultShortcut: defaultState.shortcuts.searchEverywhere },
+    { action: 'searchCurrentReport', label: 'Search Current Report', defaultShortcut: defaultState.shortcuts.searchCurrentReport },
+    { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace', defaultShortcut: defaultState.shortcuts.searchCurrentProjectWorkspace },
+    { action: 'searchAllProjects', label: 'Search All Projects', defaultShortcut: defaultState.shortcuts.searchAllProjects },
+    { action: 'searchAccessibilityStandards', label: 'Search Accessibility Standards', defaultShortcut: defaultState.shortcuts.searchAccessibilityStandards },
+    { action: 'searchHelpDocumentation', label: 'Search Help Documentation', defaultShortcut: defaultState.shortcuts.searchHelpDocumentation },
+    { action: 'searchCommands', label: 'Search Commands', defaultShortcut: defaultState.shortcuts.searchCommands },
+    { action: 'searchKeyboardShortcuts', label: 'Search Keyboard Shortcuts', defaultShortcut: defaultState.shortcuts.searchKeyboardShortcuts },
+    { action: 'searchProjectAssets', label: 'Search Project Assets', defaultShortcut: defaultState.shortcuts.searchProjectAssets },
+    { action: 'searchTemplates', label: 'Search Templates', defaultShortcut: defaultState.shortcuts.searchTemplates },
+    { action: 'searchDashboard', label: 'Search Dashboard', defaultShortcut: defaultState.shortcuts.searchDashboard },
+    { action: 'findInCurrentResource', label: 'Find In Current Resource', defaultShortcut: defaultState.shortcuts.findInCurrentResource },
+    { action: 'findNextMatch', label: 'Find Next Match', defaultShortcut: defaultState.shortcuts.findNextMatch },
+    { action: 'findPreviousMatch', label: 'Find Previous Match', defaultShortcut: defaultState.shortcuts.findPreviousMatch },
+    { action: 'nextSearchResult', label: 'Next Search Result', defaultShortcut: defaultState.shortcuts.nextSearchResult },
+    { action: 'previousSearchResult', label: 'Previous Search Result', defaultShortcut: defaultState.shortcuts.previousSearchResult },
+    { action: 'clearSearchHighlights', label: 'Clear Search Highlights', defaultShortcut: defaultState.shortcuts.clearSearchHighlights },
+    { action: 'clearSearchHistory', label: 'Clear Search History', defaultShortcut: defaultState.shortcuts.clearSearchHistory },
+    { action: 'saveCurrentSearch', label: 'Save Current Search', defaultShortcut: defaultState.shortcuts.saveCurrentSearch },
+    { action: 'openSavedSearches', label: 'Open Saved Searches', defaultShortcut: defaultState.shortcuts.openSavedSearches },
     { action: 'addField', label: 'Add field in Report Builder', defaultShortcut: defaultState.shortcuts.addField },
     { action: 'done', label: 'Complete Builder and move to Editor', defaultShortcut: defaultState.shortcuts.done },
     { action: 'addEntry', label: 'Add entry in Report Editor', defaultShortcut: defaultState.shortcuts.addEntry },
@@ -823,6 +986,26 @@ export function getAssignableActions() {
         { action: 'openViewer', label: 'Open Report Viewer tab' },
         { action: 'openProgressLog', label: 'Open Progress Log' },
         { action: 'focusLookup', label: 'Focus Accessibility Lookup search' },
+        { action: 'searchEverywhere', label: 'Search Everywhere' },
+        { action: 'searchCurrentReport', label: 'Search Current Report' },
+        { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace' },
+        { action: 'searchAllProjects', label: 'Search All Projects' },
+        { action: 'searchAccessibilityStandards', label: 'Search Accessibility Standards' },
+        { action: 'searchHelpDocumentation', label: 'Search Help Documentation' },
+        { action: 'searchCommands', label: 'Search Commands' },
+        { action: 'searchKeyboardShortcuts', label: 'Search Keyboard Shortcuts' },
+        { action: 'searchProjectAssets', label: 'Search Project Assets' },
+        { action: 'searchTemplates', label: 'Search Templates' },
+        { action: 'searchDashboard', label: 'Search Dashboard' },
+        { action: 'findInCurrentResource', label: 'Find In Current Resource' },
+        { action: 'findNextMatch', label: 'Find Next Match' },
+        { action: 'findPreviousMatch', label: 'Find Previous Match' },
+        { action: 'nextSearchResult', label: 'Next Search Result' },
+        { action: 'previousSearchResult', label: 'Previous Search Result' },
+        { action: 'clearSearchHighlights', label: 'Clear Search Highlights' },
+        { action: 'clearSearchHistory', label: 'Clear Search History' },
+        { action: 'saveCurrentSearch', label: 'Save Current Search' },
+        { action: 'openSavedSearches', label: 'Open Saved Searches' },
         { action: 'addField', label: 'Add field in Report Builder' },
         { action: 'done', label: 'Complete Builder and move to Editor' },
         { action: 'addEntry', label: 'Add entry in Report Editor' },
@@ -1147,7 +1330,8 @@ export let appState = {
     dashboard: normalizeDashboardConfig(storedState.dashboard),
     workspaces: normalizeProjectWorkspaces(storedState.workspaces),
     activeWorkspaceId: String(storedState.activeWorkspaceId || ''),
-    recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces)
+    recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces),
+    universalSearch: normalizeUniversalSearchConfig(storedState.universalSearch)
 };
 
 function normalizeStateSnapshot(rawState) {
@@ -1173,6 +1357,7 @@ function normalizeStateSnapshot(rawState) {
         workspaces: normalizeProjectWorkspaces(base.workspaces),
         activeWorkspaceId: String(base.activeWorkspaceId || ''),
         recentProjectWorkspaces: normalizeRecentProjectWorkspaces(base.recentProjectWorkspaces),
+        universalSearch: normalizeUniversalSearchConfig(base.universalSearch),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -2070,6 +2255,108 @@ export function getRecentProjectWorkspaces() {
     return normalizeRecentProjectWorkspaces(appState.recentProjectWorkspaces);
 }
 
+export function getUniversalSearchConfig() {
+    return normalizeUniversalSearchConfig(appState.universalSearch);
+}
+
+export function updateUniversalSearchConfig(updates = {}, options = {}) {
+    const source = updates && typeof updates === 'object' ? updates : {};
+    const next = normalizeUniversalSearchConfig({
+        ...appState.universalSearch,
+        ...source,
+        activeSession: {
+            ...(appState.universalSearch?.activeSession || {}),
+            ...(source.activeSession && typeof source.activeSession === 'object' ? source.activeSession : {})
+        },
+        indexStatus: {
+            ...(appState.universalSearch?.indexStatus || {}),
+            ...(source.indexStatus && typeof source.indexStatus === 'object' ? source.indexStatus : {})
+        }
+    });
+    appState.universalSearch = next;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated universal search settings'), recordHistory: false });
+    }
+
+    window.dispatchEvent(new CustomEvent('art-search-state-updated', {
+        detail: {
+            type: String(options.eventType || 'search-config-updated'),
+            config: next
+        }
+    }));
+
+    return getUniversalSearchConfig();
+}
+
+export function setUniversalSearchScopePreference(scopePreference, options = {}) {
+    return updateUniversalSearchConfig({ scopePreference }, {
+        ...options,
+        action: String(options.action || 'Updated search scope preference'),
+        eventType: 'search-scope-preference-updated'
+    });
+}
+
+export function recordUniversalSearchHistory(entry, options = {}) {
+    const current = getUniversalSearchConfig();
+    const existing = Array.isArray(current.history) ? current.history : [];
+    const nextEntry = normalizeSearchHistoryEntry(entry, 0);
+    const deduped = [nextEntry, ...existing.filter((item) => !(item.query === nextEntry.query && item.scope === nextEntry.scope))].slice(0, 100);
+    return updateUniversalSearchConfig({ history: deduped }, {
+        ...options,
+        action: String(options.action || 'Recorded universal search history'),
+        eventType: 'search-history-updated'
+    });
+}
+
+export function clearUniversalSearchHistory(options = {}) {
+    return updateUniversalSearchConfig({ history: [] }, {
+        ...options,
+        action: String(options.action || 'Cleared universal search history'),
+        eventType: 'search-history-cleared'
+    });
+}
+
+export function saveUniversalSearch(search, options = {}) {
+    const current = getUniversalSearchConfig();
+    const input = normalizeSavedSearch(search, 0);
+    const existing = Array.isArray(current.savedSearches) ? current.savedSearches : [];
+    const index = existing.findIndex((item) => item.id === input.id);
+    const updated = {
+        ...input,
+        createdAt: index >= 0 ? existing[index].createdAt : input.createdAt,
+        updatedAt: new Date().toISOString()
+    };
+    const next = index >= 0
+        ? existing.map((item, itemIndex) => (itemIndex === index ? updated : item))
+        : [updated, ...existing];
+    return updateUniversalSearchConfig({ savedSearches: next.slice(0, 100) }, {
+        ...options,
+        action: String(options.action || `Saved universal search ${updated.name}`),
+        eventType: 'saved-searches-updated'
+    });
+}
+
+export function deleteSavedUniversalSearch(searchId, options = {}) {
+    const target = String(searchId || '').trim();
+    const current = getUniversalSearchConfig();
+    const next = (current.savedSearches || []).filter((item) => item.id !== target);
+    return updateUniversalSearchConfig({ savedSearches: next }, {
+        ...options,
+        action: String(options.action || 'Deleted saved universal search'),
+        eventType: 'saved-searches-updated'
+    });
+}
+
+export function setActiveUniversalSearchSession(session, options = {}) {
+    const nextSession = normalizeSearchSession(session);
+    return updateUniversalSearchConfig({ activeSession: nextSession }, {
+        ...options,
+        action: String(options.action || 'Updated active universal search session'),
+        eventType: 'active-search-session-updated'
+    });
+}
+
 export function updateRecentProjectWorkspaces(list, action = 'Updated recent project workspaces') {
     appState.recentProjectWorkspaces = normalizeRecentProjectWorkspaces(list);
     saveState({ action, recordHistory: false });
@@ -2945,6 +3232,7 @@ function createManagedDataSnapshot() {
         workspaces: appState.workspaces,
         activeWorkspaceId: appState.activeWorkspaceId,
         recentProjectWorkspaces: appState.recentProjectWorkspaces,
+        universalSearch: appState.universalSearch,
         branding: appState.branding,
         spellUserDictionary: appState.spellUserDictionary
     };

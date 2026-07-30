@@ -61,7 +61,13 @@ const shortcutControlMap = [
     { id: 'btn-continue-working', action: 'continueWorking', label: 'Continue Working' },
     { id: 'btn-workspace-add-asset', action: 'addProjectAsset', label: 'Add Project Asset' },
     { id: 'btn-workspace-properties', action: 'openProjectProperties', label: 'Project Properties' },
-    { id: 'btn-workspace-refresh', action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets' }
+    { id: 'btn-workspace-refresh', action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets' },
+    { id: 'menu-bar-search', action: 'searchCommands', label: 'Menu Bar Command Search' },
+    { id: 'dashboard-widget-search-input', action: 'searchDashboard', label: 'Dashboard Search' },
+    { id: 'search-everywhere-input', action: 'searchEverywhere', label: 'Search Everywhere' },
+    { id: 'btn-search-everywhere-save', action: 'saveCurrentSearch', label: 'Save Current Search' },
+    { id: 'btn-search-everywhere-saved', action: 'openSavedSearches', label: 'Open Saved Searches' },
+    { id: 'btn-search-everywhere-clear-history', action: 'clearSearchHistory', label: 'Clear Search History' }
 ];
 
 function eventToShortcut(event) {

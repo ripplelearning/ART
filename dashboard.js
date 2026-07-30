@@ -6,9 +6,13 @@ import {
     initializeDashboardWidgetFramework,
     openConfigureDashboardDialogFromCommand,
     refreshDashboardWidgetFramework,
-    registerDashboardWidget,
-    runDashboardSearch
+    registerDashboardWidget
 } from './dashboardWidgetFramework.js';
+import {
+    executeUniversalSearchResult,
+    runUniversalSearch
+} from './universalSearchFramework.js';
+import { createSearchResultsController } from './searchResultsFramework.js';
 import {
     getWorkspaceExplorerSummary,
     initProjectWorkspaceFramework
@@ -338,72 +342,60 @@ function renderDashboardSearchWidget(container) {
     const input = container.querySelector('#dashboard-widget-search-input');
     const status = container.querySelector('#dashboard-widget-search-status');
     const results = container.querySelector('#dashboard-widget-search-results');
+    if (!input || !status || !results) return;
+
+    const controller = createSearchResultsController({
+        container: results,
+        statusElement: status,
+        idPrefix: 'dashboard-search',
+        listboxLabel: 'Dashboard search results',
+        itemClass: 'dashboard-widget__search-result',
+        itemActiveClass: 'is-selected',
+        itemDisabledClass: 'is-disabled',
+        titleClass: 'dashboard-widget__search-result-name',
+        subtitleClass: 'dashboard-widget__search-result-meta',
+        descriptionClass: 'dashboard-widget__search-result-description',
+        emptyClass: 'dashboard-widget__status',
+        emptyMessage: 'No matching dashboard content found.',
+        onActivate: (item) => {
+            executeUniversalSearchResult(item.result || item);
+        },
+        onSelectionChange: () => {
+            const optionId = controller.getActiveOptionId();
+            if (optionId) {
+                input.setAttribute('aria-activedescendant', optionId);
+            } else {
+                input.removeAttribute('aria-activedescendant');
+            }
+        }
+    });
 
     const renderResults = () => {
-        if (!input || !results || !status) return;
         const query = String(input.value || '').trim();
 
-        const commandResults = runDashboardSearch(query).slice(0, 8);
-        const reportResults = getRecentReports()
-            .filter((report) => report.name.toLowerCase().includes(query.toLowerCase()))
-            .slice(0, 4)
-            .map((report) => ({
-                type: 'report',
-                label: report.name,
-                meta: 'Recent report',
-                reportId: report.id
-            }));
-
-        const items = [
-            ...commandResults.map((command) => ({
-                type: 'command',
-                label: command.displayName,
-                meta: command.category,
-                commandId: command.id,
-                disabled: command.enabled === false
-            })),
-            ...reportResults
-        ];
-
-        if (items.length === 0) {
-            results.innerHTML = '<p class="dashboard-widget__status">No matching dashboard content found.</p>';
-            status.textContent = 'No matches found.';
-            return;
-        }
-
-        results.innerHTML = '';
-        items.forEach((item, index) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'dashboard-widget__search-result';
-            button.setAttribute('role', 'option');
-            button.id = `dashboard-search-result-${index}`;
-            button.disabled = item.disabled === true;
-            button.innerHTML = `<span>${item.label}</span><span class="dashboard-widget__search-result-meta">${item.meta}</span>`;
-
-            button.addEventListener('click', async () => {
-                if (item.type === 'command' && item.commandId) {
-                    await commandExecutionService.executeCommand(item.commandId, {
-                        source: 'dashboard-widget-search',
-                        query
-                    });
-                }
-                if (item.type === 'report' && item.reportId) {
-                    const select = document.getElementById('recent-reports-select');
-                    if (select) {
-                        select.value = item.reportId;
-                        select.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                }
-            });
-
-            results.appendChild(button);
+        const output = runUniversalSearch(query, {
+            source: 'dashboard-widget-search',
+            providerIds: ['commands', 'reports', 'dashboard-widgets'],
+            scope: 'workspace',
+            limit: 16
         });
 
-        status.textContent = `${items.length} result${items.length === 1 ? '' : 's'} available.`;
+        controller.setResults((output.results || []).map((item) => ({
+            id: item.id,
+            title: item.title,
+            subtitle: `${item.providerName}${item.subtitle ? ` | ${item.subtitle}` : ''}`,
+            description: item.description,
+            disabled: item.disabled,
+            result: item
+        })));
+
+        status.textContent = `${output.totalResults} result${output.totalResults === 1 ? '' : 's'} available.`;
     };
 
     input?.addEventListener('input', renderResults);
+    input?.addEventListener('keydown', (event) => {
+        controller.handleKeydown(event);
+    });
     renderResults();
 }
 

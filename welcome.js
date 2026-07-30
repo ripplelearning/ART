@@ -85,6 +85,7 @@ export function renderWelcome() {
                 <p>Select <strong>Configure Dashboard</strong> to choose a layout, show or hide widgets, reorder cards, manage dashboard tabs, and build custom widgets.</p>
                 <p>Use <strong>Continue Working</strong> to restore the most recent Project Workspace context when available.</p>
                     <p>Use <strong>Ctrl+Shift+P</strong> to open the Command Palette and search or execute commands from anywhere in ART.</p>
+                <p>Use <strong>Ctrl+K</strong> to open <strong>Search Everywhere</strong> for cross-resource search across commands, reports, templates, workspaces, standards, and help topics.</p>
                 <p>Press <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and press <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search.</p>
                 <p>Press <strong>F1</strong> at any time to open the built-in Help system, which includes comprehensive documentation, tutorials, keyboard shortcuts, and detailed information about every feature in ART.</p>
                 <p>The keyboard shortcuts below are updated automatically to reflect your current shortcut assignments.</p>

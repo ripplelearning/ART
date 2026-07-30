@@ -22,12 +22,17 @@
 - Project Properties and project-level statistics/health summaries.
 - Continue Working command integration for recent workspace restoration.
 - Workspace event publishing for create/open/save/close/asset/validation activity.
+- Universal Search Framework with provider registration, capability advertising, query parsing, ranking, and session state.
+- Search Everywhere dialog with cross-resource search and saved-search/history actions.
+- Shared Search Results Framework reused by Search Everywhere, Command Palette, Menu Bar Command Search, and Dashboard Search.
+- Search command suite for scope-based search, result navigation, and highlight/history management.
 
 ### Updated
 - Keyboard shortcuts now execute through application commands.
 - User interface actions now resolve through shared command handlers where practical.
 - Shortcut changes now appear consistently in the Command Palette and other shortcut displays.
 - Menu Bar Command Search now stays synchronized with the Command Palette and shared shortcut data.
+- Command search surfaces now use shared Universal Search and Search Results Framework components.
 - Application-wide visual settings now apply through the centralized Theme Engine and live preview in Settings.
 - Documentation now reflects the command-based architecture.
 - Dashboard state persistence now includes layout, widget order, tab assignment, custom widgets, and collapsed widget state.

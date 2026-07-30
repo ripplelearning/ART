@@ -41,6 +41,17 @@ Current capabilities include:
 - Project Properties and Project Statistics/Health summaries sourced from workspace-level metrics.
 - Workspace events for open/save/close/asset/validation activity, enabling future integrations and plugin hooks.
 
+## Universal Search Framework
+ART 2.0 now includes a Universal Search Framework that unifies search and search-result behavior across major ART surfaces.
+
+Current capabilities include:
+
+- Provider-based search registration with capability advertising (scopes, item types, wildcard/phrase/boolean support, and searchable fields).
+- Search Everywhere dialog for cross-resource discovery across commands, reports, templates, workspaces, project assets, shortcuts, help topics, dashboard widgets, and imported accessibility standards.
+- Shared Search Results Framework used by Search Everywhere, Command Palette, Menu Bar Command Search, and Dashboard Search.
+- Search history, active-session state, saved searches, and collection-ready state storage.
+- Search navigation commands for next/previous result, in-resource matching, and highlight/history clearing.
+
 See:
 
 - [Command Reference](COMMANDS.md)

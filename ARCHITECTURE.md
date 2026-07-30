@@ -6,6 +6,7 @@ ART 2.0 introduces a centralized Application Command Framework.
 The framework standardizes how user actions are defined, resolved, and executed.
 ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a configurable workspace composed of independent widgets.
 ART 2.0 now also introduces a Project Workspace Framework that provides project-level lifecycle, storage, resource management, workspace restoration, and extensibility points.
+ART 2.0 now also introduces a Universal Search Framework that standardizes provider search, result aggregation, and search UI behavior.
 
 ## Core Layers
 
@@ -57,6 +58,13 @@ ART 2.0 now also introduces a Project Workspace Framework that provides project-
 - Persists workspace metadata, workspace state, resource metadata, and relationships through the shared state layer.
 - Supports portable folder-based workspace persistence with Project.artproj as the authoritative descriptor.
 - Publishes workspace events for open, close, save, restore, validation, relationship, and asset activity.
+
+### Universal Search Framework
+- Registers search providers with capability advertising for scope support, resource types, searchable fields, and query capabilities.
+- Parses and normalizes query syntax across phrase, wildcard, include/exclude, and general term searching.
+- Aggregates and ranks provider results into a single search session model.
+- Persists search scope preference, active sessions, search history, and saved searches in shared state.
+- Reuses a single Search Results Framework component for Search Everywhere, Command Palette, Menu Bar Command Search, and Dashboard Search.
 
 ## Project Workspace Lifecycle
 
@@ -129,6 +137,7 @@ Standard workspace folders:
 - The Menu Bar and Menu Bar Command Search resolve through the same centralized command framework.
 - Visual accessibility settings are centralized in the Theme Engine and applied globally.
 - Dashboard widgets expose commands through the same centralized command framework.
+- Search Everywhere, Menu Bar Command Search, Command Palette, and Dashboard Search share a reusable search results interaction model.
 
 ## Execution Pattern
 
@@ -168,6 +177,8 @@ Standard workspace folders:
 - Menu navigation: [menuBar.js](menuBar.js)
 - Command search: [commandSearchEngine.js](commandSearchEngine.js)
 - Dynamic menu generation and workspace command placement: [commandCatalog.js](commandCatalog.js) and [menuBar.js](menuBar.js)
+- Universal search provider registry, query parsing, session state, and Search Everywhere dialog: [universalSearchFramework.js](universalSearchFramework.js)
+- Shared search results rendering and keyboard interaction controller: [searchResultsFramework.js](searchResultsFramework.js)
 - Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
 - Keyboard interaction and workspace shortcut tooltip synchronization: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
 - Command execution: [commandExecutionService.js](commandExecutionService.js)

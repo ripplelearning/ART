@@ -2,6 +2,7 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { searchCommands } from './commandSearchEngine.js';
 import { announce } from './state.js';
+import { createSearchResultsController } from './searchResultsFramework.js';
 
 let menuBarInitialized = false;
 let menubarFocusIndex = 0;
@@ -14,8 +15,9 @@ let focusBeforeMenubar = null;
 let lastFocusOutsideMenubar = null;
 let inMenubarSession = false;
 let suppressNextMenuButtonClick = false;
+let menuSearchResultsController = null;
 
-const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Report', 'Tools', 'Templates', 'Window', 'Help'];
+const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Tools', 'Templates', 'Window', 'Help'];
 
 function escapeHtml(value) {
     return String(value || '')
@@ -39,6 +41,26 @@ function getMenuLocation(command) {
         case 'openCommandPalette': return 'View>Command Palette';
         case 'focusMenuBar': return 'View>Menu Bar';
         case 'focusMenuSearch': return 'View>Command Search';
+        case 'searchEverywhere':
+        case 'searchCurrentReport':
+        case 'searchCurrentProjectWorkspace':
+        case 'searchAllProjects':
+        case 'searchAccessibilityStandards':
+        case 'searchHelpDocumentation':
+        case 'searchCommands':
+        case 'searchKeyboardShortcuts':
+        case 'searchProjectAssets':
+        case 'searchTemplates':
+        case 'searchDashboard':
+        case 'findInCurrentResource':
+        case 'findNextMatch':
+        case 'findPreviousMatch':
+        case 'nextSearchResult':
+        case 'previousSearchResult':
+        case 'clearSearchHighlights':
+        case 'clearSearchHistory':
+        case 'saveCurrentSearch':
+        case 'openSavedSearches': return 'Search';
         case 'openBuilder': return 'View>Report Builder';
         case 'openEditor': return 'View>Report Editor';
         case 'openViewer': return 'View>Report Viewer';
@@ -374,32 +396,39 @@ function renderOpenMenuPanel(roots) {
     `;
 }
 
-function renderSearchResults() {
-    if (!searchResults.length) {
-        return '<p class="app-menu-bar__empty">No matching commands found.</p>';
-    }
+function ensureMenuSearchController() {
+    if (menuSearchResultsController) return menuSearchResultsController;
+    const { searchResultsList, searchInput, status } = getContainer();
+    if (!searchResultsList || !searchInput) return null;
 
-    return searchResults.map((command, index) => {
-        const shortcut = command.keyboardShortcut || 'Unassigned';
-        const isSelected = index === searchActiveIndex;
-        return `
-            <button
-                type="button"
-                role="option"
-                class="app-menu-bar__search-result ${isSelected ? 'is-selected' : ''} ${command.canExecute ? '' : 'is-disabled'}"
-                data-search-result="true"
-                data-search-index="${index}"
-                data-command-id="${escapeHtml(command.id)}"
-                aria-selected="${String(isSelected)}"
-                aria-disabled="${String(!command.canExecute)}"
-                tabindex="-1"
-            >
-                <span class="app-menu-bar__search-result-name">${escapeHtml(command.displayName)}</span>
-                <span class="app-menu-bar__search-result-meta">${escapeHtml(shortcut)} · ${escapeHtml(command.category)}</span>
-                ${command.description ? `<span class="app-menu-bar__search-result-description">${escapeHtml(command.description)}</span>` : ''}
-            </button>
-        `;
-    }).join('');
+    menuSearchResultsController = createSearchResultsController({
+        container: searchResultsList,
+        statusElement: status,
+        idPrefix: 'menu-bar-search',
+        listboxLabel: 'Command search results',
+        itemClass: 'app-menu-bar__search-result',
+        itemActiveClass: 'is-selected',
+        itemDisabledClass: 'is-disabled',
+        titleClass: 'app-menu-bar__search-result-name',
+        subtitleClass: 'app-menu-bar__search-result-meta',
+        descriptionClass: 'app-menu-bar__search-result-description',
+        emptyClass: 'app-menu-bar__empty',
+        emptyMessage: 'No matching commands found.',
+        onActivate: (item, index) => {
+            handleSearchResultExecute(index);
+        },
+        onSelectionChange: (_, index) => {
+            searchActiveIndex = index;
+            const optionId = menuSearchResultsController?.getActiveOptionId() || '';
+            if (optionId) {
+                searchInput.setAttribute('aria-activedescendant', optionId);
+            } else {
+                searchInput.removeAttribute('aria-activedescendant');
+            }
+        }
+    });
+
+    return menuSearchResultsController;
 }
 
 function renderMenuBar() {
@@ -417,7 +446,17 @@ function renderMenuBar() {
         searchActiveIndex = 0;
     }
 
-    searchResultsList.innerHTML = renderSearchResults();
+    const controller = ensureMenuSearchController();
+    if (controller) {
+        controller.setResults(searchResults.map((command) => ({
+            id: command.id,
+            title: command.displayName,
+            subtitle: `${command.keyboardShortcut || 'Unassigned'} | ${command.category}`,
+            description: command.description || '',
+            disabled: !command.canExecute,
+            command
+        })));
+    }
     searchResultsList.hidden = !query;
 
     const openPanelHtml = renderOpenMenuPanel(roots);
@@ -617,21 +656,14 @@ function handleSearchResultExecute(index) {
 }
 
 function focusSearchResult(index) {
-    const list = document.querySelectorAll('[data-search-result="true"]');
-    if (!list.length) return false;
+    const controller = ensureMenuSearchController();
+    const list = searchResults;
+    if (!controller || !list.length) return false;
     const bounded = ((index % list.length) + list.length) % list.length;
     searchActiveIndex = bounded;
     searchEscapeArmed = false;
-    renderMenuBar();
-    const target = document.querySelector(`[data-search-result="true"][data-search-index="${bounded}"]`);
-    if (target instanceof HTMLElement) {
-        target.focus();
-    } else {
-        window.setTimeout(() => {
-            const fallback = document.querySelector(`[data-search-result="true"][data-search-index="${bounded}"]`);
-            if (fallback instanceof HTMLElement) fallback.focus();
-        }, 0);
-    }
+    controller.setActiveIndex(bounded, { announce: true });
+    controller.focusActive();
     return true;
 }
 
@@ -828,8 +860,9 @@ function handleSearchKeydown(event, activeElement) {
         }
     }
 
-    if (activeElement instanceof HTMLElement && activeElement.matches('[data-search-result="true"]')) {
-        const currentIndex = Number(activeElement.getAttribute('data-search-index') || 0);
+    if (activeElement instanceof HTMLElement && activeElement.closest('#menu-bar-search-results')) {
+        const controller = ensureMenuSearchController();
+        const currentIndex = controller?.getActiveIndex() ?? 0;
 
         if (event.key === 'ArrowDown') {
             event.preventDefault();
@@ -994,6 +1027,8 @@ function bindEvents() {
 
     const { menubar, panel, searchInput } = getContainer();
     if (!menubar || !panel || !searchInput) return false;
+
+    ensureMenuSearchController();
 
     document.addEventListener('keydown', handleGlobalKeydown, true);
     document.addEventListener('focusin', (event) => {

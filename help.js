@@ -138,10 +138,21 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-universal-search',
+            title: 'Universal Search Framework',
+            content: `
+                <p>ART includes a Universal Search Framework that unifies search across commands, reports, templates, project workspaces, project assets, keyboard shortcuts, help topics, dashboard widgets, and imported accessibility standards.</p>
+                <p>Use <strong>Ctrl+K</strong> to open <strong>Search Everywhere</strong>, then type a query and use Arrow keys plus Enter to activate results.</p>
+                <p>The same reusable search results framework is used by Search Everywhere, Command Palette, Menu Bar Command Search, and Dashboard Search so behavior, keyboard interaction, and status announcements remain consistent.</p>
+                <p>Search supports phrase queries (<strong>"quoted phrase"</strong>), wildcard terms (<strong>*</strong> and <strong>?</strong>), and include/exclude terms with <strong>+</strong> and <strong>-</strong> prefixes.</p>
+                <p>Use <strong>Save Search</strong> to store frequently used queries, and use <strong>Clear History</strong> to remove stored query history.</p>
+            `
+        },
+        {
             id: 'help-menu-bar',
             title: 'Menu Bar and Command Search',
             content: `
-                <p>ART includes a keyboard-first Menu Bar that groups application commands into familiar menus such as File, Edit, View, Report, Tools, Templates, and Help.</p>
+                <p>ART includes a keyboard-first Menu Bar that groups application commands into familiar menus such as File, Edit, View, Search, Report, Tools, Templates, and Help.</p>
                 <p>Use <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and use <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search from anywhere in ART.</p>
                 <p>Menu Bar Command Search uses the same centralized command search engine as the Command Palette, so both surfaces stay synchronized with current commands and shortcuts.</p>
             `
