@@ -17,6 +17,11 @@ const renderMap = {
 
 let lastLandmarkAnnouncement = '';
 let shortcutObserver = null;
+let navigationInitialized = false;
+let applyingShortcutTooltips = false;
+let shortcutTooltipRefreshQueued = false;
+
+const shortcutActionsById = new Map();
 
 const panelNameMap = {
     'tab-welcome': 'Welcome',
@@ -90,6 +95,13 @@ const shortcutControlMap = [
     { id: 'btn-search-everywhere-clear-history', action: 'clearSearchHistory', label: 'Clear Search History' }
 ];
 
+shortcutControlMap.forEach(({ id, action }) => {
+    if (!id || !action) return;
+    const list = shortcutActionsById.get(id) || [];
+    if (!list.includes(action)) list.push(action);
+    shortcutActionsById.set(id, list);
+});
+
 function eventToShortcut(event) {
     const key = String(event.key || '');
     if (!key || ['Control', 'Shift', 'Alt', 'Meta'].includes(key)) return '';
@@ -133,7 +145,9 @@ function ensureShortcutDescription(element, shortcut) {
         description.className = 'sr-only';
         element.insertAdjacentElement('afterend', description);
     }
-    description.textContent = shortcut;
+    if (description.textContent !== shortcut) {
+        description.textContent = shortcut;
+    }
     const describedBy = element.getAttribute('aria-describedby') || '';
     const tokens = describedBy.split(/\s+/).filter(Boolean);
     if (!tokens.includes(describedById)) {
@@ -184,12 +198,75 @@ function applyShortcutTooltip(element, shortcut, label) {
     }
 }
 
-function applyShortcutTooltips() {
-    shortcutControlMap.forEach(({ id, action, label }) => {
-        const element = document.getElementById(id);
-        const shortcut = getShortcutForAction(action);
-        applyShortcutTooltip(element, shortcut, label);
+function getElementFallbackLabel(element) {
+    const ariaLabel = String(element.getAttribute('aria-label') || '').trim();
+    if (ariaLabel) return ariaLabel;
+
+    const text = String(element.textContent || '').replace(/\s+/g, ' ').trim();
+    if (text) return text;
+
+    const title = String(element.getAttribute('title') || '').trim();
+    if (title) return title;
+
+    return 'Control';
+}
+
+function resolveActionForElement(element) {
+    if (!(element instanceof Element)) return '';
+
+    const explicitAction = String(element.getAttribute('data-shortcut-action') || '').trim();
+    if (explicitAction) return explicitAction;
+
+    const copyAction = String(element.getAttribute('data-copy-action') || '').trim();
+    if (copyAction) return copyAction;
+
+    const elementId = String(element.id || '').trim();
+    if (!elementId) return '';
+
+    const mappedActions = shortcutActionsById.get(elementId) || [];
+    if (!mappedActions.length) return '';
+
+    const withShortcut = mappedActions.find((action) => String(getShortcutForAction(action) || '').trim());
+    return withShortcut || mappedActions[0] || '';
+}
+
+function collectShortcutTargets() {
+    const targets = new Set();
+
+    document.querySelectorAll('button, [role="button"], [role="tab"], input[type="button"], input[type="submit"], .copy-btn').forEach((element) => {
+        targets.add(element);
     });
+
+    shortcutControlMap.forEach(({ id }) => {
+        const element = document.getElementById(id);
+        if (element) targets.add(element);
+    });
+
+    return [...targets];
+}
+
+function applyShortcutTooltips() {
+    applyingShortcutTooltips = true;
+    try {
+        const targets = collectShortcutTargets();
+        targets.forEach((element) => {
+            const action = resolveActionForElement(element);
+            const shortcut = action ? getShortcutForAction(action) : '';
+            const label = getElementFallbackLabel(element);
+            applyShortcutTooltip(element, shortcut, label);
+        });
+    } finally {
+        applyingShortcutTooltips = false;
+    }
+}
+
+function scheduleShortcutTooltipRefresh() {
+    if (shortcutTooltipRefreshQueued) return;
+    shortcutTooltipRefreshQueued = true;
+    window.setTimeout(() => {
+        shortcutTooltipRefreshQueued = false;
+        applyShortcutTooltips();
+    }, 0);
 }
 
 function notifyPanelChanged(panel) {
@@ -200,7 +277,10 @@ function notifyPanelChanged(panel) {
 
 function watchShortcutTargets() {
     if (shortcutObserver) return;
-    shortcutObserver = new MutationObserver(() => applyShortcutTooltips());
+    shortcutObserver = new MutationObserver(() => {
+        if (applyingShortcutTooltips) return;
+        scheduleShortcutTooltipRefresh();
+    });
     shortcutObserver.observe(document.body, { childList: true, subtree: true });
 }
 
@@ -408,6 +488,9 @@ export function closeActiveSession() {
 }
 
 export function initNavigation() {
+    if (navigationInitialized) return;
+    navigationInitialized = true;
+
     applyShortcutTooltips();
     watchShortcutTargets();
 

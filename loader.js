@@ -19,6 +19,82 @@ import { initializeUniversalSearchFramework } from './universalSearchFramework.j
  * only after the DOM is fully parsed.
  */
 let hasInitialized = false;
+const STARTUP_STAGE_WARN_MS = 800;
+const STARTUP_HANG_WARN_MS = 6000;
+
+const startupWatchdog = {
+    startedAt: 0,
+    stages: [],
+    complete: false,
+    timeoutId: 0
+};
+
+function startupNow() {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        return performance.now();
+    }
+    return Date.now();
+}
+
+function beginStartupWatchdog() {
+    startupWatchdog.startedAt = startupNow();
+    startupWatchdog.stages = [];
+    startupWatchdog.complete = false;
+
+    if (startupWatchdog.timeoutId) {
+        window.clearTimeout(startupWatchdog.timeoutId);
+    }
+
+    startupWatchdog.timeoutId = window.setTimeout(() => {
+        if (startupWatchdog.complete) return;
+        const elapsed = Math.round(startupNow() - startupWatchdog.startedAt);
+        console.warn(`[ART startup] Initialization still running after ${elapsed}ms.`);
+        window.dispatchEvent(new CustomEvent('art-startup-watchdog', {
+            detail: {
+                type: 'startup-timeout-warning',
+                elapsedMs: elapsed,
+                stages: [...startupWatchdog.stages]
+            }
+        }));
+    }, STARTUP_HANG_WARN_MS);
+}
+
+function recordStartupStage(name, startedAt, endedAt) {
+    const durationMs = Math.round(endedAt - startedAt);
+    const stage = { name, durationMs };
+    startupWatchdog.stages.push(stage);
+
+    if (durationMs >= STARTUP_STAGE_WARN_MS) {
+        console.warn(`[ART startup] Slow stage detected: ${name} took ${durationMs}ms.`);
+    }
+}
+
+function runStartupStage(name, work) {
+    const startedAt = startupNow();
+    try {
+        return work();
+    } finally {
+        recordStartupStage(name, startedAt, startupNow());
+    }
+}
+
+function completeStartupWatchdog() {
+    startupWatchdog.complete = true;
+    if (startupWatchdog.timeoutId) {
+        window.clearTimeout(startupWatchdog.timeoutId);
+        startupWatchdog.timeoutId = 0;
+    }
+
+    const totalMs = Math.round(startupNow() - startupWatchdog.startedAt);
+    console.info(`[ART startup] Initialization completed in ${totalMs}ms.`, startupWatchdog.stages);
+    window.dispatchEvent(new CustomEvent('art-startup-watchdog', {
+        detail: {
+            type: 'startup-complete',
+            elapsedMs: totalMs,
+            stages: [...startupWatchdog.stages]
+        }
+    }));
+}
 
 function isHelpDirectLink() {
     const path = String(window.location.pathname || '').toLowerCase();
@@ -94,37 +170,43 @@ function initializeApp() {
     if (hasInitialized) return;
     hasInitialized = true;
 
+    beginStartupWatchdog();
+
     // 1. Initialize global navigation and keyboard shortcuts
-    initResizableLayout();
-    registerApplicationCommands();
-    initNavListener();
-    setupTabs();
-    initApplicationIdentity();
-    initThemeEngine();
-    initializeUniversalSearchFramework();
-    bindExternalNavigationGuard();
-    initMenuBar();
+    runStartupStage('initResizableLayout', () => initResizableLayout());
+    runStartupStage('registerApplicationCommands', () => registerApplicationCommands());
+    runStartupStage('initNavListener', () => initNavListener());
+    runStartupStage('setupTabs', () => setupTabs());
+    runStartupStage('initApplicationIdentity', () => initApplicationIdentity());
+    runStartupStage('initThemeEngine', () => initThemeEngine());
+    runStartupStage('initializeUniversalSearchFramework', () => initializeUniversalSearchFramework());
+    runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
+    runStartupStage('initMenuBar', () => initMenuBar());
     
     // 2. Initialize side-panel tools
-    initLookupTool();
+    runStartupStage('initLookupTool', () => initLookupTool());
     
     // 3. Initialize interactive dashboard elements
-    renderDashboard();
+    runStartupStage('renderDashboard', () => renderDashboard());
 
     // 4. Initialize application settings modal
-    initSettings();
+    runStartupStage('initSettings', () => {
+        initSettings();
+    });
 
     // 5. Initialize the Command Palette
-    initCommandPalette();
+    runStartupStage('initCommandPalette', () => initCommandPalette());
 
     // 6. Initialize integrated help system
-    initHelp();
+    runStartupStage('initHelp', () => initHelp());
     
     // 7. Set the default application view
-    renderWelcome();
+    runStartupStage('renderWelcome', () => renderWelcome());
 
     // 8. Support direct Help deep links without changing existing Help behavior
-    openHelpFromDirectLink();
+    runStartupStage('openHelpFromDirectLink', () => openHelpFromDirectLink());
+
+    completeStartupWatchdog();
     
     console.log("ART System fully initialized.");
 }
