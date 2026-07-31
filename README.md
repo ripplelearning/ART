@@ -34,6 +34,8 @@ Current capabilities include:
 
 - One active Project Workspace at a time, with architecture prepared for future multi-workspace support.
 - Project Workspace lifecycle commands: create, open, open recent, close, save, save as, rename, duplicate, import, export, and delete.
+- Resource Navigator shows a dedicated Close Workspace button whenever a Project Workspace is active.
+- Default Close Workspace shortcut: Alt+Ctrl+Shift+C (user configurable in Keyboard Shortcut Manager).
 - Project Workspace persistence using Project.artproj metadata and a standard workspace folder structure.
 - Resource Navigator (Workspace Explorer) for grouped resource navigation using headings, regions, and keyboard-friendly controls.
 - Project Asset management with metadata, report linkage, relationship tracking, and read-only-in-ART handling.

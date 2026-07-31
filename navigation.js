@@ -69,6 +69,7 @@ const shortcutControlMap = [
     { id: 'btn-workspace-open', action: 'openProjectWorkspace', label: 'Open Workspace' },
     { id: 'btn-workspace-save', action: 'saveProjectWorkspace', label: 'Save Workspace' },
     { id: 'btn-workspace-save-as', action: 'saveProjectWorkspaceAs', label: 'Save Workspace As' },
+    { id: 'btn-workspace-close', action: 'closeProjectWorkspace', label: 'Close Workspace' },
     { id: 'btn-workspace-export', action: 'exportProjectWorkspace', label: 'Export Workspace' },
     { id: 'btn-continue-working', action: 'continueWorking', label: 'Continue Working' },
     { id: 'btn-workspace-add-asset', action: 'addProjectAsset', label: 'Add Project Asset' },
@@ -126,12 +127,69 @@ function eventToShortcut(event) {
     return parts.join('+');
 }
 
+function normalizeShortcutSignature(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    const tokens = raw.split('+').map((token) => token.trim()).filter(Boolean);
+    if (!tokens.length) return '';
+
+    let hasCtrl = false;
+    let hasAlt = false;
+    let hasShift = false;
+    let hasMeta = false;
+    let key = '';
+
+    tokens.forEach((token) => {
+        const normalized = token.toLowerCase();
+        if (normalized === 'ctrl' || normalized === 'control') {
+            hasCtrl = true;
+            return;
+        }
+        if (normalized === 'alt' || normalized === 'option') {
+            hasAlt = true;
+            return;
+        }
+        if (normalized === 'shift') {
+            hasShift = true;
+            return;
+        }
+        if (normalized === 'meta' || normalized === 'cmd' || normalized === 'command' || normalized === 'win') {
+            hasMeta = true;
+            return;
+        }
+        key = token;
+    });
+
+    if (!key) return '';
+
+    const keyText = key.toLowerCase() === 'space'
+        ? 'Space'
+        : key.length === 1
+            ? key.toUpperCase()
+            : /^f\d+$/i.test(key)
+                ? key.toUpperCase()
+                : key[0].toUpperCase() + key.slice(1).toLowerCase();
+
+    const parts = [];
+    if (hasCtrl) parts.push('Ctrl');
+    if (hasAlt) parts.push('Alt');
+    if (hasShift) parts.push('Shift');
+    if (hasMeta) parts.push('Meta');
+    parts.push(keyText);
+
+    return parts.join('+').toLowerCase();
+}
+
 function findShortcutAction(event) {
     const shortcut = eventToShortcut(event);
     if (!shortcut) return '';
 
+    const normalizedShortcut = normalizeShortcutSignature(shortcut);
+    if (!normalizedShortcut) return '';
+
     const entries = Object.entries(appState.shortcuts || {});
-    const match = entries.find(([, configuredShortcut]) => String(configuredShortcut || '').trim().toLowerCase() === shortcut.toLowerCase());
+    const match = entries.find(([, configuredShortcut]) => normalizeShortcutSignature(configuredShortcut) === normalizedShortcut);
     return match ? match[0] : '';
 }
 

@@ -74,6 +74,7 @@ export function renderWelcome() {
     const container = document.getElementById('main-inner');
     const shortcuts = getDynamicShortcutLines();
     const visualSummary = getVisualAccessibilitySummary();
+    const closeWorkspaceShortcut = getShortcutForAction('closeProjectWorkspace') || 'Alt+Ctrl+Shift+C';
     container.innerHTML = `
         <section id="welcome-view" aria-labelledby="welcome-heading">
             <h1 id="welcome-heading">Welcome to ART</h1>
@@ -84,6 +85,7 @@ export function renderWelcome() {
                 <p>The best place to begin is the <strong>Dashboard</strong>, where you can create or open a <strong>Project Workspace</strong>, manage reports and assets, and configure ART through <strong>Application Settings</strong>.</p>
                 <p>Select <strong>Configure Dashboard</strong> to choose a layout, show or hide widgets, reorder cards, manage dashboard tabs, and build custom widgets.</p>
                 <p>Use <strong>Continue Working</strong> to restore the most recent Project Workspace context when available.</p>
+                <p>When a workspace is open, use <strong>Close Workspace</strong> in Resource Navigator or press <strong>${closeWorkspaceShortcut}</strong> to close it.</p>
                     <p>Use <strong>Ctrl+Shift+P</strong> to open the Command Palette and search or execute commands from anywhere in ART.</p>
                 <p>Use <strong>Ctrl+K</strong> to open <strong>Search Everywhere</strong> for cross-resource search across commands, reports, templates, workspaces, standards, and help topics.</p>
                 <p>Press <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and press <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search.</p>

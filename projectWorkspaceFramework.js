@@ -59,7 +59,8 @@ const WORKSPACE_STRUCTURE = [
 ];
 
 const runtimeHandles = {
-    workspaceDirectories: new Map()
+    workspaceDirectories: new Map(),
+    focusBeforeWorkspaceActivation: null
 };
 
 let frameworkInitialized = false;
@@ -84,6 +85,32 @@ function normalizeText(value) {
 
 function getActiveWorkspaceSafe() {
     return getActiveProjectWorkspace();
+}
+
+function captureFocusBeforeWorkspaceActivation(preferredTarget = null) {
+    const candidate = preferredTarget && typeof preferredTarget.focus === 'function'
+        ? preferredTarget
+        : document.activeElement;
+    if (candidate && typeof candidate.focus === 'function') {
+        runtimeHandles.focusBeforeWorkspaceActivation = candidate;
+    }
+}
+
+function restoreFocusAfterWorkspaceClosed() {
+    const previousFocus = runtimeHandles.focusBeforeWorkspaceActivation;
+    runtimeHandles.focusBeforeWorkspaceActivation = null;
+
+    if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === 'function') {
+        window.setTimeout(() => previousFocus.focus(), 0);
+        return;
+    }
+
+    const fallbackTarget = document.getElementById('btn-workspace-open')
+        || document.getElementById('btn-new-report')
+        || document.getElementById('tab-welcome');
+    if (fallbackTarget && typeof fallbackTarget.focus === 'function') {
+        window.setTimeout(() => fallbackTarget.focus(), 0);
+    }
 }
 
 function dispatchWorkspaceUpdatedEvent(type, detail = {}) {
@@ -116,6 +143,7 @@ function ensureWorkspaceExplorerShell() {
         <div class="workspace-explorer__toolbar" role="group" aria-label="Resource navigator actions">
             <button id="btn-workspace-new" type="button">New Workspace</button>
             <button id="btn-workspace-open" type="button">Open Workspace</button>
+            <button id="btn-workspace-close" type="button" hidden>Close Workspace</button>
             <button id="btn-workspace-save" type="button">Save Workspace</button>
             <button id="btn-workspace-save-as" type="button">Save Workspace As</button>
             <button id="btn-workspace-export" type="button">Export Workspace</button>
@@ -544,7 +572,14 @@ function renderWorkspaceExplorer() {
 
     const filterInput = document.getElementById('workspace-resource-filter');
     const groups = document.getElementById('workspace-resource-groups');
+    const closeWorkspaceButton = document.getElementById('btn-workspace-close');
     const active = getActiveWorkspaceSafe();
+
+    if (closeWorkspaceButton) {
+        const hasActiveWorkspace = Boolean(active);
+        closeWorkspaceButton.hidden = !hasActiveWorkspace;
+        closeWorkspaceButton.disabled = !hasActiveWorkspace;
+    }
 
     if (!groups || !filterInput) return;
 
@@ -958,6 +993,7 @@ function bindWorkspaceExplorerEvents() {
     const filterInput = document.getElementById('workspace-resource-filter');
     const newWorkspaceButton = document.getElementById('btn-workspace-new');
     const openWorkspaceButton = document.getElementById('btn-workspace-open');
+    const closeWorkspaceButton = document.getElementById('btn-workspace-close');
     const saveWorkspaceButton = document.getElementById('btn-workspace-save');
     const saveWorkspaceAsButton = document.getElementById('btn-workspace-save-as');
     const exportWorkspaceButton = document.getElementById('btn-workspace-export');
@@ -966,11 +1002,15 @@ function bindWorkspaceExplorerEvents() {
     const propertiesButton = document.getElementById('btn-workspace-properties');
 
     newWorkspaceButton?.addEventListener('click', () => {
-        createProjectWorkspaceFromCommand();
+        createProjectWorkspaceFromCommand(newWorkspaceButton);
     });
 
     openWorkspaceButton?.addEventListener('click', () => {
-        void openProjectWorkspaceFromCommand();
+        void openProjectWorkspaceFromCommand(openWorkspaceButton);
+    });
+
+    closeWorkspaceButton?.addEventListener('click', () => {
+        closeProjectWorkspaceFromCommand();
     });
 
     saveWorkspaceButton?.addEventListener('click', () => {
@@ -1280,7 +1320,8 @@ export function initProjectWorkspaceFramework(options = {}) {
     return true;
 }
 
-export function createProjectWorkspaceFromCommand() {
+export function createProjectWorkspaceFromCommand(triggerElement = null) {
+    captureFocusBeforeWorkspaceActivation(triggerElement);
     const workspace = createWorkspaceFromPrompt();
     if (!workspace) return false;
 
@@ -1301,7 +1342,8 @@ export function createProjectWorkspaceFromCommand() {
     return true;
 }
 
-export async function openProjectWorkspaceFromCommand() {
+export async function openProjectWorkspaceFromCommand(triggerElement = null) {
+    captureFocusBeforeWorkspaceActivation(triggerElement);
     const opened = await openWorkspaceFromDirectory();
     if (opened) {
         window.dispatchEvent(new Event('art-reports-updated'));
@@ -1311,10 +1353,12 @@ export async function openProjectWorkspaceFromCommand() {
 }
 
 export function openRecentProjectWorkspaceFromCommand() {
+    captureFocusBeforeWorkspaceActivation();
     return openMostRecentWorkspace();
 }
 
 export function continueWorkingFromCommand() {
+    captureFocusBeforeWorkspaceActivation();
     return openMostRecentWorkspace();
 }
 
@@ -1336,7 +1380,9 @@ export function closeProjectWorkspaceFromCommand() {
         workspaceName: active.name
     });
     renderWorkspaceExplorer();
-    updateExplorerStatus(`Closed Project Workspace ${active.name}.`);
+    restoreFocusAfterWorkspaceClosed();
+    const closedWorkspaceName = normalizeText(active.name || 'Project');
+    updateExplorerStatus(`${closedWorkspaceName} Workspace closed.`);
     return true;
 }
 
@@ -1395,6 +1441,7 @@ export function duplicateProjectWorkspaceFromCommand() {
 }
 
 export async function importProjectWorkspaceFromCommand() {
+    captureFocusBeforeWorkspaceActivation();
     if (typeof window.showDirectoryPicker === 'function') {
         const useFolder = window.confirm('Select OK to import from a Project Workspace folder, or Cancel to import from a Project.artproj file.');
         if (useFolder) {
