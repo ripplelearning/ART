@@ -29,8 +29,8 @@
             <button id="btn-save-project">Save Project</button>
             <button id="btn-save-project-as">Save Project As...</button>
             <button id="btn-import-data">Import...</button>
-            <button id="btn-configure-dashboard" type="button">Configure Dashboard</button>
-            <button id="btn-app-settings" type="button">Application Settings</button>
+            <button id="btn-configure-dashboard" type="button" data-shortcut-action="configureDashboard" data-shortcut-label="Configure Dashboard">Configure Dashboard</button>
+            <button id="btn-app-settings" type="button" data-shortcut-action="openSettings" data-shortcut-label="Open Application Settings">Application Settings</button>
             <button id="btn-help" type="button">Help</button>
         </div>
 
@@ -311,12 +311,12 @@
                 <option value="scratch">Start from Scratch</option>
             </select>
             <div class="template-actions" role="group" aria-label="Template actions">
-                <button id="btn-template-create" type="button">Create Template</button>
+                <button id="btn-template-create" type="button" data-shortcut-action="newTemplate" data-shortcut-label="Create Template">Create Template</button>
                 <button id="btn-template-use" type="button" hidden>Use Template</button>
                 <button id="btn-template-open" type="button" hidden>View Template</button>
                 <button id="btn-template-edit" type="button" hidden>Edit Template</button>
                 <button id="btn-template-delete" type="button" hidden>Delete Template</button>
-                <button id="btn-template-import" type="button">Import Template...</button>
+                <button id="btn-template-import" type="button" data-shortcut-action="importTemplate" data-shortcut-label="Import Template">Import Template...</button>
                 <button id="btn-template-export" type="button" hidden>Export Template...</button>
             </div>
             <p id="template-status" class="open-report-status" role="status" aria-live="polite"></p>
