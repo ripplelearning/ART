@@ -125,7 +125,6 @@ function getHelpSections(rows) {
             content: `
                 <p>Use keyboard shortcuts, tab navigation, and landmark cycling to move through ART.</p>
                 <p>Landmark navigation cycles continuously through key regions, and Help opens independently without changing your current work state.</p>
-                <p>Interactive controls that have an assigned shortcut also expose that shortcut in an accessible tooltip and screen-reader description, while controls without a shortcut assignment do not show a shortcut hint until one is configured.</p>
                 <p>Architecture note: this integrated Help module is isolated so it can migrate to a desktop Help window in future Electron or Tauri packaging.</p>
             `
         },
