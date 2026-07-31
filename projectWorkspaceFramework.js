@@ -118,10 +118,10 @@ function ensureWorkspaceExplorerShell() {
             <button id="btn-workspace-open" type="button">Open Workspace</button>
             <button id="btn-workspace-save" type="button">Save Workspace</button>
             <button id="btn-workspace-save-as" type="button">Save Workspace As</button>
-            <button id="btn-workspace-export" type="button" data-shortcut-action="exportProjectWorkspace" data-shortcut-label="Export Workspace">Export Workspace</button>
+            <button id="btn-workspace-export" type="button">Export Workspace</button>
             <label for="workspace-resource-filter">Filter resources</label>
             <input id="workspace-resource-filter" type="search" autocomplete="off" spellcheck="false" aria-describedby="workspace-explorer-status workspace-explorer-description">
-            <button id="btn-workspace-refresh" type="button" data-shortcut-action="refreshWorkspaceAssets" data-shortcut-label="Refresh Resources">Refresh Resources</button>
+            <button id="btn-workspace-refresh" type="button">Refresh Resources</button>
             <button id="btn-workspace-add-asset" type="button">Add Project Asset</button>
             <button id="btn-workspace-properties" type="button">Project Properties</button>
         </div>
