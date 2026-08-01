@@ -70,6 +70,74 @@ const contextRoots = new Map([
     ['command-palette', ['Application', 'File', 'Edit', 'View', 'Search', 'Report', 'Templates', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']]
 ]);
 
+const contextActionAllowlists = new Map([
+    ['dashboard', new Set([
+        'newReport', 'newReportFromTemplate', 'openProject', 'saveProject', 'saveProjectAs', 'importData', 'openReport',
+        'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'closeProjectWorkspace',
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'renameProjectWorkspace', 'duplicateProjectWorkspace',
+        'importProjectWorkspace', 'exportProjectWorkspace', 'deleteProjectWorkspace', 'openProjectProperties',
+        'openProjectStatistics', 'openWorkspaceSettings', 'configureDashboard', 'searchEverywhere', 'searchDashboard',
+        'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+    ])],
+    ['dashboard-widget', new Set([
+        'configureDashboard', 'searchDashboard', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+    ])],
+    ['welcome', new Set([
+        'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'newReport',
+        'newReportFromTemplate', 'openProject', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+    ])],
+    ['project-workspace', new Set([
+        'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'closeProjectWorkspace',
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'renameProjectWorkspace', 'duplicateProjectWorkspace',
+        'importProjectWorkspace', 'exportProjectWorkspace', 'deleteProjectWorkspace', 'addProjectAsset', 'createAssetFolder',
+        'removeProjectAsset', 'refreshWorkspaceAssets', 'openProjectProperties', 'openProjectStatistics', 'openWorkspaceSettings',
+        'searchCurrentProjectWorkspace', 'searchProjectAssets', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+    ])],
+    ['project-asset', new Set([
+        'addProjectAsset', 'createAssetFolder', 'removeProjectAsset', 'refreshWorkspaceAssets', 'openProjectProperties',
+        'openProjectStatistics', 'openWorkspaceSettings', 'searchCurrentProjectWorkspace', 'searchProjectAssets',
+        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+    ])],
+    ['report-builder', new Set([
+        'addField', 'done', 'newReport', 'newReportFromTemplate', 'configureReport', 'validateReport', 'reportStatistics',
+        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings',
+        'openCommandPalette', 'openEditor', 'openViewer', 'closeReport'
+    ])],
+    ['field-configuration', new Set([
+        'addField', 'done', 'validateReport', 'reportStatistics', 'searchCurrentReport', 'findInCurrentResource',
+        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+    ])],
+    ['editor', new Set([
+        'addEntry', 'spellCheck', 'openProgressLog', 'validateReport', 'reportStatistics', 'copyEntry', 'copyName',
+        'copyDescription', 'copyFailures', 'copyFixes', 'copyLink', 'searchCurrentReport', 'findInCurrentResource',
+        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openViewer', 'closeReport'
+    ])],
+    ['report-viewer', new Set([
+        'exportReport', 'printPreview', 'openProgressLog', 'viewReport', 'searchCurrentReport', 'findInCurrentResource',
+        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openEditor', 'closeReport'
+    ])],
+    ['progress-log', new Set([
+        'openProgressLog', 'validateReport', 'reportStatistics', 'searchCurrentReport', 'findInCurrentResource',
+        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+    ])],
+    ['lookup-tool', new Set([
+        'focusLookup', 'resetLookup', 'copyEntry', 'copyName', 'copyDescription', 'copyFailures', 'copyFixes', 'copyLink',
+        'searchAccessibilityStandards', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+    ])],
+    ['search-results', new Set([
+        'findInCurrentResource', 'findNextMatch', 'findPreviousMatch', 'nextSearchResult', 'previousSearchResult',
+        'clearSearchHighlights', 'clearSearchHistory', 'saveCurrentSearch', 'openSavedSearches', 'searchEverywhere',
+        'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+    ])],
+    ['help', new Set(['openHelp', 'searchHelpDocumentation', 'searchCommands', 'searchEverywhere'])],
+    ['user-guide', new Set(['openHelp', 'searchHelpDocumentation', 'searchCommands', 'searchEverywhere'])],
+    ['settings', new Set([
+        'openSettings', 'settingsClose', 'settingsRestoreShortcuts', 'settingsImportStandard', 'settingsPasteStandardTable',
+        'settingsImportReportFile', 'settingsImportTemplateFile', 'settingsOpenIntegrations', 'settingsTogglePrivacyMode',
+        'settingsCreateBackup', 'settingsResetApp', 'settingsCloseReport', 'searchCommands', 'searchKeyboardShortcuts', 'openHelp'
+    ])]
+]);
+
 let frameworkInitialized = false;
 let menuElement = null;
 let overlayElement = null;
@@ -259,6 +327,84 @@ function splitLocation(location) {
         .filter(Boolean);
 }
 
+function isSearchAction(action) {
+    const searchActions = new Set([
+        'searchEverywhere', 'searchCurrentReport', 'searchCurrentProjectWorkspace', 'searchAllProjects',
+        'searchAccessibilityStandards', 'searchHelpDocumentation', 'searchCommands', 'searchKeyboardShortcuts',
+        'searchProjectAssets', 'searchTemplates', 'searchDashboard', 'findInCurrentResource', 'findNextMatch',
+        'findPreviousMatch', 'nextSearchResult', 'previousSearchResult', 'clearSearchHighlights',
+        'clearSearchHistory', 'saveCurrentSearch', 'openSavedSearches'
+    ]);
+    return searchActions.has(action);
+}
+
+function isWorkspaceAction(action) {
+    return action.startsWith('openProjectWorkspace')
+        || action.startsWith('newProjectWorkspace')
+        || action.startsWith('openRecentProjectWorkspace')
+        || action.startsWith('continueWorking')
+        || action.startsWith('closeProjectWorkspace')
+        || action.startsWith('saveProjectWorkspace')
+        || action.startsWith('renameProjectWorkspace')
+        || action.startsWith('duplicateProjectWorkspace')
+        || action.startsWith('importProjectWorkspace')
+        || action.startsWith('exportProjectWorkspace')
+        || action.startsWith('deleteProjectWorkspace')
+        || action.startsWith('addProjectAsset')
+        || action.startsWith('createAssetFolder')
+        || action.startsWith('removeProjectAsset')
+        || action.startsWith('refreshWorkspaceAssets')
+        || action.startsWith('openProjectProperties')
+        || action.startsWith('openProjectStatistics')
+        || action.startsWith('openWorkspaceSettings');
+}
+
+function isSettingsAction(action) {
+    return action === 'openSettings' || action.startsWith('settings');
+}
+
+function resolveContextMenuLocation(command) {
+    const action = normalizeText(command.action);
+    const baseLocation = getCommandTreeLocation(command);
+    const baseSegments = splitLocation(baseLocation);
+    const root = baseSegments[0] || normalizeText(command.category) || 'Application';
+
+    if (isSearchAction(action)) {
+        return 'Search>Search Commands';
+    }
+
+    if (isWorkspaceAction(action)) {
+        return 'Workspace>Workspace Commands';
+    }
+
+    if (isSettingsAction(action)) {
+        return 'Settings>Application Settings Commands';
+    }
+
+    if (root === 'Report') {
+        return 'Report>Report Commands';
+    }
+
+    if (root === 'Tools') {
+        return 'Tools>Tool Commands';
+    }
+
+    if (root === 'Templates' || root === 'Template') {
+        return 'Templates>Template Commands';
+    }
+
+    return baseLocation;
+}
+
+function isActionAllowedForContext(context, command) {
+    const action = normalizeText(command.action);
+    if (!action) return false;
+
+    const allowlist = contextActionAllowlists.get(context.kind);
+    if (!allowlist) return true;
+    return allowlist.has(action);
+}
+
 function createNode(label, path) {
     return { label, path, commands: [], children: [] };
 }
@@ -278,7 +424,7 @@ function buildCommandTree(commands) {
     const rootMap = new Map();
 
     commands.forEach((command) => {
-        const segments = splitLocation(getCommandTreeLocation(command));
+        const segments = splitLocation(resolveContextMenuLocation(command));
         const rootLabel = segments[0] || command.category || 'Application';
         let root = rootMap.get(rootLabel);
         if (!root) {
@@ -475,6 +621,7 @@ function getCommandRoots(provider, context) {
         if (command.contextMenuVisible === false) return false;
         if (command.visible === false) return false;
         if (!command.canExecute) return false;
+        if (!isActionAllowedForContext(context, command)) return false;
 
         const action = normalizeText(command.action);
         if (action === 'settingsClose' || (action.startsWith('settings') && action !== 'openSettings')) {
@@ -484,7 +631,7 @@ function getCommandRoots(provider, context) {
         if (provider?.supportedCommands?.length && !provider.supportedCommands.includes(command.action) && !provider.supportedCommands.includes(command.id)) return false;
         if (provider?.commandFilter && !provider.commandFilter(command, context)) return false;
 
-        const root = splitLocation(getCommandTreeLocation(command))[0] || command.category || 'Application';
+        const root = splitLocation(resolveContextMenuLocation(command))[0] || command.category || 'Application';
         if (!allowed.has(root.toLowerCase())) return false;
         return true;
     };
