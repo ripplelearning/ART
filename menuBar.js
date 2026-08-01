@@ -915,7 +915,7 @@ function focusMenuSearch(selectText = true) {
 }
 
 function handleGlobalKeydown(event) {
-    if (event.key === 'F10') {
+    if (event.key === 'F10' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
         event.preventDefault();
         focusMenuBar();
         return;

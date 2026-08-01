@@ -103,8 +103,35 @@ function escapeSelectorValue(value) {
     return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+function getSelectionAnchorElement() {
+    const selection = document.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+
+    const anchorNode = selection.anchorNode || selection.getRangeAt(0).commonAncestorContainer;
+    if (!anchorNode) return null;
+    if (anchorNode instanceof Element) return anchorNode;
+    return anchorNode.parentElement || null;
+}
+
+function isMeaningfulContextElement(element) {
+    if (!(element instanceof Element)) return false;
+    const tag = String(element.tagName || '').toLowerCase();
+    if (tag === 'html' || tag === 'body') return false;
+    return true;
+}
+
+function resolveContextAnchorElement(candidate) {
+    if (isMeaningfulContextElement(candidate)) return candidate;
+
+    const selectionAnchor = getSelectionAnchorElement();
+    if (isMeaningfulContextElement(selectionAnchor)) return selectionAnchor;
+
+    if (isMeaningfulContextElement(document.activeElement)) return document.activeElement;
+    return candidate instanceof Element ? candidate : document.body;
+}
+
 function getApplicationContextFromFocus(anchorElement = document.activeElement) {
-    const focused = anchorElement instanceof Element ? anchorElement : document.activeElement;
+    const focused = resolveContextAnchorElement(anchorElement);
     const selection = document.getSelection();
     const selectedText = normalizeText(selection?.toString?.() || '');
     const activeWorkspace = getActiveProjectWorkspace();
@@ -878,6 +905,17 @@ function getAnchorPoint(event = {}) {
         return { x: event.clientX, y: event.clientY };
     }
 
+    const selection = document.getSelection();
+    if (selection && selection.rangeCount > 0) {
+        const rangeRect = selection.getRangeAt(0).getBoundingClientRect();
+        if (rangeRect && (rangeRect.width || rangeRect.height)) {
+            return {
+                x: rangeRect.left + Math.min(20, Math.max(4, rangeRect.width / 2)),
+                y: rangeRect.top + Math.min(20, Math.max(4, rangeRect.height / 2))
+            };
+        }
+    }
+
     const active = event.target instanceof Element ? event.target : document.activeElement;
     if (active instanceof Element) {
         const rect = active.getBoundingClientRect();
@@ -936,13 +974,15 @@ function showContextMenu(invocation = {}) {
         searchText: '',
         openPath: '',
         activeIndex: 0,
-        anchorX: invocation.anchorX || 0,
-        anchorY: invocation.anchorY || 0
+        anchorX: Number.isFinite(Number(invocation.anchorX)) ? Number(invocation.anchorX) : 0,
+        anchorY: Number.isFinite(Number(invocation.anchorY)) ? Number(invocation.anchorY) : 0
     };
 
     createMenuShell();
     renderMenu();
-    const anchorPoint = getAnchorPoint(invocation.event || invocation);
+    const anchorPoint = (Number.isFinite(Number(invocation.anchorX)) && Number.isFinite(Number(invocation.anchorY)))
+        ? { x: Number(invocation.anchorX), y: Number(invocation.anchorY) }
+        : getAnchorPoint(invocation.event || invocation);
     openState.anchorX = anchorPoint.x;
     openState.anchorY = anchorPoint.y;
     updateMenuPosition(anchorPoint.x, anchorPoint.y);
@@ -953,8 +993,14 @@ function showContextMenu(invocation = {}) {
 function handleContextMenuEvent(event) {
     if (!frameworkInitialized) return;
     event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+    }
+
+    const anchorElement = resolveContextAnchorElement(event.target instanceof Element ? event.target : document.activeElement);
     dismissContextMenu({ restoreFocus: true });
-    showContextMenu({ event, anchorElement: event.target instanceof Element ? event.target : document.activeElement, context: getApplicationContextFromFocus(event.target instanceof Element ? event.target : document.activeElement) });
+    showContextMenu({ event, anchorElement, context: getApplicationContextFromFocus(anchorElement) });
 }
 
 function handleGlobalKeydown(event) {
@@ -962,8 +1008,21 @@ function handleGlobalKeydown(event) {
     const key = String(event.key || '');
     if (key === 'ContextMenu' || (event.shiftKey && key === 'F10')) {
         event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') {
+            event.stopImmediatePropagation();
+        }
+
+        const anchorElement = resolveContextAnchorElement(event.target instanceof Element ? event.target : document.activeElement);
+        const anchorPoint = getAnchorPoint({ target: anchorElement });
         dismissContextMenu({ restoreFocus: false });
-        showContextMenu({ event, anchorElement: document.activeElement, context: getApplicationContextFromFocus(document.activeElement) });
+        showContextMenu({
+            event,
+            anchorElement,
+            context: getApplicationContextFromFocus(anchorElement),
+            anchorX: anchorPoint.x,
+            anchorY: anchorPoint.y
+        });
     }
 }
 
