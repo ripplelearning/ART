@@ -51,21 +51,21 @@ const rootOrder = [
 ];
 
 const contextRoots = new Map([
-    ['dashboard', ['Application', 'Edit', 'View', 'Search', 'Workspace', 'Project', 'Report', 'Tools', 'Settings', 'Help']],
-    ['dashboard-widget', ['Application', 'Edit', 'View', 'Search', 'Dashboard', 'Tools', 'Settings', 'Help']],
-    ['project-workspace', ['File', 'Edit', 'View', 'Workspace', 'Project', 'Report', 'Templates', 'Search', 'Tools', 'Settings', 'Help']],
-    ['project-asset', ['File', 'Edit', 'View', 'Workspace', 'Project', 'Report', 'Import', 'Export', 'Tools', 'Settings', 'Help']],
-    ['report-builder', ['Report', 'File', 'Edit', 'View', 'Workspace', 'Search', 'Validation', 'Tools', 'Settings', 'Help']],
-    ['field-configuration', ['Report', 'Edit', 'View', 'Validation', 'Tools', 'Settings', 'Help']],
-    ['editor', ['Report', 'File', 'Edit', 'View', 'Workspace', 'Search', 'Validation', 'Tools', 'Settings', 'Help']],
-    ['report-viewer', ['Report', 'File', 'Edit', 'View', 'Export', 'Workspace', 'Search', 'Tools', 'Settings', 'Help']],
-    ['progress-log', ['Report', 'Edit', 'View', 'Validation', 'Tools', 'Settings', 'Help']],
-    ['lookup-tool', ['Lookup', 'Edit', 'View', 'Search', 'Tools', 'Settings', 'Help']],
-    ['search-results', ['Search', 'Edit', 'View', 'Report', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']],
-    ['help', ['Help', 'Edit', 'View', 'Search', 'Settings']],
-    ['user-guide', ['Help', 'Edit', 'View', 'Search', 'Settings']],
-    ['welcome', ['Workspace', 'Project', 'File', 'Edit', 'View', 'Search', 'Settings', 'Help']],
-    ['settings', ['Settings', 'Edit', 'View', 'Search', 'Help']],
+    ['dashboard', ['Application', 'Workspace', 'Project', 'Report', 'Search', 'Tools', 'Help']],
+    ['dashboard-widget', ['Application', 'Dashboard', 'Search', 'Tools', 'Help']],
+    ['project-workspace', ['Workspace', 'Project', 'File', 'Import', 'Export', 'Search', 'Tools', 'Help']],
+    ['project-asset', ['Workspace', 'Project', 'File', 'Import', 'Export', 'Search', 'Tools', 'Help']],
+    ['report-builder', ['Report', 'Search', 'Tools', 'Help']],
+    ['field-configuration', ['Report', 'Validation', 'Tools', 'Help']],
+    ['editor', ['Report', 'Search', 'Tools', 'Validation', 'Help']],
+    ['report-viewer', ['Report', 'Export', 'Search', 'Tools', 'Help']],
+    ['progress-log', ['Report', 'Validation', 'Tools', 'Help']],
+    ['lookup-tool', ['Lookup', 'Search', 'Tools', 'Help']],
+    ['search-results', ['Search', 'Report', 'Workspace', 'Project', 'Tools', 'Help']],
+    ['help', ['Help', 'Search']],
+    ['user-guide', ['Help', 'Search']],
+    ['welcome', ['Workspace', 'Project', 'File', 'Search', 'Help']],
+    ['settings', ['Settings', 'Search', 'Help']],
     ['menu-bar', ['Application', 'File', 'Edit', 'View', 'Search', 'Report', 'Templates', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']],
     ['command-palette', ['Application', 'File', 'Edit', 'View', 'Search', 'Report', 'Templates', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']]
 ]);
@@ -473,8 +473,14 @@ function getCommandRoots(provider, context) {
     const allowed = new Set(roots.map((item) => item.toLowerCase()));
     return (command) => {
         if (command.contextMenuVisible === false) return false;
-        const execution = commandExecutionService.getCommandExecutionState(command.id, getCommandExecutionContext(context));
-        if (!execution.visible) return false;
+        if (command.visible === false) return false;
+        if (!command.canExecute) return false;
+
+        const action = normalizeText(command.action);
+        if (action === 'settingsClose' || (action.startsWith('settings') && action !== 'openSettings')) {
+            if (context.kind !== 'settings') return false;
+        }
+
         if (provider?.supportedCommands?.length && !provider.supportedCommands.includes(command.action) && !provider.supportedCommands.includes(command.id)) return false;
         if (provider?.commandFilter && !provider.commandFilter(command, context)) return false;
 
@@ -492,7 +498,7 @@ function getCommandsForContext(context, provider) {
             ...commandExecutionService.getCommandExecutionState(command.id, getCommandExecutionContext(context)),
             keyboardShortcut: getShortcutForAction(command.action) || command.keyboardShortcut || ''
         }))
-        .filter((command) => command.visible !== false && allowCommand(command));
+        .filter((command) => allowCommand(command));
 }
 
 function formatShortcut(command) {
