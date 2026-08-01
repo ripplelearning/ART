@@ -381,10 +381,15 @@ async function runValidateReportWorkflow(context = {}) {
     return false;
 }
 
-function runReportStatisticsWorkflow(context = {}) {
-    clickElementById('tab-editor');
+async function runReportStatisticsWorkflow(context = {}) {
+    clickTabIfNeeded('tab-editor');
     const triggerButton = context.triggerButton || document.getElementById('btn-editor-report-statistics') || document.activeElement;
-    return openEditorStatisticsDialog(triggerButton);
+    const maxAttempts = 20;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (openEditorStatisticsDialog(triggerButton)) return true;
+        await new Promise((resolve) => window.setTimeout(resolve, 25));
+    }
+    return false;
 }
 
 function runNewReportFromTemplateWorkflow() {

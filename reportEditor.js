@@ -1599,7 +1599,11 @@ function bindEditorDialogEvents() {
 
     reportStatisticsButton?.addEventListener('click', async () => {
         const result = await executeEditorAction('reportStatistics', { triggerButton: reportStatisticsButton });
-        if (!result?.ok) {
+        const statisticsDialogOpen = (() => {
+            const dialog = document.getElementById('editor-statistics-dialog');
+            return Boolean(dialog) && dialog.hidden === false;
+        })();
+        if (!result?.ok || !statisticsDialogOpen) {
             openEditorStatisticsDialog(reportStatisticsButton);
         }
     });
