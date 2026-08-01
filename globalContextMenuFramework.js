@@ -246,6 +246,18 @@ function resolveContextAnchorElement(candidate) {
     return candidate instanceof Element ? candidate : document.body;
 }
 
+function resolveInvocationAnchorElement(options = {}) {
+    const preferSelection = options.preferSelection === true;
+    const candidate = options.candidate instanceof Element ? options.candidate : document.activeElement;
+    const selectionAnchor = getSelectionAnchorElement();
+
+    if (preferSelection && isMeaningfulContextElement(selectionAnchor)) {
+        return selectionAnchor;
+    }
+
+    return resolveContextAnchorElement(candidate);
+}
+
 function getApplicationContextFromFocus(anchorElement = document.activeElement) {
     const focused = resolveContextAnchorElement(anchorElement);
     const selection = document.getSelection();
@@ -649,7 +661,9 @@ function injectStyles() {
             min-width: 280px;
             max-width: min(480px, calc(100vw - 24px));
             max-height: min(75vh, 720px);
-            overflow: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
             background: var(--art-surface-background);
             color: var(--art-text-color);
             border: var(--art-border-width) solid var(--art-border-color);
@@ -686,6 +700,9 @@ function injectStyles() {
         .global-context-menu__groups {
             display: grid;
             gap: 8px;
+            overflow: auto;
+            min-height: 0;
+            padding-right: 2px;
         }
 
         .global-context-menu__group {
@@ -762,6 +779,8 @@ function injectStyles() {
             border-top: var(--art-border-width) solid var(--art-border-color);
             display: grid;
             gap: 4px;
+            flex: 0 0 auto;
+            background: var(--art-surface-background);
         }
 
         .global-context-menu__search input {
@@ -1393,7 +1412,11 @@ function handleGlobalKeydown(event) {
             event.stopImmediatePropagation();
         }
 
-        const anchorElement = resolveContextAnchorElement(event.target instanceof Element ? event.target : document.activeElement);
+        const activeFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const anchorElement = resolveInvocationAnchorElement({
+            candidate: event.target instanceof Element ? event.target : document.activeElement,
+            preferSelection: true
+        });
         const anchorPoint = getAnchorPoint({ target: anchorElement });
         dismissContextMenu({ restoreFocus: false });
         showContextMenu({
@@ -1403,6 +1426,7 @@ function handleGlobalKeydown(event) {
             anchorX: anchorPoint.x,
             anchorY: anchorPoint.y
         });
+        lastTriggerElement = activeFocus;
     }
 }
 
