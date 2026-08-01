@@ -51,20 +51,20 @@ const rootOrder = [
 ];
 
 const contextRoots = new Map([
-    ['dashboard', ['Application', 'Workspace', 'Project', 'Report', 'Search', 'Tools', 'Help']],
-    ['dashboard-widget', ['Application', 'Dashboard', 'Search', 'Tools', 'Help']],
-    ['project-workspace', ['Workspace', 'Project', 'File', 'Import', 'Export', 'Search', 'Tools', 'Help']],
-    ['project-asset', ['Workspace', 'Project', 'File', 'Import', 'Export', 'Search', 'Tools', 'Help']],
-    ['report-builder', ['Report', 'Search', 'Tools', 'Help']],
-    ['field-configuration', ['Report', 'Validation', 'Tools', 'Help']],
-    ['editor', ['Report', 'Search', 'Tools', 'Validation', 'Help']],
-    ['report-viewer', ['Report', 'Export', 'Search', 'Tools', 'Help']],
-    ['progress-log', ['Report', 'Validation', 'Tools', 'Help']],
-    ['lookup-tool', ['Lookup', 'Search', 'Tools', 'Help']],
-    ['search-results', ['Search', 'Report', 'Workspace', 'Project', 'Tools', 'Help']],
+    ['dashboard', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['dashboard-widget', ['Dashboard', 'Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['project-workspace', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['project-asset', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['report-builder', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['field-configuration', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['editor', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['report-viewer', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['progress-log', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['lookup-tool', ['Workspace', 'Templates', 'Report', 'Import', 'Lookup', 'Edit', 'Search', 'Settings', 'Help']],
+    ['search-results', ['Report', 'Edit', 'Search', 'Settings', 'Help']],
     ['help', ['Help', 'Search']],
     ['user-guide', ['Help', 'Search']],
-    ['welcome', ['Workspace', 'Project', 'File', 'Search', 'Help']],
+    ['welcome', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
     ['settings', ['Settings', 'Search', 'Help']],
     ['menu-bar', ['Application', 'File', 'Edit', 'View', 'Search', 'Report', 'Templates', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']],
     ['command-palette', ['Application', 'File', 'Edit', 'View', 'Search', 'Report', 'Templates', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']]
@@ -72,66 +72,79 @@ const contextRoots = new Map([
 
 const contextActionAllowlists = new Map([
     ['dashboard', new Set([
-        'newReport', 'newReportFromTemplate', 'openProject', 'saveProject', 'saveProjectAs', 'importData', 'openReport',
-        'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'closeProjectWorkspace',
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'renameProjectWorkspace', 'duplicateProjectWorkspace',
-        'importProjectWorkspace', 'exportProjectWorkspace', 'deleteProjectWorkspace', 'openProjectProperties',
-        'openProjectStatistics', 'openWorkspaceSettings', 'configureDashboard', 'searchEverywhere', 'searchDashboard',
-        'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'newProjectWorkspace', 'openProjectWorkspace', 'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'continueWorking', 'newTemplate', 'importTemplate', 'newReport', 'importData',
+        'configureDashboard', 'searchEverywhere', 'searchCommands', 'openSettings', 'openHelp', 'closeReport',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['dashboard-widget', new Set([
-        'configureDashboard', 'searchDashboard', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+        'configureDashboard', 'saveProjectWorkspace', 'newReport', 'searchDashboard', 'searchCommands', 'openSettings', 'openHelp',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['welcome', new Set([
-        'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'newReport',
-        'newReportFromTemplate', 'openProject', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette',
+        'newProjectWorkspace', 'openProjectWorkspace', 'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'continueWorking', 'newTemplate', 'importTemplate', 'newReport', 'importData',
+        'configureDashboard', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'closeReport',
         'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['project-workspace', new Set([
-        'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'closeProjectWorkspace',
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'renameProjectWorkspace', 'duplicateProjectWorkspace',
-        'importProjectWorkspace', 'exportProjectWorkspace', 'deleteProjectWorkspace', 'addProjectAsset', 'createAssetFolder',
-        'removeProjectAsset', 'refreshWorkspaceAssets', 'openProjectProperties', 'openProjectStatistics', 'openWorkspaceSettings',
-        'searchCurrentProjectWorkspace', 'searchProjectAssets', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+        'newProjectWorkspace', 'openProjectWorkspace', 'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'continueWorking', 'newTemplate', 'importTemplate', 'newReport', 'importData',
+        'configureDashboard', 'searchCurrentProjectWorkspace', 'searchProjectAssets', 'searchCommands', 'openHelp', 'openSettings',
+        'closeReport', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['project-asset', new Set([
-        'addProjectAsset', 'createAssetFolder', 'removeProjectAsset', 'refreshWorkspaceAssets', 'openProjectProperties',
-        'openProjectStatistics', 'openWorkspaceSettings', 'searchCurrentProjectWorkspace', 'searchProjectAssets',
-        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
+        'searchCurrentProjectWorkspace', 'searchProjectAssets', 'searchCommands', 'openHelp', 'openSettings', 'continueWorking',
+        'closeReport', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['report-builder', new Set([
-        'addField', 'done', 'newReport', 'newReportFromTemplate', 'configureReport', 'validateReport', 'reportStatistics',
-        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings',
-        'openCommandPalette', 'openEditor', 'openViewer', 'closeReport', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
+        'continueWorking', 'closeReport', 'addField', 'done', 'configureReport', 'validateReport', 'reportStatistics',
+        'openEditor', 'openViewer', 'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['field-configuration', new Set([
-        'addField', 'done', 'validateReport', 'reportStatistics', 'searchCurrentReport', 'findInCurrentResource',
-        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'newTemplate', 'importTemplate', 'newReport',
+        'importData', 'continueWorking', 'closeReport', 'addField', 'done', 'configureReport', 'validateReport',
+        'reportStatistics', 'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['editor', new Set([
-        'addEntry', 'spellCheck', 'openProgressLog', 'validateReport', 'reportStatistics', 'copyEntry', 'copyName',
-        'copyDescription', 'copyFailures', 'copyFixes', 'copyLink', 'searchCurrentReport', 'findInCurrentResource',
-        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openViewer', 'closeReport',
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
+        'continueWorking', 'closeReport', 'addEntry', 'spellCheck', 'openProgressLog', 'validateReport', 'reportStatistics',
+        'openBuilder', 'openViewer', 'copyEntry', 'copyName', 'copyDescription', 'copyFailures', 'copyFixes', 'copyLink',
+        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
         'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['report-viewer', new Set([
-        'exportReport', 'printPreview', 'openProgressLog', 'viewReport', 'searchCurrentReport', 'findInCurrentResource',
-        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openEditor', 'closeReport',
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
+        'continueWorking', 'closeReport', 'exportReport', 'printPreview', 'openProgressLog', 'viewReport', 'openBuilder', 'openEditor',
+        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
         'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['progress-log', new Set([
-        'openProgressLog', 'validateReport', 'reportStatistics', 'searchCurrentReport', 'findInCurrentResource',
-        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
+        'continueWorking', 'closeReport', 'openProgressLog', 'validateReport', 'reportStatistics', 'openEditor', 'openViewer',
+        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['lookup-tool', new Set([
-        'focusLookup', 'resetLookup', 'copyEntry', 'copyName', 'copyDescription', 'copyFailures', 'copyFixes', 'copyLink',
-        'searchAccessibilityStandards', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings',
+        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
+        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
+        'continueWorking', 'closeReport', 'focusLookup', 'resetLookup', 'copyEntry', 'copyName', 'copyDescription', 'copyFailures',
+        'copyFixes', 'copyLink', 'searchAccessibilityStandards', 'searchCommands', 'openHelp', 'openSettings',
         'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['search-results', new Set([
         'findInCurrentResource', 'findNextMatch', 'findPreviousMatch', 'nextSearchResult', 'previousSearchResult',
         'clearSearchHighlights', 'clearSearchHistory', 'saveCurrentSearch', 'openSavedSearches', 'searchEverywhere',
-        'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+        'searchCommands', 'openHelp', 'openSettings', 'editSelectAll', 'editCopy'
     ])],
     ['help', new Set(['openHelp', 'searchHelpDocumentation', 'searchCommands', 'searchEverywhere'])],
     ['user-guide', new Set(['openHelp', 'searchHelpDocumentation', 'searchCommands', 'searchEverywhere'])],
@@ -373,6 +386,58 @@ function isSearchAction(action) {
     return searchActions.has(action);
 }
 
+function isTemplateAction(action) {
+    return action === 'newTemplate'
+        || action === 'useTemplate'
+        || action === 'openTemplate'
+        || action === 'editTemplate'
+        || action === 'deleteTemplate'
+        || action === 'importTemplate'
+        || action === 'exportTemplate'
+        || action === 'newReportFromTemplate';
+}
+
+function isImportAction(action) {
+    return action === 'importData'
+        || action === 'openReport'
+        || action === 'openProject'
+        || action === 'importProjectWorkspace'
+        || action === 'importTemplate';
+}
+
+function isReportAuthoringAction(action) {
+    return action === 'newReport'
+        || action === 'configureReport'
+        || action === 'addField'
+        || action === 'done'
+        || action === 'addEntry';
+}
+
+function isReportReviewAction(action) {
+    return action === 'openProgressLog'
+        || action === 'spellCheck'
+        || action === 'validateReport'
+        || action === 'reportStatistics'
+        || action === 'exportReport'
+        || action === 'printPreview'
+        || action === 'viewReport'
+        || action === 'closeReport';
+}
+
+function isReportNavigationAction(action) {
+    return action === 'openBuilder'
+        || action === 'openEditor'
+        || action === 'openViewer';
+}
+
+function isLookupAction(action) {
+    return action === 'focusLookup' || action === 'resetLookup';
+}
+
+function isDashboardAction(action) {
+    return action === 'configureDashboard' || action === 'searchDashboard';
+}
+
 function isWorkspaceAction(action) {
     return action.startsWith('openProjectWorkspace')
         || action.startsWith('newProjectWorkspace')
@@ -412,12 +477,48 @@ function resolveContextMenuLocation(command) {
         return 'Edit>Clipboard';
     }
 
+    if (isCommonEditAction(action)) {
+        return 'Edit>Context Actions';
+    }
+
+    if (isLookupAction(action)) {
+        return 'Lookup>Lookup Commands';
+    }
+
     if (isWorkspaceAction(action)) {
-        return 'Workspace>Workspace Commands';
+        return 'Workspace>Project Workspace';
+    }
+
+    if (isTemplateAction(action)) {
+        return 'Templates>Template Commands';
+    }
+
+    if (isImportAction(action)) {
+        return 'Import>Import and Open';
+    }
+
+    if (isDashboardAction(action)) {
+        return 'Dashboard>Dashboard Commands';
+    }
+
+    if (isReportAuthoringAction(action)) {
+        return 'Report>Authoring';
+    }
+
+    if (isReportReviewAction(action)) {
+        return 'Report>Review and Output';
+    }
+
+    if (isReportNavigationAction(action)) {
+        return 'Report>Move Between Report Views';
     }
 
     if (isSettingsAction(action)) {
-        return 'Settings>Application Settings Commands';
+        return 'Settings>Application Settings';
+    }
+
+    if (root === 'Templates' || root === 'Template') {
+        return 'Templates>Template Commands';
     }
 
     if (root === 'Report') {
@@ -425,11 +526,11 @@ function resolveContextMenuLocation(command) {
     }
 
     if (root === 'Tools') {
-        return 'Tools>Tool Commands';
+        return 'Edit>Context Actions';
     }
 
-    if (root === 'Templates' || root === 'Template') {
-        return 'Templates>Template Commands';
+    if (root === 'Help') {
+        return 'Help>Help and Documentation';
     }
 
     return baseLocation;
