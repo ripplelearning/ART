@@ -1497,7 +1497,7 @@ function buildCommandDefinition(definition) {
         helpTopic: definition.helpTopic || '',
         menuLocation,
         commandPaletteVisible: definition.commandPaletteVisible !== false,
-        contextMenuVisible: Boolean(definition.contextMenuVisible),
+        contextMenuVisible: definition.contextMenuVisible !== false,
         notes: definition.notes || ''
     };
 }
