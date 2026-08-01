@@ -224,6 +224,16 @@ function clickElementById(id) {
     return true;
 }
 
+function isTabSelected(tabId) {
+    const tab = document.getElementById(tabId);
+    return Boolean(tab) && tab.getAttribute('aria-selected') === 'true';
+}
+
+function clickTabIfNeeded(tabId) {
+    if (isTabSelected(tabId)) return true;
+    return clickElementById(tabId);
+}
+
 function runLookupCopyWorkflow(action) {
     return executeLookupCopyActionFromCommand(action);
 }
@@ -324,7 +334,7 @@ function runAddFieldWorkflow() {
 }
 
 function runDoneWorkflow() {
-    clickElementById('tab-builder');
+    clickTabIfNeeded('tab-builder');
     return executeDoneFromCommand();
 }
 
@@ -360,10 +370,15 @@ function runSpellCheckWorkflow() {
     return startSpellCheckFromCommand();
 }
 
-function runValidateReportWorkflow(context = {}) {
-    clickElementById('tab-editor');
+async function runValidateReportWorkflow(context = {}) {
+    clickTabIfNeeded('tab-editor');
     const triggerButton = context.triggerButton || document.getElementById('btn-editor-validate-report') || document.activeElement;
-    return openEditorValidationDialog(triggerButton);
+    const maxAttempts = 20;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (openEditorValidationDialog(triggerButton)) return true;
+        await new Promise((resolve) => window.setTimeout(resolve, 25));
+    }
+    return false;
 }
 
 function runReportStatisticsWorkflow(context = {}) {

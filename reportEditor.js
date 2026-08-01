@@ -1588,7 +1588,11 @@ function bindEditorDialogEvents() {
 
     validateReportButton?.addEventListener('click', async () => {
         const result = await executeEditorAction('validateReport', { triggerButton: validateReportButton });
-        if (!result?.ok) {
+        const validationDialogOpen = (() => {
+            const dialog = document.getElementById('editor-validation-dialog');
+            return Boolean(dialog) && dialog.hidden === false;
+        })();
+        if (!result?.ok || !validationDialogOpen) {
             openEditorValidationDialog(validateReportButton);
         }
     });

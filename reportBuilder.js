@@ -325,6 +325,10 @@ export function executeDoneFromCommand() {
     if (editorTab) editorTab.click();
 
     const focusEditorStartField = (attempt = 0) => {
+        if (editorTab && editorTab.getAttribute('aria-selected') !== 'true') {
+            editorTab.click();
+        }
+
         const firstField = document.getElementById('editor-field-0-0')
             || document.querySelector('.editor-audit-table [data-entry-index="0"][data-field-index="0"]')
             || document.querySelector('.editor-audit-table .wcag-combobox-input')
@@ -338,8 +342,8 @@ export function executeDoneFromCommand() {
             return;
         }
 
-        if (attempt < 10) {
-            window.setTimeout(() => focusEditorStartField(attempt + 1), 40);
+        if (attempt < 50) {
+            window.setTimeout(() => focusEditorStartField(attempt + 1), 25);
             return;
         }
 
