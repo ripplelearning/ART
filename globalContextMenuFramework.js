@@ -72,74 +72,122 @@ const contextRoots = new Map([
 
 const contextActionAllowlists = new Map([
     ['dashboard', new Set([
-        'newProjectWorkspace', 'openProjectWorkspace', 'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'continueWorking', 'newTemplate', 'importTemplate', 'newReport', 'importData',
-        'configureDashboard', 'searchEverywhere', 'searchCommands', 'openSettings', 'openHelp', 'closeReport',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'configureDashboard',
+        'newReport',
+        'importData',
+        'newProjectWorkspace',
+        'openProjectWorkspace',
+        'continueWorking',
+        'searchCommands',
+        'openSettings',
+        'openHelp'
     ])],
     ['dashboard-widget', new Set([
-        'configureDashboard', 'saveProjectWorkspace', 'newReport', 'searchDashboard', 'searchCommands', 'openSettings', 'openHelp',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'configureDashboard',
+        'newReport',
+        'searchDashboard',
+        'searchCommands',
+        'openSettings',
+        'openHelp'
     ])],
     ['welcome', new Set([
-        'newProjectWorkspace', 'openProjectWorkspace', 'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'continueWorking', 'newTemplate', 'importTemplate', 'newReport', 'importData',
-        'configureDashboard', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'closeReport',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'newProjectWorkspace',
+        'openProjectWorkspace',
+        'continueWorking',
+        'newReport',
+        'importData',
+        'searchCommands',
+        'openHelp',
+        'openSettings'
     ])],
     ['project-workspace', new Set([
-        'newProjectWorkspace', 'openProjectWorkspace', 'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'continueWorking', 'newTemplate', 'importTemplate', 'newReport', 'importData',
-        'configureDashboard', 'searchCurrentProjectWorkspace', 'searchProjectAssets', 'searchCommands', 'openHelp', 'openSettings',
-        'closeReport', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'saveProjectWorkspace',
+        'saveProjectWorkspaceAs',
+        'exportProjectWorkspace',
+        'openProjectWorkspace',
+        'newProjectWorkspace',
+        'addProjectAsset',
+        'openProjectProperties',
+        'newTemplate',
+        'newReport',
+        'importData',
+        'searchCommands',
+        'openSettings'
     ])],
     ['project-asset', new Set([
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
-        'searchCurrentProjectWorkspace', 'searchProjectAssets', 'searchCommands', 'openHelp', 'openSettings', 'continueWorking',
-        'closeReport', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'saveProjectWorkspace',
+        'exportProjectWorkspace',
+        'addProjectAsset',
+        'openProjectProperties',
+        'searchProjectAssets',
+        'searchCommands',
+        'openSettings',
+        'openHelp'
     ])],
     ['report-builder', new Set([
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
-        'continueWorking', 'closeReport', 'addField', 'done', 'configureReport', 'validateReport', 'reportStatistics',
-        'openEditor', 'openViewer', 'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'addField',
+        'done',
+        'configureReport',
+        'validateReport',
+        'openEditor',
+        'searchCommands',
+        'saveProjectWorkspace',
+        'newReport',
+        'openSettings',
+        'openHelp'
     ])],
     ['field-configuration', new Set([
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'newTemplate', 'importTemplate', 'newReport',
-        'importData', 'continueWorking', 'closeReport', 'addField', 'done', 'configureReport', 'validateReport',
-        'reportStatistics', 'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'addField',
+        'done',
+        'configureReport',
+        'validateReport',
+        'searchCommands',
+        'saveProjectWorkspace',
+        'openSettings',
+        'openHelp'
     ])],
     ['editor', new Set([
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
-        'continueWorking', 'closeReport', 'addEntry', 'spellCheck', 'openProgressLog', 'validateReport', 'reportStatistics',
-        'openBuilder', 'openViewer', 'copyEntry', 'copyName', 'copyDescription', 'copyFailures', 'copyFixes', 'copyLink',
-        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'addEntry',
+        'spellCheck',
+        'openProgressLog',
+        'validateReport',
+        'openViewer',
+        'searchCommands',
+        'saveProjectWorkspace',
+        'editCopy',
+        'openSettings',
+        'openHelp'
     ])],
     ['report-viewer', new Set([
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
-        'continueWorking', 'closeReport', 'exportReport', 'printPreview', 'openProgressLog', 'viewReport', 'openBuilder', 'openEditor',
-        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'exportReport',
+        'printPreview',
+        'openProgressLog',
+        'openEditor',
+        'searchCommands',
+        'saveProjectWorkspace',
+        'closeReport',
+        'openSettings',
+        'openHelp'
     ])],
     ['progress-log', new Set([
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
-        'continueWorking', 'closeReport', 'openProgressLog', 'validateReport', 'reportStatistics', 'openEditor', 'openViewer',
-        'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'openHelp', 'openSettings',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'openProgressLog',
+        'validateReport',
+        'reportStatistics',
+        'openEditor',
+        'searchCommands',
+        'saveProjectWorkspace',
+        'openSettings',
+        'openHelp'
     ])],
     ['lookup-tool', new Set([
-        'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'exportProjectWorkspace', 'openProjectWorkspace', 'newProjectWorkspace',
-        'addProjectAsset', 'openProjectProperties', 'newTemplate', 'importTemplate', 'newReport', 'importData', 'configureDashboard',
-        'continueWorking', 'closeReport', 'focusLookup', 'resetLookup', 'copyEntry', 'copyName', 'copyDescription', 'copyFailures',
-        'copyFixes', 'copyLink', 'searchAccessibilityStandards', 'searchCommands', 'openHelp', 'openSettings',
-        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
+        'focusLookup',
+        'resetLookup',
+        'searchAccessibilityStandards',
+        'editCopy',
+        'searchCommands',
+        'saveProjectWorkspace',
+        'openSettings',
+        'openHelp'
     ])],
     ['search-results', new Set([
         'findInCurrentResource', 'findNextMatch', 'findPreviousMatch', 'nextSearchResult', 'previousSearchResult',
@@ -155,36 +203,9 @@ const contextActionAllowlists = new Map([
     ])]
 ]);
 
-const workspaceOpenCoreActions = new Set([
-    'saveProjectWorkspace',
-    'saveProjectWorkspaceAs',
-    'exportProjectWorkspace',
-    'openProjectWorkspace',
-    'newProjectWorkspace',
-    'addProjectAsset',
-    'openProjectProperties',
-    'newTemplate',
-    'importTemplate',
-    'newReport',
-    'importData',
-    'configureDashboard',
-    'openSettings',
-    'openHelp',
-    'continueWorking',
-    'closeReport',
-    'editSelectAll',
-    'editCopy',
-    'editCut',
-    'editPaste'
-]);
+const workspaceOpenCoreActions = new Set();
 
-const workspaceContextEssentialActions = new Map([
-    ['report-builder', new Set(['addField', 'done', 'validateReport', 'reportStatistics', 'configureReport', 'openEditor', 'openViewer'])],
-    ['editor', new Set(['addEntry', 'spellCheck', 'openProgressLog', 'validateReport', 'reportStatistics', 'openBuilder', 'openViewer'])],
-    ['report-viewer', new Set(['exportReport', 'printPreview', 'openProgressLog', 'viewReport', 'openBuilder', 'openEditor'])],
-    ['lookup-tool', new Set(['focusLookup', 'resetLookup'])],
-    ['search-results', new Set(['findInCurrentResource', 'findNextMatch', 'findPreviousMatch', 'nextSearchResult', 'previousSearchResult'])]
-]);
+const workspaceContextEssentialActions = new Map();
 
 let frameworkInitialized = false;
 let menuElement = null;
