@@ -102,6 +102,7 @@ ART tracks unsaved changes in local application state.
 - Save Project Workspace As: `Ctrl+Alt+Shift+S`
 - Continue Working: `Ctrl+Alt+R`
 - Add Project Asset: `Ctrl+Alt+A`
+- Attach File in Report Editor: `Alt+Shift+T`
 
 Shortcut assignments remain user-configurable through ART shortcut settings.
 

@@ -4,6 +4,9 @@ import { openProgressLogDialog } from './progressLog.js';
 
 let openExportDialogOnRender = false;
 let openPrintPreviewOnRender = false;
+let viewerAttachmentRegistry = new Map();
+let viewerAttachmentObjectUrls = new Map();
+let viewerAttachmentSequence = 0;
 
 function loadExternalScript(src) {
     return new Promise((resolve, reject) => {
@@ -58,6 +61,96 @@ function escapeHtml(value) {
 
 function normalizeFieldType(type) {
     return type === 'select' ? 'dropdown' : type || 'text';
+}
+
+function isAttachmentFieldType(type) {
+    return normalizeFieldType(type) === 'attachment';
+}
+
+function normalizeAttachmentList(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item, index) => {
+            if (!item || typeof item !== 'object') return null;
+            const name = String(item.name || '').trim();
+            const dataBase64 = String(item.dataBase64 || '').trim();
+            if (!name || !dataBase64) return null;
+
+            const size = Number(item.size);
+            const lastModified = Number(item.lastModified);
+            return {
+                id: String(item.id || `attachment-${Date.now()}-${index}`),
+                name,
+                type: String(item.type || 'application/octet-stream'),
+                size: Number.isFinite(size) && size >= 0 ? size : 0,
+                lastModified: Number.isFinite(lastModified) && lastModified >= 0 ? lastModified : 0,
+                dataBase64
+            };
+        })
+        .filter(Boolean);
+}
+
+function base64ToUint8Array(base64Text) {
+    const binary = atob(String(base64Text || ''));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+}
+
+function createAttachmentBlob(attachment) {
+    return new Blob([base64ToUint8Array(attachment.dataBase64)], {
+        type: attachment.type || 'application/octet-stream'
+    });
+}
+
+function isPreviewableAttachment(attachment) {
+    const mime = String(attachment?.type || '').toLowerCase();
+    return mime.startsWith('text/')
+        || mime.startsWith('image/')
+        || mime.startsWith('audio/')
+        || mime.startsWith('video/')
+        || mime === 'application/pdf'
+        || mime.includes('json')
+        || mime.includes('xml');
+}
+
+function sanitizeAttachmentFileName(fileName) {
+    const base = String(fileName || 'attachment').trim() || 'attachment';
+    return base.replace(/[\\/:*?"<>|]+/g, '_');
+}
+
+function buildAttachmentExportPath(entryIndex, fieldIndex, fileName) {
+    const entrySegment = entryIndex === null ? 'primary' : `entry-${entryIndex + 1}`;
+    const fieldSegment = `field-${fieldIndex + 1}`;
+    return `attachments/${entrySegment}/${fieldSegment}/${sanitizeAttachmentFileName(fileName)}`;
+}
+
+function cleanupViewerAttachmentUrls() {
+    viewerAttachmentObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    viewerAttachmentObjectUrls.clear();
+    viewerAttachmentRegistry.clear();
+    viewerAttachmentSequence = 0;
+}
+
+function registerViewerAttachment(attachment) {
+    const key = `viewer-attachment-${viewerAttachmentSequence + 1}`;
+    viewerAttachmentSequence += 1;
+    viewerAttachmentRegistry.set(key, attachment);
+    return key;
+}
+
+function getViewerAttachmentObjectUrl(attachmentKey) {
+    const existing = viewerAttachmentObjectUrls.get(attachmentKey);
+    if (existing) return existing;
+
+    const attachment = viewerAttachmentRegistry.get(attachmentKey);
+    if (!attachment) return '';
+
+    const objectUrl = URL.createObjectURL(createAttachmentBlob(attachment));
+    viewerAttachmentObjectUrls.set(attachmentKey, objectUrl);
+    return objectUrl;
 }
 
 function normalizeAccessibilityLinkText(rawValue, fallbackText = '') {
@@ -116,7 +209,7 @@ function getMetadataRows() {
 }
 
 function getFieldRows() {
-    return getResolvedFieldEntries(false).map((entry) => [entry.label, entry.exportText]);
+    return getResolvedFieldEntries(false).map((entry) => [entry.label, entry.type === 'attachment' ? renderAttachmentExportText(entry) : entry.exportText]);
 }
 
 function getAuditEntriesList() {
@@ -126,7 +219,8 @@ function getAuditEntriesList() {
     return [{ id: 'entry-1', fieldValues: appState.editorFieldValues || {} }];
 }
 
-function getResolvedFieldEntriesForValues(fieldValues, hideEmpty = true) {
+function getResolvedFieldEntriesForValues(fieldValues, hideEmpty = true, context = {}) {
+    const entryIndex = Number.isInteger(context?.entryIndex) ? context.entryIndex : null;
     return (appState.fields || []).map((field, index) => {
         const type = normalizeFieldType(field.type);
         const rawValue = fieldValues?.[index] ?? '';
@@ -150,6 +244,26 @@ function getResolvedFieldEntriesForValues(fieldValues, hideEmpty = true) {
             };
         }
 
+        if (isAttachmentFieldType(type)) {
+            const attachments = normalizeAttachmentList(rawValue).map((attachment) => ({
+                ...attachment,
+                exportPath: buildAttachmentExportPath(entryIndex, index, attachment.name)
+            }));
+
+            return {
+                index,
+                field,
+                label,
+                type,
+                rawValue,
+                displayText: attachments.map((attachment) => attachment.name).join(', '),
+                exportText: attachments.map((attachment) => attachment.name).join(', '),
+                url: '',
+                attachments,
+                isEmpty: attachments.length === 0
+            };
+        }
+
         return {
             index,
             field,
@@ -159,6 +273,7 @@ function getResolvedFieldEntriesForValues(fieldValues, hideEmpty = true) {
             displayText: String(rawValue || ''),
             exportText: String(rawValue || ''),
             url: '',
+            attachments: [],
             isEmpty: String(rawValue || '').trim() === ''
         };
     }).filter((entry) => !hideEmpty || !entry.isEmpty);
@@ -168,12 +283,12 @@ function getAuditEntryGroups(hideEmpty = true) {
     return getAuditEntriesList().map((auditEntry, entryIndex) => ({
         entryIndex,
         title: String(auditEntry?.fieldValues?.[0] || '').trim() || `Entry ${entryIndex + 1}`,
-        entries: getResolvedFieldEntriesForValues(auditEntry?.fieldValues || {}, hideEmpty)
+        entries: getResolvedFieldEntriesForValues(auditEntry?.fieldValues || {}, hideEmpty, { entryIndex })
     }));
 }
 
 function getResolvedFieldEntries(hideEmpty = true) {
-    return getResolvedFieldEntriesForValues(appState.editorFieldValues || {}, hideEmpty);
+    return getResolvedFieldEntriesForValues(appState.editorFieldValues || {}, hideEmpty, { entryIndex: null });
 }
 
 function getProgressAppendixItems() {
@@ -246,12 +361,16 @@ function buildTextSummary() {
     const fieldsText = appState.reportType === 'Audit Log'
         ? getAuditEntryGroups(false).map((group) => {
             const content = group.entries.map((entry) => {
+                if (entry.type === 'attachment') return `${entry.label}: ${renderAttachmentExportText(entry)}`;
                 if (entry.url) return `${entry.label}: ${entry.displayText} (${entry.url})`;
                 return `${entry.label}: ${entry.exportText}`;
             }).join('\n');
             return `${group.title}\n${content}`;
         }).join('\n\n')
         : getResolvedFieldEntries(false).map((entry) => {
+            if (entry.type === 'attachment') {
+                return `${entry.label}: ${renderAttachmentExportText(entry)}`;
+            }
             if (entry.url) {
                 return `${entry.label}: ${entry.displayText} (${entry.url})`;
             }
@@ -272,10 +391,14 @@ function buildMarkdownSummary() {
     const metadataMd = metadataRows.map(([label, value]) => `- **${label}:** ${String(value)}`).join('\n');
     const fieldsMd = appState.reportType === 'Audit Log'
         ? getAuditEntryGroups(false).map((group) => `### ${group.title}\n${group.entries.map((entry) => {
+            if (entry.type === 'attachment') return `- **${entry.label}:** ${renderAttachmentExportMarkdown(entry)}`;
             if (entry.url) return `- **${entry.label}:** [${entry.displayText}](${entry.url})`;
             return `- **${entry.label}:** ${entry.exportText}`;
         }).join('\n')}`).join('\n\n')
         : getResolvedFieldEntries(false).map((entry) => {
+            if (entry.type === 'attachment') {
+                return `- **${entry.label}:** ${renderAttachmentExportMarkdown(entry)}`;
+            }
             if (entry.url) {
                 return `- **${entry.label}:** [${entry.displayText}](${entry.url})`;
             }
@@ -296,6 +419,9 @@ function buildHtmlSummary() {
         .join('');
     const fieldItems = appState.reportType === 'Audit Log'
         ? getAuditEntryGroups(false).map((group) => `<li><strong>${escapeHtml(group.title)}</strong><ul>${group.entries.map((entry) => {
+            if (entry.type === 'attachment') {
+                return `<li><strong>${escapeHtml(entry.label)}:</strong> ${renderAttachmentExportHtml(entry)}</li>`;
+            }
             if (entry.url) {
                 return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(normalizeAccessibilityLinkText(entry.rawValue, entry.displayText))}</a></li>`;
             }
@@ -303,6 +429,9 @@ function buildHtmlSummary() {
         }).join('')}</ul></li>`).join('')
         : getResolvedFieldEntries(false)
             .map((entry) => {
+                if (entry.type === 'attachment') {
+                    return `<li><strong>${escapeHtml(entry.label)}:</strong> ${renderAttachmentExportHtml(entry)}</li>`;
+                }
                 if (entry.url) {
                     return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(normalizeAccessibilityLinkText(entry.rawValue, entry.displayText))}</a></li>`;
                 }
@@ -348,6 +477,9 @@ function buildRtfSummary() {
     const fields = appState.reportType === 'Audit Log'
         ? getAuditEntryGroups(false).map((group) => {
             const fieldText = group.entries.map((entry) => {
+                if (entry.type === 'attachment') {
+                    return `${escapeRtf(entry.label)}: ${renderAttachmentExportRtf(entry, escapeRtf)}`;
+                }
                 if (entry.url) {
                     return `${escapeRtf(entry.label)}: {\\field{\\*\\fldinst HYPERLINK "${escapeRtf(entry.url)}"}{\\fldrslt ${escapeRtf(entry.displayText)}}}`;
                 }
@@ -356,6 +488,9 @@ function buildRtfSummary() {
             return `${escapeRtf(group.title)}\\line ${fieldText}`;
         }).join('\\line \\line ')
         : getResolvedFieldEntries(false).map((entry) => {
+            if (entry.type === 'attachment') {
+                return `${escapeRtf(entry.label)}: ${renderAttachmentExportRtf(entry, escapeRtf)}`;
+            }
             if (entry.url) {
                 return `${escapeRtf(entry.label)}: {\\field{\\*\\fldinst HYPERLINK "${escapeRtf(entry.url)}"}{\\fldrslt ${escapeRtf(entry.displayText)}}}`;
             }
@@ -411,7 +546,7 @@ function buildXlsxBlob() {
 
     if (appState.reportType === 'Audit Log') {
         getAuditEntriesList().forEach((auditEntry, entryIndex) => {
-            const resolvedEntries = getResolvedFieldEntriesForValues(auditEntry?.fieldValues || {}, false);
+            const resolvedEntries = getResolvedFieldEntriesForValues(auditEntry?.fieldValues || {}, false, { entryIndex });
             const entryName = String(auditEntry?.fieldValues?.[0] || '').trim() || `Entry ${entryIndex + 1}`;
             const row = [
                 entryName,
@@ -420,7 +555,11 @@ function buildXlsxBlob() {
             auditRows.push(row);
 
             resolvedEntries.forEach((entry) => {
-                overviewRows.push(['Accessibility Audit', entryName, entry.label, entry.exportText, entry.url || '']);
+                if (entry.type === 'attachment') {
+                    overviewRows.push(['Accessibility Audit', entryName, entry.label, renderAttachmentExportText(entry), '']);
+                } else {
+                    overviewRows.push(['Accessibility Audit', entryName, entry.label, entry.exportText, entry.url || '']);
+                }
             });
         });
     } else {
@@ -428,7 +567,11 @@ function buildXlsxBlob() {
         const row = ['Primary', ...resolvedEntries.map((entry) => toXlsxCellValue(entry))];
         auditRows.push(row);
         resolvedEntries.forEach((entry) => {
-            overviewRows.push(['Accessibility Audit', 'Primary', entry.label, entry.exportText, entry.url || '']);
+            if (entry.type === 'attachment') {
+                overviewRows.push(['Accessibility Audit', 'Primary', entry.label, renderAttachmentExportText(entry), '']);
+            } else {
+                overviewRows.push(['Accessibility Audit', 'Primary', entry.label, entry.exportText, entry.url || '']);
+            }
         });
     }
 
@@ -528,6 +671,16 @@ function buildDocxDocumentXml() {
         getAuditEntryGroups(false).forEach((group) => {
             paragraphs.push(makeParagraph(group.title, 'Heading2'));
             group.entries.forEach((entry) => {
+                if (entry.type === 'attachment') {
+                    if ((entry.attachments || []).length === 0) {
+                        paragraphs.push(makeParagraph(`${entry.label}: No files attached`, 'Normal'));
+                        return;
+                    }
+                    entry.attachments.forEach((attachment) => {
+                        paragraphs.push(makeHyperlinkParagraph(entry.label, attachment.name, attachment.exportPath, 'Normal'));
+                    });
+                    return;
+                }
                 if (entry.url) {
                     paragraphs.push(makeHyperlinkParagraph(entry.label, entry.displayText, entry.url, 'Normal'));
                 } else {
@@ -537,6 +690,17 @@ function buildDocxDocumentXml() {
         });
     } else {
         getResolvedFieldEntries(false).forEach((entry) => {
+            if (entry.type === 'attachment') {
+                paragraphs.push(makeParagraph(entry.label, 'Heading2'));
+                if ((entry.attachments || []).length === 0) {
+                    paragraphs.push(makeParagraph('No files attached', 'Normal'));
+                    return;
+                }
+                entry.attachments.forEach((attachment) => {
+                    paragraphs.push(makeHyperlinkParagraph('Attachment', attachment.name, attachment.exportPath, 'Normal'));
+                });
+                return;
+            }
             if (entry.url) {
                 paragraphs.push(makeHyperlinkParagraph(entry.label, entry.displayText, entry.url, 'Normal'));
             } else {
@@ -815,6 +979,40 @@ async function getExportConfig(format) {
     }
 }
 
+function getAttachmentFilesForExport() {
+    const fields = appState.fields || [];
+    const files = [];
+
+    if (appState.reportType === 'Audit Log') {
+        getAuditEntriesList().forEach((auditEntry, entryIndex) => {
+            fields.forEach((field, fieldIndex) => {
+                if (!isAttachmentFieldType(field?.type)) return;
+                const attachments = normalizeAttachmentList(auditEntry?.fieldValues?.[fieldIndex]);
+                attachments.forEach((attachment) => {
+                    files.push({
+                        exportPath: buildAttachmentExportPath(entryIndex, fieldIndex, attachment.name),
+                        attachment
+                    });
+                });
+            });
+        });
+        return files;
+    }
+
+    fields.forEach((field, fieldIndex) => {
+        if (!isAttachmentFieldType(field?.type)) return;
+        const attachments = normalizeAttachmentList(appState.editorFieldValues?.[fieldIndex]);
+        attachments.forEach((attachment) => {
+            files.push({
+                exportPath: buildAttachmentExportPath(null, fieldIndex, attachment.name),
+                attachment
+            });
+        });
+    });
+
+    return files;
+}
+
 async function buildZipExportBlob(baseFileName, reportExportConfig) {
     if (!window.JSZip) {
         throw new Error('JSZip is not available for ZIP export.');
@@ -829,6 +1027,9 @@ async function buildZipExportBlob(baseFileName, reportExportConfig) {
     zip.file(reportFileName, reportArrayBuffer);
     zip.file(artJsonFileName, serializeArtJsonPayload());
     zip.file(artProjectFileName, serializeArtProjectPayload());
+    getAttachmentFilesForExport().forEach(({ exportPath, attachment }) => {
+        zip.file(exportPath, base64ToUint8Array(attachment.dataBase64));
+    });
 
     return zip.generateAsync({
         type: 'blob',
@@ -869,11 +1070,15 @@ function renderTemplateLayoutFields() {
                     displayValue = 'No value entered';
                 }
 
+                const valueMarkup = entry.type === 'attachment'
+                    ? renderAttachmentViewerLinks(entry)
+                    : (entry.url ? renderWcagViewerLink(entry, displayValue) : escapeHtml(displayValue));
+
                 return `
                     <article class="viewer-field-card">
                         <h4>${escapeHtml(entry.label)}</h4>
                         <p><strong>Type:</strong> ${escapeHtml(entry.type)}</p>
-                        <p><strong>Value:</strong> ${entry.url ? renderWcagViewerLink(entry, displayValue) : escapeHtml(displayValue)}</p>
+                        <div><strong>Value:</strong> ${valueMarkup}</div>
                     </article>
                 `;
             }).join('')}
@@ -888,7 +1093,8 @@ function getVisibleFieldEntries() {
         type: entry.type,
         value: entry.displayText,
         url: entry.url,
-        rawValue: entry.rawValue
+        rawValue: entry.rawValue,
+        attachments: entry.attachments || []
     }));
 }
 
@@ -902,7 +1108,12 @@ function renderAuditParagraphLayout() {
             ${groups.map((group) => `
                 <article class="viewer-paragraph-item">
                     <h4>${escapeHtml(group.title)}</h4>
-                    ${group.entries.map((entry) => `<p><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.displayText) : escapeHtml(entry.displayText)}</p>`).join('')}
+                    ${group.entries.map((entry) => {
+                        if (entry.type === 'attachment') {
+                            return `<div><strong>${escapeHtml(entry.label)}:</strong> ${renderAttachmentViewerLinks(entry)}</div>`;
+                        }
+                        return `<p><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.displayText) : escapeHtml(entry.displayText)}</p>`;
+                    }).join('')}
                 </article>
             `).join('')}
         </section>
@@ -919,7 +1130,9 @@ function renderExecutiveParagraphLayout() {
             ${entries.map((entry) => `
                 <section class="viewer-paragraph-item" aria-labelledby="field-heading-${entry.index}">
                     <h4 id="field-heading-${entry.index}">${escapeHtml(entry.label)}</h4>
-                    <p>${entry.url ? renderWcagViewerLink(entry, entry.value) : escapeHtml(entry.value)}</p>
+                    ${entry.type === 'attachment'
+                        ? `<div>${renderAttachmentViewerLinks(entry)}</div>`
+                        : `<p>${entry.url ? renderWcagViewerLink(entry, entry.value) : escapeHtml(entry.value)}</p>`}
                 </section>
             `).join('')}
         </section>
@@ -943,7 +1156,12 @@ function renderAuditTabularLayout() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${groups.map((group) => `<tr>${(group.entries.length > 0 ? group.entries : getResolvedFieldEntriesForValues({}, false)).map((entry, index) => `<td headers="field-col-${index}">${entry.url ? renderWcagViewerLink(entry, entry.displayText) : escapeHtml(entry.displayText || '')}</td>`).join('')}</tr>`).join('')}
+                        ${groups.map((group) => `<tr>${(group.entries.length > 0 ? group.entries : getResolvedFieldEntriesForValues({}, false, { entryIndex: group.entryIndex })).map((entry, index) => {
+                            if (entry.type === 'attachment') {
+                                return `<td headers="field-col-${index}">${renderAttachmentViewerLinks(entry)}</td>`;
+                            }
+                            return `<td headers="field-col-${index}">${entry.url ? renderWcagViewerLink(entry, entry.displayText) : escapeHtml(entry.displayText || '')}</td>`;
+                        }).join('')}</tr>`).join('')}
                     </tbody>
                 </table>
             </div>
@@ -960,6 +1178,9 @@ function renderExecutiveBulletsLayout() {
             <h3 id="viewer-content-heading">Executive Summary Highlights</h3>
             <ul class="viewer-bullet-list">
                 ${entries.map((entry) => {
+                    if (entry.type === 'attachment') {
+                        return `<li><strong>${escapeHtml(entry.label)}:</strong> ${renderAttachmentViewerLinks(entry)}</li>`;
+                    }
                     const lines = entry.value.split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean);
                     if (lines.length <= 1) {
                         return `<li><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.value) : escapeHtml(entry.value)}</li>`;
@@ -1062,6 +1283,121 @@ function renderWcagViewerLink(entry, text) {
     return `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer" class="wcag-viewer-link">${escapeHtml(visibleText)}</a>`;
 }
 
+function renderAttachmentViewerLinks(entry) {
+    const attachments = Array.isArray(entry?.attachments) ? entry.attachments : [];
+    if (attachments.length === 0) return 'No files attached';
+
+    const items = attachments.map((attachment) => {
+        const attachmentKey = registerViewerAttachment(attachment);
+        return `
+            <li>
+                <a href="#" class="viewer-attachment-link" data-attachment-key="${escapeHtml(attachmentKey)}">${escapeHtml(attachment.name)}</a>
+                <button type="button" class="btn-preview-attachment" data-attachment-key="${escapeHtml(attachmentKey)}">Preview</button>
+            </li>
+        `;
+    }).join('');
+
+    return `<ul class="viewer-attachment-list">${items}</ul>`;
+}
+
+function renderAttachmentExportText(entry) {
+    const attachments = Array.isArray(entry?.attachments) ? entry.attachments : [];
+    if (attachments.length === 0) return 'No files attached';
+    return attachments.map((attachment) => `${attachment.name} (${attachment.exportPath})`).join('; ');
+}
+
+function renderAttachmentExportMarkdown(entry) {
+    const attachments = Array.isArray(entry?.attachments) ? entry.attachments : [];
+    if (attachments.length === 0) return 'No files attached';
+    return attachments.map((attachment) => `[${attachment.name}](${attachment.exportPath})`).join(', ');
+}
+
+function renderAttachmentExportHtml(entry) {
+    const attachments = Array.isArray(entry?.attachments) ? entry.attachments : [];
+    if (attachments.length === 0) return 'No files attached';
+    return attachments.map((attachment) => `<a href="${escapeHtml(attachment.exportPath)}" target="_blank" rel="noopener noreferrer">${escapeHtml(attachment.name)}</a>`).join(', ');
+}
+
+function renderAttachmentExportRtf(entry, escapeRtf) {
+    const attachments = Array.isArray(entry?.attachments) ? entry.attachments : [];
+    if (attachments.length === 0) return 'No files attached';
+    return attachments
+        .map((attachment) => `{\\field{\\*\\fldinst HYPERLINK "${escapeRtf(attachment.exportPath)}"}{\\fldrslt ${escapeRtf(attachment.name)}}}`)
+        .join(', ');
+}
+
+function showAttachmentOpenDialog(attachmentKey) {
+    const dialog = document.getElementById('viewer-attachment-open-dialog');
+    const title = document.getElementById('viewer-attachment-open-title');
+    const previewButton = document.getElementById('btn-viewer-attachment-preview');
+    const downloadButton = document.getElementById('btn-viewer-attachment-download');
+    const closeButton = document.getElementById('btn-viewer-attachment-close');
+    if (!dialog || !title || !previewButton || !downloadButton || !closeButton) return;
+
+    const attachment = viewerAttachmentRegistry.get(attachmentKey);
+    if (!attachment) return;
+
+    title.textContent = `Open ${attachment.name}`;
+    previewButton.setAttribute('data-attachment-key', attachmentKey);
+    downloadButton.setAttribute('data-attachment-key', attachmentKey);
+    dialog.hidden = false;
+    closeButton.focus();
+}
+
+function hideAttachmentOpenDialog() {
+    const dialog = document.getElementById('viewer-attachment-open-dialog');
+    if (dialog) dialog.hidden = true;
+}
+
+function showAttachmentPreviewDialog(attachmentKey) {
+    const dialog = document.getElementById('viewer-attachment-preview-dialog');
+    const title = document.getElementById('viewer-attachment-preview-title');
+    const frame = document.getElementById('viewer-attachment-preview-frame');
+    const fallback = document.getElementById('viewer-attachment-preview-fallback');
+    const closeButton = document.getElementById('btn-viewer-attachment-preview-close');
+    if (!dialog || !title || !frame || !fallback || !closeButton) return;
+
+    const attachment = viewerAttachmentRegistry.get(attachmentKey);
+    if (!attachment) return;
+
+    const objectUrl = getViewerAttachmentObjectUrl(attachmentKey);
+    if (!objectUrl) return;
+
+    title.textContent = `Preview ${attachment.name}`;
+    frame.src = objectUrl;
+    const previewable = isPreviewableAttachment(attachment);
+    frame.hidden = !previewable;
+    fallback.hidden = previewable;
+    fallback.textContent = previewable
+        ? ''
+        : 'Preview is not available for this file type. Use Open or Download to launch it in a compatible application on your device.';
+    dialog.hidden = false;
+    closeButton.focus();
+}
+
+function hideAttachmentPreviewDialog() {
+    const dialog = document.getElementById('viewer-attachment-preview-dialog');
+    const frame = document.getElementById('viewer-attachment-preview-frame');
+    if (frame) frame.src = 'about:blank';
+    if (dialog) dialog.hidden = true;
+}
+
+function openAttachmentInDeviceApp(attachmentKey) {
+    const attachment = viewerAttachmentRegistry.get(attachmentKey);
+    if (!attachment) return;
+    const objectUrl = getViewerAttachmentObjectUrl(attachmentKey);
+    if (!objectUrl) return;
+
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = attachment.name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function getFocusableElements(dialog) {
     return Array.from(dialog.querySelectorAll(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -1071,6 +1407,8 @@ function getFocusableElements(dialog) {
 export function renderViewer() {
     const container = document.getElementById('main-inner');
     if (!container) return;
+
+    cleanupViewerAttachmentUrls();
 
     const reportHeading = appState.reportTitle?.trim() || 'Untitled Report';
 
@@ -1119,6 +1457,25 @@ export function renderViewer() {
                 </div>
                 <p id="export-status" class="open-report-status" role="status" aria-live="polite" aria-atomic="true"></p>
             </div>
+
+            <div id="viewer-attachment-open-dialog" role="dialog" aria-modal="true" aria-labelledby="viewer-attachment-open-title" hidden>
+                <h3 id="viewer-attachment-open-title">Open Attachment</h3>
+                <p>If your device does not have a compatible application installed, choose Preview to attempt an in-app preview.</p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-viewer-attachment-preview" type="button">Preview</button>
+                    <button id="btn-viewer-attachment-download" type="button">Open or Download</button>
+                    <button id="btn-viewer-attachment-close" type="button">Close</button>
+                </div>
+            </div>
+
+            <div id="viewer-attachment-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="viewer-attachment-preview-title" hidden>
+                <h3 id="viewer-attachment-preview-title">Attachment Preview</h3>
+                <iframe id="viewer-attachment-preview-frame" title="Attachment preview" class="viewer-attachment-preview-frame"></iframe>
+                <p id="viewer-attachment-preview-fallback" hidden></p>
+                <div class="viewer-dialog-actions">
+                    <button id="btn-viewer-attachment-preview-close" type="button">Close</button>
+                </div>
+            </div>
         </section>
     `;
 
@@ -1133,6 +1490,12 @@ export function renderViewer() {
     const exportSave = document.getElementById('btn-export-save');
     const exportCancel = document.getElementById('btn-export-cancel');
     const exportStatus = document.getElementById('export-status');
+    const attachmentOpenDialog = document.getElementById('viewer-attachment-open-dialog');
+    const attachmentPreviewDialog = document.getElementById('viewer-attachment-preview-dialog');
+    const attachmentPreviewButton = document.getElementById('btn-viewer-attachment-preview');
+    const attachmentDownloadButton = document.getElementById('btn-viewer-attachment-download');
+    const attachmentOpenCloseButton = document.getElementById('btn-viewer-attachment-close');
+    const attachmentPreviewCloseButton = document.getElementById('btn-viewer-attachment-preview-close');
 
     if (
         !exportButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
@@ -1231,6 +1594,58 @@ export function renderViewer() {
     };
 
     exportButton.addEventListener('click', openExportDialog);
+
+    container.querySelectorAll('.viewer-attachment-link').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+            const attachmentKey = link.getAttribute('data-attachment-key');
+            if (!attachmentKey) return;
+            showAttachmentOpenDialog(attachmentKey);
+        });
+    });
+
+    container.querySelectorAll('.btn-preview-attachment').forEach((button) => {
+        button.addEventListener('click', () => {
+            const attachmentKey = button.getAttribute('data-attachment-key');
+            if (!attachmentKey) return;
+            showAttachmentPreviewDialog(attachmentKey);
+        });
+    });
+
+    attachmentOpenCloseButton?.addEventListener('click', () => {
+        hideAttachmentOpenDialog();
+    });
+
+    attachmentPreviewButton?.addEventListener('click', () => {
+        const attachmentKey = attachmentPreviewButton.getAttribute('data-attachment-key');
+        if (!attachmentKey) return;
+        hideAttachmentOpenDialog();
+        showAttachmentPreviewDialog(attachmentKey);
+    });
+
+    attachmentDownloadButton?.addEventListener('click', () => {
+        const attachmentKey = attachmentDownloadButton.getAttribute('data-attachment-key');
+        if (!attachmentKey) return;
+        openAttachmentInDeviceApp(attachmentKey);
+        hideAttachmentOpenDialog();
+    });
+
+    attachmentPreviewCloseButton?.addEventListener('click', () => {
+        hideAttachmentPreviewDialog();
+    });
+
+    container.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (attachmentPreviewDialog && !attachmentPreviewDialog.hidden) {
+            event.preventDefault();
+            hideAttachmentPreviewDialog();
+            return;
+        }
+        if (attachmentOpenDialog && !attachmentOpenDialog.hidden) {
+            event.preventDefault();
+            hideAttachmentOpenDialog();
+        }
+    });
 
     progressLogButton?.addEventListener('click', () => {
         openProgressLogDialog(progressLogButton);

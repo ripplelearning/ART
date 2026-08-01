@@ -208,6 +208,7 @@ function getHelpSections(rows) {
                     <li>Create or open reports from Dashboard.</li>
                     <li>Configure report metadata and fields in Builder.</li>
                     <li>Record and edit findings in Editor.</li>
+                    <li>Use Attachment fields with Attach File to add one or more files directly from your device.</li>
                     <li>Export reports from Viewer with current live data.</li>
                     <li>Use the Accessibility Lookup Tool for criterion lookup and copy workflows.</li>
                 </ul>
@@ -229,6 +230,17 @@ function getHelpSections(rows) {
                 <p>The Evaluation Item Selection Box field type lets a report field point to a Progress Log evaluation item by name.</p>
                 <p>Use it when a field should reference one of the current Progress Log items instead of a freeform value.</p>
                 <p>The available choices stay synchronized with the current Progress Log entries for the active report.</p>
+            `
+        },
+        {
+            id: 'help-attachments',
+            title: 'Report Attachments',
+            content: `
+                <p>The Attachment field type adds an Attach File button in Report Editor and supports selecting one or more files through the operating system file picker.</p>
+                <p>Attachment fields accept any file type. Attached files are stored with the report data and reopen with the report.</p>
+                <p>In Report Viewer, attached file names are displayed as links with preview and open or download actions.</p>
+                <p>The <strong>Attach File in Report Editor</strong> command is assignable in Keyboard Shortcut Manager and defaults to <strong>${escapeHtml(formatShortcutValue(getShortcutForAction('attachFile') || 'Alt+Shift+T'))}</strong>.</p>
+                <p>Template create, import, and export workflows preserve Attachment field configuration and attached file payloads when those files are present in the template data.</p>
             `
         },
         {
@@ -318,7 +330,8 @@ function getHelpSections(rows) {
                 <p>Workspace import supports Project Workspace folders and Project.artproj-compatible payloads.</p>
                 <p>ART also supports report and template workflows using .art (project payload) and .artx (template) formats.</p>
                 <p>Open ART Project continues to support .art (project) files for report/project payload compatibility workflows.</p>
-                <p>ZIP exports include the selected output format, ART JSON payload, and an editable .art project file.</p>
+                <p>ZIP exports include the selected output format, ART JSON payload, an editable .art project file, and any report attachments under an attachments folder.</p>
+                <p>Template exports (.artx and template JSON) also preserve Attachment field data, including attached files contained in the template payload.</p>
                 <p>Import supports legacy report/template JSON and standards table workflows, including Settings-based standards import.</p>
                 <p>ART validates format headers and version fields during import. Files may be rejected when formatVersion or schemaVersion is missing or not supported by the current ART version.</p>
                 <p>Import and export workflows use local or network-accessible file locations selected by the user.</p>

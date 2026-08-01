@@ -586,8 +586,101 @@ export function activateAddEntryWorkflow() {
     return true;
 }
 
+export function activateAttachFileWorkflow(context = {}) {
+    if (appState.editorReadOnly) {
+        announce('Attach File is unavailable while the editor is read-only.');
+        return false;
+    }
+
+    const contextElement = context.activeElement instanceof HTMLElement ? context.activeElement : null;
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const candidate = contextElement || activeElement;
+
+    let trigger = null;
+    if (candidate?.classList?.contains('btn-attach-file')) {
+        trigger = candidate;
+    } else if (candidate) {
+        trigger = candidate.closest('.attachment-control')?.querySelector('.btn-attach-file') || null;
+    }
+
+    if (!trigger) {
+        trigger = document.querySelector('#editor-view .btn-attach-file:not([disabled])');
+    }
+
+    if (!(trigger instanceof HTMLElement)) {
+        announce('No Attachment field is available in the current report.');
+        return false;
+    }
+
+    trigger.focus();
+    trigger.click();
+    return true;
+}
+
 function normalizeFieldType(type) {
     return type === 'select' ? 'dropdown' : type || 'text';
+}
+
+function isAttachmentFieldType(type) {
+    return normalizeFieldType(type) === 'attachment';
+}
+
+function normalizeAttachmentList(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item, index) => {
+            if (!item || typeof item !== 'object') return null;
+            const name = String(item.name || '').trim();
+            const dataBase64 = String(item.dataBase64 || '').trim();
+            if (!name || !dataBase64) return null;
+
+            const size = Number(item.size);
+            const lastModified = Number(item.lastModified);
+            return {
+                id: String(item.id || `attachment-${Date.now()}-${index}`),
+                name,
+                type: String(item.type || 'application/octet-stream'),
+                size: Number.isFinite(size) && size >= 0 ? size : 0,
+                lastModified: Number.isFinite(lastModified) && lastModified >= 0 ? lastModified : 0,
+                dataBase64
+            };
+        })
+        .filter(Boolean);
+}
+
+function bytesToBase64(bytes) {
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+        const chunk = bytes.subarray(index, index + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+}
+
+async function fileToAttachmentDescriptor(file) {
+    const buffer = await file.arrayBuffer();
+    return {
+        id: `attachment-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        name: String(file.name || 'attachment'),
+        type: String(file.type || 'application/octet-stream'),
+        size: Number(file.size || 0),
+        lastModified: Number(file.lastModified || Date.now()),
+        dataBase64: bytesToBase64(new Uint8Array(buffer))
+    };
+}
+
+function renderAttachmentListItems(attachments, entryIndex, fieldIndex, readOnly) {
+    if (!attachments.length) {
+        return '<li>No files attached</li>';
+    }
+
+    return attachments.map((attachment, attachmentIndex) => {
+        const removeButton = readOnly
+            ? ''
+            : ` <button type="button" class="btn-remove-attachment" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" data-attachment-index="${attachmentIndex}" aria-label="Remove ${escapeHtml(attachment.name)}">Remove</button>`;
+        return `<li><span>${escapeHtml(attachment.name)}</span>${removeButton}</li>`;
+    }).join('');
 }
 
 function escapeHtml(value) {
@@ -707,7 +800,93 @@ function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly
         `;
     }
 
+    if (isAttachmentFieldType(type)) {
+        const attachments = normalizeAttachmentList(storedValue);
+        const controlId = `editor-attachment-control-${entryIndex}-${fieldIndex}`;
+        const inputId = `editor-attachment-input-${entryIndex}-${fieldIndex}`;
+        const buttonId = `editor-attach-button-${entryIndex}-${fieldIndex}`;
+
+        if (readOnly) {
+            return `
+                <div id="${controlId}" class="attachment-control" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}">
+                    <ul class="attachment-list" aria-label="Attached files">
+                        ${renderAttachmentListItems(attachments, entryIndex, fieldIndex, true)}
+                    </ul>
+                </div>
+            `;
+        }
+
+        return `
+            <div id="${controlId}" class="attachment-control" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}">
+                <input id="${inputId}" type="file" class="attachment-input" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" multiple hidden>
+                <button id="${buttonId}" type="button" class="btn-attach-file" data-shortcut-action="attachFile" data-attachment-trigger="${inputId}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}">Attach File</button>
+                <ul class="attachment-list" aria-label="Attached files">
+                    ${renderAttachmentListItems(attachments, entryIndex, fieldIndex, false)}
+                </ul>
+            </div>
+        `;
+    }
+
     return `<input type="text" id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" value="${escapeHtml(storedValue)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>`;
+}
+
+function bindAttachmentControl(control, isAuditLogContext) {
+    const entryIndex = Number(control.getAttribute('data-entry-index'));
+    const fieldIndex = Number(control.getAttribute('data-field-index'));
+    const trigger = control.querySelector('.btn-attach-file');
+    const input = control.querySelector('.attachment-input');
+
+    trigger?.addEventListener('click', () => {
+        input?.click();
+    });
+
+    input?.addEventListener('change', async (event) => {
+        const selectedFiles = Array.from(event.target.files || []);
+        if (selectedFiles.length === 0) return;
+        try {
+            const descriptors = await Promise.all(selectedFiles.map((file) => fileToAttachmentDescriptor(file)));
+            const currentValue = isAuditLogContext
+                ? getAuditEntries()?.[entryIndex]?.fieldValues?.[fieldIndex]
+                : appState.editorFieldValues?.[fieldIndex];
+            const nextValue = [...normalizeAttachmentList(currentValue), ...descriptors];
+
+            if (isAuditLogContext) {
+                updateAuditEntryFieldValue(entryIndex, fieldIndex, nextValue);
+                pendingEntryFocus = { entryIndex, fieldIndex };
+            } else {
+                updateEditorFieldValue(fieldIndex, nextValue);
+                pendingEditorFocusTargetId = `editor-attach-button-${entryIndex}-${fieldIndex}`;
+            }
+
+            announce(`Attached ${descriptors.length} file${descriptors.length === 1 ? '' : 's'}.`);
+            renderEditor();
+        } catch (error) {
+            announce(`Unable to attach file: ${String(error?.message || 'Unknown error')}`);
+        } finally {
+            event.target.value = '';
+        }
+    });
+
+    control.querySelectorAll('.btn-remove-attachment').forEach((button) => {
+        button.addEventListener('click', () => {
+            const attachmentIndex = Number(button.getAttribute('data-attachment-index'));
+            const currentValue = isAuditLogContext
+                ? getAuditEntries()?.[entryIndex]?.fieldValues?.[fieldIndex]
+                : appState.editorFieldValues?.[fieldIndex];
+            const nextValue = normalizeAttachmentList(currentValue).filter((_, index) => index !== attachmentIndex);
+
+            if (isAuditLogContext) {
+                updateAuditEntryFieldValue(entryIndex, fieldIndex, nextValue);
+                pendingEntryFocus = { entryIndex, fieldIndex };
+            } else {
+                updateEditorFieldValue(fieldIndex, nextValue);
+                pendingEditorFocusTargetId = `editor-attach-button-${entryIndex}-${fieldIndex}`;
+            }
+
+            announce('Attachment removed.');
+            renderEditor();
+        });
+    });
 }
 
 function updateEntryActionLabels(entryIndex) {
@@ -1335,6 +1514,10 @@ function bindAuditTableEvents(criteria) {
             attachWcagCombobox(control, criteria, entryIndex, fieldIndex);
             return;
         }
+        if (control.classList.contains('attachment-control')) {
+            bindAttachmentControl(control, true);
+            return;
+        }
         const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';
         control.addEventListener(eventName, (event) => {
             const entryIndex = Number(event.target.getAttribute('data-entry-index'));
@@ -1540,6 +1723,10 @@ export async function renderEditor() {
                 const input = control.querySelector('.wcag-combobox-input');
                 if (input && label) input.setAttribute('aria-labelledby', label.id);
                 attachWcagCombobox(control, wcagCriteria, entryIndex, fieldIndex);
+                return;
+            }
+            if (control.classList.contains('attachment-control')) {
+                bindAttachmentControl(control, false);
                 return;
             }
             const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';

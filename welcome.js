@@ -30,6 +30,8 @@ function getDynamicShortcutLines() {
     if (focusMenuBar) lines.push(`${focusMenuBar}: Focus Menu Bar`);
     const focusMenuSearch = getShortcutForAction('focusMenuSearch');
     if (focusMenuSearch) lines.push(`${focusMenuSearch}: Focus Menu Bar Command Search`);
+    const attachFile = getShortcutForAction('attachFile');
+    if (attachFile) lines.push(`${attachFile}: Attach File in Report Editor`);
 
     return lines;
 }
@@ -90,6 +92,7 @@ export function renderWelcome() {
                 <p>Use <strong>Ctrl+K</strong> to open <strong>Search Everywhere</strong> for cross-resource search across commands, reports, templates, workspaces, standards, and help topics.</p>
                 <p>Press <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and press <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search.</p>
                 <p>Press <strong>F1</strong> at any time to open the built-in Help system, which includes comprehensive documentation, tutorials, keyboard shortcuts, and detailed information about every feature in ART.</p>
+                <p>When a report includes an Attachment field, use the <strong>Attach File in Report Editor</strong> shortcut to open the file picker without leaving the keyboard.</p>
                 <p>The keyboard shortcuts below are updated automatically to reflect your current shortcut assignments.</p>
             </div>
             <section aria-labelledby="welcome-shortcuts-heading">

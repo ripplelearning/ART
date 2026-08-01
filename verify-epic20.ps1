@@ -68,6 +68,20 @@ $checks += [pscustomobject]@{ Name = 'Template payload and validation contracts'
 	) 'ARTX template payload validation contract is incomplete.'
 }}
 
+$checks += [pscustomobject]@{ Name = 'Template payload preserves report content structures'; Script = {
+	Assert-All 'state.js' $state @(
+		'function captureCurrentReportData\(',
+		'editorFieldValues:\s*normalizeEditorFieldValues\(appState\.editorFieldValues\)',
+		'auditEntries:\s*normalizeAuditEntries\(appState\.auditEntries, appState\.fields, appState\.editorFieldValues\)',
+		'function normalizeTemplate\(',
+		'editorFieldValues,',
+		'auditEntries:\s*normalizeAuditEntries\(rawData\.auditEntries, fields, editorFieldValues\)',
+		'function applyReportData\(data\)',
+		'const editorFieldValues = normalizeEditorFieldValues\(data\?\.editorFieldValues\)',
+		'auditEntries:\s*normalizeAuditEntries\(data\?\.auditEntries, fields, editorFieldValues\)'
+	) 'Template create/import/export does not preserve report content structures.'
+}}
+
 $checks += [pscustomobject]@{ Name = 'Portability privacy safeguards'; Script = {
 	Assert-All 'state.js' $state @(
 		'function createManagedDataSnapshot\(',

@@ -49,6 +49,7 @@ import {
 } from './navigation.js';
 import {
     activateAddEntryWorkflow,
+    activateAttachFileWorkflow,
     executeSpellDialogActionFromCommand,
     startSpellCheckFromCommand,
     openEditorStatisticsDialog,
@@ -202,6 +203,7 @@ function getDefaultMenuLocation(action, category) {
         case 'addField':
         case 'done':
         case 'addEntry':
+        case 'attachFile':
         case 'validateReport':
         case 'reportStatistics': return 'Report';
         case 'newTemplate':
@@ -332,6 +334,11 @@ function runAddEntryWorkflow() {
     saveState({ action: 'Opened add entry workflow', recordHistory: false });
     clickElementById('tab-editor');
     return true;
+}
+
+function runAttachFileWorkflow(context = {}) {
+    clickElementById('tab-editor');
+    return activateAttachFileWorkflow(context);
 }
 
 function runExportWorkflow() {
@@ -1062,6 +1069,13 @@ const COMMAND_DEFINITIONS = [
         description: 'Add a new audit entry.',
         enabled: () => currentReportSupportsAuditEntries(),
         handler: () => runAddEntryWorkflow()
+    },
+    {
+        action: 'attachFile',
+        id: 'Report.AttachFile',
+        category: 'Report',
+        description: 'Open file picker for the active Attachment field.',
+        handler: (context) => runAttachFileWorkflow(context)
     },
     {
         action: 'resetLookup',

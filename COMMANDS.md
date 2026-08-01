@@ -80,6 +80,7 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - `addField`
 - `done`
 - `addEntry`
+- `attachFile`
 - `validateReport`
 - `reportStatistics`
 

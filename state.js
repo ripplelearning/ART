@@ -81,6 +81,7 @@ const defaultState = {
         addField: 'Alt+Shift+F',
         done: 'Alt+Shift+O',
         addEntry: 'Alt+Shift+A',
+        attachFile: 'Alt+Shift+T',
         openProject: 'Ctrl+O',
         saveProject: 'Ctrl+S',
         saveProjectAs: 'Ctrl+Shift+S',
@@ -856,6 +857,7 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'addField', label: 'Add field in Report Builder', defaultShortcut: defaultState.shortcuts.addField },
     { action: 'done', label: 'Complete Builder and move to Editor', defaultShortcut: defaultState.shortcuts.done },
     { action: 'addEntry', label: 'Add entry in Report Editor', defaultShortcut: defaultState.shortcuts.addEntry },
+    { action: 'attachFile', label: 'Attach File in Report Editor', defaultShortcut: defaultState.shortcuts.attachFile },
     { action: 'openProject', label: 'Open ART Project', defaultShortcut: defaultState.shortcuts.openProject },
     { action: 'saveProject', label: 'Save ART Project', defaultShortcut: defaultState.shortcuts.saveProject },
     { action: 'saveProjectAs', label: 'Save ART Project As', defaultShortcut: defaultState.shortcuts.saveProjectAs },
@@ -1009,6 +1011,7 @@ export function getAssignableActions() {
         { action: 'addField', label: 'Add field in Report Builder' },
         { action: 'done', label: 'Complete Builder and move to Editor' },
         { action: 'addEntry', label: 'Add entry in Report Editor' },
+        { action: 'attachFile', label: 'Attach File in Report Editor' },
         { action: 'openProject', label: 'Open ART Project' },
         { action: 'saveProject', label: 'Save ART Project' },
         { action: 'saveProjectAs', label: 'Save ART Project As' },
@@ -1189,6 +1192,13 @@ function normalizeField(field) {
 }
 
 function normalizeEditorFieldValue(value) {
+    if (Array.isArray(value)) return normalizeAttachmentFieldValue(value);
+    if (value && typeof value === 'object' && Array.isArray(value.files)) {
+        return normalizeAttachmentFieldValue(value.files);
+    }
+    if (value && typeof value === 'object' && 'dataBase64' in value && 'name' in value) {
+        return normalizeAttachmentFieldValue([value]);
+    }
     if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
     if (!('identifier' in value) && !('number' in value) && !('title' in value)) return value;
 
@@ -1200,6 +1210,31 @@ function normalizeEditorFieldValue(value) {
         level: String(value.level || ''),
         understandingUrl: String(value.understandingUrl || ''),
         recommendationUrl: String(value.recommendationUrl || '')
+    };
+}
+
+function normalizeAttachmentFieldValue(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item, index) => normalizeAttachmentItem(item, index))
+        .filter(Boolean);
+}
+
+function normalizeAttachmentItem(item, index) {
+    if (!item || typeof item !== 'object') return null;
+    const name = String(item.name || '').trim();
+    const dataBase64 = String(item.dataBase64 || '').trim();
+    if (!name || !dataBase64) return null;
+
+    const safeSize = Number(item.size);
+    const safeLastModified = Number(item.lastModified);
+    return {
+        id: String(item.id || `attachment-${Date.now()}-${index}`),
+        name,
+        type: String(item.type || 'application/octet-stream'),
+        size: Number.isFinite(safeSize) && safeSize >= 0 ? safeSize : 0,
+        lastModified: Number.isFinite(safeLastModified) && safeLastModified >= 0 ? safeLastModified : 0,
+        dataBase64
     };
 }
 
@@ -1273,6 +1308,10 @@ function normalizeTemplate(template) {
     const metadata = template?.metadata && typeof template.metadata === 'object'
         ? template.metadata
         : {};
+    const rawData = template?.data && typeof template.data === 'object' ? template.data : {};
+    const reportType = String(rawData.reportType || reportDefaults.reportType);
+    const fields = Array.isArray(rawData.fields) ? rawData.fields.map(normalizeField) : [];
+    const editorFieldValues = normalizeEditorFieldValues(rawData.editorFieldValues);
 
     return {
         id: template?.id || `user-${Date.now()}`,
@@ -1284,11 +1323,15 @@ function normalizeTemplate(template) {
         },
         data: {
             ...reportDefaults,
-            ...(template?.data || {}),
-            branding: normalizeBranding(template?.data?.branding),
-            fields: Array.isArray(template?.data?.fields)
-                ? template.data.fields.map(normalizeField)
-                : []
+            ...rawData,
+            branding: normalizeBranding(rawData.branding),
+            progressLogEnabled: normalizeProgressLogEnabled(rawData.progressLogEnabled, reportType),
+            progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(rawData.progressLogAppendixEnabled, reportType),
+            progressItems: normalizeProgressItems(rawData.progressItems),
+            fields,
+            editorFieldValues,
+            auditEntries: normalizeAuditEntries(rawData.auditEntries, fields, editorFieldValues),
+            activeAuditEntryIndex: Number(rawData.activeAuditEntryIndex || 0)
         }
     };
 }
@@ -1422,10 +1465,7 @@ function getCurrentReportSnapshotData() {
         progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
         progressItems: normalizeProgressItems(appState.progressItems),
         branding: normalizeBranding(appState.branding),
-        fields: appState.fields.map((field) => normalizeField(field)),
-        editorFieldValues: normalizeEditorFieldValues(appState.editorFieldValues),
-        auditEntries: normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues),
-        activeAuditEntryIndex: Number(appState.activeAuditEntryIndex || 0)
+        fields: appState.fields.map((field) => normalizeField(field))
     };
 }
 
@@ -1606,12 +1646,17 @@ function captureCurrentReportData() {
         progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
         progressItems: normalizeProgressItems(appState.progressItems),
         branding: normalizeBranding(appState.branding),
-        fields: appState.fields.map((field) => normalizeField(field))
+        fields: appState.fields.map((field) => normalizeField(field)),
+        editorFieldValues: normalizeEditorFieldValues(appState.editorFieldValues),
+        auditEntries: normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues),
+        activeAuditEntryIndex: Number(appState.activeAuditEntryIndex || 0)
     };
 }
 
 function applyReportData(data) {
     const reportType = String(data?.reportType || reportDefaults.reportType);
+    const fields = Array.isArray(data?.fields) ? data.fields.map(normalizeField) : [];
+    const editorFieldValues = normalizeEditorFieldValues(data?.editorFieldValues);
     const normalized = {
         ...reportDefaults,
         ...(data || {}),
@@ -1619,16 +1664,20 @@ function applyReportData(data) {
         progressLogEnabled: normalizeProgressLogEnabled(data?.progressLogEnabled, reportType),
         progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(data?.progressLogAppendixEnabled, reportType),
         progressItems: normalizeProgressItems(data?.progressItems),
-        fields: Array.isArray(data?.fields) ? data.fields.map(normalizeField) : []
+        fields,
+        editorFieldValues,
+        auditEntries: normalizeAuditEntries(data?.auditEntries, fields, editorFieldValues),
+        activeAuditEntryIndex: Number(data?.activeAuditEntryIndex || 0)
     };
 
     Object.assign(appState, normalized, {
         editingIndex: -1,
         editorReadOnly: false,
-        editorFieldValues: {},
-        auditEntries: normalizeAuditEntries([], normalized.fields, {}),
-        activeAuditEntryIndex: 0
+        editorFieldValues: normalized.editorFieldValues,
+        auditEntries: normalized.auditEntries,
+        activeAuditEntryIndex: normalized.activeAuditEntryIndex
     });
+    syncEditorValuesFromActiveEntry();
     saveState({ action: 'Applied report configuration' });
 }
 
@@ -3996,7 +4045,7 @@ export function updateHeader(key, val) {
  * Updates a specific editor field value and persists the change.
  */
 export function updateEditorFieldValue(index, value) {
-    appState.editorFieldValues[index] = value;
+    appState.editorFieldValues[index] = normalizeEditorFieldValue(value);
     if (appState.reportType === 'Audit Log') {
         syncAuditEntriesFromEditorValues();
     }

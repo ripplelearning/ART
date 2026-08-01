@@ -25,6 +25,7 @@ function getFieldTypeLabel(type) {
     const normalizedType = normalizeFieldType(type);
     if (normalizedType === 'textarea') return 'Textarea';
     if (normalizedType === 'dropdown') return 'Dropdown';
+    if (normalizedType === 'attachment') return 'Attachment';
     if (normalizedType === 'evaluation-item-selection') return 'Evaluation Item Selection Box';
     if (isWcagCriterionFieldType(normalizedType)) return 'WCAG Success Criterion';
     return 'Text';
@@ -456,6 +457,7 @@ export async function renderBuilder() {
                     <option value="text" ${editType === 'text' ? 'selected' : ''}>Text</option>
                     <option value="textarea" ${editType === 'textarea' ? 'selected' : ''}>Textarea</option>
                     <option value="dropdown" ${editType === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                    <option value="attachment" ${editType === 'attachment' ? 'selected' : ''}>Attachment</option>
                     <option value="evaluation-item-selection" ${editType === 'evaluation-item-selection' ? 'selected' : ''}>Evaluation Item Selection Box</option>
                     <option value="wcag-success-criterion" ${isWcagCriterionFieldType(editType) ? 'selected' : ''}>WCAG Success Criterion</option>
                 </select>

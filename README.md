@@ -2,6 +2,13 @@
 
 ART is an accessibility-first reporting workspace for documenting accessibility findings, managing standards-based criteria, and exporting reports.
 
+## Report Attachments
+ART supports an Attachment field type in Report Builder.
+When a report includes Attachment fields, Report Editor provides an Attach File button that opens the operating system file picker and supports one or more files of any type.
+Attached file names appear in Report Viewer and export output, and attachment data is preserved with report and template workflows.
+
+The Attach File workflow is also available as a configurable shortcut in Keyboard Shortcut Manager under Attach File in Report Editor.
+
 ## Command Framework
 ART 2.0 introduces a centralized Application Command Framework that routes user actions through reusable commands instead of duplicated UI logic.
 The Command Palette provides keyboard-first access to those commands and opens with Ctrl+Shift+P.
@@ -75,6 +82,7 @@ Use these documents as the primary source of development and contribution standa
 - Use Application Settings to configure shortcuts and standards workflows.
 - Use F10 or Alt+/ to focus the Menu Bar, and use Alt+Q to jump directly to Menu Bar Command Search.
 - Use the Command Palette to search and execute commands without leaving the keyboard.
+- Use the Attach File in Report Editor shortcut (default: Alt+Shift+T) when working in Attachment fields.
 - Use Help in the app for end-user workflow guidance.
 
 ## Development Workflow
