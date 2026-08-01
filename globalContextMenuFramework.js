@@ -77,14 +77,15 @@ const contextActionAllowlists = new Map([
         'saveProjectWorkspace', 'saveProjectWorkspaceAs', 'renameProjectWorkspace', 'duplicateProjectWorkspace',
         'importProjectWorkspace', 'exportProjectWorkspace', 'deleteProjectWorkspace', 'openProjectProperties',
         'openProjectStatistics', 'openWorkspaceSettings', 'configureDashboard', 'searchEverywhere', 'searchDashboard',
-        'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+        'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['dashboard-widget', new Set([
         'configureDashboard', 'searchDashboard', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
     ])],
     ['welcome', new Set([
         'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'newReport',
-        'newReportFromTemplate', 'openProject', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette'
+        'newReportFromTemplate', 'openProject', 'searchEverywhere', 'searchCommands', 'openHelp', 'openSettings', 'openCommandPalette',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['project-workspace', new Set([
         'newProjectWorkspace', 'openProjectWorkspace', 'openRecentProjectWorkspace', 'continueWorking', 'closeProjectWorkspace',
@@ -101,7 +102,7 @@ const contextActionAllowlists = new Map([
     ['report-builder', new Set([
         'addField', 'done', 'newReport', 'newReportFromTemplate', 'configureReport', 'validateReport', 'reportStatistics',
         'searchCurrentReport', 'findInCurrentResource', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings',
-        'openCommandPalette', 'openEditor', 'openViewer', 'closeReport'
+        'openCommandPalette', 'openEditor', 'openViewer', 'closeReport', 'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['field-configuration', new Set([
         'addField', 'done', 'validateReport', 'reportStatistics', 'searchCurrentReport', 'findInCurrentResource',
@@ -110,11 +111,13 @@ const contextActionAllowlists = new Map([
     ['editor', new Set([
         'addEntry', 'spellCheck', 'openProgressLog', 'validateReport', 'reportStatistics', 'copyEntry', 'copyName',
         'copyDescription', 'copyFailures', 'copyFixes', 'copyLink', 'searchCurrentReport', 'findInCurrentResource',
-        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openViewer', 'closeReport'
+        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openViewer', 'closeReport',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['report-viewer', new Set([
         'exportReport', 'printPreview', 'openProgressLog', 'viewReport', 'searchCurrentReport', 'findInCurrentResource',
-        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openEditor', 'closeReport'
+        'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings', 'openCommandPalette', 'openBuilder', 'openEditor', 'closeReport',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['progress-log', new Set([
         'openProgressLog', 'validateReport', 'reportStatistics', 'searchCurrentReport', 'findInCurrentResource',
@@ -122,7 +125,8 @@ const contextActionAllowlists = new Map([
     ])],
     ['lookup-tool', new Set([
         'focusLookup', 'resetLookup', 'copyEntry', 'copyName', 'copyDescription', 'copyFailures', 'copyFixes', 'copyLink',
-        'searchAccessibilityStandards', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings'
+        'searchAccessibilityStandards', 'searchCommands', 'searchEverywhere', 'openHelp', 'openSettings',
+        'editSelectAll', 'editCopy', 'editCut', 'editPaste'
     ])],
     ['search-results', new Set([
         'findInCurrentResource', 'findNextMatch', 'findPreviousMatch', 'nextSearchResult', 'previousSearchResult',
@@ -136,6 +140,37 @@ const contextActionAllowlists = new Map([
         'settingsImportReportFile', 'settingsImportTemplateFile', 'settingsOpenIntegrations', 'settingsTogglePrivacyMode',
         'settingsCreateBackup', 'settingsResetApp', 'settingsCloseReport', 'searchCommands', 'searchKeyboardShortcuts', 'openHelp'
     ])]
+]);
+
+const workspaceOpenCoreActions = new Set([
+    'saveProjectWorkspace',
+    'saveProjectWorkspaceAs',
+    'exportProjectWorkspace',
+    'openProjectWorkspace',
+    'newProjectWorkspace',
+    'addProjectAsset',
+    'openProjectProperties',
+    'newTemplate',
+    'importTemplate',
+    'newReport',
+    'importData',
+    'configureDashboard',
+    'openSettings',
+    'openHelp',
+    'continueWorking',
+    'closeReport',
+    'editSelectAll',
+    'editCopy',
+    'editCut',
+    'editPaste'
+]);
+
+const workspaceContextEssentialActions = new Map([
+    ['report-builder', new Set(['addField', 'done', 'validateReport', 'reportStatistics', 'configureReport', 'openEditor', 'openViewer'])],
+    ['editor', new Set(['addEntry', 'spellCheck', 'openProgressLog', 'validateReport', 'reportStatistics', 'openBuilder', 'openViewer'])],
+    ['report-viewer', new Set(['exportReport', 'printPreview', 'openProgressLog', 'viewReport', 'openBuilder', 'openEditor'])],
+    ['lookup-tool', new Set(['focusLookup', 'resetLookup'])],
+    ['search-results', new Set(['findInCurrentResource', 'findNextMatch', 'findPreviousMatch', 'nextSearchResult', 'previousSearchResult'])]
 ]);
 
 let frameworkInitialized = false;
@@ -373,6 +408,10 @@ function resolveContextMenuLocation(command) {
         return 'Search>Search Commands';
     }
 
+    if (action.startsWith('edit')) {
+        return 'Edit>Clipboard';
+    }
+
     if (isWorkspaceAction(action)) {
         return 'Workspace>Workspace Commands';
     }
@@ -396,9 +435,32 @@ function resolveContextMenuLocation(command) {
     return baseLocation;
 }
 
+function isCommonEditAction(action) {
+    return action === 'copyEntry'
+        || action === 'copyName'
+        || action === 'copyDescription'
+        || action === 'copyFailures'
+        || action === 'copyFixes'
+        || action === 'copyLink'
+        || action === 'editSelectAll'
+        || action === 'editCopy'
+        || action === 'editCut'
+        || action === 'editPaste';
+}
+
+function isActionEnabledByWorkspacePolicy(context, action) {
+    if (!context.workspace) return false;
+    if (workspaceOpenCoreActions.has(action)) return true;
+    if (isCommonEditAction(action)) return true;
+    const essentials = workspaceContextEssentialActions.get(context.kind);
+    return Boolean(essentials && essentials.has(action));
+}
+
 function isActionAllowedForContext(context, command) {
     const action = normalizeText(command.action);
     if (!action) return false;
+
+    if (isActionEnabledByWorkspacePolicy(context, action)) return true;
 
     const allowlist = contextActionAllowlists.get(context.kind);
     if (!allowlist) return true;
@@ -692,14 +754,53 @@ function getCurrentFocusableItems() {
         .filter((element) => element.offsetParent !== null);
 }
 
-function setActiveItemByIndex(index) {
+function getActiveNavigationPath() {
+    return normalizeText(openState?.openPath || '');
+}
+
+function isItemInNavigationScope(item, scopePath) {
+    if (!(item instanceof HTMLElement)) return false;
+    const path = normalizeText(scopePath);
+    if (!path) return true;
+
+    const commandPath = normalizeText(item.getAttribute('data-command-path'));
+    const submenuPath = normalizeText(item.getAttribute('data-submenu-path'));
+
+    if (commandPath) {
+        return commandPath === path || commandPath.startsWith(`${path}>`);
+    }
+
+    if (submenuPath) {
+        if (submenuPath === path) return false;
+        return submenuPath.startsWith(`${path}>`);
+    }
+
+    return false;
+}
+
+function getNavigationItems(scopePath = getActiveNavigationPath()) {
     const items = getCurrentFocusableItems();
-    if (!items.length) return;
-    const normalizedIndex = ((index % items.length) + items.length) % items.length;
-    const target = items[normalizedIndex];
+    return items.filter((item) => isItemInNavigationScope(item, scopePath));
+}
+
+function setActiveItemElement(target) {
+    if (!(target instanceof HTMLElement)) return;
+    const items = getCurrentFocusableItems();
     items.forEach((item) => item.classList.remove('is-active'));
     target.classList.add('is-active');
     target.focus();
+
+    const scopedItems = getNavigationItems();
+    const scopedIndex = Math.max(0, scopedItems.indexOf(target));
+    openState.activeIndex = scopedIndex;
+}
+
+function setActiveItemByIndex(index) {
+    const items = getNavigationItems();
+    if (!items.length) return;
+    const normalizedIndex = ((index % items.length) + items.length) % items.length;
+    const target = items[normalizedIndex];
+    setActiveItemElement(target);
     openState.activeIndex = normalizedIndex;
 }
 
@@ -708,7 +809,7 @@ function focusFirstItem() {
 }
 
 function focusLastItem() {
-    const items = getCurrentFocusableItems();
+    const items = getNavigationItems();
     if (!items.length) return;
     setActiveItemByIndex(items.length - 1);
 }
@@ -716,7 +817,7 @@ function focusLastItem() {
 function focusItemByText(text) {
     const query = normalizeText(text).toLowerCase();
     if (!query) return;
-    const items = getCurrentFocusableItems();
+    const items = getNavigationItems();
     const start = (openState.activeIndex + 1) % Math.max(items.length, 1);
     for (let offset = 0; offset < items.length; offset += 1) {
         const index = (start + offset) % items.length;
@@ -942,16 +1043,41 @@ function openSubmenu(submenuPath) {
     if (!openState) return;
     openState.openPath = submenuPath;
     renderMenu();
+    const submenuItems = getNavigationItems(submenuPath);
+    if (submenuItems.length) {
+        setActiveItemElement(submenuItems[0]);
+        openState.activeIndex = 0;
+        return;
+    }
     const submenuItem = menuElement.querySelector(`[data-submenu-path="${escapeSelectorValue(submenuPath)}"]`);
-    submenuItem?.focus();
+    if (submenuItem instanceof HTMLElement) {
+        setActiveItemElement(submenuItem);
+    }
 }
 
 function closeSubmenu() {
     if (!openState?.openPath) return false;
-    const segments = openState.openPath.split('>');
+    const previousPath = openState.openPath;
+    const segments = previousPath.split('>');
     segments.pop();
     openState.openPath = segments.join('>');
     renderMenu();
+
+    const parentPath = openState.openPath;
+    if (parentPath) {
+        const toggle = menuElement.querySelector(`[data-submenu-path="${escapeSelectorValue(parentPath)}"]`);
+        if (toggle instanceof HTMLElement) {
+            setActiveItemElement(toggle);
+            return true;
+        }
+    }
+
+    const previousToggle = menuElement.querySelector(`[data-submenu-path="${escapeSelectorValue(previousPath)}"]`);
+    if (previousToggle instanceof HTMLElement) {
+        setActiveItemElement(previousToggle);
+        return true;
+    }
+
     focusFirstItem();
     return true;
 }
@@ -988,7 +1114,7 @@ function handleMenuKeydown(event) {
     }
 
     if (event.key === 'ArrowRight') {
-        const current = getCurrentFocusableItems()[openState.activeIndex];
+        const current = getNavigationItems()[openState.activeIndex];
         const submenuPath = current?.getAttribute('data-submenu-path') || '';
         if (submenuPath) {
             event.preventDefault();
@@ -1017,7 +1143,7 @@ function handleMenuKeydown(event) {
     }
 
     if (event.key === 'Enter' || event.key === ' ') {
-        const current = getCurrentFocusableItems()[openState.activeIndex];
+        const current = getNavigationItems()[openState.activeIndex];
         if (!current) return;
         event.preventDefault();
         const submenuPath = current.getAttribute('data-submenu-path') || '';

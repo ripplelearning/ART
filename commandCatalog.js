@@ -226,6 +226,87 @@ function runLookupCopyWorkflow(action) {
     return executeLookupCopyActionFromCommand(action);
 }
 
+function getEditableTargetFromContext(context = {}) {
+    const contextElement = context.activeElement instanceof HTMLElement ? context.activeElement : null;
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const candidate = contextElement || activeElement;
+    if (!candidate) return null;
+
+    if (candidate instanceof HTMLTextAreaElement) return candidate;
+    if (candidate instanceof HTMLInputElement) {
+        const type = String(candidate.type || '').toLowerCase();
+        const textTypes = new Set(['text', 'search', 'url', 'tel', 'password', 'email', 'number']);
+        return textTypes.has(type) ? candidate : null;
+    }
+    if (candidate.isContentEditable) return candidate;
+    return candidate.closest('[contenteditable="true"]');
+}
+
+function hasEditableSelection(target) {
+    if (!target) return false;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        const start = Number.isFinite(target.selectionStart) ? target.selectionStart : 0;
+        const end = Number.isFinite(target.selectionEnd) ? target.selectionEnd : 0;
+        return end > start;
+    }
+    const selection = document.getSelection();
+    return Boolean(selection && String(selection.toString() || '').trim());
+}
+
+function hasSelectedText(context = {}) {
+    const selectedText = String(context?.selectedText || '').trim();
+    if (selectedText) return true;
+    const selection = document.getSelection();
+    return Boolean(selection && String(selection.toString() || '').trim());
+}
+
+function selectAllContent(context = {}) {
+    const editableTarget = getEditableTargetFromContext(context);
+    if (editableTarget instanceof HTMLInputElement || editableTarget instanceof HTMLTextAreaElement) {
+        editableTarget.focus();
+        editableTarget.select();
+        announce('All text selected.');
+        return true;
+    }
+
+    if (editableTarget instanceof HTMLElement) {
+        editableTarget.focus();
+        const range = document.createRange();
+        range.selectNodeContents(editableTarget);
+        const selection = document.getSelection();
+        if (!selection) return false;
+        selection.removeAllRanges();
+        selection.addRange(range);
+        announce('All content selected.');
+        return true;
+    }
+
+    const root = document.getElementById('main-inner') || document.body;
+    if (!root) return false;
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    const selection = document.getSelection();
+    if (!selection) return false;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    announce('All content selected.');
+    return true;
+}
+
+function executeClipboardCommand(type) {
+    try {
+        const result = document.execCommand(type);
+        if (result) {
+            const verb = type === 'copy' ? 'copied' : type === 'cut' ? 'cut' : 'pasted';
+            announce(`Selection ${verb}.`);
+            return true;
+        }
+    } catch (error) {
+        return false;
+    }
+    return false;
+}
+
 function getFirstTemplateOption() {
     const templateSelect = document.getElementById('template-selection');
     if (!templateSelect) return null;
@@ -1364,6 +1445,37 @@ const COMMAND_DEFINITIONS = [
         description: 'Close the current report from Settings.',
         enabled: () => canCloseActiveSession(),
         handler: () => runCloseReportWorkflow()
+    },
+    {
+        action: 'editSelectAll',
+        id: 'Tools.EditSelectAll',
+        category: 'Tools',
+        description: 'Select all content in the current editable region when available.',
+        handler: (context) => selectAllContent(context)
+    },
+    {
+        action: 'editCopy',
+        id: 'Tools.EditCopy',
+        category: 'Tools',
+        description: 'Copy the current selection when available.',
+        enabled: (context) => hasSelectedText(context) || hasEditableSelection(getEditableTargetFromContext(context)),
+        handler: () => executeClipboardCommand('copy')
+    },
+    {
+        action: 'editCut',
+        id: 'Tools.EditCut',
+        category: 'Tools',
+        description: 'Cut the current editable selection when available.',
+        enabled: (context) => hasEditableSelection(getEditableTargetFromContext(context)),
+        handler: () => executeClipboardCommand('cut')
+    },
+    {
+        action: 'editPaste',
+        id: 'Tools.EditPaste',
+        category: 'Tools',
+        description: 'Paste clipboard content into the current editable target when available.',
+        enabled: (context) => Boolean(getEditableTargetFromContext(context)),
+        handler: () => executeClipboardCommand('paste')
     },
     {
         action: 'copyEntry',
