@@ -10,6 +10,7 @@ import { initHelp, openHelpDialog } from './help.js';
 import { initThemeEngine } from './themeEngine.js';
 import { initCommandPalette } from './commandPalette.js';
 import { initMenuBar } from './menuBar.js';
+import { initGlobalContextMenuFramework } from './globalContextMenuFramework.js';
 import { registerApplicationCommands } from './commandCatalog.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
@@ -182,6 +183,7 @@ function initializeApp() {
     runStartupStage('initializeUniversalSearchFramework', () => initializeUniversalSearchFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());
+    runStartupStage('initGlobalContextMenuFramework', () => initGlobalContextMenuFramework());
     
     // 2. Initialize side-panel tools
     runStartupStage('initLookupTool', () => initLookupTool());

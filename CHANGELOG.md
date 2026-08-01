@@ -26,6 +26,8 @@
 - Search Everywhere dialog with cross-resource search and saved-search/history actions.
 - Shared Search Results Framework reused by Search Everywhere, Command Palette, Menu Bar Command Search, and Dashboard Search.
 - Search command suite for scope-based search, result navigation, and highlight/history management.
+- Global Context Menu Framework with context providers, dynamic menu generation, embedded command search, and keyboard navigation.
+- Context menu integration driven by the shared Application Command Framework and current shortcut assignments.
 
 ### Updated
 - Keyboard shortcuts now execute through application commands.

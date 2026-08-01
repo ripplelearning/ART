@@ -85,7 +85,7 @@ function normalizeCommandMetadata(definition = {}) {
         helpTopic,
         menuLocation,
         commandPaletteVisible: source.commandPaletteVisible !== false,
-        contextMenuVisible: Boolean(source.contextMenuVisible),
+        contextMenuVisible: source.contextMenuVisible !== false,
         notes: normalizeText(source.notes || source.futureNotes)
     });
 }

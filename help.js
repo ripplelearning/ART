@@ -159,6 +159,16 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-context-menus',
+            title: 'Global Context Menus',
+            content: `
+                <p>ART now uses a reusable Global Context Menu Framework for right-click, keyboard menu key, Shift+F10, touch-and-hold, and other menu invocation methods.</p>
+                <p>Context menus are generated from the Application Command Framework and the current application context, so the same commands appear consistently for the same situation.</p>
+                <p>The embedded Search Commands field at the bottom of each context menu filters the commands currently available in that menu.</p>
+                <p>Commands show their current shortcut assignment when one exists, and context menus follow the same accessibility model throughout ART.</p>
+            `
+        },
+        {
             id: 'help-dashboard-widgets',
             title: 'Dashboard Widgets and Layouts',
             content: `

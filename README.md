@@ -6,6 +6,7 @@ ART is an accessibility-first reporting workspace for documenting accessibility 
 ART 2.0 introduces a centralized Application Command Framework that routes user actions through reusable commands instead of duplicated UI logic.
 The Command Palette provides keyboard-first access to those commands and opens with Ctrl+Shift+P.
 The Menu Bar provides a familiar menu structure, and Menu Bar Command Search opens with Alt+Q.
+ART 2.0 also introduces a reusable Global Context Menu Framework that generates context-sensitive menus from the same registered commands.
 
 Shortcut changes made in Application Settings are reflected throughout ART, including the Command Palette and other shortcut displays.
 

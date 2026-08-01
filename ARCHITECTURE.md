@@ -7,6 +7,7 @@ The framework standardizes how user actions are defined, resolved, and executed.
 ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a configurable workspace composed of independent widgets.
 ART 2.0 now also introduces a Project Workspace Framework that provides project-level lifecycle, storage, resource management, workspace restoration, and extensibility points.
 ART 2.0 now also introduces a Universal Search Framework that standardizes provider search, result aggregation, and search UI behavior.
+ART 2.0 now also introduces a Global Context Menu Framework that generates context-sensitive menus from context providers and registered commands.
 
 ## Core Layers
 
@@ -65,6 +66,14 @@ ART 2.0 now also introduces a Universal Search Framework that standardizes provi
 - Aggregates and ranks provider results into a single search session model.
 - Persists search scope preference, active sessions, search history, and saved searches in shared state.
 - Reuses a single Search Results Framework component for Search Everywhere, Command Palette, Menu Bar Command Search, and Dashboard Search.
+
+### Global Context Menu Framework
+- Resolves the current application context from focus, selection, and workspace state.
+- Registers context providers that determine which commands are relevant for the current context.
+- Builds dynamic command trees from registered commands and menu metadata.
+- Executes menu items through the centralized Application Command Framework.
+- Supports embedded command search, keyboard navigation, focus restoration, and accessibility announcements.
+- Provides a reusable basis for future plugin and integration context menus.
 
 ## Project Workspace Lifecycle
 
@@ -182,3 +191,4 @@ Standard workspace folders:
 - Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
 - Keyboard interaction and workspace shortcut tooltip synchronization: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
 - Command execution: [commandExecutionService.js](commandExecutionService.js)
+- Global context menu framework: [globalContextMenuFramework.js](globalContextMenuFramework.js)

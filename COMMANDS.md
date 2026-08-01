@@ -136,6 +136,8 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - The Command Palette is a registered Application Command and opens with Ctrl+Shift+P by default.
 - The Command Palette displays the current shortcut assignments from the Keyboard Shortcut Manager.
 - The Menu Bar and Menu Bar Command Search are registered Application Commands and use the shared command search engine.
+- Global Context Menus are generated from the same Application Command Framework and context providers, rather than hard-coded menu lists.
+- Context menu items show the current shortcut assignment when one exists.
 - Search Everywhere and scope-specific search commands run through the Universal Search Framework provider registry.
 - Search result surfaces use a shared Search Results Framework for consistent keyboard behavior and status announcements.
 - Menu Bar focus uses F10, with Alt+/ as an alternate shortcut in the web application.
