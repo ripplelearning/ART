@@ -1217,7 +1217,9 @@ function renderNonTemplateLayout() {
         return renderExecutiveParagraphLayout();
     }
 
-    return renderAuditParagraphLayout();
+    return type === 'Audit Log'
+        ? renderAuditParagraphLayout()
+        : renderExecutiveParagraphLayout();
 }
 
 function renderReportBody() {

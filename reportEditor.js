@@ -1586,12 +1586,18 @@ function bindEditorDialogEvents() {
         void executeEditorAction('spellCheck');
     });
 
-    validateReportButton?.addEventListener('click', () => {
-        void executeEditorAction('validateReport', { triggerButton: validateReportButton });
+    validateReportButton?.addEventListener('click', async () => {
+        const result = await executeEditorAction('validateReport', { triggerButton: validateReportButton });
+        if (!result?.ok) {
+            openEditorValidationDialog(validateReportButton);
+        }
     });
 
-    reportStatisticsButton?.addEventListener('click', () => {
-        void executeEditorAction('reportStatistics', { triggerButton: reportStatisticsButton });
+    reportStatisticsButton?.addEventListener('click', async () => {
+        const result = await executeEditorAction('reportStatistics', { triggerButton: reportStatisticsButton });
+        if (!result?.ok) {
+            openEditorStatisticsDialog(reportStatisticsButton);
+        }
     });
 
     progressLogButton?.addEventListener('click', async () => {
@@ -1601,8 +1607,16 @@ function bindEditorDialogEvents() {
         }
     });
 
-    viewReportButton?.addEventListener('click', () => {
-        void executeEditorAction('openViewer');
+    viewReportButton?.addEventListener('click', async () => {
+        const result = await executeEditorAction('openViewer');
+        if (!result?.ok) {
+            const viewerTab = document.getElementById('tab-view');
+            viewerTab?.click();
+            window.setTimeout(() => {
+                const heading = document.getElementById('viewer-heading');
+                heading?.focus();
+            }, 0);
+        }
     });
 
     printPreviewButton?.addEventListener('click', () => {

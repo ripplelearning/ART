@@ -323,10 +323,31 @@ export function executeDoneFromCommand() {
     announce('Report moved to Editor.');
     const editorTab = document.getElementById('tab-editor');
     if (editorTab) editorTab.click();
-    window.setTimeout(() => {
+
+    const focusEditorStartField = (attempt = 0) => {
+        const firstField = document.getElementById('editor-field-0-0')
+            || document.querySelector('.editor-audit-table [data-entry-index="0"][data-field-index="0"]')
+            || document.querySelector('.editor-audit-table .wcag-combobox-input')
+            || document.querySelector('.editor-audit-table .btn-attach-file')
+            || document.querySelector('.editor-fields-grid [data-entry-index="0"][data-field-index="0"]')
+            || document.querySelector('.editor-fields-grid .wcag-combobox-input')
+            || document.querySelector('.editor-fields-grid .btn-attach-file');
+
+        if (firstField instanceof HTMLElement) {
+            firstField.focus();
+            return;
+        }
+
+        if (attempt < 10) {
+            window.setTimeout(() => focusEditorStartField(attempt + 1), 40);
+            return;
+        }
+
         const editorHeading = document.getElementById('editor-heading');
         if (editorHeading) editorHeading.focus();
-    }, 30);
+    };
+
+    window.setTimeout(() => focusEditorStartField(0), 30);
     return true;
 }
 
