@@ -1273,7 +1273,7 @@ function renderMenu() {
         </div>
         <div class="global-context-menu__search" role="group" aria-label="Command Search">
             <label class="global-context-menu__hint" for="global-context-menu-command-search">Command Search</label>
-            <input id="global-context-menu-command-search" type="search" autocomplete="off" spellcheck="false" aria-controls="global-context-menu-command-search-results" aria-describedby="global-context-menu-status" placeholder="Search commands">
+            <input id="global-context-menu-command-search" type="search" autocomplete="off" spellcheck="false" aria-controls="global-context-menu-command-search-results" aria-describedby="global-context-menu-status" placeholder="Search commands" data-menu-focusable="true" data-command-path="__context-menu-command-search__">
             <div id="global-context-menu-command-search-results" class="global-context-menu__search-results" role="listbox" aria-label="Command search results" hidden></div>
         </div>
         <p id="global-context-menu-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -1292,7 +1292,11 @@ function renderMenu() {
         });
         searchInputElement.addEventListener('keydown', (event) => {
             if (event.key === 'ArrowDown') {
-                if (!commandSearchResults.length) return;
+                if (!commandSearchResults.length) {
+                    event.preventDefault();
+                    setActiveItemByIndex(openState.activeIndex + 1);
+                    return;
+                }
                 event.preventDefault();
                 const controller = ensureContextMenuSearchController();
                 if (!controller) return;
@@ -1303,7 +1307,11 @@ function renderMenu() {
             }
 
             if (event.key === 'ArrowUp') {
-                if (!commandSearchResults.length) return;
+                if (!commandSearchResults.length) {
+                    event.preventDefault();
+                    setActiveItemByIndex(openState.activeIndex - 1);
+                    return;
+                }
                 event.preventDefault();
                 const controller = ensureContextMenuSearchController();
                 if (!controller) return;
