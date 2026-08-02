@@ -187,6 +187,7 @@ function getHelpSections(rows) {
                 <p>ART uses a Project Workspace model so reports, templates, assets, and workspace context can be managed as one accessibility project.</p>
                 <p>Project Workspace commands include create, open, open recent, close, save, save as, rename, duplicate, import, export, and delete.</p>
                 <p>One Project Workspace is active at a time in Version 2.0. The underlying architecture is prepared for future multi-workspace support without redesign.</p>
+                <p>The shared Resource Framework now powers Resource Navigator grouping so resource identity and capability metadata can be reused across future explorer and search features.</p>
                 <p>Resource Navigator groups workspace resources by category and supports keyboard-first navigation and filtering.</p>
                 <p>When a Project Workspace is active, Resource Navigator includes a <strong>Close Workspace</strong> button. The default shortcut is <strong>${escapeHtml(closeWorkspaceShortcut)}</strong>, and this assignment can be changed in Keyboard Shortcut Manager.</p>
             `
