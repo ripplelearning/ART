@@ -80,7 +80,7 @@ export function renderWelcome() {
     container.innerHTML = `
         <section id="welcome-view" aria-labelledby="welcome-heading">
             <h1 id="welcome-heading">Welcome to ART</h1>
-            <p><strong>ART (the Accessibility Reporting Tool)</strong> Version 1.0 is an open-source application for creating, managing, and exporting professional accessibility audit reports. Designed for accessibility professionals, quality assurance testers, developers, designers, educators, and organizations, ART streamlines the process of documenting accessibility findings while supporting efficient, consistent, and accessible reporting workflows.</p>
+            <p><strong>ART (the Accessibility Reporting Tool)</strong> Version 1.5 is an open-source application for creating, managing, and exporting professional accessibility audit reports. Designed for accessibility professionals, quality assurance testers, developers, designers, educators, and organizations, ART streamlines the process of documenting accessibility findings while supporting efficient, consistent, and accessible reporting workflows.</p>
             <p>ART is built on an accessibility-first philosophy. Keyboard accessibility, screen reader compatibility, semantic HTML, and support for a wide range of users are fundamental to every aspect of the application.</p>
             <div>
                 <h2 id="welcome-getting-started-heading">Getting Started</h2>

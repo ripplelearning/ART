@@ -1077,7 +1077,7 @@ const SHORTCUT_DEFINITIONS = [
 
 const APP_INFO = {
     applicationName: 'ART (the Accessibility Reporting Tool)',
-    version: '1.0',
+    version: '1.5',
     buildDate: '2026-07-16',
     dataSchemaVersion: '1.0'
 };

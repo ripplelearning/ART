@@ -1,7 +1,7 @@
 import { appState, getActiveProjectWorkspace } from './state.js';
 
 const APP_NAME = 'ART';
-const APP_VERSION = 'Version 1.0';
+const APP_VERSION = 'Version 1.5';
 const TAB_PANEL_MAP = {
     'tab-welcome': 'Welcome',
     'tab-builder': 'Report Builder',
