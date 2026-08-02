@@ -2,6 +2,7 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { announce, appState, getActiveProjectWorkspace, getShortcutForAction } from './state.js';
 import { searchCommands } from './commandSearchEngine.js';
+import { createSearchResultsController } from './searchResultsFramework.js';
 
 const providerRegistry = new Map();
 const groupOrder = [
@@ -236,6 +237,11 @@ let openState = null;
 let touchTimer = null;
 let typeAheadBuffer = '';
 let typeAheadTimer = null;
+let commandSearchResultsElement = null;
+let commandSearchResultsController = null;
+let commandSearchResults = [];
+let commandSearchActiveIndex = -1;
+let commandSearchEscapeArmed = false;
 
 function escapeHtml(value) {
     return String(value || '')
@@ -827,6 +833,43 @@ function injectStyles() {
             box-sizing: border-box;
         }
 
+        .global-context-menu__search-results {
+            max-height: 220px;
+            overflow: auto;
+            border: var(--art-border-width) solid var(--art-border-color);
+            border-radius: 10px;
+            background: var(--art-surface-background);
+            padding: 6px;
+        }
+
+        .global-context-menu__search-result {
+            width: 100%;
+            text-align: left;
+            display: grid;
+            gap: 4px;
+            border: var(--art-border-width) solid transparent;
+            border-radius: 8px;
+            padding: 8px;
+            background: var(--art-button-background);
+            color: var(--art-button-text);
+        }
+
+        .global-context-menu__search-result.is-selected,
+        .global-context-menu__search-result:focus-visible {
+            outline: var(--art-focus-outline-width) solid var(--art-focus-color);
+            outline-offset: 2px;
+        }
+
+        .global-context-menu__search-result-meta,
+        .global-context-menu__search-result-description {
+            color: var(--art-muted-text-color);
+            font-size: 0.82rem;
+        }
+
+        .global-context-menu__search-result.is-disabled {
+            opacity: 0.56;
+        }
+
         .global-context-menu__empty {
             padding: 10px;
             color: var(--art-muted-text-color);
@@ -1012,6 +1055,11 @@ function clearMenuDom() {
     overlayElement = null;
     menuElement = null;
     searchInputElement = null;
+    commandSearchResultsElement = null;
+    commandSearchResultsController = null;
+    commandSearchResults = [];
+    commandSearchActiveIndex = -1;
+    commandSearchEscapeArmed = false;
     statusElement = null;
 }
 
@@ -1059,6 +1107,97 @@ function buildMenuItem(command, depth, path) {
             <span class="global-context-menu__shortcut">${escapeHtml(shortcut || '')}</span>
         </button>
     `;
+}
+
+function getContextMenuCommandSearchResults(query) {
+    if (!openState) return [];
+    const text = normalizeText(query);
+    if (!text) return [];
+
+    const executionContext = getCommandExecutionContext(openState.context);
+    return searchCommands(text, { context: { source: 'menu-bar-search' } })
+        .map((command) => ({
+            ...command,
+            ...commandExecutionService.getCommandExecutionState(command.id, executionContext)
+        }));
+}
+
+function executeCommandSearchResult(index) {
+    const command = commandSearchResults[index] || null;
+    if (!command || !command.canExecute) return false;
+
+    const executionContext = getCommandExecutionContext(openState.context);
+    const result = commandExecutionService.executeCommand(command.id, executionContext);
+    if (result?.then) {
+        void result.then((resolved) => {
+            if (resolved?.ok !== false) announce(`${command.displayName} executed.`);
+        });
+    } else if (result?.ok !== false) {
+        announce(`${command.displayName} executed.`);
+    }
+
+    dismissContextMenu({ restoreFocus: false });
+    return true;
+}
+
+function ensureContextMenuSearchController() {
+    if (commandSearchResultsController) return commandSearchResultsController;
+    if (!commandSearchResultsElement || !searchInputElement) return null;
+
+    commandSearchResultsController = createSearchResultsController({
+        container: commandSearchResultsElement,
+        statusElement,
+        idPrefix: 'global-context-menu-command-search',
+        listboxLabel: 'Command search results',
+        itemClass: 'global-context-menu__search-result',
+        itemActiveClass: 'is-selected',
+        itemDisabledClass: 'is-disabled',
+        titleClass: 'global-context-menu__search-result-name',
+        subtitleClass: 'global-context-menu__search-result-meta',
+        descriptionClass: 'global-context-menu__search-result-description',
+        emptyClass: 'global-context-menu__empty',
+        emptyMessage: 'No matching commands found.',
+        onActivate: (_, index) => {
+            executeCommandSearchResult(index);
+        },
+        onSelectionChange: (_, index) => {
+            commandSearchActiveIndex = index;
+            const optionId = commandSearchResultsController?.getActiveOptionId() || '';
+            if (optionId) {
+                searchInputElement.setAttribute('aria-activedescendant', optionId);
+            } else {
+                searchInputElement.removeAttribute('aria-activedescendant');
+            }
+        }
+    });
+
+    return commandSearchResultsController;
+}
+
+function renderCommandSearchResults(query) {
+    const text = normalizeText(query);
+    commandSearchResults = getContextMenuCommandSearchResults(text);
+
+    if (!commandSearchResultsElement) return;
+    commandSearchResultsElement.hidden = !text;
+
+    const controller = ensureContextMenuSearchController();
+    if (!controller) return;
+
+    controller.setResults(commandSearchResults.map((command) => ({
+        id: command.id,
+        title: command.displayName,
+        subtitle: `${command.keyboardShortcut || 'Unassigned'} | ${command.category}`,
+        description: command.description || '',
+        disabled: !command.canExecute,
+        command
+    })));
+
+    if (!commandSearchResults.length) {
+        commandSearchActiveIndex = -1;
+    } else if (commandSearchActiveIndex < 0 || commandSearchActiveIndex >= commandSearchResults.length) {
+        commandSearchActiveIndex = 0;
+    }
 }
 
 function renderTreeNodes(nodes, depth = 0, parentPath = []) {
@@ -1117,8 +1256,8 @@ function renderTreeNodes(nodes, depth = 0, parentPath = []) {
 
 function renderMenu() {
     if (!openState || !menuElement) return;
-    const { context, provider, commands, searchText } = openState;
-    const visibleCommands = getVisibleCommands(context, provider, searchText);
+    const { context, provider } = openState;
+    const visibleCommands = getVisibleCommands(context, provider, '');
     const tree = createMenuTree(visibleCommands);
     const providerMeta = provider?.getMetadata ? provider.getMetadata(context) : null;
     const subtitle = providerMeta?.subtitle || `${visibleCommands.length} command${visibleCommands.length === 1 ? '' : 's'} available`;
@@ -1132,38 +1271,79 @@ function renderMenu() {
         <div class="global-context-menu__groups" role="none">
             ${tree.length ? renderTreeNodes(tree) : '<div class="global-context-menu__empty">No matching commands.</div>'}
         </div>
-        <div class="global-context-menu__search" role="group" aria-label="Search Commands">
-            <label class="global-context-menu__hint" for="global-context-menu-search">Search Commands</label>
-            <input id="global-context-menu-search" type="search" autocomplete="off" spellcheck="false" aria-describedby="global-context-menu-status global-context-menu-search-help">
-            <p id="global-context-menu-search-help" class="global-context-menu__description">Filter commands available in this menu.</p>
+        <div class="global-context-menu__search" role="group" aria-label="Command Search">
+            <label class="global-context-menu__hint" for="global-context-menu-command-search">Command Search</label>
+            <input id="global-context-menu-command-search" type="search" autocomplete="off" spellcheck="false" aria-controls="global-context-menu-command-search-results" aria-describedby="global-context-menu-status" placeholder="Search commands">
+            <div id="global-context-menu-command-search-results" class="global-context-menu__search-results" role="listbox" aria-label="Command search results" hidden></div>
         </div>
         <p id="global-context-menu-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     `;
 
-    searchInputElement = menuElement.querySelector('#global-context-menu-search');
+    searchInputElement = menuElement.querySelector('#global-context-menu-command-search');
+    commandSearchResultsElement = menuElement.querySelector('#global-context-menu-command-search-results');
     statusElement = menuElement.querySelector('#global-context-menu-status');
+    commandSearchResultsController = null;
     if (searchInputElement) {
-        searchInputElement.value = searchText;
+        searchInputElement.value = openState.commandSearchText || '';
         searchInputElement.addEventListener('input', () => {
-            openState.searchText = searchInputElement.value;
-            renderMenu();
-            announceStatus(openState.searchText ? `${getVisibleCommands(context, provider, openState.searchText).length} commands available.` : 'Search cleared.');
+            commandSearchEscapeArmed = false;
+            openState.commandSearchText = searchInputElement.value;
+            renderCommandSearchResults(openState.commandSearchText);
         });
         searchInputElement.addEventListener('keydown', (event) => {
-            if (event.key !== 'Escape') return;
-            if (searchInputElement.value) {
+            if (event.key === 'ArrowDown') {
+                if (!commandSearchResults.length) return;
                 event.preventDefault();
-                searchInputElement.value = '';
-                openState.searchText = '';
-                renderMenu();
-                focusFirstItem();
-                announceStatus('Search cleared.');
+                const controller = ensureContextMenuSearchController();
+                if (!controller) return;
+                const nextIndex = commandSearchActiveIndex >= 0 ? commandSearchActiveIndex : 0;
+                controller.setActiveIndex(nextIndex, { announce: true });
+                controller.focusActive();
                 return;
             }
-            event.preventDefault();
-            dismissContextMenu({ restoreFocus: true });
+
+            if (event.key === 'ArrowUp') {
+                if (!commandSearchResults.length) return;
+                event.preventDefault();
+                const controller = ensureContextMenuSearchController();
+                if (!controller) return;
+                const nextIndex = commandSearchResults.length - 1;
+                controller.setActiveIndex(nextIndex, { announce: true });
+                controller.focusActive();
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                if (!commandSearchResults.length) return;
+                event.preventDefault();
+                executeCommandSearchResult(Math.max(commandSearchActiveIndex, 0));
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                if (commandSearchEscapeArmed) {
+                    searchInputElement.value = '';
+                    openState.commandSearchText = '';
+                    commandSearchEscapeArmed = false;
+                    renderCommandSearchResults('');
+                    dismissContextMenu({ restoreFocus: true });
+                    return;
+                }
+
+                if (searchInputElement.value) {
+                    searchInputElement.select();
+                    commandSearchEscapeArmed = true;
+                    announceStatus('Press Escape again to close command search.');
+                    return;
+                }
+
+                dismissContextMenu({ restoreFocus: true });
+            }
         });
     }
+
+    renderCommandSearchResults(openState.commandSearchText || '');
 
     const matchingCount = visibleCommands.length;
     if (!matchingCount) {
@@ -1245,8 +1425,27 @@ function handleMenuKeydown(event) {
     if (!openState) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
     const isSearchField = target === searchInputElement;
+    const inSearchResults = target instanceof HTMLElement && target.closest('#global-context-menu-command-search-results');
 
-    if (isSearchField) return;
+    if (isSearchField || inSearchResults) {
+        const controller = ensureContextMenuSearchController();
+        if (inSearchResults && controller) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                commandSearchEscapeArmed = true;
+                searchInputElement?.focus();
+                searchInputElement?.select();
+                announceStatus('Press Escape again to close command search.');
+                return;
+            }
+
+            if (controller.handleKeydown(event)) {
+                commandSearchActiveIndex = controller.getActiveIndex();
+                return;
+            }
+        }
+        return;
+    }
 
     if (event.key === 'ArrowDown') {
         event.preventDefault();
@@ -1289,13 +1488,6 @@ function handleMenuKeydown(event) {
 
     if (event.key === 'Escape') {
         event.preventDefault();
-        if (openState.searchText) {
-            openState.searchText = '';
-            renderMenu();
-            focusFirstItem();
-            announceStatus('Search cleared.');
-            return;
-        }
         if (closeSubmenu()) return;
         dismissContextMenu({ restoreFocus: true });
         return;
@@ -1409,7 +1601,7 @@ function showContextMenu(invocation = {}) {
         provider,
         providerMetadata,
         commands: allowedCommands,
-        searchText: '',
+        commandSearchText: '',
         openPath: '',
         activeIndex: 0,
         anchorX: Number.isFinite(Number(invocation.anchorX)) ? Number(invocation.anchorX) : 0,
