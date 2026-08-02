@@ -245,6 +245,21 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-report-views-framework',
+            title: 'Report Views Framework',
+            content: `
+                <p>The Report Views Framework provides temporary Working Views for grouping, filtering, sorting, and reviewing findings without changing report content by default.</p>
+                <p>Use <strong>Open Working View</strong> from Report Viewer actions, context menus, or commands to configure grouping, sorting, filter criteria, and search text.</p>
+                <p>Working View Properties supports up to three grouping levels and up to three sorting levels so complex audit queues can be organized consistently.</p>
+                <p>Built-in presets include triage, reviewer queue, and WCAG-by-page flows. Presets can be saved as report, project, or global scope.</p>
+                <p>Batch actions can set status, assign reviewer, set severity, or add a tag to currently visible findings.</p>
+                <p>Use <strong>Reveal in Explorer</strong> to open Explorer view and focus the associated report resource from a Working View finding.</p>
+                <p>Use <strong>Apply Working View</strong> only when you want to commit the current presentation order to the active report organization.</p>
+                <p>You can save, load, refresh, reset, and delete Working View presets with report, project, or global scope.</p>
+                <p>Default shortcuts: <strong>Open Working View</strong> is <strong>${escapeHtml(formatShortcutValue(getShortcutForAction('openWorkingView') || 'Ctrl+Alt+W'))}</strong>, <strong>Exit Working View</strong> is <strong>${escapeHtml(formatShortcutValue(getShortcutForAction('exitWorkingView') || 'Ctrl+Alt+X'))}</strong>, and <strong>Apply Working View</strong> is <strong>${escapeHtml(formatShortcutValue(getShortcutForAction('applyWorkingView') || 'Ctrl+Alt+Shift+W'))}</strong>.</p>
+            `
+        },
+        {
             id: 'help-settings-config',
             title: 'Settings and Configuration',
             content: `

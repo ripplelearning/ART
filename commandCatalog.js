@@ -102,6 +102,31 @@ import {
     showExplorerViewFromCommand,
     toggleWorkspaceViewFromCommand
 } from './explorerFramework.js';
+import {
+    applyWorkingViewFromCommand,
+    batchAddWorkingViewTagFromCommand,
+    batchAssignWorkingViewReviewerFromCommand,
+    batchSetWorkingViewSeverityFromCommand,
+    batchSetWorkingViewStatusFromCommand,
+    collapseAllWorkingViewGroupsFromCommand,
+    deleteWorkingViewFromCommand,
+    exitWorkingViewFromCommand,
+    expandAllWorkingViewGroupsFromCommand,
+    loadWorkingViewFromCommand,
+    loadWorkingViewForReportFromCommand,
+    nextWorkingViewFindingFromCommand,
+    nextWorkingViewGroupFromCommand,
+    openWorkingViewFromCommand,
+    previousWorkingViewFindingFromCommand,
+    previousWorkingViewGroupFromCommand,
+    refreshWorkingViewFromCommand,
+    resetWorkingViewFromCommand,
+    revealWorkingViewInExplorerFromCommand,
+    revealWorkingViewInReportFromCommand,
+    saveWorkingViewFromCommand,
+    setReportViewModeFromCommand,
+    toggleReportViewModeFromCommand
+} from './reportViewsFramework.js';
 
 let commandsRegistered = false;
 
@@ -209,6 +234,34 @@ function getDefaultMenuLocation(action, category) {
         case 'editReport':
         case 'viewReport':
         case 'deleteReport':
+        case 'openWorkingView':
+        case 'exitWorkingView':
+        case 'applyWorkingView':
+        case 'saveWorkingView':
+        case 'loadWorkingView':
+        case 'deleteWorkingView':
+        case 'refreshWorkingView':
+        case 'resetWorkingView':
+        case 'nextWorkingViewFinding':
+        case 'previousWorkingViewFinding':
+        case 'nextWorkingViewGroup':
+        case 'previousWorkingViewGroup':
+        case 'revealWorkingViewInExplorer':
+        case 'revealWorkingViewInReport':
+        case 'expandAllWorkingViewGroups':
+        case 'collapseAllWorkingViewGroups':
+        case 'batchSetWorkingViewStatus':
+        case 'batchAssignWorkingViewReviewer':
+        case 'batchSetWorkingViewSeverity':
+        case 'batchAddWorkingViewTag':
+        case 'setStandardReportView':
+        case 'setWorkingReportView':
+        case 'setOutlineReportView':
+        case 'setCompactReportView':
+        case 'setExpandedReportView':
+        case 'setReadingReportView':
+        case 'setReviewReportView':
+        case 'toggleReportViewMode':
         case 'addField':
         case 'done':
         case 'addEntry':
@@ -459,6 +512,14 @@ function runShowExplorerWorkflow() {
 
 function runToggleWorkspaceViewWorkflow() {
     return toggleWorkspaceViewFromCommand();
+}
+
+function runOpenWorkingViewWorkflow(context = {}) {
+    return openWorkingViewFromCommand(context);
+}
+
+function runSetReportViewModeWorkflow(mode) {
+    return setReportViewModeFromCommand(mode);
 }
 
 function runOpenTemplateWorkflow(context = {}) {
@@ -1031,6 +1092,202 @@ const COMMAND_DEFINITIONS = [
         category: 'Report',
         description: 'Open the Report Viewer panel.',
         handler: () => activateTabCommand('tab-view', 'viewer-heading', 'Report Viewer')
+    },
+    {
+        action: 'openWorkingView',
+        id: 'ReportViews.OpenWorkingView',
+        category: 'Report',
+        description: 'Open a temporary Working View for the active report.',
+        handler: (context) => runOpenWorkingViewWorkflow(context)
+    },
+    {
+        action: 'exitWorkingView',
+        id: 'ReportViews.ExitWorkingView',
+        category: 'Report',
+        description: 'Exit Working View and restore the previous report context.',
+        handler: () => exitWorkingViewFromCommand()
+    },
+    {
+        action: 'applyWorkingView',
+        id: 'ReportViews.ApplyWorkingView',
+        category: 'Report',
+        description: 'Apply the current Working View ordering to this report.',
+        handler: () => applyWorkingViewFromCommand()
+    },
+    {
+        action: 'saveWorkingView',
+        id: 'ReportViews.SaveWorkingView',
+        category: 'Report',
+        description: 'Save current Working View settings as a preset.',
+        handler: () => saveWorkingViewFromCommand()
+    },
+    {
+        action: 'loadWorkingView',
+        id: 'ReportViews.LoadWorkingView',
+        category: 'Report',
+        description: 'Load a Working View preset.',
+        handler: (context) => loadWorkingViewForReportFromCommand(context?.reportId || '')
+    },
+    {
+        action: 'deleteWorkingView',
+        id: 'ReportViews.DeleteWorkingView',
+        category: 'Report',
+        description: 'Delete a Working View preset.',
+        handler: () => deleteWorkingViewFromCommand()
+    },
+    {
+        action: 'refreshWorkingView',
+        id: 'ReportViews.RefreshWorkingView',
+        category: 'Report',
+        description: 'Refresh Working View results from the latest report data.',
+        handler: () => refreshWorkingViewFromCommand()
+    },
+    {
+        action: 'resetWorkingView',
+        id: 'ReportViews.ResetWorkingView',
+        category: 'Report',
+        description: 'Reset Working View configuration to default settings.',
+        handler: () => resetWorkingViewFromCommand()
+    },
+    {
+        action: 'batchSetWorkingViewStatus',
+        id: 'ReportViews.BatchSetStatus',
+        category: 'Report',
+        description: 'Batch-set status for currently visible Working View findings.',
+        handler: () => batchSetWorkingViewStatusFromCommand()
+    },
+    {
+        action: 'batchAssignWorkingViewReviewer',
+        id: 'ReportViews.BatchAssignReviewer',
+        category: 'Report',
+        description: 'Batch-assign reviewer for currently visible Working View findings.',
+        handler: () => batchAssignWorkingViewReviewerFromCommand()
+    },
+    {
+        action: 'batchSetWorkingViewSeverity',
+        id: 'ReportViews.BatchSetSeverity',
+        category: 'Report',
+        description: 'Batch-set severity for currently visible Working View findings.',
+        handler: () => batchSetWorkingViewSeverityFromCommand()
+    },
+    {
+        action: 'batchAddWorkingViewTag',
+        id: 'ReportViews.BatchAddTag',
+        category: 'Report',
+        description: 'Batch-add a tag for currently visible Working View findings.',
+        handler: () => batchAddWorkingViewTagFromCommand()
+    },
+    {
+        action: 'nextWorkingViewFinding',
+        id: 'ReportViews.NextFinding',
+        category: 'Report',
+        description: 'Move focus to the next finding in Working View.',
+        handler: () => nextWorkingViewFindingFromCommand()
+    },
+    {
+        action: 'previousWorkingViewFinding',
+        id: 'ReportViews.PreviousFinding',
+        category: 'Report',
+        description: 'Move focus to the previous finding in Working View.',
+        handler: () => previousWorkingViewFindingFromCommand()
+    },
+    {
+        action: 'nextWorkingViewGroup',
+        id: 'ReportViews.NextGroup',
+        category: 'Report',
+        description: 'Move focus to the next group in Working View.',
+        handler: () => nextWorkingViewGroupFromCommand()
+    },
+    {
+        action: 'previousWorkingViewGroup',
+        id: 'ReportViews.PreviousGroup',
+        category: 'Report',
+        description: 'Move focus to the previous group in Working View.',
+        handler: () => previousWorkingViewGroupFromCommand()
+    },
+    {
+        action: 'revealWorkingViewInExplorer',
+        id: 'ReportViews.RevealInExplorer',
+        category: 'Report',
+        description: 'Reveal the selected Working View finding in Explorer.',
+        handler: () => revealWorkingViewInExplorerFromCommand()
+    },
+    {
+        action: 'revealWorkingViewInReport',
+        id: 'ReportViews.RevealInReport',
+        category: 'Report',
+        description: 'Return from Working View to the report editor context.',
+        handler: () => revealWorkingViewInReportFromCommand()
+    },
+    {
+        action: 'expandAllWorkingViewGroups',
+        id: 'ReportViews.ExpandAllGroups',
+        category: 'Report',
+        description: 'Expand all group sections in Working View.',
+        handler: () => expandAllWorkingViewGroupsFromCommand()
+    },
+    {
+        action: 'collapseAllWorkingViewGroups',
+        id: 'ReportViews.CollapseAllGroups',
+        category: 'Report',
+        description: 'Collapse all group sections in Working View.',
+        handler: () => collapseAllWorkingViewGroupsFromCommand()
+    },
+    {
+        action: 'setStandardReportView',
+        id: 'ReportViews.SetStandardMode',
+        category: 'Report',
+        description: 'Use the standard report presentation.',
+        handler: () => runSetReportViewModeWorkflow('standard')
+    },
+    {
+        action: 'setWorkingReportView',
+        id: 'ReportViews.SetWorkingMode',
+        category: 'Report',
+        description: 'Use Working View mode.',
+        handler: () => runSetReportViewModeWorkflow('working')
+    },
+    {
+        action: 'setOutlineReportView',
+        id: 'ReportViews.SetOutlineMode',
+        category: 'Report',
+        description: 'Use Outline View mode.',
+        handler: () => runSetReportViewModeWorkflow('outline')
+    },
+    {
+        action: 'setCompactReportView',
+        id: 'ReportViews.SetCompactMode',
+        category: 'Report',
+        description: 'Use Compact View mode.',
+        handler: () => runSetReportViewModeWorkflow('compact')
+    },
+    {
+        action: 'setExpandedReportView',
+        id: 'ReportViews.SetExpandedMode',
+        category: 'Report',
+        description: 'Use Expanded View mode.',
+        handler: () => runSetReportViewModeWorkflow('expanded')
+    },
+    {
+        action: 'setReadingReportView',
+        id: 'ReportViews.SetReadingMode',
+        category: 'Report',
+        description: 'Use Reading View mode.',
+        handler: () => runSetReportViewModeWorkflow('reading')
+    },
+    {
+        action: 'setReviewReportView',
+        id: 'ReportViews.SetReviewMode',
+        category: 'Report',
+        description: 'Use Review View mode.',
+        handler: () => runSetReportViewModeWorkflow('review')
+    },
+    {
+        action: 'toggleReportViewMode',
+        id: 'ReportViews.ToggleMode',
+        category: 'Report',
+        description: 'Toggle between Standard View and Working View.',
+        handler: () => toggleReportViewModeFromCommand()
     },
     {
         action: 'openProgressLog',
