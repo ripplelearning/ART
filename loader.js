@@ -12,6 +12,7 @@ import { initCommandPalette } from './commandPalette.js';
 import { initMenuBar } from './menuBar.js';
 import { initGlobalContextMenuFramework } from './globalContextMenuFramework.js';
 import { registerApplicationCommands } from './commandCatalog.js';
+import { initExplorerFramework } from './explorerFramework.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
 
@@ -190,6 +191,9 @@ function initializeApp() {
     
     // 3. Initialize interactive dashboard elements
     runStartupStage('renderDashboard', () => renderDashboard());
+
+    // 3b. Initialize workspace explorer/dashboard switching
+    runStartupStage('initExplorerFramework', () => initExplorerFramework());
 
     // 4. Initialize application settings modal
     runStartupStage('initSettings', () => {

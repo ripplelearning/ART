@@ -11,6 +11,7 @@ import {
     getAssignableActions,
     getIntegrationStatusMap,
     getImportedAccessibilityStandards,
+    getWorkspaceViewConfig,
     importReportWithConflictStrategy,
     importTemplateWithConflictStrategy,
     getRestorePoints,
@@ -32,6 +33,7 @@ import {
     serializeAccessibilityStandardsJsonPayload,
     undoState,
     updateImportedAccessibilityStandard,
+    updateWorkspaceViewConfig,
     updateSecurityConfig,
     updateVisualAccessibilityConfig,
     updateShortcut,
@@ -553,6 +555,81 @@ function renderVisualAccessibilitySettings() {
     setVisualAccessibilityFormValues(getVisualAccessibilityConfig());
 }
 
+function getWorkspaceViewControls() {
+    return {
+        defaultView: document.getElementById('settings-workspace-default-view'),
+        rememberLast: document.getElementById('settings-workspace-remember-last'),
+        showIcons: document.getElementById('settings-explorer-icons'),
+        showBadges: document.getElementById('settings-explorer-badges'),
+        showRecent: document.getElementById('settings-explorer-recent'),
+        showFavorites: document.getElementById('settings-explorer-favorites'),
+        showSavedSearches: document.getElementById('settings-explorer-saved-searches'),
+        autoExpand: document.getElementById('settings-explorer-auto-expand'),
+        restoreExpansion: document.getElementById('settings-explorer-restore-expansion'),
+        restoreSelection: document.getElementById('settings-explorer-restore-selection'),
+        restoreFocus: document.getElementById('settings-explorer-restore-focus'),
+        restoreScroll: document.getElementById('settings-explorer-restore-scroll'),
+        restoreContext: document.getElementById('settings-explorer-restore-context'),
+        width: document.getElementById('settings-explorer-width'),
+        widthValue: document.getElementById('settings-explorer-width-value'),
+        applyButton: document.getElementById('btn-settings-workspace-apply')
+    };
+}
+
+function renderWorkspaceViewSettings() {
+    const controls = getWorkspaceViewControls();
+    if (!controls.defaultView || !controls.rememberLast || !controls.width) return;
+
+    const config = getWorkspaceViewConfig();
+    const explorer = config.explorer || {};
+
+    controls.defaultView.value = config.defaultView || 'dashboard';
+    controls.rememberLast.checked = Boolean(config.rememberLastView);
+    controls.showIcons.checked = explorer.showResourceIcons !== false;
+    controls.showBadges.checked = explorer.showResourceBadges !== false;
+    controls.showRecent.checked = explorer.showRecentResources !== false;
+    controls.showFavorites.checked = explorer.showFavorites !== false;
+    controls.showSavedSearches.checked = explorer.showSavedSearches !== false;
+    controls.autoExpand.checked = explorer.autoExpandParents !== false;
+    controls.restoreExpansion.checked = explorer.restoreExpansionState !== false;
+    controls.restoreSelection.checked = explorer.restoreSelectedResource !== false;
+    controls.restoreFocus.checked = explorer.restoreFocus !== false;
+    controls.restoreScroll.checked = explorer.restoreScrollPosition !== false;
+    controls.restoreContext.checked = explorer.restoreContext !== false;
+    controls.width.value = String(explorer.width || 320);
+    if (controls.widthValue) controls.widthValue.textContent = `${controls.width.value} px`;
+}
+
+function applyWorkspaceViewSettings() {
+    const controls = getWorkspaceViewControls();
+    if (!controls.defaultView || !controls.rememberLast || !controls.width) return false;
+
+    updateWorkspaceViewConfig({
+        defaultView: controls.defaultView.value || 'dashboard',
+        rememberLastView: Boolean(controls.rememberLast.checked),
+        explorer: {
+            width: Number(controls.width.value || 320),
+            showResourceIcons: Boolean(controls.showIcons?.checked),
+            showResourceBadges: Boolean(controls.showBadges?.checked),
+            showRecentResources: Boolean(controls.showRecent?.checked),
+            showFavorites: Boolean(controls.showFavorites?.checked),
+            showSavedSearches: Boolean(controls.showSavedSearches?.checked),
+            autoExpandParents: Boolean(controls.autoExpand?.checked),
+            restoreExpansionState: Boolean(controls.restoreExpansion?.checked),
+            restoreSelectedResource: Boolean(controls.restoreSelection?.checked),
+            restoreFocus: Boolean(controls.restoreFocus?.checked),
+            restoreScrollPosition: Boolean(controls.restoreScroll?.checked),
+            restoreContext: Boolean(controls.restoreContext?.checked)
+        }
+    }, {
+        action: 'Updated workspace view settings',
+        persist: true
+    });
+
+    writeStatus('Workspace view settings applied.');
+    return true;
+}
+
 function importAccessibilityStandardList(standards, overwrite = false) {
     const list = Array.isArray(standards) ? standards : [];
     if (list.length === 0) return { ok: false, reason: 'empty' };
@@ -636,6 +713,7 @@ function refreshSettingsView() {
     renderImportedStandards();
     renderIntegrationSettings();
     renderVisualAccessibilitySettings();
+    renderWorkspaceViewSettings();
     renderAbout();
 }
 
@@ -1586,6 +1664,19 @@ function bindVisualAccessibilitySettings() {
     });
 }
 
+function bindWorkspaceViewSettings() {
+    const controls = getWorkspaceViewControls();
+    if (!controls.defaultView || !controls.rememberLast || !controls.width || !controls.applyButton) return;
+
+    controls.width.addEventListener('input', () => {
+        if (controls.widthValue) controls.widthValue.textContent = `${controls.width.value} px`;
+    });
+
+    controls.applyButton.addEventListener('click', () => {
+        applyWorkspaceViewSettings();
+    });
+}
+
 function bindStandardExport() {
     const exportButton = document.getElementById('btn-settings-export-standards');
     if (!exportButton) return;
@@ -1615,6 +1706,7 @@ export function initSettings() {
 
     bindShortcutCapture();
     bindVisualAccessibilitySettings();
+    bindWorkspaceViewSettings();
     bindStandardImport();
     bindStandardExport();
     bindIntegrationSettings();
@@ -1627,6 +1719,7 @@ export function initSettings() {
     window.addEventListener('art-visual-accessibility-updated', refreshSettingsView);
     window.addEventListener('art-accessibility-standards-updated', refreshSettingsView);
     window.addEventListener('art-security-updated', refreshSettingsView);
+    window.addEventListener('art-workspace-view-settings-updated', refreshSettingsView);
 
     isInitialized = true;
 }

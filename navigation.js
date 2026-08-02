@@ -49,6 +49,8 @@ const shortcutControlMap = [
     { id: 'btn-import-data', action: 'openReport', label: 'Import report JSON file' },
     { id: 'btn-new-report', action: 'newReport', label: 'New report' },
     { id: 'btn-configure-dashboard', action: 'configureDashboard', label: 'Configure Dashboard' },
+    { id: 'btn-switch-to-explorer', action: 'showExplorer', label: 'Show Explorer' },
+    { id: 'btn-switch-to-dashboard', action: 'showDashboard', label: 'Show Dashboard' },
     { id: 'btn-create-custom-widget', action: 'configureDashboard', label: 'Create Custom Widget' },
     { id: 'btn-help', action: 'openHelp', label: 'Help' },
     { id: 'top-tabs', action: 'focusNavigation', label: 'Navigation tablist' },

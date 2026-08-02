@@ -22,6 +22,10 @@
 </nav>
     <section id="dashboard" role="complementary" aria-labelledby="dash-heading">
         <h2 id="dash-heading">Dashboard</h2>
+        <div id="dashboard-workspace-view-dashboard">
+        <div class="workspace-view-actions" role="group" aria-label="Workspace view actions">
+            <button id="btn-switch-to-explorer" type="button">Show Explorer</button>
+        </div>
         
         <div class="action-group">
             <button id="btn-new-report">New Report</button>
@@ -155,6 +159,40 @@
                         </tbody>
                     </table>
                     <p role="status" aria-live="polite">Preview status message.</p>
+                </div>
+            </section>
+
+            <section aria-labelledby="settings-workspace-view-heading">
+                <h4 id="settings-workspace-view-heading">Workspace View</h4>
+                <p>Choose how ART opens and how Explorer behavior is restored between sessions.</p>
+                <label for="settings-workspace-default-view">Default Workspace View</label>
+                <select id="settings-workspace-default-view">
+                    <option value="dashboard">Dashboard</option>
+                    <option value="explorer">Explorer</option>
+                </select>
+                <label>
+                    <input id="settings-workspace-remember-last" type="checkbox">
+                    Remember Last Workspace View
+                </label>
+                <fieldset>
+                    <legend>Explorer Personalization</legend>
+                    <label><input id="settings-explorer-icons" type="checkbox"> Show resource icons</label>
+                    <label><input id="settings-explorer-badges" type="checkbox"> Show resource badges</label>
+                    <label><input id="settings-explorer-recent" type="checkbox"> Show recent resources</label>
+                    <label><input id="settings-explorer-favorites" type="checkbox"> Show Favorites</label>
+                    <label><input id="settings-explorer-saved-searches" type="checkbox"> Show Saved Searches</label>
+                    <label><input id="settings-explorer-auto-expand" type="checkbox"> Automatically expand parent resources</label>
+                    <label><input id="settings-explorer-restore-expansion" type="checkbox"> Restore expanded Resources</label>
+                    <label><input id="settings-explorer-restore-selection" type="checkbox"> Restore selected Resource</label>
+                    <label><input id="settings-explorer-restore-focus" type="checkbox"> Restore keyboard focus</label>
+                    <label><input id="settings-explorer-restore-scroll" type="checkbox"> Restore scroll position</label>
+                    <label><input id="settings-explorer-restore-context" type="checkbox"> Restore Explorer context</label>
+                    <label for="settings-explorer-width">Explorer Width</label>
+                    <input id="settings-explorer-width" type="range" min="240" max="560" step="8" value="320" aria-describedby="settings-explorer-width-value">
+                    <span id="settings-explorer-width-value" role="status" aria-live="polite">320 px</span>
+                </fieldset>
+                <div class="viewer-dialog-actions" role="group" aria-label="Workspace view actions">
+                    <button id="btn-settings-workspace-apply" type="button">Apply Workspace View Settings</button>
                 </div>
             </section>
 
@@ -389,6 +427,23 @@
             </div>
 
         </div>
+        </div>
+
+        <section id="art-explorer-view" role="navigation" aria-label="Explorer Navigation" hidden>
+            <h2 id="art-explorer-heading" tabindex="-1">Explorer</h2>
+            <div class="workspace-view-actions" role="group" aria-label="Workspace view actions">
+                <button id="btn-switch-to-dashboard" type="button">Show Dashboard</button>
+            </div>
+            <div class="art-explorer__toolbar" role="group" aria-label="Explorer Search">
+                <label for="art-explorer-search">Search Explorer</label>
+                <div class="art-explorer__search-row">
+                    <input id="art-explorer-search" type="search" autocomplete="off" spellcheck="false" placeholder="Search resources" aria-describedby="art-explorer-status">
+                    <button id="btn-art-explorer-clear-search" type="button">Clear</button>
+                </div>
+                <p id="art-explorer-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            </div>
+            <div id="art-explorer-sections" class="art-explorer__sections"></div>
+        </section>
     </section>
 
     <main id="main-content" role="main" aria-label="main content">

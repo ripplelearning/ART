@@ -22,6 +22,7 @@ import {
     resetReportToBlank,
     saveState,
     serializeArtxTemplatePayload,
+    getActiveWorkspaceView,
 } from './state.js';
 import { openCommandPalette } from './commandPalette.js';
 import { focusMenuBarFromCommand, focusMenuSearchFromCommand } from './menuBar.js';
@@ -96,6 +97,11 @@ import {
     saveProjectWorkspaceAsFromCommand,
     saveProjectWorkspaceFromCommand
 } from './projectWorkspaceFramework.js';
+import {
+    showDashboardViewFromCommand,
+    showExplorerViewFromCommand,
+    toggleWorkspaceViewFromCommand
+} from './explorerFramework.js';
 
 let commandsRegistered = false;
 
@@ -133,6 +139,9 @@ function getDefaultMenuLocation(action, category) {
         case 'openViewer': return 'View>Report Viewer';
         case 'focusNavigation': return 'View>Navigation';
         case 'focusDashboard': return 'View>Dashboard';
+        case 'showDashboard':
+        case 'showExplorer':
+        case 'toggleWorkspaceView': return 'View>Workspace View';
         case 'configureDashboard': return 'View';
         case 'focusMainContent': return 'View>Main Content';
         case 'nextLandmark':
@@ -438,6 +447,18 @@ function runNewReportWorkflow() {
     appState.editorReadOnly = false;
     saveState();
     return activateTabCommand('tab-builder', 'builder-heading', 'Report Builder');
+}
+
+function runShowDashboardWorkflow() {
+    return showDashboardViewFromCommand();
+}
+
+function runShowExplorerWorkflow() {
+    return showExplorerViewFromCommand();
+}
+
+function runToggleWorkspaceViewWorkflow() {
+    return toggleWorkspaceViewFromCommand();
 }
 
 function runOpenTemplateWorkflow(context = {}) {
@@ -1032,6 +1053,29 @@ const COMMAND_DEFINITIONS = [
         category: 'Application',
         description: 'Move focus to the dashboard region.',
         handler: () => focusDashboardRegion()
+    },
+    {
+        action: 'showDashboard',
+        id: 'View.ShowDashboard',
+        category: 'View',
+        description: 'Show the dashboard workspace view.',
+        enabled: () => getActiveWorkspaceView() !== 'dashboard',
+        handler: () => runShowDashboardWorkflow()
+    },
+    {
+        action: 'showExplorer',
+        id: 'View.ShowExplorer',
+        category: 'View',
+        description: 'Show the explorer workspace view.',
+        enabled: () => getActiveWorkspaceView() !== 'explorer',
+        handler: () => runShowExplorerWorkflow()
+    },
+    {
+        action: 'toggleWorkspaceView',
+        id: 'View.ToggleWorkspaceView',
+        category: 'View',
+        description: 'Toggle between dashboard and explorer workspace views.',
+        handler: () => runToggleWorkspaceViewWorkflow()
     },
     {
         action: 'configureDashboard',

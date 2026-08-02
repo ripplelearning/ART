@@ -72,6 +72,9 @@ const contextRoots = new Map([
 
 const contextActionAllowlists = new Map([
     ['dashboard', new Set([
+        'showDashboard',
+        'showExplorer',
+        'toggleWorkspaceView',
         'configureDashboard',
         'newReport',
         'importData',
@@ -91,6 +94,9 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['welcome', new Set([
+        'showDashboard',
+        'showExplorer',
+        'toggleWorkspaceView',
         'newProjectWorkspace',
         'openProjectWorkspace',
         'continueWorking',
@@ -101,6 +107,9 @@ const contextActionAllowlists = new Map([
         'openSettings'
     ])],
     ['project-workspace', new Set([
+        'showDashboard',
+        'showExplorer',
+        'toggleWorkspaceView',
         'saveProjectWorkspace',
         'saveProjectWorkspaceAs',
         'exportProjectWorkspace',
@@ -125,6 +134,9 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['report-builder', new Set([
+        'showDashboard',
+        'showExplorer',
+        'toggleWorkspaceView',
         'addField',
         'done',
         'configureReport',
@@ -147,6 +159,9 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['editor', new Set([
+        'showDashboard',
+        'showExplorer',
+        'toggleWorkspaceView',
         'addEntry',
         'spellCheck',
         'openProgressLog',
@@ -159,6 +174,9 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['report-viewer', new Set([
+        'showDashboard',
+        'showExplorer',
+        'toggleWorkspaceView',
         'exportReport',
         'printPreview',
         'openProgressLog',

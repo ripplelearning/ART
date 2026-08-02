@@ -66,6 +66,9 @@ function getMenuLocation(command) {
         case 'openViewer': return 'View>Report Viewer';
         case 'focusNavigation': return 'View>Navigation';
         case 'focusDashboard': return 'View>Dashboard';
+        case 'showDashboard':
+        case 'showExplorer':
+        case 'toggleWorkspaceView': return 'View>Workspace View';
         case 'configureDashboard': return 'View';
         case 'focusMainContent': return 'View>Main Content';
         case 'nextLandmark':
