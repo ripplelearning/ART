@@ -448,6 +448,113 @@ a {
 
 .viewer-dialog-actions { display: flex; gap: 8px; }
 
+#report-working-view {
+    display: grid;
+    gap: 12px;
+}
+
+.report-views-breadcrumb,
+.report-views-finding-meta,
+.report-views-summary p {
+    color: var(--art-muted-text-color);
+}
+
+.report-views-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.report-views-toolbar label {
+    align-self: center;
+    font-weight: 600;
+}
+
+.report-views-summary {
+    border: 1px solid var(--art-border-color);
+    background: var(--art-surface-alt-background);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.report-views-results {
+    display: grid;
+    gap: 8px;
+}
+
+.report-views-group {
+    border: 1px solid var(--art-border-color);
+    border-radius: 8px;
+    padding: 8px;
+    background: var(--art-surface-background);
+}
+
+.report-views-group > summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.report-views-group-children {
+    margin-top: 8px;
+    display: grid;
+    gap: 8px;
+}
+
+.report-views-group ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    display: grid;
+    gap: 6px;
+}
+
+.report-views-finding {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--art-border-color);
+    background: var(--art-surface-alt-background);
+    border-radius: 6px;
+    padding: 8px;
+    display: grid;
+    gap: 4px;
+}
+
+.report-views-finding-title {
+    font-weight: 700;
+}
+
+#working-view-config-dialog fieldset {
+    border: 1px solid var(--art-border-color);
+    border-radius: 8px;
+    padding: 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.working-view-sort-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 180px) minmax(140px, 1fr) minmax(90px, 140px) minmax(120px, 1fr);
+    gap: 8px;
+    align-items: center;
+}
+
+@media (max-width: 900px) {
+    .working-view-sort-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.report-view-mode-compact .report-views-finding {
+    padding: 6px;
+}
+
+.report-view-mode-reading .report-views-finding {
+    line-height: 1.6;
+}
+
+.report-view-mode-outline .report-views-group {
+    border-style: dashed;
+}
+
 #new-report-options { display: grid; gap: 10px; margin-top: 12px; }
 .open-report-status { margin: 8px 0 0; min-height: 1.25rem; }
 
