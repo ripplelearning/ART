@@ -46,9 +46,6 @@ const defaultState = {
         previousLandmark: 'Ctrl+Shift+F6',
         focusNavigation: 'Alt+Shift+N',
         focusDashboard: 'Alt+Shift+S',
-        showDashboard: '',
-        showExplorer: '',
-        toggleWorkspaceView: '',
         configureDashboard: 'Alt+Shift+G',
         focusMainContent: '',
         openWelcome: 'Alt+Shift+W',
@@ -250,32 +247,6 @@ const defaultState = {
             }
         ],
         customWidgets: []
-    },
-    workspaceView: {
-        active: 'dashboard',
-        defaultView: 'dashboard',
-        rememberLastView: false,
-        explorer: {
-            width: 320,
-            showResourceIcons: true,
-            showResourceBadges: true,
-            showRecentResources: true,
-            showFavorites: true,
-            showSavedSearches: true,
-            autoExpandParents: true,
-            restoreExpansionState: true,
-            restoreSelectedResource: true,
-            restoreFocus: true,
-            restoreScrollPosition: true,
-            restoreContext: true,
-            expandedResourceIds: [],
-            selectedResourceId: '',
-            focusedResourceId: '',
-            scrollTop: 0,
-            lastContextKind: '',
-            favorites: [],
-            recentResources: []
-        }
     },
     workspaces: [],
     activeWorkspaceId: '',
@@ -838,72 +809,6 @@ function normalizeUniversalSearchConfig(config) {
     };
 }
 
-function normalizeWorkspaceViewName(value, fallback = 'dashboard') {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'explorer') return 'explorer';
-    return fallback === 'explorer' ? 'explorer' : 'dashboard';
-}
-
-function normalizeExplorerRecentResources(list) {
-    if (!Array.isArray(list)) return [];
-    return list
-        .map((item) => {
-            if (!item || typeof item !== 'object') return null;
-            const id = String(item.id || '').trim();
-            const label = String(item.label || '').trim();
-            const type = String(item.type || '').trim();
-            const action = String(item.action || '').trim();
-            const at = String(item.at || '').trim() || new Date().toISOString();
-            if (!id || !label) return null;
-            return { id, label, type, action, at };
-        })
-        .filter(Boolean)
-        .slice(0, 100);
-}
-
-function normalizeWorkspaceViewConfig(config) {
-    const source = config && typeof config === 'object' ? config : {};
-    const defaultView = normalizeWorkspaceViewName(source.defaultView, defaultState.workspaceView.defaultView);
-    const rememberLastView = Boolean(source.rememberLastView);
-    const activeRaw = rememberLastView ? source.active : defaultView;
-    const active = normalizeWorkspaceViewName(activeRaw, defaultView);
-    const explorerSource = source.explorer && typeof source.explorer === 'object' ? source.explorer : {};
-    const baseExplorer = defaultState.workspaceView.explorer;
-
-    return {
-        active,
-        defaultView,
-        rememberLastView,
-        explorer: {
-            ...baseExplorer,
-            ...explorerSource,
-            width: Math.max(240, Math.min(560, Number(explorerSource.width || baseExplorer.width))),
-            showResourceIcons: explorerSource.showResourceIcons !== false,
-            showResourceBadges: explorerSource.showResourceBadges !== false,
-            showRecentResources: explorerSource.showRecentResources !== false,
-            showFavorites: explorerSource.showFavorites !== false,
-            showSavedSearches: explorerSource.showSavedSearches !== false,
-            autoExpandParents: explorerSource.autoExpandParents !== false,
-            restoreExpansionState: explorerSource.restoreExpansionState !== false,
-            restoreSelectedResource: explorerSource.restoreSelectedResource !== false,
-            restoreFocus: explorerSource.restoreFocus !== false,
-            restoreScrollPosition: explorerSource.restoreScrollPosition !== false,
-            restoreContext: explorerSource.restoreContext !== false,
-            expandedResourceIds: Array.isArray(explorerSource.expandedResourceIds)
-                ? explorerSource.expandedResourceIds.map((id) => String(id || '').trim()).filter(Boolean)
-                : [],
-            selectedResourceId: String(explorerSource.selectedResourceId || '').trim(),
-            focusedResourceId: String(explorerSource.focusedResourceId || '').trim(),
-            scrollTop: Math.max(0, Number(explorerSource.scrollTop || 0)),
-            lastContextKind: String(explorerSource.lastContextKind || '').trim(),
-            favorites: Array.isArray(explorerSource.favorites)
-                ? explorerSource.favorites.map((id) => String(id || '').trim()).filter(Boolean)
-                : [],
-            recentResources: normalizeExplorerRecentResources(explorerSource.recentResources)
-        }
-    };
-}
-
 const SHORTCUT_DEFINITIONS = [
     { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
     { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
@@ -917,9 +822,6 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'previousLandmark', label: 'Navigate to previous application region', defaultShortcut: defaultState.shortcuts.previousLandmark },
     { action: 'focusNavigation', label: 'Focus navigation tablist', defaultShortcut: defaultState.shortcuts.focusNavigation },
     { action: 'focusDashboard', label: 'Focus dashboard region', defaultShortcut: defaultState.shortcuts.focusDashboard },
-    { action: 'showDashboard', label: 'Show Dashboard workspace view', defaultShortcut: defaultState.shortcuts.showDashboard },
-    { action: 'showExplorer', label: 'Show Explorer workspace view', defaultShortcut: defaultState.shortcuts.showExplorer },
-    { action: 'toggleWorkspaceView', label: 'Toggle workspace view', defaultShortcut: defaultState.shortcuts.toggleWorkspaceView },
     { action: 'configureDashboard', label: 'Configure Dashboard', defaultShortcut: defaultState.shortcuts.configureDashboard },
     { action: 'focusMainContent', label: 'Focus main content region', defaultShortcut: defaultState.shortcuts.focusMainContent },
     { action: 'openWelcome', label: 'Open Welcome tab', defaultShortcut: defaultState.shortcuts.openWelcome },
@@ -1076,9 +978,6 @@ export function getAssignableActions() {
         { action: 'previousLandmark', label: 'Navigate to previous application region' },
         { action: 'focusNavigation', label: 'Focus navigation tablist' },
         { action: 'focusDashboard', label: 'Focus dashboard region' },
-        { action: 'showDashboard', label: 'Show Dashboard workspace view' },
-        { action: 'showExplorer', label: 'Show Explorer workspace view' },
-        { action: 'toggleWorkspaceView', label: 'Toggle workspace view' },
         { action: 'configureDashboard', label: 'Configure Dashboard' },
         { action: 'focusMainContent', label: 'Focus main content region' },
         { action: 'openWelcome', label: 'Open Welcome tab' },
@@ -1472,7 +1371,6 @@ export let appState = {
         ? storedState.userTemplates.map(normalizeTemplate)
         : [],
     dashboard: normalizeDashboardConfig(storedState.dashboard),
-    workspaceView: normalizeWorkspaceViewConfig(storedState.workspaceView),
     workspaces: normalizeProjectWorkspaces(storedState.workspaces),
     activeWorkspaceId: String(storedState.activeWorkspaceId || ''),
     recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces),
@@ -1499,7 +1397,6 @@ function normalizeStateSnapshot(rawState) {
         security: normalizeSecurityConfig(base.security),
         visualAccessibility: normalizeVisualAccessibilityConfig(base.visualAccessibility),
         dashboard: normalizeDashboardConfig(base.dashboard),
-        workspaceView: normalizeWorkspaceViewConfig(base.workspaceView),
         workspaces: normalizeProjectWorkspaces(base.workspaces),
         activeWorkspaceId: String(base.activeWorkspaceId || ''),
         recentProjectWorkspaces: normalizeRecentProjectWorkspaces(base.recentProjectWorkspaces),
@@ -2441,70 +2338,6 @@ export function updateUniversalSearchConfig(updates = {}, options = {}) {
     return getUniversalSearchConfig();
 }
 
-export function getWorkspaceViewConfig() {
-    return normalizeWorkspaceViewConfig(appState.workspaceView);
-}
-
-export function getActiveWorkspaceView() {
-    return normalizeWorkspaceViewName(appState.workspaceView?.active, 'dashboard');
-}
-
-export function setActiveWorkspaceView(view, options = {}) {
-    const current = getWorkspaceViewConfig();
-    const nextView = normalizeWorkspaceViewName(view, current.defaultView);
-    appState.workspaceView = normalizeWorkspaceViewConfig({
-        ...current,
-        active: nextView
-    });
-
-    if (options.persist !== false) {
-        saveState({ action: String(options.action || `Switched workspace view to ${nextView}`), recordHistory: false });
-    }
-
-    window.dispatchEvent(new CustomEvent('art-workspace-view-changed', {
-        detail: {
-            active: nextView,
-            config: getWorkspaceViewConfig()
-        }
-    }));
-
-    return nextView;
-}
-
-export function updateWorkspaceViewConfig(updates = {}, options = {}) {
-    const current = getWorkspaceViewConfig();
-    const source = updates && typeof updates === 'object' ? updates : {};
-    const next = normalizeWorkspaceViewConfig({
-        ...current,
-        ...source,
-        explorer: {
-            ...(current.explorer || {}),
-            ...(source.explorer && typeof source.explorer === 'object' ? source.explorer : {})
-        }
-    });
-
-    appState.workspaceView = next;
-
-    if (options.persist !== false) {
-        saveState({ action: String(options.action || 'Updated workspace view settings'), recordHistory: false });
-    }
-
-    window.dispatchEvent(new CustomEvent('art-workspace-view-settings-updated', {
-        detail: {
-            config: getWorkspaceViewConfig()
-        }
-    }));
-
-    window.dispatchEvent(new CustomEvent('art-workspace-view-changed', {
-        detail: {
-            active: next.active,
-            config: getWorkspaceViewConfig()
-        }
-    }));
-
-    return getWorkspaceViewConfig();
-}
-
 export function setUniversalSearchScopePreference(scopePreference, options = {}) {
     return updateUniversalSearchConfig({ scopePreference }, {
         ...options,
@@ -3366,19 +3199,11 @@ export function resetUserPreferences() {
     appState.security = normalizeSecurityConfig(defaultState.security);
     appState.visualAccessibility = normalizeVisualAccessibilityConfig(defaultState.visualAccessibility);
     appState.dashboard = normalizeDashboardConfig(defaultState.dashboard);
-    appState.workspaceView = normalizeWorkspaceViewConfig(defaultState.workspaceView);
     saveState({ action: 'Reset user preferences' });
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
     window.dispatchEvent(new Event('art-visual-accessibility-updated'));
     window.dispatchEvent(new Event('art-dashboard-config-updated'));
-    window.dispatchEvent(new Event('art-workspace-view-settings-updated'));
-    window.dispatchEvent(new CustomEvent('art-workspace-view-changed', {
-        detail: {
-            active: appState.workspaceView.active,
-            config: getWorkspaceViewConfig()
-        }
-    }));
     window.dispatchEvent(new CustomEvent('art-standard-changed', {
         detail: { standard: appState.standard }
     }));
@@ -3416,8 +3241,7 @@ export function getApplicationInfo() {
             source: standard.source,
             criteriaCount: Array.isArray(standard.criteria) ? standard.criteria.length : 0
         })),
-        visualAccessibility: getVisualAccessibilityConfig(),
-        workspaceView: getWorkspaceViewConfig()
+        visualAccessibility: getVisualAccessibilityConfig()
     };
 }
 
@@ -3454,7 +3278,6 @@ function createManagedDataSnapshot() {
         importedStandards: appState.importedStandards,
         shortcuts: appState.shortcuts,
         dashboard: appState.dashboard,
-        workspaceView: appState.workspaceView,
         workspaces: appState.workspaces,
         activeWorkspaceId: appState.activeWorkspaceId,
         recentProjectWorkspaces: appState.recentProjectWorkspaces,
@@ -3477,12 +3300,6 @@ function applyManagedDataSnapshot(snapshot) {
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-accessibility-standards-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
-    window.dispatchEvent(new CustomEvent('art-workspace-view-changed', {
-        detail: {
-            active: appState.workspaceView?.active || 'dashboard',
-            config: getWorkspaceViewConfig()
-        }
-    }));
 }
 
 export function getSecurityConfig() {

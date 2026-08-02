@@ -2,17 +2,6 @@
 
 ART is an accessibility-first reporting workspace for documenting accessibility findings, managing standards-based criteria, and exporting reports.
 
-## Explorer Framework
-ART includes an optional Explorer Framework that provides a hierarchical, context-aware resource navigation experience.
-Dashboard remains the default workspace view, and Explorer can be enabled at any time through shared commands:
-
-- Show Dashboard
-- Show Explorer
-- Toggle Workspace View
-
-Explorer consumes existing ART frameworks for commands, context menus, search, shortcut assignment, and accessibility behavior.
-Explorer Search uses the Universal Search Framework and adapts search scope to application, workspace, or report context.
-
 ## Report Attachments
 ART supports an Attachment field type in Report Builder.
 When a report includes Attachment fields, Report Editor provides an Attach File button that opens the operating system file picker and supports one or more files of any type.

@@ -14,11 +14,6 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - `openViewer`
 - `focusNavigation`
 - `focusDashboard`
-- `showDashboard`
-- `showExplorer`
-- `toggleWorkspaceView`
-- `focusExplorerNavigation`
-- `revealExplorerResource`
 - `configureDashboard`
 - `continueWorking`
 - `focusMainContent`
@@ -37,7 +32,6 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - `searchProjectAssets`
 - `searchTemplates`
 - `searchDashboard`
-- `focusExplorerSearch`
 - `findInCurrentResource`
 - `findNextMatch`
 - `findPreviousMatch`

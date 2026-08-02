@@ -29,7 +29,6 @@ function cloneCommand(command) {
         keyboardShortcut: command.keyboardShortcut,
         helpTopic: command.helpTopic,
         menuLocation: command.menuLocation,
-        menuItemRole: command.menuItemRole,
         commandPaletteVisible: command.commandPaletteVisible,
         contextMenuVisible: command.contextMenuVisible,
         notes: command.notes
@@ -235,13 +234,11 @@ export function createCommandExecutionService(options = {}) {
 
         const visible = evaluateCondition(command.visible, context, command);
         const enabled = evaluateCondition(command.enabled, context, command);
-        const checked = evaluateCondition(command.checked, context, command);
 
         return {
             exists: true,
             visible,
             enabled,
-            checked,
             canExecute: visible && enabled,
             command: cloneCommand(command),
             reason: visible ? (enabled ? '' : 'disabled') : 'hidden'

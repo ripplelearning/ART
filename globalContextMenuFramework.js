@@ -51,22 +51,21 @@ const rootOrder = [
 ];
 
 const contextRoots = new Map([
-    ['dashboard', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
-    ['dashboard-widget', ['Dashboard', 'Workspace', 'View', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
-    ['project-workspace', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
-    ['project-asset', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
-    ['report-builder', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
-    ['field-configuration', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
-    ['editor', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
-    ['report-viewer', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
-    ['progress-log', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
-    ['lookup-tool', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Lookup', 'Edit', 'Search', 'Settings', 'Help']],
-    ['search-results', ['View', 'Report', 'Edit', 'Search', 'Settings', 'Help']],
+    ['dashboard', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['dashboard-widget', ['Dashboard', 'Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['project-workspace', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['project-asset', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['report-builder', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['field-configuration', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['editor', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['report-viewer', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['progress-log', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
+    ['lookup-tool', ['Workspace', 'Templates', 'Report', 'Import', 'Lookup', 'Edit', 'Search', 'Settings', 'Help']],
+    ['search-results', ['Report', 'Edit', 'Search', 'Settings', 'Help']],
     ['help', ['Help', 'Search']],
     ['user-guide', ['Help', 'Search']],
-    ['welcome', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
-    ['settings', ['View', 'Settings', 'Search', 'Help']],
-    ['explorer', ['Workspace', 'View', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['welcome', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['settings', ['Settings', 'Search', 'Help']],
     ['menu-bar', ['Application', 'File', 'Edit', 'View', 'Search', 'Report', 'Templates', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']],
     ['command-palette', ['Application', 'File', 'Edit', 'View', 'Search', 'Report', 'Templates', 'Workspace', 'Project', 'Tools', 'Settings', 'Help']]
 ]);
@@ -74,9 +73,6 @@ const contextRoots = new Map([
 const contextActionAllowlists = new Map([
     ['dashboard', new Set([
         'configureDashboard',
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'newReport',
         'importData',
         'newProjectWorkspace',
@@ -88,9 +84,6 @@ const contextActionAllowlists = new Map([
     ])],
     ['dashboard-widget', new Set([
         'configureDashboard',
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'newReport',
         'searchDashboard',
         'searchCommands',
@@ -98,9 +91,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['welcome', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'newProjectWorkspace',
         'openProjectWorkspace',
         'continueWorking',
@@ -111,9 +101,6 @@ const contextActionAllowlists = new Map([
         'openSettings'
     ])],
     ['project-workspace', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'saveProjectWorkspace',
         'saveProjectWorkspaceAs',
         'exportProjectWorkspace',
@@ -128,9 +115,6 @@ const contextActionAllowlists = new Map([
         'openSettings'
     ])],
     ['project-asset', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'saveProjectWorkspace',
         'exportProjectWorkspace',
         'addProjectAsset',
@@ -141,9 +125,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['report-builder', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'addField',
         'done',
         'configureReport',
@@ -156,9 +137,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['field-configuration', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'addField',
         'done',
         'configureReport',
@@ -169,9 +147,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['editor', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'addEntry',
         'spellCheck',
         'openProgressLog',
@@ -184,9 +159,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['report-viewer', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'exportReport',
         'printPreview',
         'openProgressLog',
@@ -198,9 +170,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['progress-log', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'openProgressLog',
         'validateReport',
         'reportStatistics',
@@ -211,9 +180,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['lookup-tool', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'focusLookup',
         'resetLookup',
         'searchAccessibilityStandards',
@@ -224,7 +190,6 @@ const contextActionAllowlists = new Map([
         'openHelp'
     ])],
     ['search-results', new Set([
-        'showDashboard', 'showExplorer', 'toggleWorkspaceView',
         'findInCurrentResource', 'findNextMatch', 'findPreviousMatch', 'nextSearchResult', 'previousSearchResult',
         'clearSearchHighlights', 'clearSearchHistory', 'saveCurrentSearch', 'openSavedSearches', 'searchEverywhere',
         'searchCommands', 'openHelp', 'openSettings', 'editSelectAll', 'editCopy'
@@ -232,28 +197,9 @@ const contextActionAllowlists = new Map([
     ['help', new Set(['openHelp', 'searchHelpDocumentation', 'searchCommands', 'searchEverywhere'])],
     ['user-guide', new Set(['openHelp', 'searchHelpDocumentation', 'searchCommands', 'searchEverywhere'])],
     ['settings', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
         'openSettings', 'settingsClose', 'settingsRestoreShortcuts', 'settingsImportStandard', 'settingsPasteStandardTable',
         'settingsImportReportFile', 'settingsImportTemplateFile', 'settingsOpenIntegrations', 'settingsTogglePrivacyMode',
         'settingsCreateBackup', 'settingsResetApp', 'settingsCloseReport', 'searchCommands', 'searchKeyboardShortcuts', 'openHelp'
-    ])],
-    ['explorer', new Set([
-        'showDashboard',
-        'showExplorer',
-        'toggleWorkspaceView',
-        'openProjectWorkspace',
-        'openProjectProperties',
-        'openEditor',
-        'openViewer',
-        'openTemplate',
-        'searchEverywhere',
-        'saveCurrentSearch',
-        'openSavedSearches',
-        'searchCommands',
-        'openSettings',
-        'openHelp'
     ])]
 ]);
 
@@ -357,10 +303,6 @@ function getApplicationContextFromFocus(anchorElement = document.activeElement) 
             return { ...base, kind: resourceType === 'asset' ? 'project-asset' : 'project-workspace', contextLabel: resourceType === 'asset' ? 'Project Asset' : 'Project Workspace' };
         }
         return { ...base, kind: 'project-workspace', contextLabel: 'Project Workspace' };
-    }
-
-    if (focused?.closest?.('#art-explorer-view')) {
-        return { ...base, kind: 'explorer', contextLabel: 'Explorer' };
     }
 
     if (focused?.closest?.('#dashboard')) return { ...base, kind: 'dashboard', contextLabel: 'Dashboard' };
@@ -1079,30 +1021,22 @@ function buildMenuItem(command, depth, path) {
     const shortcut = normalizeText(command.keyboardShortcut || getShortcutForAction(command.action) || '');
     const stateLabel = command.canExecute ? '' : (command.reason === 'hidden' ? 'Unavailable' : 'Disabled');
     const label = escapeHtml(command.displayName);
-    const role = command.menuItemRole || 'menuitem';
-    const checked = role === 'menuitemradio' || role === 'menuitemcheckbox'
-        ? ` aria-checked="${String(Boolean(command.checked))}"`
-        : '';
-    const marker = role === 'menuitemradio'
-        ? `<span class="global-context-menu__radio" aria-hidden="true">${command.checked ? '●' : '○'}</span>`
-        : '';
     const title = command.description ? ` title="${escapeHtml(command.description)}"` : '';
     const ariaLabel = `${command.displayName}${shortcut ? `, shortcut ${shortcut}` : ''}${stateLabel ? `, ${stateLabel}` : ''}`;
     return `
         <button
             type="button"
             class="global-context-menu__item"
-            role="${role}"
+            role="menuitem${command.canExecute ? '' : ''}"
             aria-label="${escapeHtml(ariaLabel)}"
             aria-disabled="${String(!command.canExecute)}"
-            ${checked}
             data-menu-focusable="true"
             data-command-id="${escapeHtml(command.id)}"
             data-command-path="${escapeHtml(path.join('>'))}"
             ${title}
         >
             <span class="global-context-menu__item-label">
-                <span>${marker}${label}</span>
+                <span>${label}</span>
             </span>
             <span class="global-context-menu__shortcut">${escapeHtml(shortcut || '')}</span>
         </button>
@@ -1568,7 +1502,6 @@ function registerDefaultProviders() {
     createProvider('help-context-provider', 'Help Context Provider', ['help', 'user-guide'], contextRoots.get('help') || [], 'Help and documentation commands.');
     createProvider('search-results-context-provider', 'Search Results Context Provider', ['search-results'], contextRoots.get('search-results') || [], 'Search result navigation and search session commands.');
     createProvider('settings-context-provider', 'Settings Context Provider', ['settings'], contextRoots.get('settings') || [], 'Settings and maintenance commands.');
-    createProvider('explorer-context-provider', 'Explorer Context Provider', ['explorer'], contextRoots.get('explorer') || [], 'Explorer navigation and resource commands.');
     createProvider('welcome-context-provider', 'Welcome Screen Context Provider', ['welcome'], contextRoots.get('welcome') || [], 'Workspace launch and application commands.');
     createProvider('menu-bar-context-provider', 'Menu Bar Context Provider', ['menu-bar'], contextRoots.get('menu-bar') || [], 'Menu bar and application command navigation.');
     createProvider('command-palette-context-provider', 'Command Palette Context Provider', ['command-palette'], contextRoots.get('command-palette') || [], 'Command palette and command execution commands.');

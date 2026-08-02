@@ -14,7 +14,6 @@ import {
     getAssignableActions,
     getShortcutDefinitions,
     hasUnsavedProjectChanges,
-    getActiveWorkspaceView,
     importReportWithConflictStrategy,
     importTemplateWithConflictStrategy,
     isProgressLogEnabled,
@@ -97,14 +96,6 @@ import {
     saveProjectWorkspaceAsFromCommand,
     saveProjectWorkspaceFromCommand
 } from './projectWorkspaceFramework.js';
-import {
-    focusExplorerNavigationFromCommand,
-    focusExplorerSearchFromCommand,
-    revealExplorerResourceFromCommand,
-    showDashboardViewFromCommand,
-    showExplorerViewFromCommand,
-    toggleWorkspaceViewFromCommand
-} from './explorerFramework.js';
 
 let commandsRegistered = false;
 
@@ -142,12 +133,6 @@ function getDefaultMenuLocation(action, category) {
         case 'openViewer': return 'View>Report Viewer';
         case 'focusNavigation': return 'View>Navigation';
         case 'focusDashboard': return 'View>Dashboard';
-        case 'showDashboard':
-        case 'showExplorer':
-        case 'toggleWorkspaceView': return 'View>Workspace View';
-        case 'focusExplorerNavigation': return 'View>Explorer';
-        case 'focusExplorerSearch': return 'Search';
-        case 'revealExplorerResource': return 'View>Explorer';
         case 'configureDashboard': return 'View';
         case 'focusMainContent': return 'View>Main Content';
         case 'nextLandmark':
@@ -351,18 +336,6 @@ function runAddFieldWorkflow() {
 function runDoneWorkflow() {
     clickTabIfNeeded('tab-builder');
     return executeDoneFromCommand();
-}
-
-function runShowDashboardWorkflow() {
-    return showDashboardViewFromCommand();
-}
-
-function runShowExplorerWorkflow() {
-    return showExplorerViewFromCommand();
-}
-
-function runToggleWorkspaceViewWorkflow() {
-    return toggleWorkspaceViewFromCommand();
 }
 
 function runAddEntryWorkflow() {
@@ -720,52 +693,6 @@ function runCloseReportWorkflow() {
     if (!canCloseActiveSession()) return false;
 
     const templateSelect = document.getElementById('template-selection');
-    {
-        action: 'showDashboard',
-        id: 'View.ShowDashboard',
-        category: 'View',
-        description: 'Switch workspace view to Dashboard.',
-        menuItemRole: 'menuitemradio',
-        checked: () => getActiveWorkspaceView() === 'dashboard',
-        handler: () => runShowDashboardWorkflow()
-    },
-    {
-        action: 'showExplorer',
-        id: 'View.ShowExplorer',
-        category: 'View',
-        description: 'Switch workspace view to Explorer.',
-        menuItemRole: 'menuitemradio',
-        checked: () => getActiveWorkspaceView() === 'explorer',
-        handler: () => runShowExplorerWorkflow()
-    },
-    {
-        action: 'toggleWorkspaceView',
-        id: 'View.ToggleWorkspaceView',
-        category: 'View',
-        description: 'Toggle between Dashboard and Explorer workspace views.',
-        handler: () => runToggleWorkspaceViewWorkflow()
-    },
-    {
-        action: 'focusExplorerNavigation',
-        id: 'View.FocusExplorerNavigation',
-        category: 'View',
-        description: 'Focus Explorer navigation.',
-        handler: () => focusExplorerNavigationFromCommand()
-    },
-    {
-        action: 'focusExplorerSearch',
-        id: 'Search.FocusExplorerSearch',
-        category: 'Search',
-        description: 'Focus Explorer search box.',
-        handler: () => focusExplorerSearchFromCommand()
-    },
-    {
-        action: 'revealExplorerResource',
-        id: 'View.RevealExplorerResource',
-        category: 'View',
-        description: 'Reveal and focus a resource in Explorer.',
-        handler: (context) => revealExplorerResourceFromCommand(context)
-    },
     const recentReportsSelect = document.getElementById('recent-reports-select');
     const hadTemplateSession = Boolean(
         (templateSelect && templateSelect.value && templateSelect.value !== 'scratch')
@@ -1712,8 +1639,6 @@ function buildCommandDefinition(definition) {
         handler: definition.handler || null,
         enabled: definition.enabled || (() => true),
         visible: definition.visible || (() => true),
-        checked: definition.checked || (() => false),
-        menuItemRole: definition.menuItemRole || 'menuitem',
         keyboardShortcut,
         helpTopic: definition.helpTopic || '',
         menuLocation,
