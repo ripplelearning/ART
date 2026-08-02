@@ -115,7 +115,7 @@ function buildWorkspaceAssetItems(workspace) {
     return (Array.isArray(workspace?.resources?.projectAssets) ? workspace.resources.projectAssets : []).map((asset) => createResourceItem({
         id: asset.id,
         name: asset.title || asset.fileName || 'Project Asset',
-        type: 'project-asset',
+        type: 'asset',
         subtitle: asset.category || 'Project Asset',
         description: asset.description || asset.relativePath || '',
         category: 'Project Assets',
