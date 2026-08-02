@@ -1596,6 +1596,50 @@ export function refreshWorkspaceAssetsFromCommand() {
     return true;
 }
 
+export function revealWorkspaceReportFromCommand(reportId, options = {}) {
+    const active = getActiveWorkspaceSafe();
+    if (!active) {
+        updateExplorerStatus('No active Project Workspace.');
+        return false;
+    }
+
+    const targetReportId = normalizeText(reportId);
+    if (!targetReportId) return false;
+
+    refreshWorkspaceAssociations(active);
+    renderWorkspaceExplorer();
+
+    const filterText = normalizeText(options.filterText);
+    const filterInput = document.getElementById('workspace-resource-filter');
+    if (filterInput && filterText) {
+        filterInput.value = filterText;
+        filterInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    const selector = `[data-workspace-resource="true"][data-resource-type="report"][data-resource-id="${targetReportId}"]`;
+    const trigger = document.querySelector(selector);
+    if (!(trigger instanceof HTMLElement)) {
+        updateExplorerStatus('The requested report was not found in Resource Navigator.');
+        return false;
+    }
+
+    const autoSelect = options.select !== false;
+    if (autoSelect) trigger.click();
+    trigger.focus({ preventScroll: true });
+    trigger.scrollIntoView({ block: 'nearest' });
+    updateExplorerStatus('Revealed report in Resource Navigator.');
+    return true;
+}
+
+export function revealWorkspaceCurrentReportFromCommand(options = {}) {
+    const reportId = normalizeText(appState.selectedReportId);
+    if (!reportId) {
+        updateExplorerStatus('No report is currently selected.');
+        return false;
+    }
+    return revealWorkspaceReportFromCommand(reportId, options);
+}
+
 export function getWorkspaceExplorerSummary() {
     const active = getActiveWorkspaceSafe();
     if (!active) {
