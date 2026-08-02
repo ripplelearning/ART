@@ -66,6 +66,9 @@ function getMenuLocation(command) {
         case 'openViewer': return 'View>Report Viewer';
         case 'focusNavigation': return 'View>Navigation';
         case 'focusDashboard': return 'View>Dashboard';
+        case 'showDashboard':
+        case 'showExplorer':
+        case 'toggleWorkspaceView': return 'View>Workspace View';
         case 'configureDashboard': return 'View';
         case 'focusMainContent': return 'View>Main Content';
         case 'nextLandmark':
@@ -314,10 +317,17 @@ function renderTopLevelButtons(roots) {
 
 function renderCommandItem(command, depth, itemIndex, parentPath) {
     const shortcut = command.keyboardShortcut || 'Unassigned';
+    const role = command.menuItemRole || 'menuitem';
+    const checked = role === 'menuitemradio' || role === 'menuitemcheckbox'
+        ? ` aria-checked="${String(Boolean(command.checked))}"`
+        : '';
+    const marker = role === 'menuitemradio'
+        ? `<span class="app-menu-bar__radio-indicator" aria-hidden="true">${command.checked ? '●' : '○'}</span>`
+        : '';
     return `
         <button
             type="button"
-            role="menuitem"
+            role="${role}"
             class="app-menu-bar__menu-item ${command.canExecute ? '' : 'is-disabled'}"
             data-menu-item="true"
             data-menu-depth="${depth}"
@@ -325,9 +335,10 @@ function renderCommandItem(command, depth, itemIndex, parentPath) {
             data-parent-path="${escapeHtml(parentPath)}"
             data-command-id="${escapeHtml(command.id)}"
             aria-disabled="${String(!command.canExecute)}"
+            ${checked}
             tabindex="-1"
         >
-            <span>${escapeHtml(command.displayName)}</span>
+            <span>${marker}${escapeHtml(command.displayName)}</span>
             <span class="app-menu-bar__shortcut">${escapeHtml(shortcut)}</span>
         </button>
     `;

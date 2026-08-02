@@ -28,6 +28,12 @@
 - Search command suite for scope-based search, result navigation, and highlight/history management.
 - Global Context Menu Framework with context providers, dynamic menu generation, embedded command search, and keyboard navigation.
 - Context menu integration driven by the shared Application Command Framework and current shortcut assignments.
+- Optional Explorer Framework with resource-based navigation and context-aware hierarchy.
+- Workspace View commands: Show Dashboard, Show Explorer, and Toggle Workspace View.
+- Workspace View settings for default view, remember-last behavior, and Explorer personalization/state restoration.
+- Explorer Search integration with Universal Search Framework scopes and shared search state.
+- Explorer service API for reveal/select/open/expand/collapse/refresh operations and cross-framework deep linking.
+- Accessible Workspace View radio items in View menu and Global Context Menu.
 
 ### Updated
 - Keyboard shortcuts now execute through application commands.

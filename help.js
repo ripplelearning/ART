@@ -111,13 +111,23 @@ function getHelpSections(rows) {
             id: 'help-user-interface',
             title: 'User Interface',
             content: `
-                <p>ART includes four major regions: panel selector, Dashboard, main panel content, and the Accessibility Lookup Tool.</p>
+                <p>ART includes major regions for panel selection, workspace navigation (Dashboard or Explorer), main panel content, and the Accessibility Lookup Tool.</p>
                 <ul>
                     <li>Panel selector: choose Welcome, Builder, Editor, and Report Viewer.</li>
                     <li>Dashboard: report lifecycle and settings actions.</li>
+                    <li>Explorer: optional resource tree navigation with context-aware sections.</li>
                     <li>Main panel: active workflow content.</li>
                     <li>Accessibility Lookup Tool: search and reference criteria.</li>
                 </ul>
+            `
+        },
+        {
+            id: 'help-workspace-views',
+            title: 'Workspace Views: Dashboard and Explorer',
+            content: `
+                <p>ART supports two workspace views: <strong>Dashboard</strong> and <strong>Explorer</strong>. Dashboard remains the default experience and Explorer is optional.</p>
+                <p>Use the View menu, Command Palette, Menu Bar Command Search, Global Context Menu, or optional shortcuts to run <strong>Show Dashboard</strong>, <strong>Show Explorer</strong>, and <strong>Toggle Workspace View</strong>.</p>
+                <p>Workspace view switching changes navigation presentation only. It does not modify report data, project data, report ordering, or personalization settings.</p>
             `
         },
         {
@@ -150,6 +160,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-explorer-search',
+            title: 'Explorer Search',
+            content: `
+                <p>Explorer includes an embedded Search box that consumes the Universal Search Framework.</p>
+                <p>Search scope adapts automatically to context: application-level, current Project Workspace, or current report.</p>
+                <p>Explorer search supports the same syntax and behavior as Universal Search, including phrase terms, wildcard queries, and incremental updates as you type.</p>
+            `
+        },
+        {
             id: 'help-menu-bar',
             title: 'Menu Bar and Command Search',
             content: `
@@ -165,6 +184,7 @@ function getHelpSections(rows) {
                 <p>ART now uses a reusable Global Context Menu Framework for right-click, keyboard menu key, Shift+F10, touch-and-hold, and other menu invocation methods.</p>
                 <p>Context menus are generated from the Application Command Framework and the current application context, so the same commands appear consistently for the same situation.</p>
                 <p>The embedded Search Commands field at the bottom of each context menu filters the commands currently available in that menu.</p>
+                <p>Workspace View is exposed as an accessible radio-menu group in both the View menu and Global Context Menu.</p>
                 <p>Commands show their current shortcut assignment when one exists, and context menus follow the same accessibility model throughout ART.</p>
             `
         },

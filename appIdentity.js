@@ -72,6 +72,7 @@ export function syncDocumentTitle() {
 
 function mapPanelFromFocusTarget(target) {
     if (!target || typeof target.closest !== 'function') return '';
+    if (target.closest('#art-explorer-view')) return 'Explorer';
     if (target.closest('#dashboard')) return 'Dashboard';
     if (target.closest('#lookup-tool')) return 'Accessibility Lookup Tool';
     if (target.closest('#main-inner')) return getSelectedTabPanelName();

@@ -39,6 +39,13 @@ function normalizeBooleanPredicate(value, fallback = true) {
     return () => Boolean(value);
 }
 
+function normalizeMenuItemRole(value) {
+    const role = normalizeText(value).toLowerCase();
+    if (role === 'menuitemradio') return 'menuitemradio';
+    if (role === 'menuitemcheckbox') return 'menuitemcheckbox';
+    return 'menuitem';
+}
+
 function inferCategory(commandId) {
     const prefix = normalizeCommandId(commandId).split('.')[0] || '';
     return COMMAND_CATEGORIES.includes(prefix) ? prefix : 'Application';
@@ -84,6 +91,8 @@ function normalizeCommandMetadata(definition = {}) {
         keyboardShortcut,
         helpTopic,
         menuLocation,
+        menuItemRole: normalizeMenuItemRole(source.menuItemRole),
+        checked: normalizeBooleanPredicate(source.checked, false),
         commandPaletteVisible: source.commandPaletteVisible !== false,
         contextMenuVisible: source.contextMenuVisible !== false,
         notes: normalizeText(source.notes || source.futureNotes)

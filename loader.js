@@ -14,6 +14,7 @@ import { initGlobalContextMenuFramework } from './globalContextMenuFramework.js'
 import { registerApplicationCommands } from './commandCatalog.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
+import { initExplorerFramework } from './explorerFramework.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -190,6 +191,7 @@ function initializeApp() {
     
     // 3. Initialize interactive dashboard elements
     runStartupStage('renderDashboard', () => renderDashboard());
+    runStartupStage('initExplorerFramework', () => initExplorerFramework());
 
     // 4. Initialize application settings modal
     runStartupStage('initSettings', () => {

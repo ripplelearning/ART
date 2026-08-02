@@ -32,9 +32,12 @@ import {
     serializeAccessibilityStandardsJsonPayload,
     undoState,
     updateImportedAccessibilityStandard,
+    updateWorkspaceViewConfig,
     updateSecurityConfig,
     updateVisualAccessibilityConfig,
     updateShortcut,
+    getWorkspaceViewConfig,
+    setActiveWorkspaceView,
     templateNameExists,
     validateArtJsonPayload,
     validateTemplateJsonPayload,
@@ -553,6 +556,45 @@ function renderVisualAccessibilitySettings() {
     setVisualAccessibilityFormValues(getVisualAccessibilityConfig());
 }
 
+function renderWorkspaceViewSettings() {
+    const defaultView = document.getElementById('settings-workspace-default-view');
+    const rememberLast = document.getElementById('settings-workspace-remember-last');
+    const showIcons = document.getElementById('settings-explorer-icons');
+    const showBadges = document.getElementById('settings-explorer-badges');
+    const showRecent = document.getElementById('settings-explorer-recent');
+    const showFavorites = document.getElementById('settings-explorer-favorites');
+    const showSavedSearches = document.getElementById('settings-explorer-saved-searches');
+    const autoExpand = document.getElementById('settings-explorer-auto-expand');
+    const restoreExpansion = document.getElementById('settings-explorer-restore-expansion');
+    const restoreSelection = document.getElementById('settings-explorer-restore-selection');
+    const restoreFocus = document.getElementById('settings-explorer-restore-focus');
+    const restoreScroll = document.getElementById('settings-explorer-restore-scroll');
+    const restoreContext = document.getElementById('settings-explorer-restore-context');
+    const width = document.getElementById('settings-explorer-width');
+    const widthValue = document.getElementById('settings-explorer-width-value');
+
+    if (!defaultView || !rememberLast || !showIcons || !showBadges || !showRecent || !showFavorites || !showSavedSearches || !autoExpand || !restoreExpansion || !restoreSelection || !restoreFocus || !restoreScroll || !restoreContext || !width || !widthValue) return;
+
+    const config = getWorkspaceViewConfig();
+    const explorer = config.explorer || {};
+
+    defaultView.value = config.defaultView || 'dashboard';
+    rememberLast.checked = Boolean(config.rememberLastView);
+    showIcons.checked = explorer.showResourceIcons !== false;
+    showBadges.checked = explorer.showResourceBadges !== false;
+    showRecent.checked = explorer.showRecentResources !== false;
+    showFavorites.checked = explorer.showFavorites !== false;
+    showSavedSearches.checked = explorer.showSavedSearches !== false;
+    autoExpand.checked = explorer.autoExpandParents !== false;
+    restoreExpansion.checked = explorer.restoreExpansionState !== false;
+    restoreSelection.checked = explorer.restoreSelectedResource !== false;
+    restoreFocus.checked = explorer.restoreFocus !== false;
+    restoreScroll.checked = explorer.restoreScrollPosition !== false;
+    restoreContext.checked = explorer.restoreContext !== false;
+    width.value = String(explorer.width || 320);
+    widthValue.textContent = `${width.value} px`;
+}
+
 function importAccessibilityStandardList(standards, overwrite = false) {
     const list = Array.isArray(standards) ? standards : [];
     if (list.length === 0) return { ok: false, reason: 'empty' };
@@ -636,7 +678,68 @@ function refreshSettingsView() {
     renderImportedStandards();
     renderIntegrationSettings();
     renderVisualAccessibilitySettings();
+    renderWorkspaceViewSettings();
     renderAbout();
+}
+
+function bindWorkspaceViewSettings() {
+    const defaultView = document.getElementById('settings-workspace-default-view');
+    const rememberLast = document.getElementById('settings-workspace-remember-last');
+    const showIcons = document.getElementById('settings-explorer-icons');
+    const showBadges = document.getElementById('settings-explorer-badges');
+    const showRecent = document.getElementById('settings-explorer-recent');
+    const showFavorites = document.getElementById('settings-explorer-favorites');
+    const showSavedSearches = document.getElementById('settings-explorer-saved-searches');
+    const autoExpand = document.getElementById('settings-explorer-auto-expand');
+    const restoreExpansion = document.getElementById('settings-explorer-restore-expansion');
+    const restoreSelection = document.getElementById('settings-explorer-restore-selection');
+    const restoreFocus = document.getElementById('settings-explorer-restore-focus');
+    const restoreScroll = document.getElementById('settings-explorer-restore-scroll');
+    const restoreContext = document.getElementById('settings-explorer-restore-context');
+    const width = document.getElementById('settings-explorer-width');
+    const widthValue = document.getElementById('settings-explorer-width-value');
+    const applyButton = document.getElementById('btn-settings-workspace-apply');
+
+    if (!defaultView || !rememberLast || !showIcons || !showBadges || !showRecent || !showFavorites || !showSavedSearches || !autoExpand || !restoreExpansion || !restoreSelection || !restoreFocus || !restoreScroll || !restoreContext || !width || !widthValue || !applyButton) return;
+
+    width.addEventListener('input', () => {
+        widthValue.textContent = `${width.value} px`;
+    });
+
+    applyButton.addEventListener('click', () => {
+        const nextConfig = {
+            defaultView: defaultView.value === 'explorer' ? 'explorer' : 'dashboard',
+            rememberLastView: Boolean(rememberLast.checked),
+            explorer: {
+                showResourceIcons: Boolean(showIcons.checked),
+                showResourceBadges: Boolean(showBadges.checked),
+                showRecentResources: Boolean(showRecent.checked),
+                showFavorites: Boolean(showFavorites.checked),
+                showSavedSearches: Boolean(showSavedSearches.checked),
+                autoExpandParents: Boolean(autoExpand.checked),
+                restoreExpansionState: Boolean(restoreExpansion.checked),
+                restoreSelectedResource: Boolean(restoreSelection.checked),
+                restoreFocus: Boolean(restoreFocus.checked),
+                restoreScrollPosition: Boolean(restoreScroll.checked),
+                restoreContext: Boolean(restoreContext.checked),
+                width: Number(width.value || 320)
+            }
+        };
+
+        const updated = updateWorkspaceViewConfig(nextConfig, {
+            action: 'Updated workspace view settings',
+            persist: true
+        });
+
+        if (!updated.rememberLastView) {
+            setActiveWorkspaceView(updated.defaultView, {
+                action: `Applied default workspace view ${updated.defaultView}`,
+                persist: true
+            });
+        }
+
+        writeStatus('Workspace view settings applied.');
+    });
 }
 
 function bindIntegrationSettings() {
@@ -1619,6 +1722,7 @@ export function initSettings() {
     bindStandardExport();
     bindIntegrationSettings();
     bindResetActions();
+    bindWorkspaceViewSettings();
 
     document.addEventListener('keydown', trapSettingsFocus);
     document.addEventListener('focusin', trapSettingsFocus);
@@ -1627,6 +1731,7 @@ export function initSettings() {
     window.addEventListener('art-visual-accessibility-updated', refreshSettingsView);
     window.addEventListener('art-accessibility-standards-updated', refreshSettingsView);
     window.addEventListener('art-security-updated', refreshSettingsView);
+    window.addEventListener('art-workspace-view-settings-updated', refreshSettingsView);
 
     isInitialized = true;
 }

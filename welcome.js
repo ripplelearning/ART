@@ -86,6 +86,7 @@ export function renderWelcome() {
                 <h2 id="welcome-getting-started-heading">Getting Started</h2>
                 <p>The best place to begin is the <strong>Dashboard</strong>, where you can create or open a <strong>Project Workspace</strong>, manage reports and assets, and configure ART through <strong>Application Settings</strong>.</p>
                 <p>Select <strong>Configure Dashboard</strong> to choose a layout, show or hide widgets, reorder cards, manage dashboard tabs, and build custom widgets.</p>
+                <p>Use <strong>Show Explorer</strong> when you want a hierarchical resource view. Explorer is optional and can be switched with Dashboard at any time.</p>
                 <p>Use <strong>Continue Working</strong> to restore the most recent Project Workspace context when available.</p>
                 <p>When a workspace is open, use <strong>Close Workspace</strong> in Resource Navigator or press <strong>${closeWorkspaceShortcut}</strong> to close it.</p>
                     <p>Use <strong>Ctrl+Shift+P</strong> to open the Command Palette and search or execute commands from anywhere in ART.</p>

@@ -8,6 +8,7 @@ ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a
 ART 2.0 now also introduces a Project Workspace Framework that provides project-level lifecycle, storage, resource management, workspace restoration, and extensibility points.
 ART 2.0 now also introduces a Universal Search Framework that standardizes provider search, result aggregation, and search UI behavior.
 ART 2.0 now also introduces a Global Context Menu Framework that generates context-sensitive menus from context providers and registered commands.
+ART 2.0 now also introduces an optional Explorer Framework for resource-based navigation across application, report, and project workspace contexts.
 
 ## Core Layers
 
@@ -74,6 +75,15 @@ ART 2.0 now also introduces a Global Context Menu Framework that generates conte
 - Executes menu items through the centralized Application Command Framework.
 - Supports embedded command search, keyboard navigation, focus restoration, and accessibility announcements.
 - Provides a reusable basis for future plugin and integration context menus.
+
+### Explorer Framework
+- Provides an optional workspace view focused on hierarchical resource navigation.
+- Keeps Dashboard as the default workspace view while allowing immediate switching via shared commands.
+- Builds context-aware resource trees for application, report, template, and project workspace contexts.
+- Uses the Application Command Framework for all resource activation behaviors.
+- Uses the Universal Search Framework for Explorer Search and search history/saved-search synchronization.
+- Uses the Global Context Menu Framework for Explorer context menus.
+- Persists Explorer state (selection, expansion, context, focus intent, and personalization settings) in shared state.
 
 ## Project Workspace Lifecycle
 

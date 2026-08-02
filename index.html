@@ -158,6 +158,40 @@
                 </div>
             </section>
 
+            <section aria-labelledby="settings-workspace-view-heading">
+                <h4 id="settings-workspace-view-heading">Workspace View</h4>
+                <p>Choose how ART opens and how Explorer behavior is restored between sessions.</p>
+                <label for="settings-workspace-default-view">Default Workspace View</label>
+                <select id="settings-workspace-default-view">
+                    <option value="dashboard">Dashboard</option>
+                    <option value="explorer">Explorer</option>
+                </select>
+                <label>
+                    <input id="settings-workspace-remember-last" type="checkbox">
+                    Remember Last Workspace View
+                </label>
+                <fieldset>
+                    <legend>Explorer Personalization</legend>
+                    <label><input id="settings-explorer-icons" type="checkbox"> Show resource icons</label>
+                    <label><input id="settings-explorer-badges" type="checkbox"> Show resource badges</label>
+                    <label><input id="settings-explorer-recent" type="checkbox"> Show recent resources</label>
+                    <label><input id="settings-explorer-favorites" type="checkbox"> Show Favorites</label>
+                    <label><input id="settings-explorer-saved-searches" type="checkbox"> Show Saved Searches</label>
+                    <label><input id="settings-explorer-auto-expand" type="checkbox"> Automatically expand parent resources</label>
+                    <label><input id="settings-explorer-restore-expansion" type="checkbox"> Restore expanded Resources</label>
+                    <label><input id="settings-explorer-restore-selection" type="checkbox"> Restore selected Resource</label>
+                    <label><input id="settings-explorer-restore-focus" type="checkbox"> Restore keyboard focus</label>
+                    <label><input id="settings-explorer-restore-scroll" type="checkbox"> Restore scroll position</label>
+                    <label><input id="settings-explorer-restore-context" type="checkbox"> Restore Explorer context</label>
+                    <label for="settings-explorer-width">Explorer Width</label>
+                    <input id="settings-explorer-width" type="range" min="240" max="560" step="8" value="320" aria-describedby="settings-explorer-width-value">
+                    <span id="settings-explorer-width-value" role="status" aria-live="polite">320 px</span>
+                </fieldset>
+                <div class="viewer-dialog-actions" role="group" aria-label="Workspace view actions">
+                    <button id="btn-settings-workspace-apply" type="button">Apply Workspace View Settings</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-integrations-heading">
                 <h4 id="settings-integrations-heading">Integrations</h4>
                 <p id="settings-local-files-help">ART uses local and network-accessible file workflows for import, export, and project operations.</p>
