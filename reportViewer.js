@@ -1514,16 +1514,18 @@ export function renderViewer() {
     const attachmentPreviewCloseButton = document.getElementById('btn-viewer-attachment-preview-close');
 
     if (
-        !exportButton || !openWorkingViewButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
+        !exportButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
         || !exportFormat || !exportSave || !exportCancel || !exportStatus
     ) return;
 
-    openWorkingViewButton.addEventListener('click', async () => {
-        const result = await executeViewerAction('openWorkingView');
-        if (!result?.ok) {
-            announce('Open Working View command is unavailable.');
-        }
-    });
+    if (openWorkingViewButton) {
+        openWorkingViewButton.addEventListener('click', async () => {
+            const result = await executeViewerAction('openWorkingView');
+            if (!result?.ok) {
+                announce('Open Working View command is unavailable.');
+            }
+        });
+    }
 
     let isExportDialogOpen = false;
 

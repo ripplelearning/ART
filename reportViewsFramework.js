@@ -3,6 +3,7 @@ import {
     appState,
     ensureAuditEntries,
     getAuditEntries,
+    loadReportById,
     saveState,
     upsertCurrentReport
 } from './state.js';
@@ -1210,8 +1211,11 @@ function pickPreset(message, fallback = 0) {
 export function openWorkingViewFromCommand(context = {}) {
     const contextReportId = normalizeText(context?.reportId);
     if (contextReportId && contextReportId !== normalizeText(appState.selectedReportId)) {
-        appState.selectedReportId = contextReportId;
-        saveState({ action: 'Selected report for Working View', recordHistory: false });
+        const loaded = loadReportById(contextReportId);
+        if (!loaded) {
+            announce('The selected report could not be loaded for Working View.');
+            return false;
+        }
         window.dispatchEvent(new Event('art-reports-updated'));
     }
     const config = context.config && typeof context.config === 'object' ? context.config : {};
@@ -1273,8 +1277,11 @@ export function loadWorkingViewFromCommand() {
 export function loadWorkingViewForReportFromCommand(reportId = '') {
     const resolvedReportId = normalizeText(reportId);
     if (resolvedReportId && resolvedReportId !== normalizeText(appState.selectedReportId)) {
-        appState.selectedReportId = resolvedReportId;
-        saveState({ action: 'Selected report for Working View preset load', recordHistory: false });
+        const loaded = loadReportById(resolvedReportId);
+        if (!loaded) {
+            announce('The selected report could not be loaded for Working View preset load.');
+            return false;
+        }
         window.dispatchEvent(new Event('art-reports-updated'));
     }
     return loadWorkingViewFromCommand();
