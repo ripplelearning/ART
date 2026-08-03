@@ -1084,6 +1084,7 @@ function trapSettingsFocus(event) {
 
 function openSettingsDialog(trigger) {
     const dialog = document.getElementById('app-settings-dialog');
+    const heading = document.getElementById('app-settings-heading');
     const closeButton = document.getElementById('btn-settings-close');
     if (!dialog || !closeButton) return false;
 
@@ -1092,7 +1093,15 @@ function openSettingsDialog(trigger) {
     pendingVisualAccessibilityDirty = false;
     refreshSettingsView();
     dialog.hidden = false;
-    window.setTimeout(() => closeButton.focus(), 0);
+    window.setTimeout(() => {
+        if (heading) {
+            if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+            heading.focus();
+        } else {
+            closeButton.focus();
+        }
+        announce('Application Settings dialog opened.');
+    }, 0);
     return true;
 }
 

@@ -1,12 +1,24 @@
 import { appState, announce, getCurrentReportMetrics, getProgressItems, isProgressLogAppendixEnabled, isProgressLogEnabled, recordSecurityAudit, saveState, serializeArtJsonPayload, serializeArtProjectPayload, setNetworkActivity, upsertCurrentReport } from './state.js';
 import { formatWcagCriterionDisplay, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { openProgressLogDialog } from './progressLog.js';
+import { commandExecutionService } from './commandExecutionService.js';
+import { commandRegistry } from './commandRegistry.js';
 
 let openExportDialogOnRender = false;
 let openPrintPreviewOnRender = false;
 let viewerAttachmentRegistry = new Map();
 let viewerAttachmentObjectUrls = new Map();
 let viewerAttachmentSequence = 0;
+
+async function executeViewerAction(action, context = {}) {
+    const command = commandRegistry.findCommands({ action })[0] || null;
+    if (!command?.id) return null;
+    return commandExecutionService.executeCommand(command.id, {
+        source: 'viewer',
+        action,
+        ...context
+    });
+}
 
 function loadExternalScript(src) {
     return new Promise((resolve, reject) => {
@@ -1430,6 +1442,7 @@ export function renderViewer() {
             ${renderProgressAppendixViewer()}
 
             <div class="viewer-actions" role="group" aria-label="Report viewer actions">
+                <button id="btn-open-working-view" type="button">Open Working View</button>
                 <button id="btn-export-options" type="button">Export Options...</button>
                 ${isProgressLogEnabled() ? '<button id="btn-viewer-progress-log" type="button">Open Progress Log</button>' : ''}
                 <button id="btn-change-config" type="button">Change Report Configuration</button>
@@ -1482,6 +1495,7 @@ export function renderViewer() {
     `;
 
     const exportButton = document.getElementById('btn-export-options');
+    const openWorkingViewButton = document.getElementById('btn-open-working-view');
     const progressLogButton = document.getElementById('btn-viewer-progress-log');
     const changeConfigButton = document.getElementById('btn-change-config');
     const editReportButton = document.getElementById('btn-edit-report');
@@ -1500,9 +1514,16 @@ export function renderViewer() {
     const attachmentPreviewCloseButton = document.getElementById('btn-viewer-attachment-preview-close');
 
     if (
-        !exportButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
+        !exportButton || !openWorkingViewButton || !changeConfigButton || !editReportButton || !closeReportButton || !exportDialog || !exportFileName
         || !exportFormat || !exportSave || !exportCancel || !exportStatus
     ) return;
+
+    openWorkingViewButton.addEventListener('click', async () => {
+        const result = await executeViewerAction('openWorkingView');
+        if (!result?.ok) {
+            announce('Open Working View command is unavailable.');
+        }
+    });
 
     let isExportDialogOpen = false;
 
@@ -1703,4 +1724,11 @@ export function renderViewer() {
         openPrintPreviewOnRender = false;
         window.setTimeout(() => window.print(), 0);
     }
+
+    window.dispatchEvent(new CustomEvent('art-viewer-rendered', {
+        detail: {
+            reportTitle: String(appState.reportTitle || ''),
+            reportType: String(appState.reportType || '')
+        }
+    }));
 }
