@@ -4,7 +4,6 @@ import {
     getWorkspaceViewConfig,
     setActiveWorkspaceView
 } from './state.js';
-import { revealWorkspaceReportFromCommand } from './projectWorkspaceFramework.js';
 
 let initialized = false;
 
@@ -150,24 +149,6 @@ function bindExplorerSyncEvents() {
             announce: false,
             focusExplorer: false
         });
-    });
-
-    window.addEventListener('art-working-view-reveal-in-explorer', (event) => {
-        const reportId = String(event?.detail?.reportId || '').trim();
-        const findingLabel = String(event?.detail?.findingLabel || '').trim();
-        if (!reportId) return;
-
-        showExplorerViewFromCommand();
-        const success = revealWorkspaceReportFromCommand(reportId, {
-            filterText: findingLabel,
-            select: true
-        });
-
-        if (!success) {
-            setExplorerStatus('Explorer opened, but the report could not be revealed in Resource Navigator.');
-        } else if (findingLabel) {
-            setExplorerStatus(`Explorer opened. Report revealed for finding: ${findingLabel}.`);
-        }
     });
 }
 
