@@ -52,6 +52,7 @@ import {
     activateAddEntryWorkflow,
     activateAttachFileWorkflow,
     executeSpellDialogActionFromCommand,
+    renderEditor,
     startSpellCheckFromCommand,
     openEditorStatisticsDialog,
     openEditorValidationDialog
@@ -404,7 +405,15 @@ function runAddEntryWorkflow() {
     if (!activateAddEntryWorkflow()) return false;
     appState.editorReadOnly = false;
     saveState({ action: 'Opened add entry workflow', recordHistory: false });
-    clickElementById('tab-editor');
+
+    const editorTab = document.getElementById('tab-editor');
+    const isEditorActive = editorTab?.getAttribute('aria-selected') === 'true';
+
+    if (isEditorActive) {
+        renderEditor();
+    } else {
+        clickElementById('tab-editor');
+    }
     return true;
 }
 

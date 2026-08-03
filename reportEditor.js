@@ -1704,7 +1704,7 @@ export async function renderEditor() {
     const editorHeading = getEditorHeadingText();
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
 
-    const isAuditLog = appState.reportType === 'Audit Log';
+    const isAuditLog = currentReportSupportsAuditEntries();
     if (isAuditLog) ensureAuditEntries();
 
     container.innerHTML = `
