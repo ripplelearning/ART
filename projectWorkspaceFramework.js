@@ -20,6 +20,7 @@ import {
     updateProjectWorkspaceState,
     upsertProjectWorkspace
 } from './state.js';
+import { getWorkspaceResourceGroups } from './resourceFramework.js';
 
 const PROJECT_WORKSPACE_FORMAT = 'ART Project Workspace';
 const PROJECT_WORKSPACE_FORMAT_VERSION = '2.0';
@@ -589,31 +590,7 @@ function renderWorkspaceExplorer() {
     }
 
     const filterValue = normalizeText(filterInput.value).toLowerCase();
-    const reportNames = (appState.reports || [])
-        .filter((report) => (active.resources.reports || active.associatedReportIds || []).includes(report.id))
-        .map((report) => ({ id: report.id, name: report.name, type: 'report' }));
-
-    const templateNames = (appState.userTemplates || [])
-        .filter((template) => (active.resources.templates || active.associatedTemplateIds || []).includes(template.id))
-        .map((template) => ({ id: template.id, name: template.name, type: 'template' }));
-
-    const assets = (active.resources.projectAssets || []).map((asset) => ({
-        id: asset.id,
-        name: asset.title || asset.fileName,
-        type: 'asset',
-        category: asset.category
-    }));
-
-    const grouped = [
-        { key: 'reports', label: 'Reports', items: reportNames },
-        { key: 'templates', label: 'Templates', items: templateNames },
-        { key: 'assets', label: 'Project Assets', items: assets },
-        { key: 'auditLogs', label: 'Audit Logs', items: (active.resources.auditLogs || []).map((name, index) => ({ id: `audit-${index}`, name, type: 'auditLog' })) },
-        { key: 'progressLogs', label: 'Progress Logs', items: (active.resources.progressLogs || []).map((name, index) => ({ id: `progress-${index}`, name, type: 'progressLog' })) },
-        { key: 'attachments', label: 'Attachments', items: (active.resources.attachments || []).map((item) => ({ id: item.id, name: item.title || item.fileName, type: 'attachment' })) },
-        { key: 'exports', label: 'Exports', items: (active.resources.exports || []).map((name, index) => ({ id: `export-${index}`, name, type: 'export' })) },
-        { key: 'backups', label: 'Backups', items: (active.resources.backups || []).map((name, index) => ({ id: `backup-${index}`, name, type: 'backup' })) }
-    ];
+    const grouped = getWorkspaceResourceGroups(active);
 
     groups.innerHTML = grouped.map((group) => {
         const visibleItems = group.items.filter((item) => !filterValue || String(item.name || '').toLowerCase().includes(filterValue));
