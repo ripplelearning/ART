@@ -1,71 +1,74 @@
-# ART Copilot Development Instructions
+# ART Copilot Instructions
 
 ## Purpose
-These instructions define expectations for GitHub Copilot when assisting with development of the Accessibility Reporting Tool (ART).
+This file is the project memory for ART (the Accessibility Reporting Tool).
+Use it as the default reminder of project rules, design patterns, and lessons learned while working in this repository.
 
 Before implementing any feature, enhancement, bug fix, or architectural change:
 
 1. Review:
-- [ART Development Standards](../docs/ART-Development-Standards.md)
-- [ART Definition of Done](../docs/ART-Definition-of-Done.md)
-2. Follow existing ART architecture, coding patterns, terminology, accessibility practices, and user interface conventions.
+	- [ART Development Standards](../docs/ART-Development-Standards.md)
+	- [ART Definition of Done](../docs/ART-Definition-of-Done.md)
+2. Follow the existing ART architecture, terminology, accessibility practices, and UI conventions.
 
-## General Development Expectations
-When modifying ART:
+## Project Context
+ART is a modular, browser-based accessibility reporting workspace.
+The codebase is driven by a shared state store, command registry, and UI modules for Dashboard, Builder, Editor, Viewer, Settings, Search, Help, and Workspace views.
 
+## Core Development Rules
 - Preserve existing functionality.
-- Avoid unnecessary architectural changes.
-- Prefer extending existing systems rather than creating duplicate functionality.
-- Maintain backward compatibility whenever possible.
-- Follow existing naming conventions.
-- Document significant architectural decisions.
+- Prefer the smallest change that solves the problem at the source.
+- Extend existing systems instead of duplicating them.
+- Keep backward compatibility whenever possible.
+- Follow existing naming, structure, and formatting conventions.
+- Do not rewrite approved documentation unless a change actually requires it.
+- Do not make unrelated cleanup changes while fixing a bug.
 
-## Accessibility Requirements
-All new functionality shall follow ART's accessibility-first development approach.
+## Accessibility Rules
+- Use semantic HTML whenever possible.
+- Prefer native controls over unnecessary ARIA.
+- Provide meaningful accessible names for all controls.
+- Keep keyboard operation reliable and predictable.
+- Preserve logical reading order.
+- Keep screen reader behavior intentional and stable.
+- Respect zoom, high contrast, and reduced motion requirements.
+- Verify focus visibility and visible keyboard focus states.
+- Only move focus when the workflow explicitly requires it.
 
-Ensure:
+## Focus Management Lessons
+- Do not move focus away from the control that was just activated, edited, or changed unless the workflow explicitly requested a destination.
+- Avoid unconditional render-time focus fallbacks that override the user’s current control.
+- Use focus restoration only for deliberate handoffs such as opening dialogs, closing dialogs, explicit navigation commands, or add-entry/add-item workflows that promise a new target.
+- When a rerender preserves the same control, preserve focus on that control instead of sending it to a heading or container.
+- If a modal or dialog opens, focus should move into that dialog. When it closes, focus should usually return to the trigger.
 
-- Semantic HTML is used whenever possible.
-- Native HTML controls are preferred over unnecessary ARIA.
-- Controls have meaningful accessible names.
-- Keyboard operation is supported.
-- Focus management is correct.
-- Reading order remains logical.
-- Screen readers are supported.
-- Zoom and high contrast requirements are considered.
+## Keyboard Shortcut Rules
+- Review new controls, buttons, commands, actions, and workflows for shortcut eligibility.
+- Register new actions in the Keyboard Shortcut Manager and command registries.
+- Do not assign a shortcut by default unless the user explicitly asks for one.
+- Avoid duplicate shortcut assignments.
+- Keep shortcut labels and help text synchronized.
+- Update Welcome and Help shortcut displays when shortcuts change.
+- Show shortcut information in accessible tooltips when applicable.
 
-## Keyboard Shortcut Requirements
-Whenever new controls, buttons, commands, actions, or workflows are added:
+## Documentation Rules
+- Update Help documentation whenever features, controls, workflows, settings, or shortcuts change.
+- Maintain the existing Help structure, wording style, heading hierarchy, and formatting.
+- Update the Table of Contents when content changes.
+- Keep README, redirect pages, and visible help copy aligned with the current release label.
 
-- Review whether a keyboard shortcut should exist.
-- Add eligible shortcuts to the Keyboard Shortcut Manager.
-- Ensure shortcuts are customizable where supported.
-- Prevent duplicate shortcut assignments.
-- Update shortcut documentation.
-- Update Welcome screen shortcut displays when applicable.
-- Ensure tooltips display assigned shortcuts when applicable.
+## Versioning Rules
+- Use the current active version label for forward-facing UI and documentation.
+- At present, the active release label is Version 1.5.
+- Do not change historical epic documentation unless the user explicitly asks.
+- Keep the shared version source and visible title strings consistent.
 
-## Help Documentation Requirements
-Whenever features, controls, workflows, settings, or shortcuts change:
-
-Update the ART Help documentation.
-
-Maintain:
-
-- Existing Help structure.
-- Existing formatting.
-- Existing writing style.
-- Existing terminology.
-- Existing heading hierarchy.
-Update:
-
-- Table of Contents.
-- Relevant sections.
-- Keyboard shortcut listings.
-- User workflows.
-Do not rewrite approved documentation unnecessarily.
+## Known Project Lessons
+- Shortcut defaults can collide with existing user bindings; registration must tolerate conflicts.
+- Screen reader announcements for dialogs are more reliable when the intended heading or live region is updated deliberately.
+- If a capability depends on report data shape, infer it from the data when appropriate instead of relying only on a single reportType value.
+- Add-entry and attachment workflows should restore focus only to the explicit target they create.
+- When a control updates a field, selection, or value, the focus should stay with that control unless the workflow says otherwise.
 
 ## Completion Expectations
-A feature is not complete until it meets the requirements in:
-
-[ART Definition of Done](../docs/ART-Definition-of-Done.md)
+A feature is not complete until it meets the requirements in [ART Definition of Done](../docs/ART-Definition-of-Done.md).
