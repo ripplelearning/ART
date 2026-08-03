@@ -980,6 +980,13 @@ function bindDialogActions() {
 
     document.addEventListener('keydown', trapDialogFocus);
     document.addEventListener('focusin', trapDialogFocus);
+
+    dialog.addEventListener('mousedown', (event) => {
+        if (!configDialogState?.isOpen) return;
+        if (event.target === dialog) {
+            closeConfigureDashboardDialog();
+        }
+    });
 }
 
 export function openConfigureDashboardDialogFromCommand() {
