@@ -1085,7 +1085,7 @@ function trapSettingsFocus(event) {
 function openSettingsDialog(trigger) {
     const dialog = document.getElementById('app-settings-dialog');
     const closeButton = document.getElementById('btn-settings-close');
-    if (!dialog || !closeButton) return;
+    if (!dialog || !closeButton) return false;
 
     lastTrigger = trigger || document.getElementById('btn-app-settings');
     pendingVisualAccessibilitySnapshot = getVisualAccessibilityConfig();
@@ -1093,30 +1093,29 @@ function openSettingsDialog(trigger) {
     refreshSettingsView();
     dialog.hidden = false;
     window.setTimeout(() => closeButton.focus(), 0);
+    return true;
 }
 
 function closeSettingsDialog(restoreFocus) {
     const dialog = document.getElementById('app-settings-dialog');
-    if (!dialog) return;
+    if (!dialog) return false;
     revertVisualAccessibilityPreview();
     dialog.hidden = true;
     if (restoreFocus && lastTrigger) {
         lastTrigger.focus();
     }
+    return true;
 }
 
 export function openSettingsDialogFromCommand() {
     const openButton = document.getElementById('btn-app-settings');
-    if (!openButton) return false;
-    openSettingsDialog(openButton);
-    return true;
+    return openSettingsDialog(openButton || null);
 }
 
 export function closeSettingsDialogFromCommand() {
     const dialog = document.getElementById('app-settings-dialog');
     if (!dialog || dialog.hidden) return false;
-    closeSettingsDialog(true);
-    return true;
+    return closeSettingsDialog(true);
 }
 
 export function restoreSettingsShortcutsFromCommand() {
@@ -1691,16 +1690,24 @@ export function initSettings() {
     const closeButton = document.getElementById('btn-settings-close');
     const restoreShortcutsButton = document.getElementById('btn-settings-shortcuts-reset');
 
-    if (!openButton || !closeButton || !restoreShortcutsButton) return;
+    if (!openButton || !closeButton) return;
 
     openButton.addEventListener('click', () => {
-        void executeSettingsAction('openSettings');
+        void executeSettingsAction('openSettings').then((result) => {
+            if (!result?.ok) {
+                openSettingsDialog(openButton);
+            }
+        });
     });
     closeButton.addEventListener('click', () => {
-        void executeSettingsAction('settingsClose');
+        void executeSettingsAction('settingsClose').then((result) => {
+            if (!result?.ok) {
+                closeSettingsDialog(true);
+            }
+        });
     });
 
-    restoreShortcutsButton.addEventListener('click', () => {
+    restoreShortcutsButton?.addEventListener('click', () => {
         void executeSettingsAction('settingsRestoreShortcuts');
     });
 
