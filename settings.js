@@ -79,6 +79,7 @@ let createSettingsBackupNow = null;
 let openSettingsResetDialog = null;
 let pendingVisualAccessibilitySnapshot = null;
 let pendingVisualAccessibilityDirty = false;
+let isRefreshingSettingsView = false;
 
 async function executeSettingsAction(action, context = {}) {
     const command = commandRegistry.findCommands({ action })[0] || null;
@@ -493,8 +494,6 @@ function renderPluginManager() {
     const packageList = document.getElementById('settings-packages-list');
     const status = document.getElementById('settings-plugin-manager-status');
     if (!pluginList || !packageList || !status) return;
-
-    syncFrameworkPackagesFromState();
     const snapshot = getPluginFrameworkSnapshot();
 
     if (!Array.isArray(snapshot.plugins) || snapshot.plugins.length === 0) {
@@ -856,13 +855,28 @@ function renderIntegrationSettings() {
 }
 
 function refreshSettingsView() {
-    renderShortcuts();
-    renderImportedStandards();
-    renderIntegrationSettings();
-    renderVisualAccessibilitySettings();
-    renderWorkspaceViewSettings();
-    renderPluginManager();
-    renderAbout();
+    if (isRefreshingSettingsView) return;
+    isRefreshingSettingsView = true;
+
+    try {
+        // Keep package sync outside render to avoid event-feedback loops.
+        syncFrameworkPackagesFromState();
+        renderShortcuts();
+        renderImportedStandards();
+        renderIntegrationSettings();
+        renderVisualAccessibilitySettings();
+        renderWorkspaceViewSettings();
+        renderPluginManager();
+        renderAbout();
+    } finally {
+        isRefreshingSettingsView = false;
+    }
+}
+
+function refreshSettingsViewIfDialogOpen() {
+    const dialog = document.getElementById('app-settings-dialog');
+    if (!dialog || dialog.hidden) return;
+    refreshSettingsView();
 }
 
 function bindIntegrationSettings() {
@@ -2109,12 +2123,12 @@ export function initSettings() {
     document.addEventListener('keydown', trapSettingsFocus);
     document.addEventListener('focusin', trapSettingsFocus);
 
-    window.addEventListener('art-shortcuts-updated', refreshSettingsView);
-    window.addEventListener('art-visual-accessibility-updated', refreshSettingsView);
-    window.addEventListener('art-accessibility-standards-updated', refreshSettingsView);
-    window.addEventListener('art-security-updated', refreshSettingsView);
-    window.addEventListener('art-workspace-view-settings-updated', refreshSettingsView);
-    window.addEventListener('art-plugin-framework-event', refreshSettingsView);
+    window.addEventListener('art-shortcuts-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-visual-accessibility-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-accessibility-standards-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-security-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-workspace-view-settings-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-plugin-framework-event', refreshSettingsViewIfDialogOpen);
 
     isInitialized = true;
 }
