@@ -196,15 +196,8 @@ function initializeApp() {
     // 3b. Initialize workspace explorer/dashboard switching
     runStartupStage('initExplorerFramework', () => initExplorerFramework());
 
-    // 3c. Initialize report views framework (non-blocking for core app startup)
-    runStartupStage('initReportViewsFramework', () => {
-        try {
-            initReportViewsFramework();
-        } catch (error) {
-            console.error('[ART startup] Report views initialization failed.', error);
-            announce('Report Views could not be initialized. Core application features remain available.');
-        }
-    });
+    // 3c. Initialize report views framework
+    runStartupStage('initReportViewsFramework', () => initReportViewsFramework());
 
     // 4. Initialize application settings modal
     runStartupStage('initSettings', () => {

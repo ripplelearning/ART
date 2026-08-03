@@ -558,6 +558,7 @@ export function renderDashboard() {
         || !createDialog || !createNameInput || !btnCreateSave || !btnCreateCancel
         || !editConfirmDialog || !editConfirmMessage || !btnEditYes || !btnEditNo
         || !recentReportsSelect || !btnCloseActiveReport || !btnConfigureReport || !btnEditReportDashboard || !btnViewReportDashboard || !btnDeleteReportDashboard
+        || !btnOpenWorkingViewDashboard || !btnLoadWorkingViewDashboard
         || !reportMetricsList || !reportDeleteDialog || !reportDeleteMessage || !btnReportDeleteConfirm || !btnReportDeleteCancel
         || !importConflictDialog || !importConflictMessage || !btnImportReplace || !btnImportCopy || !btnImportCancel
         || !templateImportConflictDialog || !templateImportConflictDescription || !templateImportOptionReplace || !templateImportConfirm || !templateImportCancel
@@ -1109,8 +1110,8 @@ export function renderDashboard() {
         btnEditReportDashboard.disabled = !hasReportSelection;
         btnViewReportDashboard.disabled = !hasReportSelection;
         btnDeleteReportDashboard.disabled = !hasReportSelection;
-        if (btnOpenWorkingViewDashboard) btnOpenWorkingViewDashboard.disabled = !hasReportSelection;
-        if (btnLoadWorkingViewDashboard) btnLoadWorkingViewDashboard.disabled = !hasReportSelection;
+        btnOpenWorkingViewDashboard.disabled = !hasReportSelection;
+        btnLoadWorkingViewDashboard.disabled = !hasReportSelection;
         btnCloseActiveReport.disabled = !hasReportSelection;
         refreshReportMetrics();
         refreshDashboardWidgetFramework();
@@ -1371,8 +1372,8 @@ export function renderDashboard() {
         btnEditReportDashboard.disabled = !hasReportSelection;
         btnViewReportDashboard.disabled = !hasReportSelection;
         btnDeleteReportDashboard.disabled = !hasReportSelection;
-        if (btnOpenWorkingViewDashboard) btnOpenWorkingViewDashboard.disabled = !hasReportSelection;
-        if (btnLoadWorkingViewDashboard) btnLoadWorkingViewDashboard.disabled = !hasReportSelection;
+        btnOpenWorkingViewDashboard.disabled = !hasReportSelection;
+        btnLoadWorkingViewDashboard.disabled = !hasReportSelection;
         btnCloseActiveReport.disabled = !hasReportSelection;
 
         if (selected.startsWith('project:')) {
@@ -1397,26 +1398,22 @@ export function renderDashboard() {
         void executeDashboardAction('viewReport', { reportId: recentReportsSelect.value });
     });
 
-    if (btnOpenWorkingViewDashboard) {
-        btnOpenWorkingViewDashboard.addEventListener('click', () => {
-            const reportId = String(recentReportsSelect.value || '').trim();
-            if (!reportId || reportId.startsWith('project:')) return;
-            void executeDashboardAction('openWorkingView', {
-                reportId,
-                showConfig: true
-            });
+    btnOpenWorkingViewDashboard.addEventListener('click', () => {
+        const reportId = String(recentReportsSelect.value || '').trim();
+        if (!reportId || reportId.startsWith('project:')) return;
+        void executeDashboardAction('openWorkingView', {
+            reportId,
+            showConfig: true
         });
-    }
+    });
 
-    if (btnLoadWorkingViewDashboard) {
-        btnLoadWorkingViewDashboard.addEventListener('click', () => {
-            const reportId = String(recentReportsSelect.value || '').trim();
-            if (!reportId || reportId.startsWith('project:')) return;
-            void executeDashboardAction('loadWorkingView', {
-                reportId
-            });
+    btnLoadWorkingViewDashboard.addEventListener('click', () => {
+        const reportId = String(recentReportsSelect.value || '').trim();
+        if (!reportId || reportId.startsWith('project:')) return;
+        void executeDashboardAction('loadWorkingView', {
+            reportId
         });
-    }
+    });
 
     btnDeleteReportDashboard.addEventListener('click', () => {
         pendingDeleteReportId = recentReportsSelect.value;
