@@ -14,7 +14,6 @@ import {
     setActiveUniversalSearchSession,
     clearUniversalSearchHistory
 } from './state.js';
-import { getResourceRegistrySnapshot } from './resourceFramework.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 
 const providerRegistry = new Map();
@@ -439,38 +438,6 @@ function buildDashboardProviderResults(queryModel) {
         }));
 }
 
-function buildResourceProviderResults(queryModel) {
-    const registry = getResourceRegistrySnapshot();
-    const groups = [
-        { key: 'reports', label: 'Reports', items: registry.reports || [] },
-        { key: 'templates', label: 'Templates', items: registry.templates || [] },
-        { key: 'standards', label: 'Accessibility Standards', items: registry.standards || [] },
-        { key: 'shortcuts', label: 'Keyboard Shortcuts', items: registry.shortcuts || [] },
-        { key: 'visual-accessibility', label: 'Visual Accessibility', items: registry.visualAccessibility || [] },
-        { key: 'saved-searches', label: 'Saved Searches', items: registry.savedSearches || [] }
-    ];
-
-    return groups.flatMap((group) => group.items.map((item) => {
-        const searchableText = item.searchableText || `${item.name || ''} ${item.subtitle || ''} ${item.description || ''} ${item.category || ''}`;
-        if (!matchesQueryText(searchableText, queryModel)) return null;
-
-        return {
-            id: `${group.key}:${item.id}`,
-            providerId: 'resources',
-            type: item.type || 'resource',
-            title: item.title || item.name || group.label,
-            subtitle: item.subtitle ? `${group.label} | ${item.subtitle}` : group.label,
-            description: item.description || '',
-            score: scoreTextMatch(searchableText, queryModel),
-            resource: {
-                ...item,
-                group: group.key,
-                groupLabel: group.label
-            }
-        };
-    })).filter(Boolean);
-}
-
 function registerBuiltInProviders() {
     if (providerRegistry.size > 0) return;
 
@@ -580,18 +547,6 @@ function registerBuiltInProviders() {
             advertisedFields: ['id', 'title']
         },
         search: ({ queryModel }) => buildDashboardProviderResults(queryModel)
-    });
-
-    registerUniversalSearchProvider({
-        id: 'resources',
-        name: 'Resources',
-        priority: 95,
-        capabilities: {
-            scopes: ['workspace', 'global'],
-            itemTypes: ['resource', 'report', 'template', 'standard', 'shortcut', 'saved-search', 'visual-accessibility-profile'],
-            advertisedFields: ['name', 'title', 'type', 'category', 'subtitle', 'description']
-        },
-        search: ({ queryModel }) => buildResourceProviderResults(queryModel)
     });
 }
 
