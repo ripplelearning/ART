@@ -3884,7 +3884,14 @@ export function getReportById(reportId) {
 }
 
 export function currentReportSupportsAuditEntries() {
-    return appState.reportType === 'Audit Log';
+    if (appState.reportType === 'Audit Log') return true;
+
+    const hasAuditEntries = Array.isArray(appState.auditEntries) && appState.auditEntries.length > 0;
+    if (hasAuditEntries) return true;
+
+    const hasAuditStyleSelectionField = Array.isArray(appState.fields)
+        && appState.fields.some((field) => String(field?.type || '') === 'evaluation-item-selection');
+    return hasAuditStyleSelectionField;
 }
 
 function getReportDataFromSnapshot(report) {
