@@ -942,10 +942,6 @@ export function renderDashboard() {
                 rebuildRecentReports();
                 if (viewerTab) {
                     viewerTab.click();
-                    window.setTimeout(() => {
-                        const viewerHeading = document.getElementById('viewer-heading');
-                        if (viewerHeading) viewerHeading.focus();
-                    }, 0);
                 }
             };
 

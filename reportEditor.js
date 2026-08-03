@@ -1779,10 +1779,4 @@ export async function renderEditor() {
         }
     }
 
-    if (headingAfterRender && !pendingEntryFocus && !didApplyPendingEntryFocus) {
-        window.setTimeout(() => {
-            headingAfterRender.focus();
-        }, 0);
-    }
-
 }

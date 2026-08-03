@@ -551,6 +551,12 @@ export function isWorkingViewActiveForCurrentReport() {
 function renderWorkingView(session) {
     const container = getMainContainer();
     if (!container || !session) return false;
+    const activeElementBeforeRender = document.activeElement;
+    const preserveFocusId = activeElementBeforeRender instanceof HTMLElement
+        && container.contains(activeElementBeforeRender)
+        && activeElementBeforeRender.id
+        ? activeElementBeforeRender.id
+        : '';
     const model = createViewModel(session.config);
 
     const heading = `Working View - ${session.config.name}`;
@@ -668,7 +674,14 @@ function renderWorkingView(session) {
     bindWorkingViewInteractions(session, model);
 
     const headingElement = document.getElementById('report-working-view-heading');
-    if (headingElement) headingElement.focus({ preventScroll: true });
+    if (preserveFocusId) {
+        const preserved = document.getElementById(preserveFocusId);
+        if (preserved) {
+            window.setTimeout(() => preserved.focus({ preventScroll: true }), 0);
+        }
+    } else if (headingElement && (!document.activeElement || document.activeElement === document.body)) {
+        headingElement.focus({ preventScroll: true });
+    }
 
     syncWindowTitleForSession(session);
     window.dispatchEvent(new CustomEvent('art-working-view-updated', {
