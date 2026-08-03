@@ -6,7 +6,6 @@ import { renderBuilder } from './reportBuilder.js';
 import { renderEditor } from './reportEditor.js';
 import { renderViewer } from './reportViewer.js';
 import { renderWelcome } from './welcome.js';
-import { closeConfigureDashboardDialog } from './dashboardWidgetFramework.js';
 
 const landmarks = ['top-tabs', 'dashboard', 'main-content', 'lookup-tool'];
 const renderMap = {
@@ -625,29 +624,8 @@ export function initNavListener() {
 export function setupTabs() {
     const tabs = document.querySelectorAll('#top-tabs button[role="tab"]');
 
-    const dismissBlockingDialogs = () => {
-        closeConfigureDashboardDialog();
-        [
-            'app-settings-dialog',
-            'help-dialog',
-            'template-create-dialog',
-            'template-delete-dialog',
-            'template-edit-confirm-dialog',
-            'import-conflict-dialog',
-            'template-import-conflict-dialog',
-            'project-workspace-properties-dialog',
-            'project-workspace-export-dialog'
-        ].forEach((id) => {
-            const dialog = document.getElementById(id);
-            if (dialog && dialog.hidden === false) {
-                dialog.hidden = true;
-            }
-        });
-    };
-
     tabs.forEach((tab) => {
         tab.addEventListener('click', () => {
-            dismissBlockingDialogs();
             tabs.forEach((btn) => btn.setAttribute('aria-selected', 'false'));
             tab.setAttribute('aria-selected', 'true');
 

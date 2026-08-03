@@ -4,7 +4,6 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import {
     initializeDashboardWidgetFramework,
-    closeConfigureDashboardDialog,
     openConfigureDashboardDialogFromCommand,
     refreshDashboardWidgetFramework,
     registerDashboardWidget
@@ -58,8 +57,6 @@ import {
     validateArtxTemplatePayload,
     validateTemplateJsonPayload
 } from './state.js';
-import { openHelpDialog } from './help.js';
-import { openSettingsDialogFromCommand } from './settings.js';
 
 function moveFocusToEditorHeading() {
     const editorHeading = document.getElementById('editor-heading');
@@ -491,8 +488,6 @@ export function renderDashboard() {
     const btnSaveProjectAs = document.getElementById('btn-save-project-as');
     const btnImportData = document.getElementById('btn-import-data');
     const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
-    const btnAppSettings = document.getElementById('btn-app-settings');
-    const btnHelp = document.getElementById('btn-help');
     const builderTab = document.getElementById('tab-builder');
     const editorTab = document.getElementById('tab-editor');
     const viewerTab = document.getElementById('tab-view');
@@ -558,7 +553,7 @@ export function renderDashboard() {
     const networkDetail = document.getElementById('network-activity-detail');
 
     if (
-        !btnNew || !btnOpenReport || !btnSaveProject || !btnSaveProjectAs || !btnImportData || !btnAppSettings || !btnHelp || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateImport || !btnTemplateExport || !templateStatus
+        !btnNew || !btnOpenReport || !btnSaveProject || !btnSaveProjectAs || !btnImportData || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateImport || !btnTemplateExport || !templateStatus
         || !deleteDialog || !deleteMessage || !btnDeleteYes || !btnDeleteNo
         || !createDialog || !createNameInput || !btnCreateSave || !btnCreateCancel
         || !editConfirmDialog || !editConfirmMessage || !btnEditYes || !btnEditNo
@@ -669,15 +664,6 @@ export function renderDashboard() {
             action,
             ...context
         });
-    };
-
-    const runDashboardActionWithFallback = async (action, context = {}, fallback = null) => {
-        const result = await executeDashboardAction(action, context);
-        if (result?.ok) return true;
-        if (typeof fallback === 'function') {
-            return Boolean(await fallback());
-        }
-        return false;
     };
 
     const templateReasonMap = {
@@ -895,15 +881,15 @@ export function renderDashboard() {
     });
 
     btnSaveProject.addEventListener('click', async () => {
-        await runDashboardActionWithFallback('saveProject', {}, runSaveProject);
+        await runSaveProject();
     });
 
     btnSaveProjectAs.addEventListener('click', async () => {
-        await runDashboardActionWithFallback('saveProjectAs', {}, runSaveProjectAs);
+        await runSaveProjectAs();
     });
 
     btnOpenReport.addEventListener('click', async () => {
-        await runDashboardActionWithFallback('openProject', {}, runOpenProjectPicker);
+        await executeDashboardAction('openProject');
     });
 
     openProjectInput.addEventListener('change', async () => {
@@ -919,29 +905,11 @@ export function renderDashboard() {
     });
 
     btnImportData.addEventListener('click', () => {
-        void runDashboardActionWithFallback('importData', {}, () => {
-            importReportInput.value = '';
-            importReportInput.click();
-            return true;
-        });
+        void executeDashboardAction('importData');
     });
 
     btnConfigureDashboard?.addEventListener('click', () => {
-        void runDashboardActionWithFallback('configureDashboard', {}, () => {
-            closeConfigureDashboardDialog();
-            return openConfigureDashboardDialogFromCommand();
-        });
-    });
-
-    btnAppSettings.addEventListener('click', () => {
-        void runDashboardActionWithFallback('openSettings', {}, () => openSettingsDialogFromCommand());
-    });
-
-    btnHelp.addEventListener('click', () => {
-        void runDashboardActionWithFallback('openHelp', {}, () => {
-            openHelpDialog(btnHelp);
-            return true;
-        });
+        void executeDashboardAction('configureDashboard');
     });
 
     continueWorkingButton.addEventListener('click', () => {
@@ -1012,11 +980,7 @@ export function renderDashboard() {
     };
 
     btnTemplateImport.addEventListener('click', () => {
-        void runDashboardActionWithFallback('importTemplate', {}, () => {
-            importTemplateInput.value = '';
-            importTemplateInput.click();
-            return true;
-        });
+        void executeDashboardAction('importTemplate');
     });
 
     importTemplateInput.addEventListener('change', async () => {
@@ -1309,10 +1273,7 @@ export function renderDashboard() {
 
     btnCreate.addEventListener('click', () => {
         if (templateSelect.value === 'scratch') {
-            void runDashboardActionWithFallback('newTemplate', {}, () => {
-                builderTab.click();
-                return true;
-            });
+            void executeDashboardAction('newTemplate');
             return;
         }
 
@@ -1335,10 +1296,7 @@ export function renderDashboard() {
         closeDialog(createDialog, false);
         const sourceTemplateId = pendingCreateSourceTemplateId;
         pendingCreateSourceTemplateId = null;
-        void runDashboardActionWithFallback('newTemplate', { templateId: sourceTemplateId, templateName }, () => {
-            builderTab.click();
-            return true;
-        });
+        void executeDashboardAction('newTemplate', { templateId: sourceTemplateId, templateName });
     });
 
     btnCreateCancel.addEventListener('click', () => {
@@ -1429,24 +1387,15 @@ export function renderDashboard() {
     });
 
     btnConfigureReport.addEventListener('click', () => {
-        void runDashboardActionWithFallback('configureReport', { reportId: recentReportsSelect.value }, () => {
-            builderTab.click();
-            return true;
-        });
+        void executeDashboardAction('configureReport', { reportId: recentReportsSelect.value });
     });
 
     btnEditReportDashboard.addEventListener('click', () => {
-        void runDashboardActionWithFallback('editReport', { reportId: recentReportsSelect.value }, () => {
-            editorTab.click();
-            return true;
-        });
+        void executeDashboardAction('editReport', { reportId: recentReportsSelect.value });
     });
 
     btnViewReportDashboard.addEventListener('click', () => {
-        void runDashboardActionWithFallback('viewReport', { reportId: recentReportsSelect.value }, () => {
-            viewerTab?.click();
-            return true;
-        });
+        void executeDashboardAction('viewReport', { reportId: recentReportsSelect.value });
     });
 
     btnOpenWorkingViewDashboard.addEventListener('click', () => {
