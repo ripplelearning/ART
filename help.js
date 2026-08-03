@@ -94,7 +94,7 @@ function getHelpSections(rows) {
             id: 'help-getting-started',
             title: 'Getting Started',
             content: `
-                <p>ART (the Accessibility Reporting Tool) Version 1.5 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
+                <p>ART (the Accessibility Reporting Tool) Version 1.0 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
                 <p>Use Dashboard actions to create or open a Project Workspace, then use the panel tabs for Builder, Editor, Viewer, and Help tasks.</p>
             `
         },
@@ -636,7 +636,7 @@ export function openHelpDialog(trigger = null) {
     if (trigger) lastHelpTrigger = trigger;
     renderHelpDocumentation();
     if (!previousDocumentTitle) previousDocumentTitle = document.title;
-    document.title = 'User Guide | ART Version 1.5';
+    document.title = 'User Guide | ART Version 1.0';
     dialog.hidden = false;
 
     window.setTimeout(() => {
