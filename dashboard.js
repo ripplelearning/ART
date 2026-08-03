@@ -17,6 +17,7 @@ import {
     getWorkspaceExplorerSummary,
     initProjectWorkspaceFramework
 } from './projectWorkspaceFramework.js';
+import { registerPackageFromWorkflow } from './pluginFramework.js';
 
 import {
     addAuditEntry,
@@ -936,6 +937,21 @@ export function renderDashboard() {
             const finalizeImport = (strategy) => {
                 const imported = importReportWithConflictStrategy(importState, strategy);
                 if (!imported) return;
+                registerPackageFromWorkflow({
+                    packageId: `sample-report:${String(imported.id || imported.name || '').trim()}`,
+                    packageType: 'sample-data',
+                    displayName: imported.name || 'Imported Report',
+                    description: 'Imported report package metadata.',
+                    version: '1.0.0',
+                    sourceWorkflow: 'dashboardImportReport',
+                    metadata: {
+                        sourceId: imported.id,
+                        reportType: imported.data?.reportType || ''
+                    },
+                    resources: [{ type: 'report', id: imported.id }]
+                }, {
+                    sourceWorkflow: 'dashboardImportReport'
+                });
                 window.dispatchEvent(new Event('art-templates-updated'));
                 window.dispatchEvent(new Event('art-reports-updated'));
                 reportPrecheckStatus(`Imported ${pendingImportFileName || selectedFile.name} successfully.`);
@@ -971,6 +987,21 @@ export function renderDashboard() {
     const finalizeTemplateImport = (templatePayload, strategy) => {
         const imported = importTemplateWithConflictStrategy(templatePayload, strategy);
         if (!imported) return null;
+        registerPackageFromWorkflow({
+            packageId: `template:${String(imported.id || imported.name || '').trim()}`,
+            packageType: 'report-templates',
+            displayName: imported.name || 'Imported Template',
+            description: 'Imported template package metadata.',
+            version: imported.metadata?.version || '1.0.0',
+            sourceWorkflow: 'dashboardImportTemplate',
+            metadata: {
+                sourceId: imported.id,
+                source: imported.metadata?.source || 'import'
+            },
+            resources: [{ type: 'template', id: imported.id }]
+        }, {
+            sourceWorkflow: 'dashboardImportTemplate'
+        });
         window.dispatchEvent(new Event('art-templates-updated'));
         return imported;
     };

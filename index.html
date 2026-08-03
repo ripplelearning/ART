@@ -257,6 +257,25 @@
                     <p id="settings-security-diagnostics" role="status" aria-live="polite" aria-atomic="true">No diagnostics available.</p>
                 </section>
 
+                <section aria-labelledby="settings-plugin-manager-heading">
+                    <h4 id="settings-plugin-manager-heading">Plugin &amp; Package Manager</h4>
+                    <p>Manage extension lifecycle, validate compatibility, and review registered packages without replacing existing import workflows.</p>
+                    <div class="viewer-dialog-actions" role="group" aria-label="Plugin manager actions">
+                        <button id="btn-settings-plugin-install" type="button">Install Plugin...</button>
+                        <button id="btn-settings-plugin-validate" type="button">Validate Extensions</button>
+                        <button id="btn-settings-plugin-refresh" type="button">Refresh Extension Registry</button>
+                        <button id="btn-settings-plugin-export-config" type="button">Export Framework Config</button>
+                        <button id="btn-settings-plugin-import-config" type="button">Import Framework Config...</button>
+                    </div>
+                    <input id="settings-plugin-install-input" type="file" accept=".json,application/json" hidden>
+                    <input id="settings-plugin-import-config-input" type="file" accept=".json,application/json" hidden>
+                    <h5>Installed Plugins</h5>
+                    <ul id="settings-plugins-list" aria-label="Installed plugins"></ul>
+                    <h5>Registered Packages</h5>
+                    <ul id="settings-packages-list" aria-label="Registered packages"></ul>
+                    <p id="settings-plugin-manager-status" role="status" aria-live="polite" aria-atomic="true">Plugin Framework not initialized.</p>
+                </section>
+
                 <section aria-labelledby="settings-reset-heading">
                     <h4 id="settings-reset-heading">Reset</h4>
                     <button id="btn-settings-reset-app" type="button">Reset ART Application Data</button>

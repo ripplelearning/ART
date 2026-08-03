@@ -30,14 +30,19 @@ import { openHelpDialog } from './help.js';
 import {
     closeSettingsDialogFromCommand,
     createSettingsBackupFromCommand,
+    exportSettingsPluginFrameworkConfigFromCommand,
+    importSettingsPluginFrameworkConfigFromCommand,
     openSettingsPasteStandardTableFromCommand,
     openSettingsResetDialogFromCommand,
     openSettingsDialogFromCommand,
+    refreshSettingsPluginManagerFromCommand,
     restoreSettingsShortcutsFromCommand,
+    startSettingsPluginInstallFromCommand,
     startSettingsImportReportFileFromCommand,
     startSettingsImportStandardFromCommand,
     startSettingsImportTemplateFileFromCommand,
-    toggleSettingsPrivacyModeFromCommand
+    toggleSettingsPrivacyModeFromCommand,
+    validateSettingsPluginExtensionsFromCommand
 } from './settings.js';
 import {
     activateTabCommand,
@@ -192,6 +197,11 @@ function getDefaultMenuLocation(action, category) {
         case 'settingsImportReportFile':
         case 'settingsImportTemplateFile':
         case 'settingsOpenIntegrations':
+        case 'settingsPluginInstall':
+        case 'settingsPluginValidate':
+        case 'settingsPluginRefresh':
+        case 'settingsPluginExportConfig':
+        case 'settingsPluginImportConfig':
         case 'settingsTogglePrivacyMode':
         case 'settingsCreateBackup':
         case 'settingsResetApp':
@@ -1760,6 +1770,41 @@ const COMMAND_DEFINITIONS = [
         category: 'Settings',
         description: 'Open the Integrations section in Settings.',
         handler: () => focusIntegrationsSection()
+    },
+    {
+        action: 'settingsPluginInstall',
+        id: 'Settings.PluginInstall',
+        category: 'Settings',
+        description: 'Install a plugin manifest in Plugin and Package Manager.',
+        handler: () => startSettingsPluginInstallFromCommand()
+    },
+    {
+        action: 'settingsPluginValidate',
+        id: 'Settings.PluginValidate',
+        category: 'Settings',
+        description: 'Validate registered plugin and package extensions.',
+        handler: () => validateSettingsPluginExtensionsFromCommand()
+    },
+    {
+        action: 'settingsPluginRefresh',
+        id: 'Settings.PluginRefresh',
+        category: 'Settings',
+        description: 'Refresh plugin and package manager lists.',
+        handler: () => refreshSettingsPluginManagerFromCommand()
+    },
+    {
+        action: 'settingsPluginExportConfig',
+        id: 'Settings.PluginExportConfig',
+        category: 'Settings',
+        description: 'Export plugin framework configuration.',
+        handler: () => exportSettingsPluginFrameworkConfigFromCommand()
+    },
+    {
+        action: 'settingsPluginImportConfig',
+        id: 'Settings.PluginImportConfig',
+        category: 'Settings',
+        description: 'Import plugin framework configuration.',
+        handler: () => importSettingsPluginFrameworkConfigFromCommand()
     },
     {
         action: 'settingsTogglePrivacyMode',

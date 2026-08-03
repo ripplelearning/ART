@@ -216,6 +216,17 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-plugin-package-framework',
+            title: 'Plugin and Package Framework',
+            content: `
+                <p>ART Version 1.5 includes a Plugin Framework and Plugin &amp; Package Manager in Application Settings under Administrator Tools.</p>
+                <p>Use Plugin &amp; Package Manager to install or update plugin manifests, enable or disable plugins, uninstall external plugins, validate extensions, and inspect package metadata.</p>
+                <p>Plugins can declare dependencies and permissions. ART blocks enable when required dependencies are missing or incompatible, and blocks disable/uninstall when enabled dependent plugins still require a plugin.</p>
+                <p>You can export and import Plugin Framework configuration to preserve plugin and package registration across environments.</p>
+                <p>The Plugin Framework registers capabilities and package metadata after existing workflows complete; it does not replace core report, template, settings, or integration workflows.</p>
+            `
+        },
+        {
             id: 'help-progress-log-workflow',
             title: 'Progress Log Workflow',
             content: `
@@ -506,7 +517,7 @@ function getHelpSections(rows) {
                     <li>Expanding automated and manual accessibility testing.</li>
                     <li>Encouraging community participation through thoughtful feature requests, accessibility feedback, documentation improvements, testing, and well-documented code contributions.</li>
                 </ul>
-                <p>As ART grows, future roadmap priorities may include cloud integrations, project management integrations, additional reporting capabilities, localization, plugin or extension support, and other enhancements identified through community feedback and project goals.</p>
+                <p>As ART grows, future roadmap priorities may include cloud integrations, project management integrations, additional reporting capabilities, localization, and other enhancements identified through community feedback and project goals.</p>
                 <p>The roadmap is intentionally flexible and may evolve as user needs, accessibility standards, and available technologies change. Feature priorities will be determined by their ability to improve usability, accessibility, maintainability, and the overall value of ART for its users.</p>
             `
         },

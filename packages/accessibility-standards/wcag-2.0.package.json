@@ -1,0 +1,77 @@
+{
+  "artAccessibilityStandardsVersion": "1.0",
+  "package": {
+    "packageId": "standard-package-wcag-2-0",
+    "packageType": "accessibility-standards",
+    "displayName": "WCAG 2.0",
+    "description": "WCAG 2.0 success criteria package for ART.",
+    "version": "2.0",
+    "author": "W3C",
+    "publisher": "W3C",
+    "license": "W3C Document License",
+    "supportedArtVersion": "1.5",
+    "sourceWorkflow": "settingsImportStandard"
+  },
+  "standards": [
+    {
+      "internalId": "wcag-2.0",
+      "displayName": "WCAG 2.0",
+      "version": "2.0",
+      "source": "W3C",
+      "criteria": [
+        {
+          "number": "1.1.1",
+          "title": "Non-text Content",
+          "level": "A",
+          "desc": "All non-text content that is presented to the user has a text alternative that serves the equivalent purpose.",
+          "understandingUrl": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+          "recommendationUrl": "",
+          "failures": "Missing alternative text for meaningful images.",
+          "fixes": "Provide meaningful text alternatives using alt text or equivalent mechanism.",
+          "disabilitie": "Blindness, low vision, cognitive disabilities",
+          "categories": "Perceivable",
+          "tags": ["non-text", "images", "alt text"]
+        },
+        {
+          "number": "1.3.1",
+          "title": "Info and Relationships",
+          "level": "A",
+          "desc": "Information, structure, and relationships conveyed through presentation can be programmatically determined.",
+          "understandingUrl": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html",
+          "recommendationUrl": "",
+          "failures": "Using visual formatting alone to communicate structure.",
+          "fixes": "Use semantic markup such as headings, lists, and table headers.",
+          "disabilitie": "Blindness, low vision, cognitive disabilities",
+          "categories": "Perceivable",
+          "tags": ["semantic html", "structure", "relationships"]
+        },
+        {
+          "number": "2.1.1",
+          "title": "Keyboard",
+          "level": "A",
+          "desc": "All functionality is operable through a keyboard interface.",
+          "understandingUrl": "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html",
+          "recommendationUrl": "",
+          "failures": "Interactive controls not reachable or operable with keyboard only.",
+          "fixes": "Ensure controls are focusable and support expected keyboard interaction.",
+          "disabilitie": "Motor disabilities, blindness",
+          "categories": "Operable",
+          "tags": ["keyboard", "focus", "operable"]
+        },
+        {
+          "number": "2.4.7",
+          "title": "Focus Visible",
+          "level": "AA",
+          "desc": "Any keyboard operable user interface has a mode of operation where the keyboard focus indicator is visible.",
+          "understandingUrl": "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html",
+          "recommendationUrl": "",
+          "failures": "No visual indicator for focused elements.",
+          "fixes": "Provide a clear visible focus indicator for all interactive elements.",
+          "disabilitie": "Motor disabilities, low vision",
+          "categories": "Operable",
+          "tags": ["focus", "keyboard", "visual indicator"]
+        }
+      ]
+    }
+  ]
+}

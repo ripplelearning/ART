@@ -1,0 +1,77 @@
+{
+  "artAccessibilityStandardsVersion": "1.0",
+  "package": {
+    "packageId": "standard-package-en-301-549",
+    "packageType": "accessibility-standards",
+    "displayName": "EN 301 549",
+    "description": "EN 301 549 accessibility requirements package for ICT products and services.",
+    "version": "v3.2.1",
+    "author": "ETSI",
+    "publisher": "ETSI",
+    "license": "ETSI Standards License",
+    "supportedArtVersion": "1.5",
+    "sourceWorkflow": "settingsImportStandard"
+  },
+  "standards": [
+    {
+      "internalId": "en-301-549",
+      "displayName": "EN 301 549",
+      "version": "v3.2.1",
+      "source": "ETSI",
+      "criteria": [
+        {
+          "number": "Clause 9.1.1.1",
+          "title": "Non-text Content",
+          "level": "Applicable",
+          "desc": "Web content requirements include text alternatives for non-text content consistent with WCAG mapping.",
+          "understandingUrl": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/",
+          "recommendationUrl": "",
+          "failures": "Non-text content lacks equivalent text alternatives.",
+          "fixes": "Provide equivalent text alternatives aligned with mapped WCAG requirements.",
+          "disabilitie": "Blindness, low vision",
+          "categories": "Web Requirements",
+          "tags": ["non-text", "wcag-mapped", "perceivable"]
+        },
+        {
+          "number": "Clause 9.2.1.1",
+          "title": "Keyboard",
+          "level": "Applicable",
+          "desc": "Functionality must be operable through keyboard interfaces without requiring timing constraints.",
+          "understandingUrl": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/",
+          "recommendationUrl": "",
+          "failures": "Required actions are pointer-only.",
+          "fixes": "Support complete keyboard access for required functions.",
+          "disabilitie": "Motor disabilities, blindness",
+          "categories": "Web Requirements",
+          "tags": ["keyboard", "operable"]
+        },
+        {
+          "number": "Clause 9.4.1.2",
+          "title": "Name, Role, Value",
+          "level": "Applicable",
+          "desc": "User interface components expose programmatically determinable name, role, and value.",
+          "understandingUrl": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/",
+          "recommendationUrl": "",
+          "failures": "Custom controls do not expose accessible role/state.",
+          "fixes": "Use semantic controls or complete ARIA role/state/value mappings.",
+          "disabilitie": "Blindness, motor disabilities",
+          "categories": "Web Requirements",
+          "tags": ["name-role-value", "screen readers", "semantics"]
+        },
+        {
+          "number": "Clause 11.7",
+          "title": "User Preferences",
+          "level": "Applicable",
+          "desc": "Software honors documented platform accessibility preference settings where available.",
+          "understandingUrl": "https://www.etsi.org/deliver/etsi_en/301500_301599/301549/",
+          "recommendationUrl": "",
+          "failures": "Application ignores platform reduced motion, contrast, or input preferences.",
+          "fixes": "Respect platform-level accessibility preferences and expose local controls.",
+          "disabilitie": "Multiple disability categories",
+          "categories": "Software Requirements",
+          "tags": ["preferences", "platform", "inclusive"]
+        }
+      ]
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import { initGlobalContextMenuFramework } from './globalContextMenuFramework.js'
 import { registerApplicationCommands } from './commandCatalog.js';
 import { initExplorerFramework } from './explorerFramework.js';
 import { initReportViewsFramework } from './reportViewsFramework.js';
+import { initPluginFramework } from './pluginFramework.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
 
@@ -203,6 +204,16 @@ function initializeApp() {
         } catch (error) {
             console.error('[ART startup] Report views initialization failed.', error);
             announce('Report Views could not be initialized. Core application features remain available.');
+        }
+    });
+
+    // 3d. Initialize plugin framework (non-blocking for core startup)
+    runStartupStage('initPluginFramework', () => {
+        try {
+            initPluginFramework();
+        } catch (error) {
+            console.error('[ART startup] Plugin framework initialization failed.', error);
+            announce('Plugin Framework could not be initialized. Core application features remain available.');
         }
     });
 

@@ -44,6 +44,20 @@ import {
 } from './state.js';
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
+import {
+    disablePlugin,
+    enablePlugin,
+    exportPluginFrameworkState,
+    getPluginFrameworkDiagnostics,
+    getPluginFrameworkSnapshot,
+    importPluginFrameworkState,
+    registerPackageFromWorkflow,
+    registerPluginManifest,
+    syncFrameworkPackagesFromState,
+    uninstallPlugin,
+    validatePluginManifest,
+    validateRegisteredExtensions
+} from './pluginFramework.js';
 
 let isInitialized = false;
 let activeSubDialog = null;
@@ -474,6 +488,121 @@ function renderAbout() {
     `;
 }
 
+function renderPluginManager() {
+    const pluginList = document.getElementById('settings-plugins-list');
+    const packageList = document.getElementById('settings-packages-list');
+    const status = document.getElementById('settings-plugin-manager-status');
+    if (!pluginList || !packageList || !status) return;
+
+    syncFrameworkPackagesFromState();
+    const snapshot = getPluginFrameworkSnapshot();
+
+    if (!Array.isArray(snapshot.plugins) || snapshot.plugins.length === 0) {
+        pluginList.innerHTML = '<li>No plugins discovered.</li>';
+    } else {
+        pluginList.innerHTML = snapshot.plugins.map((plugin) => {
+            const toggleLabel = plugin.enabled ? 'Disable' : 'Enable';
+            const uninstallDisabled = plugin.origin === 'builtin' ? 'disabled' : '';
+            const dependencySummary = Array.isArray(plugin.dependencies) && plugin.dependencies.length > 0
+                ? plugin.dependencies.map((entry) => {
+                    if (typeof entry === 'string') return entry;
+                    const optional = entry.optional ? ' (optional)' : '';
+                    const version = entry.version ? ` >= ${entry.version}` : '';
+                    return `${entry.pluginId}${version}${optional}`;
+                }).join(', ')
+                : 'None';
+            const permissionSummary = Array.isArray(plugin.permissions) && plugin.permissions.length > 0
+                ? plugin.permissions.join(', ')
+                : 'None';
+            const dependencyIssues = Array.isArray(plugin.dependencyIssues) && plugin.dependencyIssues.length > 0
+                ? plugin.dependencyIssues.map((issue) => issue.message).join(' | ')
+                : '';
+            return `
+                <li>
+                    <strong>${plugin.displayName}</strong> (${plugin.version})
+                    <div>Identifier: ${plugin.pluginId}</div>
+                    <div>Status: ${plugin.status}${plugin.origin ? ` · ${plugin.origin}` : ''}</div>
+                    <div>Supported ART Version: ${plugin.supportedArtVersion || 'Any'}</div>
+                    <div>Dependencies: ${dependencySummary}</div>
+                    <div>Permissions: ${permissionSummary}</div>
+                    ${dependencyIssues ? `<div>Dependency diagnostics: ${dependencyIssues}</div>` : ''}
+                    <div class="viewer-dialog-actions" role="group" aria-label="Plugin actions for ${plugin.displayName}">
+                        <button type="button" data-plugin-toggle-id="${plugin.pluginId}">${toggleLabel}</button>
+                        <button type="button" data-plugin-uninstall-id="${plugin.pluginId}" ${uninstallDisabled}>Uninstall</button>
+                    </div>
+                </li>
+            `;
+        }).join('');
+    }
+
+    if (!Array.isArray(snapshot.packages) || snapshot.packages.length === 0) {
+        packageList.innerHTML = '<li>No packages registered.</li>';
+    } else {
+        packageList.innerHTML = snapshot.packages.map((pkg) => `
+            <li>
+                <strong>${pkg.displayName}</strong> (${pkg.version})
+                <div>Type: ${pkg.packageType}</div>
+                <div>Source workflow: ${pkg.sourceWorkflow || 'unknown'}</div>
+                <div>Resources: ${Array.isArray(pkg.resources) ? pkg.resources.length : 0}</div>
+            </li>
+        `).join('');
+    }
+
+    const diagnostics = getPluginFrameworkDiagnostics();
+    const last = diagnostics.length > 0 ? diagnostics[diagnostics.length - 1] : null;
+    status.textContent = last
+        ? `Plugin Framework ${snapshot.frameworkVersion}. ${snapshot.plugins.length} plugin(s), ${snapshot.packages.length} package(s). Last event: ${last.message}`
+        : `Plugin Framework ${snapshot.frameworkVersion}. ${snapshot.plugins.length} plugin(s), ${snapshot.packages.length} package(s).`;
+
+    pluginList.querySelectorAll('[data-plugin-toggle-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const pluginId = button.getAttribute('data-plugin-toggle-id');
+            if (!pluginId) return;
+            const current = getPluginFrameworkSnapshot().plugins.find((item) => item.pluginId === pluginId);
+            if (!current) return;
+            const result = current.enabled ? disablePlugin(pluginId) : enablePlugin(pluginId);
+            if (!result.ok) {
+                if (result.reason === 'required-by-dependent') {
+                    const dependents = Array.isArray(result.dependents) ? result.dependents.join(', ') : 'another enabled plugin';
+                    writeStatus(`Plugin action failed: required by ${dependents}.`);
+                    return;
+                }
+                if (result.reason === 'dependency-failed') {
+                    writeStatus(`Plugin action failed: ${(result.errors || []).join('; ') || 'dependency requirements are not met'}.`);
+                    return;
+                }
+                writeStatus('Plugin action failed.');
+                return;
+            }
+            renderPluginManager();
+            writeStatus(`${current.enabled ? 'Disabled' : 'Enabled'} plugin ${current.displayName}.`);
+        });
+    });
+
+    pluginList.querySelectorAll('[data-plugin-uninstall-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const pluginId = button.getAttribute('data-plugin-uninstall-id');
+            if (!pluginId) return;
+            const current = getPluginFrameworkSnapshot().plugins.find((item) => item.pluginId === pluginId);
+            if (!current) return;
+            const approved = window.confirm(`Uninstall plugin ${current.displayName}?`);
+            if (!approved) return;
+            const result = uninstallPlugin(pluginId);
+            if (!result.ok) {
+                if (result.reason === 'required-by-dependent') {
+                    const dependents = Array.isArray(result.dependents) ? result.dependents.join(', ') : 'another enabled plugin';
+                    writeStatus(`Plugin uninstall blocked: required by ${dependents}.`);
+                    return;
+                }
+                writeStatus('Plugin uninstall failed.');
+                return;
+            }
+            renderPluginManager();
+            writeStatus(`Uninstalled plugin ${current.displayName}.`);
+        });
+    });
+}
+
 function getVisualAccessibilityControls() {
     return {
         theme: document.getElementById('settings-visual-theme'),
@@ -635,7 +764,25 @@ function importAccessibilityStandardList(standards, overwrite = false) {
     if (list.length === 0) return { ok: false, reason: 'empty' };
 
     list.forEach((standard) => {
-        addImportedAccessibilityStandard(standard, standard.displayName, { overwrite });
+        const result = addImportedAccessibilityStandard(standard, standard.displayName, { overwrite });
+        if (result?.ok && result.standard) {
+            registerPackageFromWorkflow({
+                packageId: `standard:${String(result.standard.internalId || result.standard.id || '').trim()}`,
+                packageType: 'accessibility-standards',
+                displayName: result.standard.displayName || 'Imported Standard',
+                description: 'Imported accessibility standards package.',
+                version: result.standard.version || '1.0',
+                sourceWorkflow: 'settingsImportStandard',
+                metadata: {
+                    sourceId: result.standard.id,
+                    internalId: result.standard.internalId,
+                    criteriaCount: Array.isArray(result.standard.criteria) ? result.standard.criteria.length : 0
+                },
+                resources: [{ type: 'accessibility-standard', id: result.standard.id }]
+            }, {
+                sourceWorkflow: 'settingsImportStandard'
+            });
+        }
     });
 
     refreshSettingsView();
@@ -714,6 +861,7 @@ function refreshSettingsView() {
     renderIntegrationSettings();
     renderVisualAccessibilitySettings();
     renderWorkspaceViewSettings();
+    renderPluginManager();
     renderAbout();
 }
 
@@ -851,6 +999,22 @@ function bindIntegrationSettings() {
                 return;
             }
 
+            registerPackageFromWorkflow({
+                packageId: `sample-report:${String(imported.id || imported.name || '').trim()}`,
+                packageType: 'sample-data',
+                displayName: imported.name || 'Imported Report',
+                description: 'Imported report package metadata.',
+                version: '1.0.0',
+                sourceWorkflow: 'settingsImportReportFile',
+                metadata: {
+                    sourceId: imported.id,
+                    reportType: imported.data?.reportType || ''
+                },
+                resources: [{ type: 'report', id: imported.id }]
+            }, {
+                sourceWorkflow: 'settingsImportReportFile'
+            });
+
             setNetworkActivity('Offline', 'Local report import completed with no external transfer.');
             recordSecurityAudit('Local report import completed', `File: ${selected.name}`);
             writeStatus(`Imported report from file: ${imported.name}.`);
@@ -884,6 +1048,22 @@ function bindIntegrationSettings() {
                 writeStatus('Import failed. Template conflict could not be resolved.');
                 return;
             }
+
+            registerPackageFromWorkflow({
+                packageId: `template:${String(imported.id || imported.name || '').trim()}`,
+                packageType: 'report-templates',
+                displayName: imported.name || 'Imported Template',
+                description: 'Imported template package metadata.',
+                version: imported.metadata?.version || '1.0.0',
+                sourceWorkflow: 'settingsImportTemplateFile',
+                metadata: {
+                    sourceId: imported.id,
+                    source: imported.metadata?.source || 'import'
+                },
+                resources: [{ type: 'template', id: imported.id }]
+            }, {
+                sourceWorkflow: 'settingsImportTemplateFile'
+            });
 
             setNetworkActivity('Offline', 'Local template import completed with no external transfer.');
             recordSecurityAudit('Local template import completed', `File: ${selected.name}`);
@@ -941,6 +1121,23 @@ function bindIntegrationSettings() {
                 writeStatus('Import failed. Could not import accessibility standard due to a conflict.');
                 return;
             }
+
+            registerPackageFromWorkflow({
+                packageId: `standard:${String(added.standard.internalId || added.standard.id || '').trim()}`,
+                packageType: 'accessibility-standards',
+                displayName: added.standard.displayName || 'Imported Standard',
+                description: 'Imported accessibility standards package.',
+                version: added.standard.version || '1.0',
+                sourceWorkflow: 'settingsImportStandardsFile',
+                metadata: {
+                    sourceId: added.standard.id,
+                    internalId: added.standard.internalId,
+                    criteriaCount: Array.isArray(added.standard.criteria) ? added.standard.criteria.length : 0
+                },
+                resources: [{ type: 'accessibility-standard', id: added.standard.id }]
+            }, {
+                sourceWorkflow: 'settingsImportStandardsFile'
+            });
 
             setNetworkActivity('Offline', 'Local standards import completed with no external transfer.');
             recordSecurityAudit('Local standards import completed', `File: ${selected.name}`);
@@ -1185,6 +1382,59 @@ export function createSettingsBackupFromCommand() {
 export function openSettingsResetDialogFromCommand() {
     if (typeof openSettingsResetDialog !== 'function') return false;
     return openSettingsResetDialog();
+}
+
+export function startSettingsPluginInstallFromCommand() {
+    const input = document.getElementById('settings-plugin-install-input');
+    if (!input) return false;
+    input.value = '';
+    input.click();
+    return true;
+}
+
+export function validateSettingsPluginExtensionsFromCommand() {
+    const result = validateRegisteredExtensions();
+    renderPluginManager();
+    if (result.ok) {
+        writeStatus(`Validation completed. ${result.total} extension records are valid.`);
+    } else {
+        writeStatus(`Validation completed with ${result.failed} issue(s).`);
+    }
+    return true;
+}
+
+export function refreshSettingsPluginManagerFromCommand() {
+    renderPluginManager();
+    writeStatus('Plugin and package manager refreshed.');
+    return true;
+}
+
+export function exportSettingsPluginFrameworkConfigFromCommand() {
+    try {
+        const payload = exportPluginFrameworkState();
+        const blob = new Blob([payload], { type: 'application/json' });
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = `art-plugin-framework-config-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+        writeStatus('Exported plugin framework configuration.');
+        return true;
+    } catch (error) {
+        writeStatus('Plugin framework export failed.');
+        return false;
+    }
+}
+
+export function importSettingsPluginFrameworkConfigFromCommand() {
+    const input = document.getElementById('settings-plugin-import-config-input');
+    if (!input) return false;
+    input.value = '';
+    input.click();
+    return true;
 }
 
 function bindShortcutCapture() {
@@ -1567,6 +1817,23 @@ function bindStandardImport() {
             return;
         }
 
+        registerPackageFromWorkflow({
+            packageId: `standard:${String(result.standard.internalId || result.standard.id || '').trim()}`,
+            packageType: 'accessibility-standards',
+            displayName: result.standard.displayName || displayName,
+            description: 'Imported accessibility standards package.',
+            version: result.standard.version || '1.0',
+            sourceWorkflow: 'settingsImportStandard',
+            metadata: {
+                sourceId: result.standard.id,
+                internalId: result.standard.internalId,
+                criteriaCount: Array.isArray(result.standard.criteria) ? result.standard.criteria.length : 0
+            },
+            resources: [{ type: 'accessibility-standard', id: result.standard.id }]
+        }, {
+            sourceWorkflow: 'settingsImportStandard'
+        });
+
         pendingImportedStandard = null;
         pendingOverwrite = false;
         pendingImportedStandards = null;
@@ -1692,6 +1959,116 @@ function bindStandardExport() {
     exportButton.addEventListener('click', exportImportedStandards);
 }
 
+function bindPluginManager() {
+    const installButton = document.getElementById('btn-settings-plugin-install');
+    const validateButton = document.getElementById('btn-settings-plugin-validate');
+    const refreshButton = document.getElementById('btn-settings-plugin-refresh');
+    const exportButton = document.getElementById('btn-settings-plugin-export-config');
+    const importButton = document.getElementById('btn-settings-plugin-import-config');
+    const input = document.getElementById('settings-plugin-install-input');
+    const importInput = document.getElementById('settings-plugin-import-config-input');
+
+    if (!installButton || !validateButton || !refreshButton || !input) return;
+
+    installButton.addEventListener('click', () => {
+        input.value = '';
+        input.click();
+    });
+
+    input.addEventListener('change', async () => {
+        const selected = input.files && input.files[0];
+        if (!selected) return;
+        try {
+            const text = await selected.text();
+            const manifest = JSON.parse(text);
+            const preview = validatePluginManifest(manifest);
+            if (!preview.ok) {
+                writeStatus(`Plugin install failed: ${(preview.errors || []).join('; ')}.`);
+                return;
+            }
+
+            const existing = getPluginFrameworkSnapshot().plugins.find((item) => item.pluginId === preview.manifest.pluginId);
+            const dependencySummary = preview.manifest.pluginDependencies.length > 0
+                ? preview.manifest.pluginDependencies.map((entry) => {
+                    const optional = entry.optional ? ' (optional)' : '';
+                    const version = entry.version ? ` >= ${entry.version}` : '';
+                    return `${entry.pluginId}${version}${optional}`;
+                }).join(', ')
+                : 'None';
+            const permissionSummary = preview.manifest.requiredPermissions.length > 0
+                ? preview.manifest.requiredPermissions.join(', ')
+                : 'None';
+
+            const approved = window.confirm(
+                `${existing ? 'Update' : 'Install'} plugin ${preview.manifest.displayName}?\n\n` +
+                `Identifier: ${preview.manifest.pluginId}\n` +
+                `Version: ${preview.manifest.version}\n` +
+                `Dependencies: ${dependencySummary}\n` +
+                `Permissions: ${permissionSummary}`
+            );
+            if (!approved) {
+                writeStatus('Plugin installation cancelled.');
+                return;
+            }
+
+            const result = registerPluginManifest(manifest, { origin: 'external', enabled: true, updateIfExists: true });
+            if (!result.ok) {
+                writeStatus(`Plugin install failed: ${(result.errors || []).join('; ') || result.reason || 'Unknown error'}.`);
+                return;
+            }
+            const targetPluginId = result.pluginId || preview.manifest.pluginId;
+            const enableResult = enablePlugin(targetPluginId);
+            if (!enableResult.ok) {
+                writeStatus(`Plugin installed but could not be enabled: ${(enableResult.errors || []).join('; ') || enableResult.reason || 'unknown reason'}.`);
+                renderPluginManager();
+                return;
+            }
+            renderPluginManager();
+            writeStatus(`${existing ? 'Updated' : 'Installed'} plugin ${targetPluginId}.`);
+        } catch (error) {
+            writeStatus('Plugin install failed. Manifest JSON is invalid.');
+        }
+    });
+
+    validateButton.addEventListener('click', () => {
+        validateSettingsPluginExtensionsFromCommand();
+    });
+
+    refreshButton.addEventListener('click', () => {
+        refreshSettingsPluginManagerFromCommand();
+    });
+
+    if (exportButton) {
+        exportButton.addEventListener('click', () => {
+            exportSettingsPluginFrameworkConfigFromCommand();
+        });
+    }
+
+    if (importButton && importInput) {
+        importButton.addEventListener('click', () => {
+            importSettingsPluginFrameworkConfigFromCommand();
+        });
+
+        importInput.addEventListener('change', async () => {
+            const selected = importInput.files && importInput.files[0];
+            if (!selected) return;
+            try {
+                const text = await selected.text();
+                const payload = JSON.parse(text);
+                const result = importPluginFrameworkState(payload);
+                renderPluginManager();
+                if (!result.ok) {
+                    writeStatus('Imported framework configuration with issues. Run Validate Extensions for details.');
+                    return;
+                }
+                writeStatus(`Imported framework configuration: ${result.pluginsProcessed} plugin record(s), ${result.packagesProcessed} package record(s).`);
+            } catch (error) {
+                writeStatus('Plugin framework import failed. Configuration JSON is invalid.');
+            }
+        });
+    }
+}
+
 export function initSettings() {
     if (isInitialized) return;
 
@@ -1726,6 +2103,7 @@ export function initSettings() {
     bindStandardImport();
     bindStandardExport();
     bindIntegrationSettings();
+    bindPluginManager();
     bindResetActions();
 
     document.addEventListener('keydown', trapSettingsFocus);
@@ -1736,6 +2114,7 @@ export function initSettings() {
     window.addEventListener('art-accessibility-standards-updated', refreshSettingsView);
     window.addEventListener('art-security-updated', refreshSettingsView);
     window.addEventListener('art-workspace-view-settings-updated', refreshSettingsView);
+    window.addEventListener('art-plugin-framework-event', refreshSettingsView);
 
     isInitialized = true;
 }

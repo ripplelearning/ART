@@ -62,11 +62,29 @@ Current capabilities include:
 - Search history, active-session state, saved searches, and collection-ready state storage.
 - Search navigation commands for next/previous result, in-resource matching, and highlight/history clearing.
 
+## Plugin Framework
+ART Version 1.5 includes a centralized Plugin Framework for installable extensions and non-executable packages.
+
+Current capabilities include:
+
+- Central plugin lifecycle orchestration: discover, validate, register, load, initialize, enable, disable, update, unload, uninstall.
+- Extension-point registration for commands, providers, resource types, working views, validation rules, and integrations.
+- Package registration that runs after existing workflows (standards import, template import, integration configuration) complete.
+- Accessible Plugin & Package Manager in Application Settings under Administrator Tools.
+- Built-in package directory structure under [packages](packages) for standards, templates, keyboard profiles, working view presets, saved searches, and future package categories.
+
+The Plugin Framework does not replace existing import/export or integration workflows.
+It registers metadata and compatibility data after those workflows complete.
+
 See:
 
 - [Command Reference](COMMANDS.md)
 - [Architecture Overview](ARCHITECTURE.md)
 - [Change Log](CHANGELOG.md)
+- [Help: Plugin and Package Framework](HELP.md)
+- [User Guide: Plugins and Packages](USER-GUIDE.md)
+- [Plugin Developer Guide](PLUGIN-DEVELOPER-GUIDE.md)
+- [Package Authoring Guide](PACKAGE-AUTHORING-GUIDE.md)
 
 ## Repository Documentation
 Use these documents as the primary source of development and contribution standards:

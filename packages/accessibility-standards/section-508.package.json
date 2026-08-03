@@ -1,0 +1,77 @@
+{
+  "artAccessibilityStandardsVersion": "1.0",
+  "package": {
+    "packageId": "standard-package-section-508",
+    "packageType": "accessibility-standards",
+    "displayName": "Section 508",
+    "description": "Section 508 requirements package for ART using WCAG-aligned references.",
+    "version": "2018-refresh",
+    "author": "U.S. Access Board",
+    "publisher": "U.S. Access Board",
+    "license": "Public Domain",
+    "supportedArtVersion": "1.5",
+    "sourceWorkflow": "settingsImportStandard"
+  },
+  "standards": [
+    {
+      "internalId": "section-508",
+      "displayName": "Section 508",
+      "version": "2018-refresh",
+      "source": "U.S. Access Board",
+      "criteria": [
+        {
+          "number": "302.1",
+          "title": "Without Vision",
+          "level": "Required",
+          "desc": "ICT must provide at least one mode of operation that does not require user vision.",
+          "understandingUrl": "https://www.access-board.gov/ict/",
+          "recommendationUrl": "",
+          "failures": "Critical workflows require visual-only cues with no non-visual equivalent.",
+          "fixes": "Expose equivalent information and control through programmatic interfaces and assistive technologies.",
+          "disabilitie": "Blindness",
+          "categories": "Functional Performance Criteria",
+          "tags": ["vision", "screen reader", "non-visual"]
+        },
+        {
+          "number": "302.2",
+          "title": "With Limited Vision",
+          "level": "Required",
+          "desc": "ICT must support users with limited vision, including contrast, zoom, and scalable text behaviors.",
+          "understandingUrl": "https://www.access-board.gov/ict/",
+          "recommendationUrl": "",
+          "failures": "Interfaces fail at high zoom or low-vision settings.",
+          "fixes": "Preserve readability, layout integrity, and control operability at high zoom levels.",
+          "disabilitie": "Low vision",
+          "categories": "Functional Performance Criteria",
+          "tags": ["low vision", "zoom", "contrast"]
+        },
+        {
+          "number": "302.3",
+          "title": "Without Perception of Color",
+          "level": "Required",
+          "desc": "Color must not be the only visual means of conveying information.",
+          "understandingUrl": "https://www.access-board.gov/ict/",
+          "recommendationUrl": "",
+          "failures": "Status is conveyed by color alone.",
+          "fixes": "Add text labels, patterns, icons, or equivalent non-color cues.",
+          "disabilitie": "Color blindness, low vision",
+          "categories": "Functional Performance Criteria",
+          "tags": ["color", "status", "perceivable"]
+        },
+        {
+          "number": "302.7",
+          "title": "With Limited Manipulation",
+          "level": "Required",
+          "desc": "ICT must support operation by users with limited fine motor control and reach.",
+          "understandingUrl": "https://www.access-board.gov/ict/",
+          "recommendationUrl": "",
+          "failures": "Controls require precise pointer movement or timing.",
+          "fixes": "Provide keyboard operation, adequate target size, and alternatives to precision gestures.",
+          "disabilitie": "Motor disabilities",
+          "categories": "Functional Performance Criteria",
+          "tags": ["motor", "keyboard", "targets"]
+        }
+      ]
+    }
+  ]
+}

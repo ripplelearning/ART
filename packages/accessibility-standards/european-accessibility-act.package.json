@@ -1,0 +1,77 @@
+{
+  "artAccessibilityStandardsVersion": "1.0",
+  "package": {
+    "packageId": "standard-package-eaa",
+    "packageType": "accessibility-standards",
+    "displayName": "European Accessibility Act (EAA)",
+    "description": "European Accessibility Act package with harmonized ICT accessibility requirement references.",
+    "version": "2019-882",
+    "author": "European Union",
+    "publisher": "European Union",
+    "license": "EU Public Documents",
+    "supportedArtVersion": "1.5",
+    "sourceWorkflow": "settingsImportStandard"
+  },
+  "standards": [
+    {
+      "internalId": "eaa-2019-882",
+      "displayName": "European Accessibility Act",
+      "version": "2019-882",
+      "source": "European Union",
+      "criteria": [
+        {
+          "number": "Annex I I(a)",
+          "title": "Perceivable Information",
+          "level": "Required",
+          "desc": "Information must be made available through more than one sensory channel where appropriate.",
+          "understandingUrl": "https://eur-lex.europa.eu/eli/dir/2019/882/oj",
+          "recommendationUrl": "",
+          "failures": "Critical instructions are presented only visually or only audibly.",
+          "fixes": "Provide multimodal equivalents and assistive-technology compatible semantics.",
+          "disabilitie": "Blindness, deafness, low vision, cognitive disabilities",
+          "categories": "General Accessibility Requirements",
+          "tags": ["multimodal", "perceivable", "equivalent"]
+        },
+        {
+          "number": "Annex I I(c)",
+          "title": "Operable User Interface",
+          "level": "Required",
+          "desc": "User interfaces and functionality must be operable through alternatives to fine motor control where applicable.",
+          "understandingUrl": "https://eur-lex.europa.eu/eli/dir/2019/882/oj",
+          "recommendationUrl": "",
+          "failures": "Essential actions depend on precision gestures or inaccessible controls.",
+          "fixes": "Support keyboard access, compatible focus behavior, and alternatives to precision interaction.",
+          "disabilitie": "Motor disabilities",
+          "categories": "General Accessibility Requirements",
+          "tags": ["operable", "keyboard", "motor"]
+        },
+        {
+          "number": "Annex I I(d)",
+          "title": "Understandable Information",
+          "level": "Required",
+          "desc": "Information and operation shall be understandable and predictable for users.",
+          "understandingUrl": "https://eur-lex.europa.eu/eli/dir/2019/882/oj",
+          "recommendationUrl": "",
+          "failures": "Error states and controls are ambiguous, inconsistent, or unlabeled.",
+          "fixes": "Use clear labels, predictable interactions, and understandable error guidance.",
+          "disabilitie": "Cognitive disabilities, low vision",
+          "categories": "General Accessibility Requirements",
+          "tags": ["understandable", "predictable", "labels"]
+        },
+        {
+          "number": "Annex I I(e)",
+          "title": "Robust Compatibility",
+          "level": "Required",
+          "desc": "Products and services should support assistive technologies and interoperable accessibility interfaces.",
+          "understandingUrl": "https://eur-lex.europa.eu/eli/dir/2019/882/oj",
+          "recommendationUrl": "",
+          "failures": "Accessibility information is not exposed to assistive technology APIs.",
+          "fixes": "Use platform-accessible semantics and preserve compatibility with assistive technology ecosystems.",
+          "disabilitie": "Multiple disability categories",
+          "categories": "General Accessibility Requirements",
+          "tags": ["robust", "interop", "assistive technology"]
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a
 ART 2.0 now also introduces a Project Workspace Framework that provides project-level lifecycle, storage, resource management, workspace restoration, and extensibility points.
 ART 2.0 now also introduces a Universal Search Framework that standardizes provider search, result aggregation, and search UI behavior.
 ART 2.0 now also introduces a Global Context Menu Framework that generates context-sensitive menus from context providers and registered commands.
+ART Version 1.5 now also introduces a Plugin Framework that provides centralized lifecycle management and extension-point registration for plugins and packages.
 
 ## Core Layers
 
@@ -75,6 +76,13 @@ ART 2.0 now also introduces a Global Context Menu Framework that generates conte
 - Supports embedded command search, keyboard navigation, focus restoration, and accessibility announcements.
 - Provides a reusable basis for future plugin and integration context menus.
 
+### Plugin Framework
+- Discovers built-in and external plugins and validates metadata, version compatibility, and registration rules.
+- Manages plugin lifecycle: discover, validate, install/register, load/initialize, enable/disable, update, unload, and uninstall.
+- Registers extension capabilities through approved extension points rather than direct framework modification.
+- Tracks non-executable packages registered after existing ART workflows complete.
+- Exposes diagnostics and validation through the Settings-based Plugin & Package Manager.
+
 ## Project Workspace Lifecycle
 
 Lifecycle commands are command-driven and include:
@@ -133,6 +141,8 @@ Standard workspace folders:
 - Workspace resources support extension metadata for future plugin resource types.
 - Integration metadata and plugin metadata are persisted at workspace scope.
 - Command registration supports future provider commands without architectural redesign.
+- Plugin extension points include commands, search providers, resource types, dashboard providers, explorer providers, context menu providers, working view providers, validation providers, and integration providers.
+- Package extension points include accessibility standards, templates, keyboard profiles, working view presets, saved searches, dashboard layouts, and future package categories.
 
 ## UI Integration
 
@@ -188,6 +198,7 @@ Standard workspace folders:
 - Dynamic menu generation and workspace command placement: [commandCatalog.js](commandCatalog.js) and [menuBar.js](menuBar.js)
 - Universal search provider registry, query parsing, session state, and Search Everywhere dialog: [universalSearchFramework.js](universalSearchFramework.js)
 - Shared search results rendering and keyboard interaction controller: [searchResultsFramework.js](searchResultsFramework.js)
+- Plugin lifecycle, extension-point registry, package registration, and extension diagnostics: [pluginFramework.js](pluginFramework.js)
 - Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
 - Keyboard interaction and workspace shortcut tooltip synchronization: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
 - Command execution: [commandExecutionService.js](commandExecutionService.js)
