@@ -11,6 +11,21 @@ import {
     requestUndo,
     setPendingHistoryAction as setCentralPendingHistoryAction
 } from './historyFramework.js';
+import { commandRegistry } from './commandRegistry.js';
+import {
+    getRequiredTopLevelMenuLabels,
+    getTopLevelMenuLabelFromAction,
+    getTopLevelMenuShortcutDescriptor,
+    isTopLevelMenuShortcutAction,
+    mergeTopLevelMenuLabels
+} from './menuShortcuts.js';
+
+const REQUIRED_TOP_LEVEL_MENU_SHORTCUT_DEFAULTS = Object.fromEntries(
+    getRequiredTopLevelMenuLabels()
+        .map((menuLabel) => getTopLevelMenuShortcutDescriptor(menuLabel))
+        .filter(Boolean)
+        .map((descriptor) => [descriptor.action, ''])
+);
 
 const defaultState = {
     reportTitle: "",
@@ -102,6 +117,7 @@ const defaultState = {
         focusLookup: 'Alt+Shift+L',
         focusMenuBar: 'F10',
         focusMenuSearch: 'Alt+Q',
+        ...REQUIRED_TOP_LEVEL_MENU_SHORTCUT_DEFAULTS,
         undo: 'Ctrl+Z',
         redo: 'Ctrl+Y',
         openHistory: '',
@@ -1075,6 +1091,15 @@ function normalizeWorkspaceViewConfig(config) {
     };
 }
 
+const REQUIRED_TOP_LEVEL_MENU_SHORTCUT_DEFINITIONS = getRequiredTopLevelMenuLabels()
+    .map((menuLabel) => getTopLevelMenuShortcutDescriptor(menuLabel))
+    .filter(Boolean)
+    .map((descriptor) => ({
+        action: descriptor.action,
+        label: descriptor.label,
+        defaultShortcut: defaultState.shortcuts[descriptor.action] || ''
+    }));
+
 const SHORTCUT_DEFINITIONS = [
     { action: 'spellCheck', label: 'Spell Check', defaultShortcut: defaultState.shortcuts.spellCheck },
     { action: 'spellReplace', label: 'Spell Check Replace', defaultShortcut: defaultState.shortcuts.spellReplace },
@@ -1132,6 +1157,7 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'focusLookup', label: 'Focus Accessibility Lookup search', defaultShortcut: defaultState.shortcuts.focusLookup },
     { action: 'focusMenuBar', label: 'Focus Menu Bar', defaultShortcut: defaultState.shortcuts.focusMenuBar },
     { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search', defaultShortcut: defaultState.shortcuts.focusMenuSearch },
+    ...REQUIRED_TOP_LEVEL_MENU_SHORTCUT_DEFINITIONS,
     { action: 'undo', label: 'Undo', defaultShortcut: defaultState.shortcuts.undo },
     { action: 'redo', label: 'Redo', defaultShortcut: defaultState.shortcuts.redo },
     { action: 'openHistory', label: 'Open History', defaultShortcut: defaultState.shortcuts.openHistory },
@@ -1255,6 +1281,71 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'copyLink', label: 'Copy References', defaultShortcut: defaultState.shortcuts.copyLink }
 ];
 
+function getTopLevelMenuRootFromCommand(command) {
+    const source = command && typeof command === 'object' ? command : {};
+    const location = String(source.menuLocation || '').trim();
+    const segments = location.split('>').map((part) => String(part || '').trim()).filter(Boolean);
+    const root = segments[0] || String(source.category || '').trim();
+    if (!root || root.toLowerCase() === 'application') return '';
+    return root;
+}
+
+function getTopLevelMenuLabelsFromRegisteredCommands() {
+    return commandRegistry.getCommands()
+        .map((command) => getTopLevelMenuRootFromCommand(command))
+        .filter(Boolean);
+}
+
+function dedupeShortcutDefinitions(definitions) {
+    const unique = [];
+    const seen = new Set();
+
+    definitions.forEach((definition) => {
+        const item = definition && typeof definition === 'object' ? definition : null;
+        const action = String(item?.action || '').trim();
+        if (!action || seen.has(action)) return;
+        seen.add(action);
+        unique.push(item);
+    });
+
+    return unique;
+}
+
+function getRuntimeTopLevelMenuShortcutDefinitions(shortcutSource = {}) {
+    const source = shortcutSource && typeof shortcutSource === 'object' ? shortcutSource : {};
+    const labels = mergeTopLevelMenuLabels(getTopLevelMenuLabelsFromRegisteredCommands());
+    const definitions = labels
+        .map((menuLabel) => getTopLevelMenuShortcutDescriptor(menuLabel))
+        .filter(Boolean)
+        .map((descriptor) => ({
+            action: descriptor.action,
+            label: descriptor.label,
+            defaultShortcut: defaultState.shortcuts[descriptor.action] || ''
+        }));
+
+    const knownActions = new Set(definitions.map((definition) => definition.action));
+    Object.keys(source).forEach((action) => {
+        if (!isTopLevelMenuShortcutAction(action) || knownActions.has(action)) return;
+
+        const menuLabel = getTopLevelMenuLabelFromAction(action) || action;
+        definitions.push({
+            action,
+            label: `Open ${menuLabel} menu`,
+            defaultShortcut: defaultState.shortcuts[action] || ''
+        });
+        knownActions.add(action);
+    });
+
+    return definitions;
+}
+
+function getAllShortcutDefinitions(shortcutSource = {}) {
+    return dedupeShortcutDefinitions([
+        ...SHORTCUT_DEFINITIONS,
+        ...getRuntimeTopLevelMenuShortcutDefinitions(shortcutSource)
+    ]);
+}
+
 const APP_INFO = {
     applicationName: 'ART (the Accessibility Reporting Tool)',
     version: '1.5',
@@ -1270,10 +1361,11 @@ function normalizeShortcutValue(value, fallback) {
 function normalizeShortcuts(rawShortcuts) {
     const source = rawShortcuts && typeof rawShortcuts === 'object' ? rawShortcuts : {};
     const normalized = { ...defaultState.shortcuts };
+    const allShortcutDefinitions = getAllShortcutDefinitions(source);
     const hasProjectShortcutKeys = ['openProject', 'saveProject', 'saveProjectAs', 'importData']
         .some((key) => Object.prototype.hasOwnProperty.call(source, key));
 
-    SHORTCUT_DEFINITIONS.forEach((definition) => {
+    allShortcutDefinitions.forEach((definition) => {
         normalized[definition.action] = normalizeShortcutValue(source[definition.action], definition.defaultShortcut);
     });
 
@@ -1302,7 +1394,7 @@ function normalizeShortcuts(rawShortcuts) {
 }
 
 export function getAssignableActions() {
-    return [
+    const assignableActions = [
         { action: 'spellCheck', label: 'Spell Check' },
         { action: 'spellReplace', label: 'Spell Check Replace' },
         { action: 'spellReplaceAll', label: 'Spell Check Replace All' },
@@ -1356,6 +1448,8 @@ export function getAssignableActions() {
         { action: 'openViewer', label: 'Open Report Viewer tab' },
         { action: 'openProgressLog', label: 'Open Progress Log' },
         { action: 'focusLookup', label: 'Focus Accessibility Lookup search' },
+        { action: 'focusMenuBar', label: 'Focus Menu Bar' },
+        { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search' },
         { action: 'undo', label: 'Undo' },
         { action: 'redo', label: 'Redo' },
         { action: 'openHistory', label: 'Open History' },
@@ -1478,6 +1572,18 @@ export function getAssignableActions() {
         { action: 'copyFixes', label: 'Copy Fixes' },
         { action: 'copyLink', label: 'Copy References' }
     ];
+
+    const knownActions = new Set(assignableActions.map((definition) => definition.action));
+    getRuntimeTopLevelMenuShortcutDefinitions(appState.shortcuts).forEach((definition) => {
+        if (knownActions.has(definition.action)) return;
+        assignableActions.push({
+            action: definition.action,
+            label: definition.label
+        });
+        knownActions.add(definition.action);
+    });
+
+    return assignableActions;
 }
 
 function normalizeImportedCriterion(criterion, defaultStandard) {
@@ -3329,7 +3435,7 @@ export function calculateProjectWorkspaceHealth(workspaceId) {
 }
 
 export function getShortcutDefinitions() {
-    return SHORTCUT_DEFINITIONS.map((definition) => ({
+    return getAllShortcutDefinitions(appState.shortcuts).map((definition) => ({
         ...definition,
         shortcut: appState.shortcuts[definition.action] || definition.defaultShortcut
     }));
@@ -3356,7 +3462,7 @@ export function getShortcutMap() {
 }
 
 export function getShortcutForAction(action) {
-    const definition = SHORTCUT_DEFINITIONS.find((item) => item.action === action);
+    const definition = getAllShortcutDefinitions(appState.shortcuts).find((item) => item.action === action);
     if (!definition) return '';
     return String(appState.shortcuts[action] || definition.defaultShortcut || '').trim();
 }
@@ -3364,7 +3470,7 @@ export function getShortcutForAction(action) {
 export function findShortcutConflict(shortcut, exceptAction = '') {
     const normalized = String(shortcut || '').trim().toLowerCase();
     if (!normalized) return null;
-    const conflict = SHORTCUT_DEFINITIONS.find((definition) => {
+    const conflict = getAllShortcutDefinitions(appState.shortcuts).find((definition) => {
         if (definition.action === exceptAction) return false;
         const current = String(appState.shortcuts[definition.action] || '').trim().toLowerCase();
         return current === normalized;
@@ -3378,7 +3484,7 @@ export function findShortcutConflict(shortcut, exceptAction = '') {
 }
 
 export function updateShortcut(action, shortcut, options = {}) {
-    const definition = SHORTCUT_DEFINITIONS.find((item) => item.action === action);
+    const definition = getAllShortcutDefinitions(appState.shortcuts).find((item) => item.action === action);
     if (!definition) {
         return { ok: false, reason: 'unknown-action' };
     }

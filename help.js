@@ -155,6 +155,7 @@ function getHelpSections(rows) {
             content: `
                 <p>ART includes a keyboard-first Menu Bar that groups application commands into familiar menus such as File, Edit, View, Search, Report, Tools, Templates, and Help.</p>
                 <p>Use <strong>F10</strong> or <strong>Alt+/</strong> to focus the Menu Bar, and use <strong>Alt+Q</strong> to jump directly to Menu Bar Command Search from anywhere in ART.</p>
+                <p>Top-level menu shortcuts are user-assignable in Keyboard Shortcut Manager. When a shortcut is assigned to a top-level menu, that menu button exposes the shortcut in its accessible tooltip.</p>
                 <p>Menu Bar Command Search uses the same centralized command search engine as the Command Palette, so both surfaces stay synchronized with current commands and shortcuts.</p>
             `
         },

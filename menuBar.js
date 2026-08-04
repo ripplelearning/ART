@@ -4,6 +4,7 @@ import { searchCommands } from './commandSearchEngine.js';
 import { announce } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import { getRedoMenuLabel, getUndoMenuLabel } from './historyFramework.js';
+import { getTopLevelMenuShortcutAction } from './menuShortcuts.js';
 
 let menuBarInitialized = false;
 let menubarFocusIndex = 0;
@@ -302,6 +303,7 @@ function clearMenubarSession() {
 function renderTopLevelButtons(roots) {
     return roots.map((menu, index) => {
         const isExpanded = getIsNodeOpen(menu.path);
+        const shortcutAction = getTopLevelMenuShortcutAction(menu.label);
         return `
             <button
                 type="button"
@@ -310,6 +312,7 @@ function renderTopLevelButtons(roots) {
                 data-menu-button="true"
                 data-menu-label="${escapeHtml(menu.label)}"
                 data-menu-path="${escapeHtml(menu.path)}"
+                data-shortcut-action="${escapeHtml(shortcutAction)}"
                 aria-haspopup="true"
                 aria-expanded="${String(isExpanded)}"
                 tabindex="${index === menubarFocusIndex ? 0 : -1}"
@@ -571,6 +574,18 @@ function openTopLevelMenuByIndex(index, focusMode = 'first') {
     }
 
     return true;
+}
+
+function openTopLevelMenuByLabel(menuLabel, focusMode = 'first') {
+    const label = normalizeText(menuLabel).toLowerCase();
+    if (!label) return false;
+
+    const buttons = getTopLevelButtons();
+    const targetIndex = buttons.findIndex((button) => normalizeText(button.getAttribute('data-menu-label') || '').toLowerCase() === label);
+    if (targetIndex < 0) return false;
+
+    rememberFocusBeforeMenubar();
+    return openTopLevelMenuByIndex(targetIndex, focusMode);
 }
 
 function openCurrentTopLevelMenu(focusMode = 'first') {
@@ -1080,4 +1095,8 @@ export function focusMenuBarFromCommand() {
 export function focusMenuSearchFromCommand() {
     focusMenuSearch(true);
     return true;
+}
+
+export function openTopLevelMenuFromCommand(menuLabel) {
+    return openTopLevelMenuByLabel(menuLabel, 'first');
 }

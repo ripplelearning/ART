@@ -35,7 +35,8 @@ import {
 } from './state.js';
 import { removeResourceReferencesFromAllWorkspaces, replaceResourceReferencesAcrossWorkspaces } from './resourceRelationshipFramework.js';
 import { openCommandPalette } from './commandPalette.js';
-import { focusMenuBarFromCommand, focusMenuSearchFromCommand } from './menuBar.js';
+import { focusMenuBarFromCommand, focusMenuSearchFromCommand, openTopLevelMenuFromCommand } from './menuBar.js';
+import { getTopLevelMenuShortcutDescriptor, mergeTopLevelMenuLabels } from './menuShortcuts.js';
 import { openHelpDialog } from './help.js';
 import {
     closeSettingsDialogFromCommand,
@@ -1293,7 +1294,46 @@ function runToggleFavoriteWorkflow(itemType, context = {}) {
     return true;
 }
 
-const COMMAND_DEFINITIONS = [
+function getTopLevelMenuRoot(location, category) {
+    const segments = String(location || '').split('>').map((part) => String(part || '').trim()).filter(Boolean);
+    const root = segments[0] || String(category || '').trim();
+    if (!root || root.toLowerCase() === 'application') return '';
+    return root;
+}
+
+function getTopLevelMenusForShortcutCommands(definitions = []) {
+    const roots = [];
+    const addRoot = (label) => {
+        const value = String(label || '').trim();
+        if (!value) return;
+        if (roots.some((item) => item.toLowerCase() === value.toLowerCase())) return;
+        roots.push(value);
+    };
+
+    definitions.forEach((definition) => {
+        const location = definition.menuLocation || getDefaultMenuLocation(definition.action, definition.category);
+        addRoot(getTopLevelMenuRoot(location, definition.category));
+    });
+
+    return mergeTopLevelMenuLabels(roots);
+}
+
+function buildTopLevelMenuShortcutCommandDefinitions(definitions = []) {
+    return getTopLevelMenusForShortcutCommands(definitions)
+        .map((menuLabel) => getTopLevelMenuShortcutDescriptor(menuLabel))
+        .filter(Boolean)
+        .map((descriptor) => ({
+            action: descriptor.action,
+            id: descriptor.commandId,
+            category: 'Application',
+            description: `Open the ${descriptor.menuLabel} menu in the Menu Bar.`,
+            menuLocation: 'View>Menu Bar',
+            contextMenuVisible: false,
+            handler: () => openTopLevelMenuFromCommand(descriptor.menuLabel)
+        }));
+}
+
+const BASE_COMMAND_DEFINITIONS = [
     {
         action: 'openWelcome',
         id: 'Application.OpenWelcome',
@@ -2643,6 +2683,11 @@ const COMMAND_DEFINITIONS = [
         description: 'Cancel spell checking.',
         handler: () => executeSpellDialogActionFromCommand('cancel')
     }
+];
+
+const COMMAND_DEFINITIONS = [
+    ...BASE_COMMAND_DEFINITIONS,
+    ...buildTopLevelMenuShortcutCommandDefinitions(BASE_COMMAND_DEFINITIONS)
 ];
 
 function buildCommandDefinition(definition) {
