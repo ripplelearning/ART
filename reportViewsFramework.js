@@ -604,7 +604,7 @@ function normalizeTableFilters(filters) {
 function normalizeTableConfig(config = {}) {
     const table = config.table && typeof config.table === 'object' ? config.table : {};
     const sortSource = Array.isArray(table.sortLevels) && table.sortLevels.length > 0 ? table.sortLevels : config.sortLevels;
-    const groupSource = Array.isArray(table.groupLevels) && table.groupLevels.length > 0 ? table.groupLevels : config.groupBy;
+    const groupSource = Array.isArray(table.groupLevels) ? table.groupLevels : config.groupBy;
     const filterSource = table.filters && Object.keys(table.filters).length > 0 ? table.filters : config.filters;
     return {
         sortLevels: normalizeTableSortLevels(sortSource),
@@ -1474,6 +1474,7 @@ function renderWorkingView(session) {
 function updateSessionConfigFromDialog(session) {
     const name = normalizeText(document.getElementById('working-view-name')?.value) || 'Working View';
     const mode = normalizeText(document.getElementById('working-view-mode')?.value) || 'working';
+    const previousMode = normalizeText(session.config.mode) || 'working';
     const groupValues = normalizeGroupBy(
         [...document.querySelectorAll('.working-view-group-field:checked')].map((item) => item.getAttribute('value') || '')
     );
@@ -1504,10 +1505,15 @@ function updateSessionConfigFromDialog(session) {
             ? {
                 ...(session.config.table || {}),
                 sortLevels,
-                groupLevels: groupValues.map((field) => ({
-                    field,
-                    mode: field === 'wcag' ? 'conformance' : 'values'
-                })),
+                // Switching into Table mode should show the interactive table first.
+                // Table grouping is available dynamically through column menus and
+                // should not inherit grouped Working View defaults on the first switch.
+                groupLevels: previousMode === 'table'
+                    ? groupValues.map((field) => ({
+                        field,
+                        mode: field === 'wcag' ? 'conformance' : 'values'
+                    }))
+                    : [],
                 filters: {
                     ...(normalizeTableFilters(session.config.table?.filters || {})),
                     severity: String(document.getElementById('working-view-filter-severity')?.value || ''),
