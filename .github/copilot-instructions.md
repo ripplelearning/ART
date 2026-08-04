@@ -23,6 +23,7 @@ The codebase is driven by a shared state store, command registry, and UI modules
 - Follow existing naming, structure, and formatting conventions.
 - Do not rewrite approved documentation unless a change actually requires it.
 - Do not make unrelated cleanup changes while fixing a bug.
+- After command, startup, or dashboard wiring changes, verify that the app fully initializes instead of relying only on static file checks.
 
 ## Accessibility Rules
 - Use semantic HTML whenever possible.
@@ -69,6 +70,9 @@ The codebase is driven by a shared state store, command registry, and UI modules
 - If a capability depends on report data shape, infer it from the data when appropriate instead of relying only on a single reportType value.
 - Add-entry and attachment workflows should restore focus only to the explicit target they create.
 - When a control updates a field, selection, or value, the focus should stay with that control unless the workflow says otherwise.
+- ART can appear to load while still failing partway through startup. A partial page load usually means a parse-time or early runtime error in a module that loaded after the initial shell rendered.
+- When editing command registration, menu placement, dashboard wiring, startup initialization, or large template-string blocks, explicitly check for partial-load regressions by reloading the app and confirming there are no page errors and that post-startup controls render.
+- Do not assume `get_errors` is sufficient for browser startup safety. If the UI only partially renders, inspect for misplaced object literals, malformed template strings, or invalid syntax inserted into executable function bodies.
 
 ## Completion Expectations
 A feature is not complete until it meets the requirements in [ART Definition of Done](../docs/ART-Definition-of-Done.md).
