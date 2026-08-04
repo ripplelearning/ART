@@ -12,6 +12,7 @@ import {
     appState,
     currentReportSupportsAuditEntries,
     getAssignableActions,
+    getRecentReports,
     getShortcutDefinitions,
     hasUnsavedProjectChanges,
     importReportWithConflictStrategy,
@@ -452,20 +453,6 @@ function executeClipboardCommand(type) {
             announce(`Selection ${verb}.`);
             return true;
         }
-    {
-        action: 'renameReport',
-        id: 'Report.Rename',
-        category: 'Report',
-        description: 'Rename the selected report.',
-        handler: (context) => runRenameReportWorkflow(context)
-    },
-    {
-        action: 'replaceReport',
-        id: 'Report.Replace',
-        category: 'Report',
-        description: 'Replace the selected report with another report and update workspace references.',
-        handler: (context) => runReplaceReportWorkflow(context)
-    },
     } catch (error) {
         return false;
     }
@@ -906,20 +893,6 @@ function runImportReportWorkflow(context = {}) {
             return false;
         }
 
-        {
-            action: 'renameTemplate',
-            id: 'Templates.Rename',
-            category: 'Templates',
-            description: 'Rename the selected user template.',
-            handler: (context) => runRenameTemplateWorkflow(context)
-        },
-        {
-            action: 'replaceTemplate',
-            id: 'Templates.Replace',
-            category: 'Templates',
-            description: 'Replace the selected user template with another template and update references.',
-            handler: (context) => runReplaceTemplateWorkflow(context)
-        },
         const imported = importReportWithConflictStrategy(payload, context.strategy);
         dialog?.removeAttribute('data-import-payload');
         dialog?.removeAttribute('data-import-file-name');
@@ -1986,6 +1959,22 @@ const COMMAND_DEFINITIONS = [
         handler: (context) => runConfigureReportWorkflow(context)
     },
     {
+        action: 'renameReport',
+        id: 'Report.Rename',
+        category: 'Report',
+        description: 'Rename the selected report.',
+        enabled: () => Boolean(getReportById(getSelectedReportId())),
+        handler: (context) => runRenameReportWorkflow(context)
+    },
+    {
+        action: 'replaceReport',
+        id: 'Report.Replace',
+        category: 'Report',
+        description: 'Replace the selected report with another report and update workspace references.',
+        enabled: () => Boolean(getReportById(getSelectedReportId())),
+        handler: (context) => runReplaceReportWorkflow(context)
+    },
+    {
         action: 'editReport',
         id: 'Report.Edit',
         category: 'Report',
@@ -2031,6 +2020,22 @@ const COMMAND_DEFINITIONS = [
         description: 'Open the selected template for viewing.',
         enabled: () => Boolean(getTemplateById(getSelectedTemplateId())),
         handler: (context) => runOpenTemplateWorkflow(context)
+    },
+    {
+        action: 'renameTemplate',
+        id: 'Template.Rename',
+        category: 'Template',
+        description: 'Rename the selected template.',
+        enabled: () => Boolean(getTemplateById(getSelectedTemplateId())),
+        handler: (context) => runRenameTemplateWorkflow(context)
+    },
+    {
+        action: 'replaceTemplate',
+        id: 'Template.Replace',
+        category: 'Template',
+        description: 'Replace the selected template and update references.',
+        enabled: () => Boolean(getTemplateById(getSelectedTemplateId())),
+        handler: (context) => runReplaceTemplateWorkflow(context)
     },
     {
         action: 'editTemplate',
