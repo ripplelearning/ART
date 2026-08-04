@@ -18,6 +18,7 @@ import {
     initProjectWorkspaceFramework
 } from './projectWorkspaceFramework.js';
 import { registerPackageFromWorkflow } from './pluginFramework.js';
+import { getResourceOrganizationSnapshot, openSavedViewFromCommand } from './resourceOrganizationFramework.js';
 
 import {
     addAuditEntry,
@@ -293,6 +294,52 @@ function renderCurrentReportWidget(container) {
     `;
 }
 
+function renderOrganizationOverviewWidget(container) {
+    const snapshot = getResourceOrganizationSnapshot();
+    const unresolved = Number(snapshot.unresolvedReferences?.length || 0);
+    container.innerHTML = `
+        <dl class="dashboard-widget__definition-list">
+            <div><dt>Tags</dt><dd>${snapshot.tags.length}</dd></div>
+            <div><dt>Collections</dt><dd>${snapshot.collections.length}</dd></div>
+            <div><dt>Saved Views</dt><dd>${snapshot.savedViews.length}</dd></div>
+            <div><dt>Unresolved References</dt><dd>${unresolved}</dd></div>
+        </dl>
+    `;
+}
+
+function renderRecentSavedViewsWidget(container) {
+    const snapshot = getResourceOrganizationSnapshot();
+    const recentIds = Array.isArray(snapshot.recent?.savedViews) ? snapshot.recent.savedViews : [];
+    const idSet = new Set(recentIds);
+    const ordered = snapshot.savedViews
+        .filter((savedView) => idSet.has(savedView.id))
+        .sort((left, right) => recentIds.indexOf(left.id) - recentIds.indexOf(right.id))
+        .slice(0, 6);
+
+    if (!ordered.length) {
+        container.innerHTML = '<p>No recently used Saved Views.</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <ul class="dashboard-widget__list">
+            ${ordered.map((savedView) => `
+                <li>
+                    <button type="button" data-dashboard-saved-view-id="${savedView.id}">${savedView.name}</button>
+                </li>
+            `).join('')}
+        </ul>
+    `;
+
+    container.querySelectorAll('[data-dashboard-saved-view-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const savedViewId = button.getAttribute('data-dashboard-saved-view-id') || '';
+            if (!savedViewId) return;
+            openSavedViewFromCommand({ savedViewId });
+        });
+    });
+}
+
 function renderRecentActivityWidget(container) {
     const reports = getRecentReports().slice(0, 6);
     const security = getSecurityConfig();
@@ -475,6 +522,24 @@ function registerDashboardWidgetsIfNeeded() {
         description: 'Search commands and recent reports.',
         category: 'Workspace',
         render: renderDashboardSearchWidget
+    });
+
+    registerDashboardWidget({
+        id: 'organization-overview',
+        name: 'Organization Overview',
+        heading: 'Organization Overview',
+        description: 'Summary of tags, collections, and saved views.',
+        category: 'Workspace',
+        render: renderOrganizationOverviewWidget
+    });
+
+    registerDashboardWidget({
+        id: 'recent-saved-views',
+        name: 'Recent Saved Views',
+        heading: 'Recent Saved Views',
+        description: 'Quick access to recently opened Saved Views.',
+        category: 'Workspace',
+        render: renderRecentSavedViewsWidget
     });
 
     dashboardWidgetsRegistered = true;

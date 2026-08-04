@@ -1302,6 +1302,26 @@ export function isWorkingViewActiveForCurrentReport() {
     return Boolean(getActiveSessionForCurrentReport());
 }
 
+export function getActiveWorkingViewSessionSnapshot() {
+    const session = getActiveSessionForCurrentReport();
+    if (!session) return null;
+    return {
+        reportId: session.reportId,
+        reportName: session.reportName,
+        config: session.config && typeof session.config === 'object' ? { ...session.config } : {},
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt
+    };
+}
+
+export function getWorkingViewPresetCatalog() {
+    loadStore();
+    return (workingViewStore.presets || []).map((preset) => ({
+        ...preset,
+        config: preset.config && typeof preset.config === 'object' ? { ...preset.config } : {}
+    }));
+}
+
 function renderWorkingView(session) {
     const container = getMainContainer();
     if (!container || !session) return false;

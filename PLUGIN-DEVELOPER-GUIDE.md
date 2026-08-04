@@ -39,6 +39,10 @@ Supported extension points include:
 - keyboardShortcuts (registered as unassigned by default)
 - workingViewProviders
 - validationRules
+- tagProviders
+- collectionProviders
+- savedViewProviders
+- organizationValidators
 - accessibility standards and standards extensions
 - AI/integration providers
 
@@ -90,6 +94,28 @@ Provider and validator guidance:
 - prefer computed relationships over copying existing resource data
 - keep validation side-effect free
 - publish diagnostics through framework failures rather than direct UI changes
+
+## Resource Organization Providers and Validators
+ART Version 1.5 includes a Resource Organization Framework with provider and validator extension points.
+
+Supported organization extension points:
+
+- tagProviders
+- collectionProviders
+- savedViewProviders
+- organizationValidators
+
+Guidance:
+
+- treat ART state as authoritative for persisted organization metadata
+- prefer additive metadata contributions over direct mutation of existing resources
+- keep validators side-effect free and diagnostics-focused
+- ensure provider records normalize to ART organization metadata shape
+
+## Organization Metadata Packages
+Plugin package registration now supports `organization-metadata` package type.
+
+Use this package type for non-executable organization presets or migrations that should be tracked through Plugin & Package Manager metadata.
 
 Example capability shape:
 ```json

@@ -10,6 +10,7 @@ ART 2.0 now also introduces a Universal Search Framework that standardizes provi
 ART 2.0 now also introduces a Global Context Menu Framework that generates context-sensitive menus from context providers and registered commands.
 ART Version 1.5 now also introduces a Plugin Framework that provides centralized lifecycle management and extension-point registration for plugins and packages.
 ART Version 1.5 now also introduces a Resource Relationship Framework that centralizes relationship registration, derivation, validation, navigation, and impact analysis across workspace resources.
+ART Version 1.5 now also introduces a Resource Organization Framework that centralizes non-destructive tags, collections, saved views, favorites, and metadata portability for workspace resources.
 
 ## Core Layers
 
@@ -92,6 +93,14 @@ ART Version 1.5 now also introduces a Resource Relationship Framework that centr
 - Publishes relationship events and supports provider and validator extension points through the Plugin Framework.
 - Reconciles workspace relationship integrity automatically after report, template, and accessibility standard update events.
 
+### Resource Organization Framework
+- Uses workspace-scoped metadata to organize resources without changing report, template, or asset payloads.
+- Stores and normalizes tags, collections, and saved views in shared state so all ART surfaces resolve the same organization model.
+- Supports favorites and recent history for tags, collections, and saved views.
+- Exposes command-oriented APIs for create, edit, duplicate, merge, assign, remove, open, delete, import, and export workflows.
+- Integrates with Universal Search through structured organization queries and provider-backed result execution.
+- Reconciles unresolved resource references and supports lifecycle-safe replacement/removal updates.
+
 ## Project Workspace Lifecycle
 
 Lifecycle commands are command-driven and include:
@@ -156,7 +165,8 @@ Standard workspace folders:
 - Integration metadata and plugin metadata are persisted at workspace scope.
 - Command registration supports future provider commands without architectural redesign.
 - Plugin extension points include commands, search providers, relationship providers, relationship validators, resource types, dashboard providers, explorer providers, context menu providers, working view providers, validation providers, and integration providers.
-- Package extension points include accessibility standards, templates, keyboard profiles, working view presets, saved searches, dashboard layouts, and future package categories.
+- Plugin extension points include organization metadata providers and validators (tag providers, collection providers, saved view providers, organization validators).
+- Package extension points include accessibility standards, templates, keyboard profiles, working view presets, saved searches, dashboard layouts, organization metadata, and future package categories.
 
 ## UI Integration
 
@@ -214,6 +224,7 @@ Standard workspace folders:
 - Shared search results rendering and keyboard interaction controller: [searchResultsFramework.js](searchResultsFramework.js)
 - Plugin lifecycle, extension-point registry, package registration, and extension diagnostics: [pluginFramework.js](pluginFramework.js)
 - Resource relationship derivation, relationship queries, deletion analysis, search indexing, diagnostics, and plugin relationship extensions: [resourceRelationshipFramework.js](resourceRelationshipFramework.js)
+- Resource organization metadata services, command workflows, explorer helpers, saved-view bridge APIs, and metadata portability: [resourceOrganizationFramework.js](resourceOrganizationFramework.js)
 - Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
 - Keyboard interaction and workspace shortcut tooltip synchronization: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
 - Command execution: [commandExecutionService.js](commandExecutionService.js)

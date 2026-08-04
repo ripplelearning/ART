@@ -16,6 +16,7 @@ import { initExplorerFramework } from './explorerFramework.js';
 import { initReportViewsFramework } from './reportViewsFramework.js';
 import { initPluginFramework } from './pluginFramework.js';
 import { initializeResourceRelationshipFramework } from './resourceRelationshipFramework.js';
+import { initializeResourceOrganizationFramework } from './resourceOrganizationFramework.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
 
@@ -194,6 +195,7 @@ function initializeApp() {
     runStartupStage('initApplicationIdentity', () => initApplicationIdentity());
     runStartupStage('initThemeEngine', () => initThemeEngine());
     runStartupStage('initializeResourceRelationshipFramework', () => initializeResourceRelationshipFramework());
+    runStartupStage('initializeResourceOrganizationFramework', () => initializeResourceOrganizationFramework());
     runStartupStage('initializeUniversalSearchFramework', () => initializeUniversalSearchFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());

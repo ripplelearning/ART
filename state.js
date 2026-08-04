@@ -140,6 +140,24 @@ const defaultState = {
         openResourceReferences: '',
         previewResourceDeletionImpact: '',
         repairWorkspaceRelationships: '',
+        openTagManager: '',
+        createTag: '',
+        assignTagToSelectedResource: '',
+        removeTagFromSelectedResource: '',
+        mergeTags: '',
+        openCollectionManager: '',
+        createCollection: '',
+        addSelectedResourceToCollection: '',
+        removeSelectedResourceFromCollection: '',
+        openSavedViewManager: '',
+        createSavedViewFromCurrentWorkingView: '',
+        openSavedView: '',
+        deleteSavedView: '',
+        exportResourceOrganizationMetadata: '',
+        importResourceOrganizationMetadata: '',
+        toggleTagFavorite: '',
+        toggleCollectionFavorite: '',
+        toggleSavedViewFavorite: '',
         openProjectStatistics: '',
         openWorkspaceSettings: '',
         openReport: '',
@@ -319,6 +337,22 @@ const defaultState = {
             favorites: [],
             recentResources: []
         }
+    },
+    resourceOrganization: {
+        frameworkVersion: '1.0.0',
+        tags: [],
+        collections: [],
+        savedViews: [],
+        favorites: {
+            tags: [],
+            collections: [],
+            savedViews: []
+        },
+        recent: {
+            collections: [],
+            savedViews: []
+        },
+        unresolvedReferences: []
     },
     workspaces: [],
     activeWorkspaceId: '',
@@ -881,6 +915,78 @@ function normalizeUniversalSearchConfig(config) {
     };
 }
 
+function normalizeOrganizationResourceRef(reference) {
+    const source = reference && typeof reference === 'object' ? reference : {};
+    return {
+        resourceType: String(source.resourceType || source.type || '').trim().toLowerCase(),
+        resourceId: String(source.resourceId || source.id || '').trim(),
+        workspaceId: String(source.workspaceId || source.workspace || '').trim(),
+        unresolved: Boolean(source.unresolved)
+    };
+}
+
+function normalizeResourceOrganizationConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    const favorites = source.favorites && typeof source.favorites === 'object' ? source.favorites : {};
+    const recent = source.recent && typeof source.recent === 'object' ? source.recent : {};
+
+    return {
+        frameworkVersion: String(source.frameworkVersion || defaultState.resourceOrganization.frameworkVersion).trim() || defaultState.resourceOrganization.frameworkVersion,
+        tags: Array.isArray(source.tags)
+            ? source.tags.map((tag, index) => {
+                const item = tag && typeof tag === 'object' ? tag : {};
+                return {
+                    ...item,
+                    id: String(item.id || `tag-${Date.now()}-${index}`).trim() || `tag-${Date.now()}-${index}`,
+                    name: String(item.name || `Tag ${index + 1}`).trim() || `Tag ${index + 1}`,
+                    scope: String(item.scope || 'workspace').trim().toLowerCase() || 'workspace',
+                    assignments: Array.isArray(item.assignments)
+                        ? item.assignments.map((ref) => normalizeOrganizationResourceRef(ref)).filter((ref) => ref.resourceType && ref.resourceId)
+                        : []
+                };
+            })
+            : [],
+        collections: Array.isArray(source.collections)
+            ? source.collections.map((collection, index) => {
+                const item = collection && typeof collection === 'object' ? collection : {};
+                return {
+                    ...item,
+                    id: String(item.id || `collection-${Date.now()}-${index}`).trim() || `collection-${Date.now()}-${index}`,
+                    name: String(item.name || `Collection ${index + 1}`).trim() || `Collection ${index + 1}`,
+                    scope: String(item.scope || 'workspace').trim().toLowerCase() || 'workspace',
+                    resourceRefs: Array.isArray(item.resourceRefs)
+                        ? item.resourceRefs.map((ref) => normalizeOrganizationResourceRef(ref)).filter((ref) => ref.resourceType && ref.resourceId)
+                        : []
+                };
+            })
+            : [],
+        savedViews: Array.isArray(source.savedViews)
+            ? source.savedViews.map((savedView, index) => {
+                const item = savedView && typeof savedView === 'object' ? savedView : {};
+                return {
+                    ...item,
+                    id: String(item.id || `saved-view-${Date.now()}-${index}`).trim() || `saved-view-${Date.now()}-${index}`,
+                    name: String(item.name || `Saved View ${index + 1}`).trim() || `Saved View ${index + 1}`,
+                    scope: String(item.scope || 'workspace').trim().toLowerCase() || 'workspace',
+                    config: item.config && typeof item.config === 'object' ? { ...item.config } : {}
+                };
+            })
+            : [],
+        favorites: {
+            tags: Array.isArray(favorites.tags) ? favorites.tags.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            collections: Array.isArray(favorites.collections) ? favorites.collections.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            savedViews: Array.isArray(favorites.savedViews) ? favorites.savedViews.map((value) => String(value || '').trim()).filter(Boolean) : []
+        },
+        recent: {
+            collections: Array.isArray(recent.collections) ? recent.collections.map((value) => String(value || '').trim()).filter(Boolean).slice(0, 50) : [],
+            savedViews: Array.isArray(recent.savedViews) ? recent.savedViews.map((value) => String(value || '').trim()).filter(Boolean).slice(0, 50) : []
+        },
+        unresolvedReferences: Array.isArray(source.unresolvedReferences)
+            ? source.unresolvedReferences.map((ref) => normalizeOrganizationResourceRef(ref)).filter((ref) => ref.resourceType && ref.resourceId)
+            : []
+    };
+}
+
 function normalizeWorkspaceViewName(value, fallback = 'dashboard') {
     const normalized = String(value || '').trim().toLowerCase();
     if (normalized === 'explorer') return 'explorer';
@@ -1057,6 +1163,24 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'openResourceReferences', label: 'Show Resource References', defaultShortcut: defaultState.shortcuts.openResourceReferences },
     { action: 'previewResourceDeletionImpact', label: 'Preview Resource Deletion Impact', defaultShortcut: defaultState.shortcuts.previewResourceDeletionImpact },
     { action: 'repairWorkspaceRelationships', label: 'Repair Workspace Relationships', defaultShortcut: defaultState.shortcuts.repairWorkspaceRelationships },
+    { action: 'openTagManager', label: 'Open Tag Manager', defaultShortcut: defaultState.shortcuts.openTagManager },
+    { action: 'createTag', label: 'Create Tag', defaultShortcut: defaultState.shortcuts.createTag },
+    { action: 'assignTagToSelectedResource', label: 'Assign Tag To Selected Resource', defaultShortcut: defaultState.shortcuts.assignTagToSelectedResource },
+    { action: 'removeTagFromSelectedResource', label: 'Remove Tag From Selected Resource', defaultShortcut: defaultState.shortcuts.removeTagFromSelectedResource },
+    { action: 'mergeTags', label: 'Merge Tags', defaultShortcut: defaultState.shortcuts.mergeTags },
+    { action: 'openCollectionManager', label: 'Open Collection Manager', defaultShortcut: defaultState.shortcuts.openCollectionManager },
+    { action: 'createCollection', label: 'Create Collection', defaultShortcut: defaultState.shortcuts.createCollection },
+    { action: 'addSelectedResourceToCollection', label: 'Add Selected Resource To Collection', defaultShortcut: defaultState.shortcuts.addSelectedResourceToCollection },
+    { action: 'removeSelectedResourceFromCollection', label: 'Remove Selected Resource From Collection', defaultShortcut: defaultState.shortcuts.removeSelectedResourceFromCollection },
+    { action: 'openSavedViewManager', label: 'Open Saved View Manager', defaultShortcut: defaultState.shortcuts.openSavedViewManager },
+    { action: 'createSavedViewFromCurrentWorkingView', label: 'Create Saved View From Current Working View', defaultShortcut: defaultState.shortcuts.createSavedViewFromCurrentWorkingView },
+    { action: 'openSavedView', label: 'Open Saved View', defaultShortcut: defaultState.shortcuts.openSavedView },
+    { action: 'deleteSavedView', label: 'Delete Saved View', defaultShortcut: defaultState.shortcuts.deleteSavedView },
+    { action: 'exportResourceOrganizationMetadata', label: 'Export Resource Organization Metadata', defaultShortcut: defaultState.shortcuts.exportResourceOrganizationMetadata },
+    { action: 'importResourceOrganizationMetadata', label: 'Import Resource Organization Metadata', defaultShortcut: defaultState.shortcuts.importResourceOrganizationMetadata },
+    { action: 'toggleTagFavorite', label: 'Toggle Tag Favorite', defaultShortcut: defaultState.shortcuts.toggleTagFavorite },
+    { action: 'toggleCollectionFavorite', label: 'Toggle Collection Favorite', defaultShortcut: defaultState.shortcuts.toggleCollectionFavorite },
+    { action: 'toggleSavedViewFavorite', label: 'Toggle Saved View Favorite', defaultShortcut: defaultState.shortcuts.toggleSavedViewFavorite },
     { action: 'openProjectStatistics', label: 'Open Project Statistics', defaultShortcut: defaultState.shortcuts.openProjectStatistics },
     { action: 'openWorkspaceSettings', label: 'Open Workspace Settings', defaultShortcut: defaultState.shortcuts.openWorkspaceSettings },
     { action: 'openReport', label: 'Open/Import report', defaultShortcut: defaultState.shortcuts.openReport },
@@ -1256,6 +1380,24 @@ export function getAssignableActions() {
         { action: 'openResourceReferences', label: 'Show Resource References' },
         { action: 'previewResourceDeletionImpact', label: 'Preview Resource Deletion Impact' },
         { action: 'repairWorkspaceRelationships', label: 'Repair Workspace Relationships' },
+        { action: 'openTagManager', label: 'Open Tag Manager' },
+        { action: 'createTag', label: 'Create Tag' },
+        { action: 'assignTagToSelectedResource', label: 'Assign Tag To Selected Resource' },
+        { action: 'removeTagFromSelectedResource', label: 'Remove Tag From Selected Resource' },
+        { action: 'mergeTags', label: 'Merge Tags' },
+        { action: 'openCollectionManager', label: 'Open Collection Manager' },
+        { action: 'createCollection', label: 'Create Collection' },
+        { action: 'addSelectedResourceToCollection', label: 'Add Selected Resource To Collection' },
+        { action: 'removeSelectedResourceFromCollection', label: 'Remove Selected Resource From Collection' },
+        { action: 'openSavedViewManager', label: 'Open Saved View Manager' },
+        { action: 'createSavedViewFromCurrentWorkingView', label: 'Create Saved View From Current Working View' },
+        { action: 'openSavedView', label: 'Open Saved View' },
+        { action: 'deleteSavedView', label: 'Delete Saved View' },
+        { action: 'exportResourceOrganizationMetadata', label: 'Export Resource Organization Metadata' },
+        { action: 'importResourceOrganizationMetadata', label: 'Import Resource Organization Metadata' },
+        { action: 'toggleTagFavorite', label: 'Toggle Tag Favorite' },
+        { action: 'toggleCollectionFavorite', label: 'Toggle Collection Favorite' },
+        { action: 'toggleSavedViewFavorite', label: 'Toggle Saved View Favorite' },
         { action: 'openProjectStatistics', label: 'Open Project Statistics' },
         { action: 'openWorkspaceSettings', label: 'Open Workspace Settings' },
         { action: 'openReport', label: 'Open/Import report' },
@@ -1604,6 +1746,7 @@ export let appState = {
         ? storedState.userTemplates.map(normalizeTemplate)
         : [],
     dashboard: normalizeDashboardConfig(storedState.dashboard),
+    resourceOrganization: normalizeResourceOrganizationConfig(storedState.resourceOrganization),
     workspaces: normalizeProjectWorkspaces(storedState.workspaces),
     activeWorkspaceId: String(storedState.activeWorkspaceId || ''),
     recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces),
@@ -1631,6 +1774,7 @@ function normalizeStateSnapshot(rawState) {
         visualAccessibility: normalizeVisualAccessibilityConfig(base.visualAccessibility),
         workspaceView: normalizeWorkspaceViewConfig(base.workspaceView),
         dashboard: normalizeDashboardConfig(base.dashboard),
+        resourceOrganization: normalizeResourceOrganizationConfig(base.resourceOrganization),
         workspaces: normalizeProjectWorkspaces(base.workspaces),
         activeWorkspaceId: String(base.activeWorkspaceId || ''),
         recentProjectWorkspaces: normalizeRecentProjectWorkspaces(base.recentProjectWorkspaces),
@@ -3619,6 +3763,7 @@ function createManagedDataSnapshot() {
         shortcuts: appState.shortcuts,
         dashboard: appState.dashboard,
         workspaceView: appState.workspaceView,
+        resourceOrganization: appState.resourceOrganization,
         workspaces: appState.workspaces,
         activeWorkspaceId: appState.activeWorkspaceId,
         recentProjectWorkspaces: appState.recentProjectWorkspaces,

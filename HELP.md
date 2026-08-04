@@ -178,3 +178,55 @@ Use these workflows to:
 - replace one user template with another and move report and workspace references to the replacement
 
 Replace workflows delete the original resource after references are moved.
+
+## Resource Tags, Collections, and Saved Views
+ART now includes a Resource Organization Framework that adds non-destructive metadata organization for workspace resources.
+
+Organization objects include:
+
+- Tags for labeling resources across reports, templates, standards, assets, and attachments
+- Collections for grouping resources into reusable sets
+- Saved Views for reapplying Working View configuration snapshots
+
+Organization metadata is workspace-aware and does not rewrite the underlying resource payloads.
+
+## Organization Commands
+Use the command framework to access:
+
+- Tag Manager
+- Collection Manager
+- Saved View Manager
+- Create Tag
+- Create Collection
+- Create Saved View
+- Open Saved View
+- Delete Saved View
+- Export Resource Organization Metadata
+- Import Resource Organization Metadata
+
+Manager workflows support additional actions such as rename, duplicate, merge, delete, and favorite toggles where applicable.
+
+New organization-related commands are registered in shortcut management as unassigned by default unless a user explicitly assigns a shortcut.
+
+## Explorer Organization Sections
+When a Project Workspace is active, Explorer now includes organization sections for:
+
+- Collections
+- Tags
+- Saved Views
+
+Explorer organization entries support quick actions such as opening a Saved View, toggling favorites, and opening manager workflows.
+
+## Structured Organization Search
+Universal Search supports organization-specific structured filters:
+
+- tag:critical
+- collection:"Client Deliverables"
+- view:"Executive Summary"
+
+These filters are available through Search Everywhere and are served by the resource-organization provider.
+
+## Metadata Portability and Integrity
+Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
+
+ART reconciles unresolved organization references and preserves organization integrity when reports and templates are replaced.

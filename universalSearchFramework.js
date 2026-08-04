@@ -17,6 +17,7 @@ import {
     clearUniversalSearchHistory
 } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
+import { executeOrganizationSearchResult, searchOrganizationMetadata } from './resourceOrganizationFramework.js';
 
 const providerRegistry = new Map();
 let initialized = false;
@@ -421,6 +422,14 @@ function buildRelationshipProviderResults(queryModel) {
         }));
 }
 
+function buildOrganizationProviderResults(queryModel, context) {
+    return searchOrganizationMetadata(queryModel, context)
+        .map((item) => ({
+            ...item,
+            providerId: 'resource-organization'
+        }));
+}
+
 function buildHelpProviderResults(queryModel) {
     const candidates = [
         { id: 'help:user-guide', title: 'ART User Guide and Documentation', description: 'Integrated Help content and navigation.', anchor: '#help-heading' },
@@ -511,6 +520,18 @@ function registerBuiltInProviders() {
     });
 
     registerUniversalSearchProvider({
+        id: 'resource-organization',
+        name: 'Tags, Collections, and Saved Views',
+        priority: 36,
+        capabilities: {
+            scopes: ['workspace', 'project-workspace', 'reports', 'templates', 'tags', 'collections', 'saved-views', 'organization'],
+            itemTypes: ['resource-tag', 'resource-collection', 'resource-saved-view', 'resource-match'],
+            advertisedFields: ['tag', 'collection', 'view', 'scope', 'description', 'resourceType']
+        },
+        search: ({ queryModel, context }) => buildOrganizationProviderResults(queryModel, context)
+    });
+
+    registerUniversalSearchProvider({
         id: 'accessibility-standards',
         name: 'Accessibility Standards',
         priority: 40,
@@ -589,6 +610,10 @@ function resolveProviderIdsForScope(scope) {
         case 'reports': return ['reports'];
         case 'templates': return ['templates'];
         case 'relationships': return ['resource-relationships'];
+        case 'organization': return ['resource-organization'];
+        case 'tags': return ['resource-organization'];
+        case 'collections': return ['resource-organization'];
+        case 'saved-views': return ['resource-organization'];
         case 'standards': return ['accessibility-standards'];
         case 'shortcuts': return ['shortcuts'];
         case 'project-workspace': return ['project-workspaces'];
@@ -781,6 +806,7 @@ function ensureSearchDialogElements() {
             <label for="search-everywhere-input">Search</label>
             <input id="search-everywhere-input" type="search" autocomplete="off" spellcheck="false" aria-controls="search-everywhere-results" aria-describedby="search-everywhere-status" />
             <p id="search-everywhere-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <p class="command-palette-helper">Structured filters: tag:critical, collection:"Client Deliverables", view:"Executive Summary".</p>
             <div id="search-everywhere-results" role="listbox" aria-label="Universal search results"></div>
             <div class="viewer-dialog-actions" role="group" aria-label="Universal search actions">
                 <button id="btn-search-everywhere-save" type="button">Save Search</button>
@@ -1037,6 +1063,10 @@ export function executeUniversalSearchResult(result) {
             select: true,
             focus: true
         });
+    }
+
+    if (item.providerId === 'resource-organization') {
+        return executeOrganizationSearchResult(item);
     }
 
     return false;

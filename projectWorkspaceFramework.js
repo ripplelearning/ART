@@ -29,6 +29,17 @@ import {
     repairWorkspaceRelationships as repairWorkspaceRelationshipStore,
     validateWorkspaceRelationships
 } from './resourceRelationshipFramework.js';
+import {
+    applyWorkspaceOrganizationMetadata,
+    attachWorkspaceOrganizationMetadata,
+    createSavedViewFromCurrentWorkingViewFromCommand,
+    getExplorerOrganizationSections,
+    handleOrganizationExplorerAction,
+    openCollectionManagerFromCommand,
+    openSavedViewFromCommand,
+    openSavedViewManagerFromCommand,
+    openTagManagerFromCommand
+} from './resourceOrganizationFramework.js';
 
 const PROJECT_WORKSPACE_FORMAT = 'ART Project Workspace';
 const PROJECT_WORKSPACE_FORMAT_VERSION = '2.0';
@@ -161,6 +172,11 @@ function ensureWorkspaceExplorerShell() {
             <input id="workspace-resource-filter" type="search" autocomplete="off" spellcheck="false" aria-describedby="workspace-explorer-status workspace-explorer-description">
             <button id="btn-workspace-refresh" type="button">Refresh Resources</button>
             <button id="btn-workspace-add-asset" type="button">Add Project Asset</button>
+            <button id="btn-workspace-tag-manager" type="button">Tag Manager</button>
+            <button id="btn-workspace-collection-manager" type="button">Collection Manager</button>
+            <button id="btn-workspace-saved-view-manager" type="button">Saved View Manager</button>
+            <button id="btn-workspace-open-saved-view" type="button">Open Saved View</button>
+            <button id="btn-workspace-save-current-view" type="button">Save Current Working View</button>
             <button id="btn-workspace-properties" type="button">Project Properties</button>
         </div>
         <div id="workspace-resource-groups" class="workspace-explorer__groups"></div>
@@ -336,12 +352,15 @@ function buildWorkspaceStatistics(workspace) {
 
 function buildProjectWorkspacePayload(workspace, options = {}) {
     const reconciledWorkspace = reconcileWorkspaceRelationshipIntegrity(workspace, { persist: false }).workspace || workspace;
+    const workspaceWithOrganization = attachWorkspaceOrganizationMetadata(reconciledWorkspace, {
+        includeOnlyWorkspaceScope: true
+    });
     const includeReports = options.includeReports !== false;
     const includeTemplates = options.includeTemplates !== false;
     const includeAssets = options.includeAssets !== false;
     const includeWorkspaceState = options.includeWorkspaceState !== false;
 
-    const { statistics, health } = buildWorkspaceStatistics(reconciledWorkspace);
+    const { statistics, health } = buildWorkspaceStatistics(workspaceWithOrganization);
 
     const payload = {
         format: PROJECT_WORKSPACE_FORMAT,
@@ -349,26 +368,26 @@ function buildProjectWorkspacePayload(workspace, options = {}) {
         schemaVersion: PROJECT_WORKSPACE_SCHEMA_VERSION,
         metadata: {
             projectName: reconciledWorkspace.name,
-            projectId: reconciledWorkspace.id,
-            projectDescription: reconciledWorkspace.description,
-            projectOwner: reconciledWorkspace.owner,
-            organization: reconciledWorkspace.organization,
-            dateCreated: reconciledWorkspace.createdAt,
+            projectId: workspaceWithOrganization.id,
+            projectDescription: workspaceWithOrganization.description,
+            projectOwner: workspaceWithOrganization.owner,
+            organization: workspaceWithOrganization.organization,
+            dateCreated: workspaceWithOrganization.createdAt,
             lastModified: new Date().toISOString(),
-            projectVersion: reconciledWorkspace.projectVersion || '2.0',
-            currentStatus: reconciledWorkspace.status
+            projectVersion: workspaceWithOrganization.projectVersion || '2.0',
+            currentStatus: workspaceWithOrganization.status
         },
         workspace: {
-            ...reconciledWorkspace,
+            ...workspaceWithOrganization,
             lastModifiedAt: new Date().toISOString(),
             statistics,
             health,
-            workspaceState: includeWorkspaceState ? reconciledWorkspace.workspaceState : {},
+            workspaceState: includeWorkspaceState ? workspaceWithOrganization.workspaceState : {},
             resources: {
-                ...reconciledWorkspace.resources,
-                reports: includeReports ? reconciledWorkspace.resources.reports : [],
-                templates: includeTemplates ? reconciledWorkspace.resources.templates : [],
-                projectAssets: includeAssets ? reconciledWorkspace.resources.projectAssets : []
+                ...workspaceWithOrganization.resources,
+                reports: includeReports ? workspaceWithOrganization.resources.reports : [],
+                templates: includeTemplates ? workspaceWithOrganization.resources.templates : [],
+                projectAssets: includeAssets ? workspaceWithOrganization.resources.projectAssets : []
             }
         },
         artProjectPayload: createArtProjectPayload()
@@ -406,6 +425,7 @@ function applyWorkspaceFromPayload(payload, context = {}) {
     };
 
     const reconciledWorkspace = reconcileWorkspaceRelationshipIntegrity(workspace, { persist: false }).workspace || workspace;
+    applyWorkspaceOrganizationMetadata(reconciledWorkspace);
 
     const saved = upsertProjectWorkspace(reconciledWorkspace, {
         action: `Opened project workspace ${reconciledWorkspace.name}`,
@@ -727,6 +747,111 @@ function renderWorkspaceExplorer() {
         `;
     };
 
+    const organizationSections = getExplorerOrganizationSections(active.id, appState.selectedReportId);
+
+    const renderOrganizationResourceLink = (reference, index) => {
+        const resourceLabel = `${String(reference.resourceType || 'resource')} ${String(reference.resourceId || index + 1)}`;
+        return `
+            <li>
+                <button
+                    type="button"
+                    data-organization-item="true"
+                    data-organization-item-type="resource"
+                    data-resource-type="${escapeHtml(String(reference.resourceType || '').toLowerCase())}"
+                    data-resource-id="${escapeHtml(reference.resourceId || '')}"
+                    data-workspace-id="${escapeHtml(reference.workspaceId || active.id)}"
+                >
+                    ${escapeHtml(resourceLabel)}${reference.unresolved ? ' (unresolved)' : ''}
+                </button>
+            </li>
+        `;
+    };
+
+    const renderCollectionSection = () => {
+        const collections = Array.isArray(organizationSections.collections) ? organizationSections.collections : [];
+        const favorites = new Set(Array.isArray(organizationSections.favorites?.collections) ? organizationSections.favorites.collections : []);
+        const items = collections.length > 0
+            ? collections.map((collection) => `
+                <li>
+                    <details class="workspace-explorer__resource-node" data-organization-node="true" data-organization-item-type="collection" data-organization-item-id="${escapeHtml(collection.id)}">
+                        <summary>
+                            <span class="workspace-explorer__resource-summary">
+                                <button type="button" data-organization-item="true" data-organization-item-type="collection" data-organization-item-id="${escapeHtml(collection.id)}">
+                                    ${escapeHtml(collection.name)}${favorites.has(collection.id) ? ' *' : ''}
+                                </button>
+                                <span class="workspace-explorer__resource-badge">${Number(collection.resourceCount || 0)} Resources</span>
+                            </span>
+                        </summary>
+                        <ul>
+                            ${(collection.resources || []).map((reference, index) => renderOrganizationResourceLink(reference, index)).join('') || '<li><span class="workspace-explorer__empty">No resources in this collection.</span></li>'}
+                        </ul>
+                    </details>
+                </li>
+            `).join('')
+            : '<li><span class="workspace-explorer__empty">No collections are available.</span></li>';
+
+        return `
+            <section class="workspace-explorer__group" role="region" aria-labelledby="workspace-group-collections-heading">
+                <h4 id="workspace-group-collections-heading">Collections</h4>
+                <ul>${items}</ul>
+            </section>
+        `;
+    };
+
+    const renderTagsSection = () => {
+        const tags = Array.isArray(organizationSections.tags) ? organizationSections.tags : [];
+        const favorites = new Set(Array.isArray(organizationSections.favorites?.tags) ? organizationSections.favorites.tags : []);
+        const items = tags.length > 0
+            ? tags.map((tag) => `
+                <li>
+                    <details class="workspace-explorer__resource-node" data-organization-node="true" data-organization-item-type="tag" data-organization-item-id="${escapeHtml(tag.id)}">
+                        <summary>
+                            <span class="workspace-explorer__resource-summary">
+                                <button type="button" data-organization-item="true" data-organization-item-type="tag" data-organization-item-id="${escapeHtml(tag.id)}">
+                                    ${escapeHtml(tag.name)}${favorites.has(tag.id) ? ' *' : ''}
+                                </button>
+                                <span class="workspace-explorer__resource-badge">${Number((tag.resources || []).length)} Resources</span>
+                            </span>
+                        </summary>
+                        <ul>
+                            ${(tag.resources || []).map((reference, index) => renderOrganizationResourceLink(reference, index)).join('') || '<li><span class="workspace-explorer__empty">No resources tagged.</span></li>'}
+                        </ul>
+                    </details>
+                </li>
+            `).join('')
+            : '<li><span class="workspace-explorer__empty">No tags are available.</span></li>';
+
+        return `
+            <section class="workspace-explorer__group" role="region" aria-labelledby="workspace-group-tags-heading">
+                <h4 id="workspace-group-tags-heading">Tags</h4>
+                <ul>${items}</ul>
+            </section>
+        `;
+    };
+
+    const renderSavedViewsSection = () => {
+        const savedViews = Array.isArray(organizationSections.savedViews) ? organizationSections.savedViews : [];
+        const favorites = new Set(Array.isArray(organizationSections.favorites?.savedViews) ? organizationSections.favorites.savedViews : []);
+        const recent = new Set(Array.isArray(organizationSections.recent?.savedViews) ? organizationSections.recent.savedViews : []);
+
+        const items = savedViews.length > 0
+            ? savedViews.map((savedView) => `
+                <li>
+                    <button type="button" data-organization-item="true" data-organization-item-type="saved-view" data-organization-item-id="${escapeHtml(savedView.id)}">
+                        ${escapeHtml(savedView.name)}${favorites.has(savedView.id) ? ' *' : ''}${recent.has(savedView.id) ? ' (Recent)' : ''}
+                    </button>
+                </li>
+            `).join('')
+            : '<li><span class="workspace-explorer__empty">No saved views are available.</span></li>';
+
+        return `
+            <section class="workspace-explorer__group" role="region" aria-labelledby="workspace-group-saved-views-heading">
+                <h4 id="workspace-group-saved-views-heading">Saved Views</h4>
+                <ul>${items}</ul>
+            </section>
+        `;
+    };
+
     groups.innerHTML = grouped.map((group) => {
         const visibleItems = group.items.filter((item) => !filterValue || String(item.name || '').toLowerCase().includes(filterValue));
         const listItems = visibleItems.length > 0
@@ -739,7 +864,7 @@ function renderWorkspaceExplorer() {
                 <ul>${listItems}</ul>
             </section>
         `;
-    }).join('');
+    }).join('') + renderCollectionSection() + renderTagsSection() + renderSavedViewsSection();
 
     const { statistics, health } = buildWorkspaceStatistics(active);
     const summary = `Workspace ${active.name}. Reports ${statistics.totalReports || 0}. Assets ${statistics.projectAssets || 0}. Completion ${health.projectCompletion || 0} percent.`;
@@ -1448,6 +1573,11 @@ function bindWorkspaceExplorerEvents() {
     const exportWorkspaceButton = document.getElementById('btn-workspace-export');
     const refreshButton = document.getElementById('btn-workspace-refresh');
     const addAssetButton = document.getElementById('btn-workspace-add-asset');
+    const tagManagerButton = document.getElementById('btn-workspace-tag-manager');
+    const collectionManagerButton = document.getElementById('btn-workspace-collection-manager');
+    const savedViewManagerButton = document.getElementById('btn-workspace-saved-view-manager');
+    const openSavedViewButton = document.getElementById('btn-workspace-open-saved-view');
+    const saveCurrentViewButton = document.getElementById('btn-workspace-save-current-view');
     const propertiesButton = document.getElementById('btn-workspace-properties');
 
     newWorkspaceButton?.addEventListener('click', () => {
@@ -1505,6 +1635,30 @@ function bindWorkspaceExplorerEvents() {
         void startAddProjectAssetWorkflow();
     });
 
+    tagManagerButton?.addEventListener('click', () => {
+        openTagManagerFromCommand();
+        renderWorkspaceExplorer();
+    });
+
+    collectionManagerButton?.addEventListener('click', () => {
+        openCollectionManagerFromCommand();
+        renderWorkspaceExplorer();
+    });
+
+    savedViewManagerButton?.addEventListener('click', () => {
+        openSavedViewManagerFromCommand();
+        renderWorkspaceExplorer();
+    });
+
+    openSavedViewButton?.addEventListener('click', () => {
+        openSavedViewFromCommand();
+    });
+
+    saveCurrentViewButton?.addEventListener('click', () => {
+        createSavedViewFromCurrentWorkingViewFromCommand();
+        renderWorkspaceExplorer();
+    });
+
     propertiesButton?.addEventListener('click', () => {
         showProjectPropertiesDialog(propertiesButton);
     });
@@ -1522,6 +1676,32 @@ function bindWorkspaceExplorerEvents() {
                 select: true,
                 focus: true
             });
+            return;
+        }
+
+        const organizationTrigger = event.target instanceof Element ? event.target.closest('[data-organization-item="true"]') : null;
+        if (organizationTrigger instanceof HTMLElement) {
+            const organizationWorkspace = getActiveWorkspaceSafe();
+            const itemType = normalizeText(organizationTrigger.getAttribute('data-organization-item-type'));
+            if (itemType === 'resource') {
+                const handled = handleOrganizationExplorerAction({
+                    itemType,
+                    resourceType: organizationTrigger.getAttribute('data-resource-type') || '',
+                    resourceId: organizationTrigger.getAttribute('data-resource-id') || '',
+                    workspaceId: organizationTrigger.getAttribute('data-workspace-id') || organizationWorkspace?.id || ''
+                });
+                if (handled) updateExplorerStatus('Opened resource from organizational navigation.');
+                return;
+            }
+
+            const handled = handleOrganizationExplorerAction({
+                itemType,
+                itemId: organizationTrigger.getAttribute('data-organization-item-id') || ''
+            });
+            if (handled) {
+                updateExplorerStatus('Opened organizational item.');
+                renderWorkspaceExplorer();
+            }
             return;
         }
 
@@ -1802,6 +1982,16 @@ function bindWorkspaceSyncEvents() {
     window.addEventListener('art-reports-updated', sync);
     window.addEventListener('art-templates-updated', sync);
     window.addEventListener('art-dashboard-config-updated', sync);
+
+    window.addEventListener('art-resource-organization-reveal-resource', (event) => {
+        const reference = event?.detail?.reference;
+        if (!reference) return;
+        revealWorkspaceResourceFromCommand(reference.resourceType, reference.resourceId, {
+            workspaceId: reference.workspaceId,
+            select: true,
+            focus: true
+        });
+    });
 }
 
 export function initProjectWorkspaceFramework(options = {}) {

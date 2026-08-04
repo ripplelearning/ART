@@ -141,3 +141,71 @@ Dashboard now includes explicit actions for:
 Use replace when you want ART to move workspace and report references to a different resource before removing the original one.
 
 Template replacement updates report template references and workspace template relationships. Report replacement updates workspace report relationships and linked resource references.
+
+## Resource Organization
+ART Version 1.5 includes Resource Organization features for workspace resources:
+
+- Tags
+- Collections
+- Saved Views
+
+These features add organization metadata without changing underlying report, template, standard, or asset content.
+
+## Tag Workflows
+Use Tag Manager to review usage and perform common actions:
+
+- view usage
+- rename tags
+- merge tags
+- delete tags
+- toggle favorites
+
+Use Create Tag to add new tags, then assign or remove tags from selected resources.
+
+## Collection Workflows
+Use Collection Manager to:
+
+- review collection contents
+- rename collections
+- duplicate collections
+- delete collections
+- toggle favorites
+
+Use Create Collection to define a new grouping, then add/remove selected resources.
+
+## Saved View Workflows
+Saved Views persist Working View configurations so they can be reopened later.
+
+Use Saved View Manager to:
+
+- view saved configuration summaries
+- open a saved view
+- rename saved views
+- duplicate saved views
+- delete saved views
+- toggle favorites
+
+Use Create Saved View from Active Working View to capture the current temporary Working View configuration.
+
+## Explorer Integration
+When a Project Workspace is active, Explorer includes organization sections:
+
+- Collections
+- Tags
+- Saved Views
+
+You can browse these sections and activate organization actions directly from Explorer.
+
+## Structured Search Queries
+Universal Search supports organization filters:
+
+- tag:critical
+- collection:"Client Deliverables"
+- view:"Executive Summary"
+
+These filters help target organization metadata quickly from Search Everywhere.
+
+## Organization Metadata Portability
+Use Export Resource Organization Metadata and Import Resource Organization Metadata to migrate organization configuration.
+
+Organization metadata is also included in workspace import/export payloads where applicable.

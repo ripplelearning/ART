@@ -128,6 +128,24 @@ const contextActionAllowlists = new Map([
         'openResourceReferences',
         'previewResourceDeletionImpact',
         'repairWorkspaceRelationships',
+        'openTagManager',
+        'createTag',
+        'assignTagToSelectedResource',
+        'removeTagFromSelectedResource',
+        'mergeTags',
+        'openCollectionManager',
+        'createCollection',
+        'addSelectedResourceToCollection',
+        'removeSelectedResourceFromCollection',
+        'openSavedViewManager',
+        'createSavedViewFromCurrentWorkingView',
+        'openSavedView',
+        'deleteSavedView',
+        'exportResourceOrganizationMetadata',
+        'importResourceOrganizationMetadata',
+        'toggleTagFavorite',
+        'toggleCollectionFavorite',
+        'toggleSavedViewFavorite',
         'newTemplate',
         'newReport',
         'importData',
@@ -144,6 +162,10 @@ const contextActionAllowlists = new Map([
         'openResourceReferences',
         'previewResourceDeletionImpact',
         'repairWorkspaceRelationships',
+        'assignTagToSelectedResource',
+        'removeTagFromSelectedResource',
+        'addSelectedResourceToCollection',
+        'removeSelectedResourceFromCollection',
         'searchProjectAssets',
         'searchCommands',
         'openSettings',
@@ -154,6 +176,10 @@ const contextActionAllowlists = new Map([
         'openResourceDependents',
         'openResourceReferences',
         'previewResourceDeletionImpact',
+        'assignTagToSelectedResource',
+        'removeTagFromSelectedResource',
+        'addSelectedResourceToCollection',
+        'removeSelectedResourceFromCollection',
         'openProjectProperties',
         'searchCommands',
         'openHelp'
@@ -239,6 +265,9 @@ const contextActionAllowlists = new Map([
         'setReadingReportView',
         'setReviewReportView',
         'toggleReportViewMode',
+        'createSavedViewFromCurrentWorkingView',
+        'openSavedView',
+        'deleteSavedView',
         'exportReport',
         'printPreview',
         'openProgressLog',
@@ -589,7 +618,25 @@ function isWorkspaceAction(action) {
         || action.startsWith('refreshWorkspaceAssets')
         || action.startsWith('openProjectProperties')
         || action.startsWith('openProjectStatistics')
-        || action.startsWith('openWorkspaceSettings');
+        || action.startsWith('openWorkspaceSettings')
+        || action.startsWith('openTagManager')
+        || action.startsWith('createTag')
+        || action.startsWith('assignTagToSelectedResource')
+        || action.startsWith('removeTagFromSelectedResource')
+        || action.startsWith('mergeTags')
+        || action.startsWith('openCollectionManager')
+        || action.startsWith('createCollection')
+        || action.startsWith('addSelectedResourceToCollection')
+        || action.startsWith('removeSelectedResourceFromCollection')
+        || action.startsWith('openSavedViewManager')
+        || action.startsWith('createSavedViewFromCurrentWorkingView')
+        || action.startsWith('openSavedView')
+        || action.startsWith('deleteSavedView')
+        || action.startsWith('exportResourceOrganizationMetadata')
+        || action.startsWith('importResourceOrganizationMetadata')
+        || action.startsWith('toggleTagFavorite')
+        || action.startsWith('toggleCollectionFavorite')
+        || action.startsWith('toggleSavedViewFavorite');
 }
 
 function isSettingsAction(action) {

@@ -145,6 +145,25 @@ import {
     setReportViewModeFromCommand,
     toggleReportViewModeFromCommand
 } from './reportViewsFramework.js';
+import {
+    addSelectedResourceToCollectionFromCommand,
+    assignTagToSelectedResourceFromCommand,
+    createCollectionFromCommand,
+    createSavedViewFromCurrentWorkingViewFromCommand,
+    createTagFromCommand,
+    deleteSavedViewFromCommand,
+    exportResourceOrganizationMetadataFromCommand,
+    importResourceOrganizationMetadataFromCommand,
+    mergeTagsFromCommand,
+    openCollectionManagerFromCommand,
+    openSavedViewFromCommand,
+    openSavedViewManagerFromCommand,
+    openTagManagerFromCommand,
+    removeSelectedResourceFromCollectionFromCommand,
+    removeTagFromSelectedResourceFromCommand,
+    replaceOrganizationResourceReferences,
+    toggleFavorite
+} from './resourceOrganizationFramework.js';
 
 let commandsRegistered = false;
 
@@ -294,7 +313,25 @@ function getDefaultMenuLocation(action, category) {
         case 'openResourceDependents':
         case 'openResourceReferences':
         case 'previewResourceDeletionImpact':
-        case 'repairWorkspaceRelationships': return 'View>Project Workspace';
+        case 'repairWorkspaceRelationships':
+        case 'openTagManager':
+        case 'openCollectionManager':
+        case 'openSavedViewManager': return 'View>Project Workspace';
+        case 'createTag':
+        case 'assignTagToSelectedResource':
+        case 'removeTagFromSelectedResource':
+        case 'mergeTags': return 'Tools>Tags';
+        case 'createCollection':
+        case 'addSelectedResourceToCollection':
+        case 'removeSelectedResourceFromCollection': return 'Tools>Collections';
+        case 'createSavedViewFromCurrentWorkingView':
+        case 'openSavedView':
+        case 'deleteSavedView': return 'Report>Saved Views';
+        case 'exportResourceOrganizationMetadata':
+        case 'importResourceOrganizationMetadata': return 'File>Project Workspace';
+        case 'toggleTagFavorite':
+        case 'toggleCollectionFavorite':
+        case 'toggleSavedViewFavorite': return 'View>Favorites';
         case 'continueWorking': return 'View>Dashboard';
         case 'addProjectAsset':
         case 'createAssetFolder':
@@ -792,6 +829,7 @@ function runReplaceTemplateWorkflow(context = {}) {
         action: `Replaced workspace references from template ${selected.name} to ${replacement.name}`,
         persist: true
     });
+    const organizationCleanup = replaceOrganizationResourceReferences('template', selected.id, replacement.id, appState.activeWorkspaceId);
     const deleted = deleteUserTemplate(selected.id);
     if (!deleted) return false;
 
@@ -804,7 +842,7 @@ function runReplaceTemplateWorkflow(context = {}) {
         }, 0);
     }
 
-    announce(`Replaced template ${selected.name} with ${replacement.name}.${updatedReports > 0 ? ` Updated ${updatedReports} report reference${updatedReports === 1 ? '' : 's'}.` : ''}${cleanup.replacedReferenceCount > 0 ? ` Updated ${cleanup.replacedReferenceCount} workspace reference${cleanup.replacedReferenceCount === 1 ? '' : 's'}.` : ''}`);
+    announce(`Replaced template ${selected.name} with ${replacement.name}.${updatedReports > 0 ? ` Updated ${updatedReports} report reference${updatedReports === 1 ? '' : 's'}.` : ''}${cleanup.replacedReferenceCount > 0 ? ` Updated ${cleanup.replacedReferenceCount} workspace reference${cleanup.replacedReferenceCount === 1 ? '' : 's'}.` : ''}${organizationCleanup.replacedCount > 0 ? ` Updated ${organizationCleanup.replacedCount} organization reference${organizationCleanup.replacedCount === 1 ? '' : 's'}.` : ''}`);
     return true;
 }
 
@@ -1106,6 +1144,7 @@ function runReplaceReportWorkflow(context = {}) {
         action: `Replaced workspace references from report ${report.name} to ${replacement.name}`,
         persist: true
     });
+    const organizationCleanup = replaceOrganizationResourceReferences('report', report.id, replacement.id, appState.activeWorkspaceId);
     const removed = deleteReportById(report.id);
     if (!removed) return false;
 
@@ -1122,7 +1161,7 @@ function runReplaceReportWorkflow(context = {}) {
         }, 0);
     }
 
-    announce(`Replaced report ${report.name} with ${replacement.name}.${cleanup.replacedReferenceCount > 0 ? ` Updated ${cleanup.replacedReferenceCount} workspace reference${cleanup.replacedReferenceCount === 1 ? '' : 's'}.` : ''}`);
+    announce(`Replaced report ${report.name} with ${replacement.name}.${cleanup.replacedReferenceCount > 0 ? ` Updated ${cleanup.replacedReferenceCount} workspace reference${cleanup.replacedReferenceCount === 1 ? '' : 's'}.` : ''}${organizationCleanup.replacedCount > 0 ? ` Updated ${organizationCleanup.replacedCount} organization reference${organizationCleanup.replacedCount === 1 ? '' : 's'}.` : ''}`);
     return true;
 }
 
@@ -1187,6 +1226,25 @@ function runClearSearchHistoryWorkflow() {
     }
     clearUniversalSearchHistory();
     announce('Universal search history cleared.');
+    return true;
+}
+
+function runToggleFavoriteWorkflow(itemType, context = {}) {
+    const source = context && typeof context === 'object' ? context : {};
+    const directId = String(source.itemId || source.id || '').trim();
+    const trigger = source.triggerElement instanceof HTMLElement
+        ? source.triggerElement
+        : source.anchorElement instanceof HTMLElement
+            ? source.anchorElement
+            : document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+    const elementId = trigger?.getAttribute?.('data-organization-item-id') || '';
+    const targetId = directId || elementId;
+    if (!targetId) return false;
+    const result = toggleFavorite(itemType, targetId);
+    if (!result?.ok) return false;
+    announce('Favorite status updated.');
     return true;
 }
 
@@ -1884,6 +1942,136 @@ const COMMAND_DEFINITIONS = [
         category: 'Workspace',
         description: 'Repair invalid workspace relationships and remove broken references.',
         handler: (context) => repairWorkspaceRelationshipsFromCommand(context?.triggerElement || context?.anchorElement || null)
+    },
+    {
+        action: 'openTagManager',
+        id: 'Organization.OpenTagManager',
+        category: 'Workspace',
+        description: 'Open Tag Manager to browse, search, and review tag usage.',
+        handler: (context) => openTagManagerFromCommand(context)
+    },
+    {
+        action: 'createTag',
+        id: 'Organization.CreateTag',
+        category: 'Workspace',
+        description: 'Create a new resource tag.',
+        handler: () => createTagFromCommand()
+    },
+    {
+        action: 'assignTagToSelectedResource',
+        id: 'Organization.AssignTagToSelectedResource',
+        category: 'Workspace',
+        description: 'Assign an existing tag to the selected resource.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => assignTagToSelectedResourceFromCommand(context)
+    },
+    {
+        action: 'removeTagFromSelectedResource',
+        id: 'Organization.RemoveTagFromSelectedResource',
+        category: 'Workspace',
+        description: 'Remove a tag assignment from the selected resource.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => removeTagFromSelectedResourceFromCommand(context)
+    },
+    {
+        action: 'mergeTags',
+        id: 'Organization.MergeTags',
+        category: 'Workspace',
+        description: 'Merge one tag into another and transfer assignments.',
+        handler: () => mergeTagsFromCommand()
+    },
+    {
+        action: 'openCollectionManager',
+        id: 'Organization.OpenCollectionManager',
+        category: 'Workspace',
+        description: 'Open Collection Manager to browse and manage collections.',
+        handler: (context) => openCollectionManagerFromCommand(context)
+    },
+    {
+        action: 'createCollection',
+        id: 'Organization.CreateCollection',
+        category: 'Workspace',
+        description: 'Create a new collection of resource references.',
+        handler: () => createCollectionFromCommand()
+    },
+    {
+        action: 'addSelectedResourceToCollection',
+        id: 'Organization.AddSelectedResourceToCollection',
+        category: 'Workspace',
+        description: 'Add the selected resource to a collection.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => addSelectedResourceToCollectionFromCommand(context)
+    },
+    {
+        action: 'removeSelectedResourceFromCollection',
+        id: 'Organization.RemoveSelectedResourceFromCollection',
+        category: 'Workspace',
+        description: 'Remove the selected resource from a collection.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => removeSelectedResourceFromCollectionFromCommand(context)
+    },
+    {
+        action: 'openSavedViewManager',
+        id: 'Organization.OpenSavedViewManager',
+        category: 'Workspace',
+        description: 'Open Saved View Manager for persistent Working View configurations.',
+        handler: (context) => openSavedViewManagerFromCommand(context)
+    },
+    {
+        action: 'createSavedViewFromCurrentWorkingView',
+        id: 'Organization.CreateSavedViewFromCurrentWorkingView',
+        category: 'Report',
+        description: 'Create a Saved View from the active Working View configuration.',
+        handler: () => createSavedViewFromCurrentWorkingViewFromCommand()
+    },
+    {
+        action: 'openSavedView',
+        id: 'Organization.OpenSavedView',
+        category: 'Report',
+        description: 'Open a Saved View and recreate its temporary Working View.',
+        handler: (context) => openSavedViewFromCommand(context)
+    },
+    {
+        action: 'deleteSavedView',
+        id: 'Organization.DeleteSavedView',
+        category: 'Report',
+        description: 'Delete a Saved View definition.',
+        handler: (context) => deleteSavedViewFromCommand(context)
+    },
+    {
+        action: 'exportResourceOrganizationMetadata',
+        id: 'Organization.ExportMetadata',
+        category: 'Workspace',
+        description: 'Export tags, collections, and saved view metadata.',
+        handler: () => exportResourceOrganizationMetadataFromCommand()
+    },
+    {
+        action: 'importResourceOrganizationMetadata',
+        id: 'Organization.ImportMetadata',
+        category: 'Workspace',
+        description: 'Import tags, collections, and saved view metadata.',
+        handler: () => importResourceOrganizationMetadataFromCommand()
+    },
+    {
+        action: 'toggleTagFavorite',
+        id: 'Organization.ToggleTagFavorite',
+        category: 'Workspace',
+        description: 'Toggle favorite status for the selected tag.',
+        handler: (context) => runToggleFavoriteWorkflow('tag', context)
+    },
+    {
+        action: 'toggleCollectionFavorite',
+        id: 'Organization.ToggleCollectionFavorite',
+        category: 'Workspace',
+        description: 'Toggle favorite status for the selected collection.',
+        handler: (context) => runToggleFavoriteWorkflow('collection', context)
+    },
+    {
+        action: 'toggleSavedViewFavorite',
+        id: 'Organization.ToggleSavedViewFavorite',
+        category: 'Workspace',
+        description: 'Toggle favorite status for the selected Saved View.',
+        handler: (context) => runToggleFavoriteWorkflow('saved-view', context)
     },
     {
         action: 'saveProject',
