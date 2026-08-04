@@ -1317,7 +1317,6 @@ function updateSessionConfigFromDialog(session) {
                 groupLevels: [],
                 filters: {}
             }
-        }
     };
 }
 

@@ -77,6 +77,15 @@ function runStartupStage(name, work) {
     const startedAt = startupNow();
     try {
         return work();
+    } catch (error) {
+        console.error(`[ART startup] Stage failed: ${name}.`, error);
+        window.dispatchEvent(new CustomEvent('art-startup-stage-failed', {
+            detail: {
+                stage: name,
+                message: String(error?.message || error)
+            }
+        }));
+        return null;
     } finally {
         recordStartupStage(name, startedAt, startupNow());
     }

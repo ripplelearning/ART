@@ -2013,28 +2013,31 @@ function buildCommandDefinition(definition) {
 
 export function registerApplicationCommands(registry = commandRegistry) {
     if (commandsRegistered) return registry;
-
-    const definitions = COMMAND_DEFINITIONS.map(buildCommandDefinition);
-    definitions.forEach((definition) => {
-        try {
-            registry.registerCommand(definition);
-        } catch (error) {
-            if (error?.code === 'duplicate-keyboard-shortcut-registration') {
-                const conflictingCommandId = String(error?.details?.existingCommandId || '').trim();
-                console.warn(
-                    `[ART commands] Shortcut conflict for ${definition.id} (${definition.keyboardShortcut}) with ${conflictingCommandId || 'existing command'}. Registering command without shortcut.`
-                );
-                registry.registerCommand({
-                    ...definition,
-                    keyboardShortcut: ''
-                });
-                return;
+    try {
+        const definitions = COMMAND_DEFINITIONS.map(buildCommandDefinition);
+        definitions.forEach((definition) => {
+            try {
+                registry.registerCommand(definition);
+            } catch (error) {
+                if (error?.code === 'duplicate-keyboard-shortcut-registration') {
+                    const conflictingCommandId = String(error?.details?.existingCommandId || '').trim();
+                    console.warn(
+                        `[ART commands] Shortcut conflict for ${definition.id} (${definition.keyboardShortcut}) with ${conflictingCommandId || 'existing command'}. Registering command without shortcut.`
+                    );
+                    registry.registerCommand({
+                        ...definition,
+                        keyboardShortcut: ''
+                    });
+                    return;
+                }
+                throw error;
             }
-            throw error;
-        }
-    });
+        });
 
-    commandsRegistered = true;
+        commandsRegistered = true;
+    } catch (error) {
+        console.error('[ART commands] Application command registration failed.', error);
+    }
     return registry;
 }
 
