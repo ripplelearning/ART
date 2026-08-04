@@ -230,3 +230,60 @@ These filters are available through Search Everywhere and are served by the reso
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 
 ART reconciles unresolved organization references and preserves organization integrity when reports and templates are replaced.
+
+## History, Undo, Redo, and Versioning
+ART includes a centralized History Framework for:
+
+- Undo
+- Redo
+- Change history
+- Resource version history
+- Restore previous version
+- Version comparison
+
+History and version metadata are stored locally and integrated with existing ART commands and dialogs.
+
+## History Commands
+History commands are available through existing command routing:
+
+- Undo
+- Redo
+- History...
+- Version History...
+- Compare Versions...
+- Restore Previous Version...
+- Clear History...
+
+These commands are available in Edit > History, Command Palette, and Menu Bar command search.
+
+## Undo and Redo Behavior
+- Undo and Redo operate on centralized transactions.
+- Performing a new undoable action clears the Redo stack.
+- Undo and Redo availability is exposed programmatically and reflected in command enabled state.
+
+## Version History and Restore
+- Version History opens a read-only list of versions for the selected or active resource.
+- Restoring a version creates a new current version and preserves prior versions.
+- Historical versions remain immutable.
+
+## Compare Versions
+Compare Versions opens a read-only comparison window that includes:
+
+- difference summary counts
+- categorized changes (added, removed, modified)
+- previous/next difference navigation
+- export comparison to plain text
+
+Comparison presentation is informational and does not modify resources.
+
+## Properties Integration
+Project Properties and Resource Properties include History sections with:
+
+- history counts
+- version counts
+- latest activity summary
+- quick actions to open version history, compare versions, and restore previous version
+
+## Explorer and Dashboard Behavior
+- Explorer remains focused on current resources and does not add permanent history nodes.
+- Dashboard does not add a permanent history panel by default.

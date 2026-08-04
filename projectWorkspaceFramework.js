@@ -40,6 +40,13 @@ import {
     openSavedViewManagerFromCommand,
     openTagManagerFromCommand
 } from './resourceOrganizationFramework.js';
+import {
+    getHistoryFrameworkSnapshot,
+    getHistoryResourceSummary,
+    openCompareVersionsDialog,
+    openVersionHistoryFromCommand,
+    restorePreviousVersionFromCommand
+} from './historyFramework.js';
 
 const PROJECT_WORKSPACE_FORMAT = 'ART Project Workspace';
 const PROJECT_WORKSPACE_FORMAT_VERSION = '2.0';
@@ -894,11 +901,19 @@ function showProjectPropertiesDialog(triggerElement = null) {
         workspaceId: workspace.id
     });
     const validationIssues = validateWorkspaceRelationships(workspace);
+    const historySnapshot = getHistoryFrameworkSnapshot();
+    const historySummary = getHistoryResourceSummary({
+        resourceType: 'workspace',
+        resourceId: workspace.id,
+        resourceName: workspace.name,
+        workspaceId: workspace.id
+    });
 
     content.innerHTML = `
         <div class="workspace-dialog__tabs" role="tablist" aria-label="Project Properties tabs">
             <button id="workspace-properties-tab-general" type="button" role="tab" aria-selected="true" aria-controls="workspace-properties-panel-general">General</button>
             <button id="workspace-properties-tab-relationships" type="button" role="tab" aria-selected="false" aria-controls="workspace-properties-panel-relationships">Relationships</button>
+            <button id="workspace-properties-tab-history" type="button" role="tab" aria-selected="false" aria-controls="workspace-properties-panel-history">History</button>
         </div>
         <section id="workspace-properties-panel-general" role="tabpanel" aria-labelledby="workspace-properties-tab-general">
         <label for="workspace-properties-name">Project Name</label>
@@ -949,26 +964,84 @@ function showProjectPropertiesDialog(triggerElement = null) {
             </ul>
             <button id="btn-workspace-relationships-repair" type="button">Repair Relationships</button>
         </section>
+        <section id="workspace-properties-panel-history" role="tabpanel" aria-labelledby="workspace-properties-tab-history" hidden>
+            <h4>History Summary</h4>
+            <ul>
+                <li>Resource history entries: ${historySummary.historyCount}</li>
+                <li>Stored versions: ${historySummary.versionCount}</li>
+                <li>Application history entries: ${historySnapshot.historyEntryCount}</li>
+                <li>Undo stack depth: ${historySnapshot.undoCount}</li>
+                <li>Redo stack depth: ${historySnapshot.redoCount}</li>
+            </ul>
+            <h4>Recent Activity</h4>
+            <p>${escapeHtml(historySummary.latestHistoryEntry?.description || 'No history entries are available for this workspace.')}</p>
+            <h4>Version Actions</h4>
+            <div class="workspace-dialog__actions" role="group" aria-label="Workspace history actions">
+                <button id="btn-workspace-history-open" type="button">Version History...</button>
+                <button id="btn-workspace-history-compare" type="button" ${historySummary.canCompare ? '' : 'disabled'}>Compare Versions...</button>
+                <button id="btn-workspace-history-restore" type="button" ${historySummary.canRestorePrevious ? '' : 'disabled'}>Restore Previous Version...</button>
+            </div>
+        </section>
     `;
 
     const tabGeneral = document.getElementById('workspace-properties-tab-general');
     const tabRelationships = document.getElementById('workspace-properties-tab-relationships');
+    const tabHistory = document.getElementById('workspace-properties-tab-history');
     const panelGeneral = document.getElementById('workspace-properties-panel-general');
     const panelRelationships = document.getElementById('workspace-properties-panel-relationships');
+    const panelHistory = document.getElementById('workspace-properties-panel-history');
     const repairRelationshipsButton = document.getElementById('btn-workspace-relationships-repair');
+    const openHistoryButton = document.getElementById('btn-workspace-history-open');
+    const compareHistoryButton = document.getElementById('btn-workspace-history-compare');
+    const restoreHistoryButton = document.getElementById('btn-workspace-history-restore');
     const switchTab = (target) => {
-        if (!tabGeneral || !tabRelationships || !panelGeneral || !panelRelationships) return;
+        if (!tabGeneral || !tabRelationships || !tabHistory || !panelGeneral || !panelRelationships || !panelHistory) return;
         const showRelationships = target === 'relationships';
+        const showHistory = target === 'history';
         tabGeneral.setAttribute('aria-selected', String(!showRelationships));
         tabRelationships.setAttribute('aria-selected', String(showRelationships));
-        panelGeneral.hidden = showRelationships;
+        tabHistory.setAttribute('aria-selected', String(showHistory));
+        panelGeneral.hidden = showRelationships || showHistory;
         panelRelationships.hidden = !showRelationships;
+        panelHistory.hidden = !showHistory;
     };
     tabGeneral?.addEventListener('click', () => switchTab('general'));
     tabRelationships?.addEventListener('click', () => switchTab('relationships'));
+    tabHistory?.addEventListener('click', () => switchTab('history'));
     repairRelationshipsButton?.addEventListener('click', () => {
         repairWorkspaceRelationshipsFromCommand(repairRelationshipsButton);
         closeWorkspaceDialog(dialog, triggerElement);
+    });
+    openHistoryButton?.addEventListener('click', () => {
+        openVersionHistoryFromCommand({
+            resourceType: 'workspace',
+            resourceId: workspace.id,
+            resourceName: workspace.name,
+            workspaceId: workspace.id,
+            triggerElement: openHistoryButton
+        });
+    });
+    compareHistoryButton?.addEventListener('click', () => {
+        openCompareVersionsDialog({
+            resourceType: 'workspace',
+            resourceId: workspace.id,
+            resourceName: workspace.name,
+            workspaceId: workspace.id,
+            triggerElement: compareHistoryButton
+        });
+    });
+    restoreHistoryButton?.addEventListener('click', () => {
+        const restored = restorePreviousVersionFromCommand({
+            resourceType: 'workspace',
+            resourceId: workspace.id,
+            resourceName: workspace.name,
+            workspaceId: workspace.id,
+            triggerElement: restoreHistoryButton
+        });
+        if (restored?.ok) {
+            renderWorkspaceExplorer();
+            showProjectPropertiesDialog(triggerElement);
+        }
     });
 
     const closeDialogHandler = () => closeWorkspaceDialog(dialog, triggerElement);
@@ -1103,6 +1176,12 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
     const requestedMode = normalizeText(options.relationshipMode || 'all').toLowerCase() || 'all';
     const requestedSearch = normalizeText(options.relationshipSearch || document.getElementById('workspace-resource-relationship-search')?.value || '');
     const visibleRelationshipCategories = filterRelationshipCategories(details.relationships || [], requestedMode);
+    const historySummary = getHistoryResourceSummary({
+        resourceType: details.type,
+        resourceId: details.id,
+        resourceName: details.name,
+        workspaceId: active.id
+    });
 
     const relationshipRows = visibleRelationshipCategories.filter((category) => {
         const filterValue = requestedSearch.toLowerCase();
@@ -1115,6 +1194,7 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
         <div class="workspace-dialog__tabs" role="tablist" aria-label="Resource Properties tabs">
             <button id="workspace-resource-tab-overview" type="button" role="tab" aria-selected="true" aria-controls="workspace-resource-panel-overview">Overview</button>
             <button id="workspace-resource-tab-relationships" type="button" role="tab" aria-selected="false" aria-controls="workspace-resource-panel-relationships">Relationships</button>
+            <button id="workspace-resource-tab-history" type="button" role="tab" aria-selected="false" aria-controls="workspace-resource-panel-history">History</button>
         </div>
         <section id="workspace-resource-panel-overview" role="tabpanel" aria-labelledby="workspace-resource-tab-overview">
             <p><strong>Name:</strong> ${escapeHtml(details.name)}</p>
@@ -1149,20 +1229,38 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
                 `).join('') || '<p>No related resources are currently registered.</p>'}
             </div>
         </section>
+        <section id="workspace-resource-panel-history" role="tabpanel" aria-labelledby="workspace-resource-tab-history" hidden>
+            <p><strong>History entries:</strong> ${historySummary.historyCount}</p>
+            <p><strong>Stored versions:</strong> ${historySummary.versionCount}</p>
+            <p><strong>Latest activity:</strong> ${escapeHtml(historySummary.latestHistoryEntry?.description || 'No history entries are available for this resource.')}</p>
+            <div class="workspace-dialog__actions" role="group" aria-label="Resource history actions">
+                <button id="btn-workspace-resource-history-open" type="button">Version History...</button>
+                <button id="btn-workspace-resource-history-compare" type="button" ${historySummary.canCompare ? '' : 'disabled'}>Compare Versions...</button>
+                <button id="btn-workspace-resource-history-restore" type="button" ${historySummary.canRestorePrevious ? '' : 'disabled'}>Restore Previous Version...</button>
+            </div>
+        </section>
     `;
 
     const tabOverview = document.getElementById('workspace-resource-tab-overview');
     const tabRelationships = document.getElementById('workspace-resource-tab-relationships');
+    const tabHistory = document.getElementById('workspace-resource-tab-history');
     const panelOverview = document.getElementById('workspace-resource-panel-overview');
     const panelRelationships = document.getElementById('workspace-resource-panel-relationships');
+    const panelHistory = document.getElementById('workspace-resource-panel-history');
+    const openHistoryButton = document.getElementById('btn-workspace-resource-history-open');
+    const compareHistoryButton = document.getElementById('btn-workspace-resource-history-compare');
+    const restoreHistoryButton = document.getElementById('btn-workspace-resource-history-restore');
     const searchInput = document.getElementById('workspace-resource-relationship-search');
     const switchTab = (target) => {
-        if (!tabOverview || !tabRelationships || !panelOverview || !panelRelationships) return;
+        if (!tabOverview || !tabRelationships || !tabHistory || !panelOverview || !panelRelationships || !panelHistory) return;
         const showRelationships = target === 'relationships';
+        const showHistory = target === 'history';
         tabOverview.setAttribute('aria-selected', String(!showRelationships));
         tabRelationships.setAttribute('aria-selected', String(showRelationships));
-        panelOverview.hidden = showRelationships;
+        tabHistory.setAttribute('aria-selected', String(showHistory));
+        panelOverview.hidden = showRelationships || showHistory;
         panelRelationships.hidden = !showRelationships;
+        panelHistory.hidden = !showHistory;
         if (showRelationships && searchInput instanceof HTMLInputElement) {
             window.setTimeout(() => searchInput.focus(), 0);
         }
@@ -1170,9 +1268,12 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
 
     tabOverview?.addEventListener('click', () => switchTab('overview'));
     tabRelationships?.addEventListener('click', () => switchTab('relationships'));
+    tabHistory?.addEventListener('click', () => switchTab('history'));
 
     if (normalizeText(options.initialTab).toLowerCase() === 'relationships') {
         switchTab('relationships');
+    } else if (normalizeText(options.initialTab).toLowerCase() === 'history') {
+        switchTab('history');
     }
 
     searchInput?.addEventListener('input', () => {
@@ -1223,6 +1324,39 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
             relationshipMode: 'references'
         });
     };
+    openHistoryButton?.addEventListener('click', () => {
+        openVersionHistoryFromCommand({
+            resourceType: details.type,
+            resourceId: details.id,
+            resourceName: details.name,
+            workspaceId: active.id,
+            triggerElement: openHistoryButton
+        });
+    });
+    compareHistoryButton?.addEventListener('click', () => {
+        openCompareVersionsDialog({
+            resourceType: details.type,
+            resourceId: details.id,
+            resourceName: details.name,
+            workspaceId: active.id,
+            triggerElement: compareHistoryButton
+        });
+    });
+    restoreHistoryButton?.addEventListener('click', () => {
+        const restored = restorePreviousVersionFromCommand({
+            resourceType: details.type,
+            resourceId: details.id,
+            resourceName: details.name,
+            workspaceId: active.id,
+            triggerElement: restoreHistoryButton
+        });
+        if (restored?.ok) {
+            renderWorkspaceExplorer();
+            showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+                initialTab: 'history'
+            });
+        }
+    });
     previewDeletionButton.onclick = () => {
         openResourceDeletionAnalysisFromCommand(resourceType, resourceId, () => false, triggerElement);
     };

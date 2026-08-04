@@ -639,6 +639,16 @@ function isWorkspaceAction(action) {
         || action.startsWith('toggleSavedViewFavorite');
 }
 
+    function isHistoryAction(action) {
+        return action === 'undo'
+        || action === 'redo'
+        || action === 'openHistory'
+        || action === 'openVersionHistory'
+        || action === 'compareVersions'
+        || action === 'restorePreviousVersion'
+        || action === 'clearHistory';
+    }
+
 function isSettingsAction(action) {
     return action === 'openSettings' || action.startsWith('settings');
 }
@@ -667,6 +677,10 @@ function resolveContextMenuLocation(command) {
 
     if (isWorkspaceAction(action)) {
         return 'Workspace>Project Workspace';
+    }
+
+    if (isHistoryAction(action)) {
+        return 'Edit>History';
     }
 
     if (isTemplateAction(action)) {
@@ -740,6 +754,8 @@ function isActionEnabledByWorkspacePolicy(context, action) {
 function isActionAllowedForContext(context, command) {
     const action = normalizeText(command.action);
     if (!action) return false;
+
+    if (isHistoryAction(action)) return true;
 
     if (isActionEnabledByWorkspacePolicy(context, action)) return true;
 

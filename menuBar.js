@@ -3,6 +3,7 @@ import { commandRegistry } from './commandRegistry.js';
 import { searchCommands } from './commandSearchEngine.js';
 import { announce } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
+import { getRedoMenuLabel, getUndoMenuLabel } from './historyFramework.js';
 
 let menuBarInitialized = false;
 let menubarFocusIndex = 0;
@@ -321,6 +322,11 @@ function renderTopLevelButtons(roots) {
 
 function renderCommandItem(command, depth, itemIndex, parentPath) {
     const shortcut = command.keyboardShortcut || 'Unassigned';
+    const displayName = command.action === 'undo'
+        ? getUndoMenuLabel()
+        : command.action === 'redo'
+            ? getRedoMenuLabel()
+            : command.displayName;
     return `
         <button
             type="button"
@@ -334,7 +340,7 @@ function renderCommandItem(command, depth, itemIndex, parentPath) {
             aria-disabled="${String(!command.canExecute)}"
             tabindex="-1"
         >
-            <span>${escapeHtml(command.displayName)}</span>
+            <span>${escapeHtml(displayName)}</span>
             <span class="app-menu-bar__shortcut">${escapeHtml(shortcut)}</span>
         </button>
     `;

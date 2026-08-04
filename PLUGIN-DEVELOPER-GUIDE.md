@@ -39,6 +39,12 @@ Supported extension points include:
 - keyboardShortcuts (registered as unassigned by default)
 - workingViewProviders
 - validationRules
+- historyProviders
+- versionProviders
+- comparisonProviders
+- transactionParticipants
+- recoveryHandlers
+- historyEventSubscribers
 - tagProviders
 - collectionProviders
 - savedViewProviders
@@ -116,6 +122,30 @@ Guidance:
 Plugin package registration now supports `organization-metadata` package type.
 
 Use this package type for non-executable organization presets or migrations that should be tracked through Plugin & Package Manager metadata.
+
+## History, Versioning, and Recovery Integration
+ART includes a centralized History, Undo/Redo, and Versioning Framework.
+
+Plugins must consume this framework and must not implement independent history or undo stacks.
+
+Supported integration responsibilities:
+
+- publish history entries through framework service boundaries
+- contribute version providers for plugin-owned resources
+- contribute comparison providers for semantic diff support
+- register transaction participants for grouped operations
+- register recovery handlers for rollback-safe failure behavior
+- subscribe to history framework events for diagnostics or UI refresh
+
+History integration guidance:
+
+- use transaction descriptions that reflect user intent
+- keep rollback logic atomic and side-effect aware
+- return structured, accessible comparison metadata
+- avoid direct mutation from event subscribers
+
+## History Metadata Packages
+Plugin package registration supports `history-metadata` package type for non-executable history/version presets or migration artifacts.
 
 Example capability shape:
 ```json

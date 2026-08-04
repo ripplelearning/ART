@@ -11,6 +11,7 @@ ART 2.0 now also introduces a Global Context Menu Framework that generates conte
 ART Version 1.5 now also introduces a Plugin Framework that provides centralized lifecycle management and extension-point registration for plugins and packages.
 ART Version 1.5 now also introduces a Resource Relationship Framework that centralizes relationship registration, derivation, validation, navigation, and impact analysis across workspace resources.
 ART Version 1.5 now also introduces a Resource Organization Framework that centralizes non-destructive tags, collections, saved views, favorites, and metadata portability for workspace resources.
+ART Version 1.5 now also introduces a History, Undo/Redo, and Resource Versioning Framework that centralizes change tracking, transaction grouping, undo/redo, version history, restore, and comparison operations.
 
 ## Core Layers
 
@@ -101,6 +102,15 @@ ART Version 1.5 now also introduces a Resource Organization Framework that centr
 - Integrates with Universal Search through structured organization queries and provider-backed result execution.
 - Reconciles unresolved resource references and supports lifecycle-safe replacement/removal updates.
 
+### History, Undo/Redo, and Resource Versioning Framework
+- Provides the single authoritative history service for recording change entries, query/filter/search, and clear operations.
+- Provides centralized undo and redo stacks with transaction-based execution and desktop-style redo clearing on new operations.
+- Provides resource version history for versionable resources with restore that creates new current versions.
+- Provides comparison services with semantic-friendly difference summaries and read-only diff navigation.
+- Provides transaction and recovery services for grouped and nested operations with rollback-safe behavior.
+- Persists history/version metadata locally and applies retention policies without requiring cloud services.
+- Integrates with existing command, menu, context menu, properties, and plugin extension frameworks.
+
 ## Project Workspace Lifecycle
 
 Lifecycle commands are command-driven and include:
@@ -165,8 +175,9 @@ Standard workspace folders:
 - Integration metadata and plugin metadata are persisted at workspace scope.
 - Command registration supports future provider commands without architectural redesign.
 - Plugin extension points include commands, search providers, relationship providers, relationship validators, resource types, dashboard providers, explorer providers, context menu providers, working view providers, validation providers, and integration providers.
+- Plugin extension points include history providers, version providers, comparison providers, transaction participants, recovery handlers, and history event subscribers.
 - Plugin extension points include organization metadata providers and validators (tag providers, collection providers, saved view providers, organization validators).
-- Package extension points include accessibility standards, templates, keyboard profiles, working view presets, saved searches, dashboard layouts, organization metadata, and future package categories.
+- Package extension points include accessibility standards, templates, keyboard profiles, working view presets, saved searches, dashboard layouts, organization metadata, history metadata, and future package categories.
 
 ## UI Integration
 
@@ -225,6 +236,7 @@ Standard workspace folders:
 - Plugin lifecycle, extension-point registry, package registration, and extension diagnostics: [pluginFramework.js](pluginFramework.js)
 - Resource relationship derivation, relationship queries, deletion analysis, search indexing, diagnostics, and plugin relationship extensions: [resourceRelationshipFramework.js](resourceRelationshipFramework.js)
 - Resource organization metadata services, command workflows, explorer helpers, saved-view bridge APIs, and metadata portability: [resourceOrganizationFramework.js](resourceOrganizationFramework.js)
+- History services, undo/redo stacks, transactions, recovery, version history, and compare/restore dialogs: [historyFramework.js](historyFramework.js)
 - Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
 - Keyboard interaction and workspace shortcut tooltip synchronization: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
 - Command execution: [commandExecutionService.js](commandExecutionService.js)

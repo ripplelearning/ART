@@ -1,4 +1,16 @@
 // state.js
+import {
+    canRedo,
+    canUndo,
+    configureHistoryFrameworkStateAdapter,
+    getRedoDescription,
+    getUndoDescription,
+    notifyHistoryFrameworkStateReset,
+    recordStateChange,
+    requestRedo,
+    requestUndo,
+    setPendingHistoryAction as setCentralPendingHistoryAction
+} from './historyFramework.js';
 
 const defaultState = {
     reportTitle: "",
@@ -90,6 +102,13 @@ const defaultState = {
         focusLookup: 'Alt+Shift+L',
         focusMenuBar: 'F10',
         focusMenuSearch: 'Alt+Q',
+        undo: 'Ctrl+Z',
+        redo: 'Ctrl+Y',
+        openHistory: '',
+        openVersionHistory: '',
+        compareVersions: '',
+        restorePreviousVersion: '',
+        clearHistory: '',
         searchEverywhere: 'Ctrl+K',
         searchCurrentReport: '',
         searchCurrentProjectWorkspace: '',
@@ -1113,6 +1132,13 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'focusLookup', label: 'Focus Accessibility Lookup search', defaultShortcut: defaultState.shortcuts.focusLookup },
     { action: 'focusMenuBar', label: 'Focus Menu Bar', defaultShortcut: defaultState.shortcuts.focusMenuBar },
     { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search', defaultShortcut: defaultState.shortcuts.focusMenuSearch },
+    { action: 'undo', label: 'Undo', defaultShortcut: defaultState.shortcuts.undo },
+    { action: 'redo', label: 'Redo', defaultShortcut: defaultState.shortcuts.redo },
+    { action: 'openHistory', label: 'Open History', defaultShortcut: defaultState.shortcuts.openHistory },
+    { action: 'openVersionHistory', label: 'Open Version History', defaultShortcut: defaultState.shortcuts.openVersionHistory },
+    { action: 'compareVersions', label: 'Compare Versions', defaultShortcut: defaultState.shortcuts.compareVersions },
+    { action: 'restorePreviousVersion', label: 'Restore Previous Version', defaultShortcut: defaultState.shortcuts.restorePreviousVersion },
+    { action: 'clearHistory', label: 'Clear History', defaultShortcut: defaultState.shortcuts.clearHistory },
     { action: 'searchEverywhere', label: 'Search Everywhere', defaultShortcut: defaultState.shortcuts.searchEverywhere },
     { action: 'searchCurrentReport', label: 'Search Current Report', defaultShortcut: defaultState.shortcuts.searchCurrentReport },
     { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace', defaultShortcut: defaultState.shortcuts.searchCurrentProjectWorkspace },
@@ -1330,6 +1356,13 @@ export function getAssignableActions() {
         { action: 'openViewer', label: 'Open Report Viewer tab' },
         { action: 'openProgressLog', label: 'Open Progress Log' },
         { action: 'focusLookup', label: 'Focus Accessibility Lookup search' },
+        { action: 'undo', label: 'Undo' },
+        { action: 'redo', label: 'Redo' },
+        { action: 'openHistory', label: 'Open History' },
+        { action: 'openVersionHistory', label: 'Open Version History' },
+        { action: 'compareVersions', label: 'Compare Versions' },
+        { action: 'restorePreviousVersion', label: 'Restore Previous Version' },
+        { action: 'clearHistory', label: 'Clear History' },
         { action: 'searchEverywhere', label: 'Search Everywhere' },
         { action: 'searchCurrentReport', label: 'Search Current Report' },
         { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace' },
@@ -1799,17 +1832,6 @@ function normalizeStateSnapshot(rawState) {
 let isHistoryRestoreInProgress = false;
 let pendingHistoryAction = 'Updated report state';
 let lastSavedSnapshot = JSON.stringify(appState);
-const undoStack = [];
-const redoStack = [];
-const MAX_HISTORY_ENTRIES = 100;
-
-function pushUndoSnapshot(previousSnapshot) {
-    undoStack.push({
-        snapshot: previousSnapshot,
-        action: pendingHistoryAction
-    });
-    if (undoStack.length > MAX_HISTORY_ENTRIES) undoStack.shift();
-}
 
 function persistCurrentState() {
     localStorage.setItem('art-state', JSON.stringify(appState));
@@ -1822,6 +1844,97 @@ function setAppStateFromSnapshot(snapshot) {
     persistCurrentState();
     window.dispatchEvent(new CustomEvent('art-state-restored'));
 }
+
+function inferHistoryResourceFromDescription(description = '') {
+    const text = String(description || '').trim().toLowerCase();
+    if (!text) {
+        return {
+            resourceType: 'application',
+            resourceId: 'state',
+            resourceName: 'Application State'
+        };
+    }
+
+    if (text.includes('workspace')) {
+        return {
+            resourceType: 'workspace',
+            resourceId: String(appState.activeWorkspaceId || 'active-workspace').trim() || 'active-workspace',
+            resourceName: 'Project Workspace'
+        };
+    }
+
+    if (text.includes('report')) {
+        return {
+            resourceType: 'report',
+            resourceId: String(appState.selectedReportId || 'active-report').trim() || 'active-report',
+            resourceName: String(appState.reportTitle || 'Report').trim() || 'Report'
+        };
+    }
+
+    if (text.includes('template')) {
+        return {
+            resourceType: 'template',
+            resourceId: String(appState.templateEditingId || appState.templateOption || 'active-template').trim() || 'active-template',
+            resourceName: String(appState.templateName || 'Template').trim() || 'Template'
+        };
+    }
+
+    if (text.includes('standard')) {
+        return {
+            resourceType: 'accessibility-standard',
+            resourceId: String(appState.standard || 'active-standard').trim() || 'active-standard',
+            resourceName: String(appState.standard || 'Accessibility Standard').trim() || 'Accessibility Standard'
+        };
+    }
+
+    if (text.includes('tag')) {
+        return {
+            resourceType: 'tag',
+            resourceId: 'active-tag',
+            resourceName: 'Tag'
+        };
+    }
+
+    if (text.includes('collection')) {
+        return {
+            resourceType: 'collection',
+            resourceId: 'active-collection',
+            resourceName: 'Collection'
+        };
+    }
+
+    if (text.includes('saved view') || text.includes('working view')) {
+        return {
+            resourceType: 'saved-view',
+            resourceId: 'active-saved-view',
+            resourceName: 'Saved View'
+        };
+    }
+
+    return {
+        resourceType: 'application',
+        resourceId: 'state',
+        resourceName: 'Application State'
+    };
+}
+
+configureHistoryFrameworkStateAdapter({
+    getSnapshot: () => JSON.stringify(appState),
+    applySnapshot: (snapshot) => {
+        isHistoryRestoreInProgress = true;
+        try {
+            setAppStateFromSnapshot(snapshot);
+            return true;
+        } finally {
+            isHistoryRestoreInProgress = false;
+        }
+    },
+    normalizeSnapshot: (snapshot) => {
+        const parsed = typeof snapshot === 'string' ? JSON.parse(snapshot) : snapshot;
+        return JSON.stringify(normalizeStateSnapshot(parsed));
+    },
+    inferResource: (_input, description) => inferHistoryResourceFromDescription(description)
+});
 
 function getCurrentReportSnapshotData() {
     return {
@@ -2539,13 +2652,18 @@ export function importTemplateWithConflictStrategy(templatePayload, strategy = '
 export function saveState(options = {}) {
     const action = String(options.action || pendingHistoryAction || 'Updated report state');
     const shouldRecordHistory = options.recordHistory !== false;
+    const previousSnapshot = lastSavedSnapshot;
     syncSelectedReportSnapshot();
     const nextSnapshot = JSON.stringify(appState);
 
     if (shouldRecordHistory && !isHistoryRestoreInProgress && nextSnapshot !== lastSavedSnapshot) {
         pendingHistoryAction = action;
-        pushUndoSnapshot(lastSavedSnapshot);
-        redoStack.length = 0;
+        recordStateChange({
+            description: action,
+            beforeSnapshot: previousSnapshot,
+            afterSnapshot: nextSnapshot,
+            resource: options.historyResource || inferHistoryResourceFromDescription(action)
+        });
     }
 
     const changed = nextSnapshot !== lastSavedSnapshot;
@@ -2572,48 +2690,55 @@ export function saveState(options = {}) {
 
 export function setHistoryAction(action) {
     pendingHistoryAction = String(action || 'Updated report state');
+    setCentralPendingHistoryAction(pendingHistoryAction);
 }
 
 export function undoState() {
-    if (undoStack.length === 0) {
+    if (!canUndo()) {
         announce('Nothing to undo.');
         return false;
     }
 
-    const currentSnapshot = JSON.stringify(appState);
-    const item = undoStack.pop();
-    redoStack.push({ snapshot: currentSnapshot, action: item.action });
-
-    isHistoryRestoreInProgress = true;
-    try {
-        setAppStateFromSnapshot(item.snapshot);
-    } finally {
-        isHistoryRestoreInProgress = false;
+    const result = requestUndo({ source: 'state-wrapper' });
+    if (!result.ok) {
+        announce('Undo failed.');
+        return false;
     }
 
-    announce(`Undo: ${item.action}.`);
+    announce(`Undo: ${result.description || getUndoDescription() || 'Completed action'}.`);
     return true;
 }
 
 export function redoState() {
-    if (redoStack.length === 0) {
+    if (!canRedo()) {
         announce('Nothing to redo.');
         return false;
     }
 
-    const currentSnapshot = JSON.stringify(appState);
-    const item = redoStack.pop();
-    undoStack.push({ snapshot: currentSnapshot, action: item.action });
-
-    isHistoryRestoreInProgress = true;
-    try {
-        setAppStateFromSnapshot(item.snapshot);
-    } finally {
-        isHistoryRestoreInProgress = false;
+    const result = requestRedo({ source: 'state-wrapper' });
+    if (!result.ok) {
+        announce('Redo failed.');
+        return false;
     }
 
-    announce(`Redo: ${item.action}.`);
+    announce(`Redo: ${result.description || getRedoDescription() || 'Completed action'}.`);
     return true;
+}
+
+export function canUndoState() {
+    return canUndo();
+}
+
+export function canRedoState() {
+    return canRedo();
+}
+
+export function getUndoStateDescription() {
+    return getUndoDescription();
+}
+
+export function getRedoStateDescription() {
+    return getRedoDescription();
 }
 
 export function getRecentReports() {
@@ -3689,8 +3814,7 @@ export function resetAllApplicationData() {
     localStorage.clear();
     appState = normalizeStateSnapshot(defaultState);
     lastSavedSnapshot = JSON.stringify(appState);
-    undoStack.length = 0;
-    redoStack.length = 0;
+    notifyHistoryFrameworkStateReset();
     persistCurrentState();
     window.dispatchEvent(new Event('art-state-restored'));
     window.dispatchEvent(new Event('art-reports-updated'));

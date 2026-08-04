@@ -209,3 +209,64 @@ These filters help target organization metadata quickly from Search Everywhere.
 Use Export Resource Organization Metadata and Import Resource Organization Metadata to migrate organization configuration.
 
 Organization metadata is also included in workspace import/export payloads where applicable.
+
+## History and Activity
+Use History to review recent ART changes.
+
+Access methods:
+
+- Edit > History
+- Command Palette
+- Menu Bar Command Search
+
+Use History to:
+
+- review recent actions
+- search recorded entries
+- clear retained history when needed
+
+## Undo and Redo
+Undo and Redo are transaction-based.
+
+- Undo shortcut: Ctrl+Z
+- Redo shortcut: Ctrl+Y
+- Alternate redo shortcut support may be available with Ctrl+Shift+Z
+
+Undo and Redo commands are configurable in Keyboard Shortcut Manager.
+
+If no action is available, commands remain visible but are unavailable.
+
+## Version History
+Versionable resources can expose Version History from context or command workflows.
+
+Version History provides:
+
+- ordered version list
+- timestamps and descriptions
+- restore actions
+- compare entry points
+
+Restoring creates a new current version and preserves prior versions.
+
+## Compare Versions
+Use Compare Versions to review differences between two versions.
+
+Comparison includes:
+
+- summary counts (added, removed, modified)
+- detailed differences
+- previous/next navigation
+- filter by difference type
+- export comparison report
+
+Comparison is read-only.
+
+## Properties History Sections
+Project Properties and Resource Properties include History tabs with:
+
+- history entry count
+- version count
+- latest recorded activity
+- version actions
+
+Use these tabs for quick history access without leaving existing workflows.

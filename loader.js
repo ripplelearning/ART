@@ -17,6 +17,7 @@ import { initReportViewsFramework } from './reportViewsFramework.js';
 import { initPluginFramework } from './pluginFramework.js';
 import { initializeResourceRelationshipFramework } from './resourceRelationshipFramework.js';
 import { initializeResourceOrganizationFramework } from './resourceOrganizationFramework.js';
+import { initializeHistoryFramework } from './historyFramework.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
 
@@ -189,6 +190,7 @@ function initializeApp() {
 
     // 1. Initialize global navigation and keyboard shortcuts
     runStartupStage('initResizableLayout', () => initResizableLayout());
+    runStartupStage('initializeHistoryFramework', () => initializeHistoryFramework());
     runStartupStage('registerApplicationCommands', () => registerApplicationCommands());
     runStartupStage('initNavListener', () => initNavListener());
     runStartupStage('setupTabs', () => setupTabs());

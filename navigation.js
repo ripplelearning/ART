@@ -1,5 +1,5 @@
 // navigation.js
-import { announce, appState, closeCurrentReportSession, getShortcutForAction, redoState, undoState } from './state.js';
+import { announce, appState, closeCurrentReportSession, getShortcutForAction } from './state.js';
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { renderBuilder } from './reportBuilder.js';
@@ -593,27 +593,10 @@ export function initNavigation() {
         const spellDialog = document.getElementById('editor-spellcheck-dialog');
         if (spellDialog && !spellDialog.hidden && spellDialog.contains(e.target)) return;
 
-        if (e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'z') {
-            e.preventDefault();
-            if (e.shiftKey) {
-                const didRedo = redoState();
-                if (didRedo) {
-                    const activeTab = document.querySelector('#top-tabs button[role="tab"][aria-selected="true"]');
-                    const renderFn = activeTab ? renderMap[activeTab.id] : null;
-                    if (renderFn) renderFn();
-                }
-            } else {
-                const didUndo = undoState();
-                if (didUndo) {
-                    const activeTab = document.querySelector('#top-tabs button[role="tab"][aria-selected="true"]');
-                    const renderFn = activeTab ? renderMap[activeTab.id] : null;
-                    if (renderFn) renderFn();
-                }
-            }
-            return;
+        let action = findShortcutAction(e);
+        if (!action && e.ctrlKey && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
+            action = 'redo';
         }
-
-        const action = findShortcutAction(e);
         if (!action) return;
 
         const isRegisteredShortcutAction = action === 'newReportFromTemplate'

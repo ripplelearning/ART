@@ -1,6 +1,8 @@
 import { commandRegistry } from './commandRegistry.js';
 import {
     announce,
+    canRedoState,
+    canUndoState,
     clearUniversalSearchHistory,
     createUserTemplateFromSelection,
     closeCurrentReportSession,
@@ -13,7 +15,9 @@ import {
     currentReportSupportsAuditEntries,
     getAssignableActions,
     getRecentReports,
+    getRedoStateDescription,
     getShortcutDefinitions,
+    getUndoStateDescription,
     hasUnsavedProjectChanges,
     importReportWithConflictStrategy,
     importTemplateWithConflictStrategy,
@@ -71,7 +75,7 @@ import {
 import { openProgressLogDialog } from './progressLog.js';
 import { requestViewerExportDialog, requestViewerPrintPreview, renderViewer } from './reportViewer.js';
 import { executeLookupCopyActionFromCommand, resetLookupFromCommand } from './lookupTool.js';
-import { executeAddFieldFromCommand, executeDoneFromCommand } from './reportBuilder.js';
+import { executeAddFieldFromCommand, executeDoneFromCommand, renderBuilder } from './reportBuilder.js';
 import {
     openConfigureDashboardFromCommand,
     openDashboardProjectFromCommand,
@@ -146,6 +150,13 @@ import {
     toggleReportViewModeFromCommand
 } from './reportViewsFramework.js';
 import {
+    clearHistoryFromCommand,
+    executeRedoFromCommand,
+    executeUndoFromCommand,
+    openCompareVersionsDialog,
+    openHistoryDialogFromCommand,
+    openVersionHistoryFromCommand,
+    restorePreviousVersionFromCommand,
     addSelectedResourceToCollectionFromCommand,
     assignTagToSelectedResourceFromCommand,
     createCollectionFromCommand,
@@ -166,6 +177,31 @@ import {
 } from './resourceOrganizationFramework.js';
 
 let commandsRegistered = false;
+
+function refreshActiveTabAfterHistoryAction() {
+    const activeTab = document.querySelector('#top-tabs button[role="tab"][aria-selected="true"]');
+    if (!(activeTab instanceof HTMLElement)) {
+        window.dispatchEvent(new Event('art-state-updated'));
+        return;
+    }
+
+    if (activeTab.id === 'tab-builder') {
+        void renderBuilder();
+        return;
+    }
+
+    if (activeTab.id === 'tab-editor') {
+        renderEditor();
+        return;
+    }
+
+    if (activeTab.id === 'tab-view') {
+        renderViewer();
+        return;
+    }
+
+    window.dispatchEvent(new Event('art-state-updated'));
+}
 
 function clearTemplateReferencesFromReports(templateId, templateName = '') {
     const targetId = String(templateId || '').trim();
@@ -221,6 +257,13 @@ function getDefaultMenuLocation(action, category) {
         case 'openCommandPalette': return 'View>Command Palette';
         case 'focusMenuBar': return 'View>Menu Bar';
         case 'focusMenuSearch': return 'View>Command Search';
+        case 'undo': return 'Edit>History';
+        case 'redo': return 'Edit>History';
+        case 'openHistory': return 'Edit>History';
+        case 'openVersionHistory': return 'Edit>History';
+        case 'compareVersions': return 'Edit>History';
+        case 'restorePreviousVersion': return 'Edit>History';
+        case 'clearHistory': return 'Edit>History';
         case 'searchEverywhere':
         case 'searchCurrentReport':
         case 'searchCurrentProjectWorkspace':
@@ -1283,6 +1326,85 @@ const COMMAND_DEFINITIONS = [
         category: 'Application',
         description: 'Move focus to the Menu Bar Command Search.',
         handler: () => focusMenuSearchFromCommand()
+    },
+    {
+        action: 'undo',
+        id: 'Edit.History.Undo',
+        category: 'Edit',
+        description: 'Undo the most recent undoable transaction.',
+        enabled: () => canUndoState(),
+        handler: () => {
+            const result = executeUndoFromCommand();
+            if (!result.ok) {
+                announce('Nothing to undo.');
+                return false;
+            }
+            refreshActiveTabAfterHistoryAction();
+            return true;
+        }
+    },
+    {
+        action: 'redo',
+        id: 'Edit.History.Redo',
+        category: 'Edit',
+        description: 'Redo the most recently undone transaction.',
+        enabled: () => canRedoState(),
+        handler: () => {
+            const result = executeRedoFromCommand();
+            if (!result.ok) {
+                announce('Nothing to redo.');
+                return false;
+            }
+            refreshActiveTabAfterHistoryAction();
+            return true;
+        }
+    },
+    {
+        action: 'openHistory',
+        id: 'Edit.History.Open',
+        category: 'Edit',
+        description: 'Open application change history.',
+        handler: (context) => openHistoryDialogFromCommand(context)
+    },
+    {
+        action: 'openVersionHistory',
+        id: 'Edit.History.VersionHistory',
+        category: 'Edit',
+        description: 'Open version history for the active or selected resource.',
+        handler: (context) => openVersionHistoryFromCommand(context)
+    },
+    {
+        action: 'compareVersions',
+        id: 'Edit.History.CompareVersions',
+        category: 'Edit',
+        description: 'Compare versions for the active or selected resource.',
+        handler: (context) => openCompareVersionsDialog(context)
+    },
+    {
+        action: 'restorePreviousVersion',
+        id: 'Edit.History.RestorePreviousVersion',
+        category: 'Edit',
+        description: 'Restore the previous version for the active or selected resource.',
+        handler: (context) => {
+            const result = restorePreviousVersionFromCommand(context);
+            if (!result?.ok) {
+                announce('No previous version is available to restore.');
+                return false;
+            }
+            refreshActiveTabAfterHistoryAction();
+            return true;
+        }
+    },
+    {
+        action: 'clearHistory',
+        id: 'Edit.History.Clear',
+        category: 'Edit',
+        description: 'Clear retained history entries and undo/redo stacks.',
+        handler: (context) => {
+            const confirmed = window.confirm('Clear history entries and undo/redo stacks? This cannot be undone.');
+            if (!confirmed) return false;
+            return Boolean(clearHistoryFromCommand(context)?.ok);
+        }
     },
     {
         action: 'searchEverywhere',
@@ -2522,7 +2644,14 @@ const COMMAND_DEFINITIONS = [
 ];
 
 function buildCommandDefinition(definition) {
-    const displayName = labelByAction.get(definition.action) || definition.action;
+    const baseDisplayName = labelByAction.get(definition.action) || definition.action;
+    const undoDescription = definition.action === 'undo' ? String(getUndoStateDescription() || '').trim() : '';
+    const redoDescription = definition.action === 'redo' ? String(getRedoStateDescription() || '').trim() : '';
+    const displayName = definition.action === 'undo' && undoDescription
+        ? `Undo ${undoDescription}`
+        : definition.action === 'redo' && redoDescription
+            ? `Redo ${redoDescription}`
+            : baseDisplayName;
     const keyboardShortcut = shortcutByAction.get(definition.action) || '';
     const menuLocation = definition.menuLocation || getDefaultMenuLocation(definition.action, definition.category);
 
