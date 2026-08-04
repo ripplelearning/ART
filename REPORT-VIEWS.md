@@ -10,6 +10,8 @@ A Working View can:
 - Sort findings by one or more configured fields.
 - Sort by up to 3 levels with per-level direction.
 - Filter findings by severity, status, reviewer, and tags.
+- Switch to Table mode for a column-based Working View with per-column menu controls.
+- Sort, group, and filter directly from accessible table header menus, including dynamic values and custom text filters.
 - Search within current report findings.
 - Save and reload reusable view presets.
 - Apply built-in presets for common triage and review workflows.
@@ -50,6 +52,7 @@ Mode commands:
 - setExpandedReportView
 - setReadingReportView
 - setReviewReportView
+- setTableReportView
 - toggleReportViewMode
 
 Integration commands:
@@ -91,6 +94,7 @@ The framework follows ART accessibility patterns:
 - live status updates for temporary mode and result counts
 - visible command shortcuts through existing tooltip and shortcut systems
 - predictable keyboard navigation for grouped findings and group summaries
+- accessible table header menu buttons for Table mode sort, grouping, and filtering controls
 - dialog-based configuration with labeled form controls for all grouping/sorting levels
 
 ## Explorer and Dashboard Deep Links
@@ -101,3 +105,5 @@ The framework follows ART accessibility patterns:
 ## Notes
 
 Apply Working View currently commits presentation ordering for Audit Log reports by reordering visible audit entries. For non-Audit report types, Apply keeps the view state and confirmation flow without mutating field content.
+
+Table mode preserves the same Working View lifecycle and adds a dynamic column-oriented presentation for the visible findings. Column menus support value-based sorting, value grouping, conformance-level grouping for WCAG columns, and exact or contains filtering.

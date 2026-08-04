@@ -9,10 +9,22 @@ import {
 import { activateTabCommand } from './navigation.js';
 import { setActivePanel, syncDocumentTitle } from './appIdentity.js';
 import { runUniversalSearch } from './universalSearchFramework.js';
+import { formatWcagCriterionDisplay, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 const STORAGE_KEY = 'art-report-views-v1';
 const GROUPABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type'];
 const SORTABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type', 'label'];
+const TABLE_COLUMNS = Object.freeze([
+    { field: 'label', label: 'Finding' },
+    { field: 'severity', label: 'Severity' },
+    { field: 'status', label: 'Status' },
+    { field: 'reviewer', label: 'Tester' },
+    { field: 'page', label: 'Page Name' },
+    { field: 'wcag', label: 'Success Criteria' },
+    { field: 'component', label: 'Component' },
+    { field: 'type', label: 'Type' },
+    { field: 'tags', label: 'Tags' }
+]);
 const BUILT_IN_PRESETS = [
     {
         id: 'preset-triage-severity-status',
@@ -62,6 +74,7 @@ const BUILT_IN_PRESETS = [
 ];
 
 let initialized = false;
+let activeTableColumnField = '';
 let workingViewStore = {
     presets: [],
     sessionsByReportId: {}
@@ -233,6 +246,11 @@ function defaultConfig() {
             outline: false
         },
         expandedGroups: {},
+        table: {
+            sortLevels: [],
+            groupLevels: [],
+            filters: {}
+        },
         selectedFindingId: '',
         scrollTop: 0,
         sourceTabId: getCurrentTabId(),
@@ -289,6 +307,341 @@ function compareByLevel(left, right, level) {
     if (a < b) return -1 * direction;
     if (a > b) return 1 * direction;
     return 0;
+}
+
+function getTableColumnLabel(field) {
+    const item = TABLE_COLUMNS.find((column) => column.field === field);
+    return item ? item.label : normalizeText(field);
+}
+
+function normalizeTableValue(value, field = '') {
+    if (field === 'tags' && Array.isArray(value)) {
+        return value.map((item) => normalizeText(item)).filter(Boolean).join(', ');
+    }
+
+    if (value && typeof value === 'object') {
+        if (isWcagCriterionFieldType(normalizeText(field))) {
+            const formatted = formatWcagCriterionDisplay(value);
+            if (formatted) return formatted;
+        }
+
+        if (Array.isArray(value)) {
+            return value.map((item) => normalizeText(item)).filter(Boolean).join(', ');
+        }
+    }
+
+    return normalizeText(value);
+}
+
+function getTableConformanceLevel(value) {
+    if (value && typeof value === 'object') {
+        const direct = normalizeText(value.level || value.conformanceLevel || value.conformance);
+        if (direct) return direct;
+        const formatted = formatWcagCriterionDisplay(value);
+        return getTableConformanceLevel(formatted);
+    }
+
+    const text = normalizeText(value);
+    if (!text) return '';
+
+    const directMatch = text.match(/\b(?:level\s*)?(AAA|AA|A)\b/i);
+    if (directMatch) return directMatch[1].toUpperCase();
+
+    const conformanceMatch = text.match(/\bconformance\s*[:\-]?\s*(AAA|AA|A)\b/i);
+    if (conformanceMatch) return conformanceMatch[1].toUpperCase();
+
+    return text;
+}
+
+function normalizeTableSortLevels(sortLevels) {
+    if (!Array.isArray(sortLevels)) return [];
+
+    const seen = new Set();
+    return sortLevels
+        .map((level) => {
+            const field = normalizeText(level?.field).toLowerCase();
+            if (!TABLE_COLUMNS.some((column) => column.field === field)) return null;
+            const direction = normalizeText(level?.direction).toLowerCase() === 'desc' ? 'desc' : 'asc';
+            const key = `${field}|${direction}`;
+            if (seen.has(key)) return null;
+            seen.add(key);
+            return { field, direction };
+        })
+        .filter(Boolean)
+        .slice(0, 3);
+}
+
+function normalizeTableGroupLevels(groupLevels) {
+    if (!Array.isArray(groupLevels)) return [];
+
+    const seen = new Set();
+    return groupLevels
+        .map((level) => {
+            const field = normalizeText(level?.field).toLowerCase();
+            if (!TABLE_COLUMNS.some((column) => column.field === field)) return null;
+            const mode = normalizeText(level?.mode).toLowerCase() === 'conformance' && field === 'wcag'
+                ? 'conformance'
+                : 'values';
+            const key = `${field}|${mode}`;
+            if (seen.has(key)) return null;
+            seen.add(key);
+            return { field, mode };
+        })
+        .filter(Boolean)
+        .slice(0, 3);
+}
+
+function normalizeTableFilters(filters) {
+    if (!filters || typeof filters !== 'object') return {};
+
+    const normalized = {};
+    Object.entries(filters).forEach(([field, value]) => {
+        const key = normalizeText(field).toLowerCase() === 'tag' ? 'tags' : normalizeText(field).toLowerCase();
+        if (!TABLE_COLUMNS.some((column) => column.field === key)) return;
+        const text = normalizeText(value?.value ?? value);
+        if (!text) return;
+        normalized[key] = {
+            value: text,
+            mode: normalizeText(value?.mode).toLowerCase() === 'exact' ? 'exact' : 'contains'
+        };
+    });
+
+    return normalized;
+}
+
+function normalizeTableConfig(config = {}) {
+    const table = config.table && typeof config.table === 'object' ? config.table : {};
+    const sortSource = Array.isArray(table.sortLevels) && table.sortLevels.length > 0 ? table.sortLevels : config.sortLevels;
+    const groupSource = Array.isArray(table.groupLevels) && table.groupLevels.length > 0 ? table.groupLevels : config.groupBy;
+    const filterSource = table.filters && Object.keys(table.filters).length > 0 ? table.filters : config.filters;
+    return {
+        sortLevels: normalizeTableSortLevels(sortSource),
+        groupLevels: normalizeTableGroupLevels(groupSource),
+        filters: normalizeTableFilters(filterSource || {})
+    };
+}
+
+function buildTableRows(findings) {
+    return normalizeArray(findings).map((finding, index) => ({
+        ...finding,
+        rowIndex: index,
+        columnValues: Object.fromEntries(TABLE_COLUMNS.map((column) => [column.field, normalizeTableValue(finding[column.field], column.field)]))
+    }));
+}
+
+function applyTableFilters(findings, tableConfig) {
+    const filters = tableConfig?.filters || {};
+    return normalizeArray(findings).filter((finding) => {
+        return Object.entries(filters).every(([field, filter]) => {
+            const normalizedField = normalizeText(field).toLowerCase();
+            if (!TABLE_COLUMNS.some((column) => column.field === normalizedField)) return true;
+            const filterValue = normalizeText(filter?.value);
+            if (!filterValue) return true;
+            const sourceValue = normalizeTableValue(finding[normalizedField], normalizedField).toLowerCase();
+            if (!sourceValue) return false;
+            if (normalizeText(filter?.mode).toLowerCase() === 'exact') {
+                return sourceValue === filterValue.toLowerCase();
+            }
+            return sourceValue.includes(filterValue.toLowerCase());
+        });
+    });
+}
+
+function applyTableSearch(findings, searchText) {
+    const text = normalizeText(searchText).toLowerCase();
+    if (!text) return findings;
+
+    return normalizeArray(findings).filter((finding) => {
+        const haystack = TABLE_COLUMNS.map((column) => normalizeTableValue(finding[column.field], column.field)).join(' ').toLowerCase();
+        return haystack.includes(text);
+    });
+}
+
+function applyTableSorting(findings, tableConfig) {
+    const levels = normalizeTableSortLevels(tableConfig?.sortLevels || []);
+
+    return normalizeArray(findings)
+        .map((finding, originalIndex) => ({ finding, originalIndex }))
+        .sort((left, right) => {
+            for (const level of levels) {
+                const direction = normalizeText(level.direction) === 'desc' ? -1 : 1;
+                const leftValue = normalizeFieldValueForSort(normalizeTableValue(left.finding[level.field], level.field));
+                const rightValue = normalizeFieldValueForSort(normalizeTableValue(right.finding[level.field], level.field));
+                if (leftValue < rightValue) return -1 * direction;
+                if (leftValue > rightValue) return 1 * direction;
+            }
+            return left.originalIndex - right.originalIndex;
+        })
+        .map((item) => item.finding);
+}
+
+function getTableGroupValue(finding, groupLevel) {
+    if (!groupLevel) return 'All Findings';
+    const field = normalizeText(groupLevel.field).toLowerCase();
+    const value = finding[field];
+    if (normalizeText(groupLevel.mode).toLowerCase() === 'conformance' && field === 'wcag') {
+        return getTableConformanceLevel(value) || 'Unspecified';
+    }
+    const text = normalizeTableValue(value, field);
+    return text || 'Unspecified';
+}
+
+function buildTableGroupTree(findings, tableConfig) {
+    const groupLevels = normalizeTableGroupLevels(tableConfig?.groupLevels || []);
+    if (!groupLevels.length) {
+        return [{ key: '__all__', label: 'All Findings', level: 0, findings: normalizeArray(findings) }];
+    }
+
+    function groupAtLevel(items, level, parentKey) {
+        const groupLevel = groupLevels[level];
+        const buckets = new Map();
+        items.forEach((item) => {
+            const value = getTableGroupValue(item, groupLevel);
+            const bucket = buckets.get(value) || [];
+            bucket.push(item);
+            buckets.set(value, bucket);
+        });
+
+        return [...buckets.entries()].map(([value, bucket]) => {
+            const key = parentKey ? `${parentKey}::${groupLevel.field}:${value}` : `${groupLevel.field}:${value}`;
+            const node = {
+                key,
+                label: `${getTableColumnLabel(groupLevel.field)}: ${value}`,
+                field: groupLevel.field,
+                value,
+                level,
+                count: bucket.length,
+                findings: level === groupLevels.length - 1 ? bucket : [],
+                children: []
+            };
+            if (level < groupLevels.length - 1) {
+                node.children = groupAtLevel(bucket, level + 1, key);
+            }
+            return node;
+        });
+    }
+
+    return groupAtLevel(normalizeArray(findings), 0, '');
+}
+
+function getTableColumnMenuValues(findings, field) {
+    const values = new Set();
+    normalizeArray(findings).forEach((finding) => {
+        const value = normalizeTableValue(finding[field], field);
+        if (value) values.add(value);
+    });
+    return [...values].sort((left, right) => left.localeCompare(right)).slice(0, 10);
+}
+
+function createTableCellMarkup(finding, field) {
+    const value = normalizeTableValue(finding[field], field);
+    return escapeHtml(value || '');
+}
+
+function getTableColumnSummaryText(tableConfig) {
+    const sortText = (tableConfig?.sortLevels || [])
+        .map((level) => `${getTableColumnLabel(level.field)} (${normalizeText(level.direction) === 'desc' ? 'Descending' : 'Ascending'})`)
+        .join(', ') || 'None';
+    const groupText = (tableConfig?.groupLevels || [])
+        .map((level) => `${getTableColumnLabel(level.field)}${normalizeText(level.mode) === 'conformance' ? ' by conformance level' : ''}`)
+        .join(', ') || 'None';
+    const filterText = Object.entries(tableConfig?.filters || {})
+        .map(([field, filter]) => {
+            const text = normalizeText(filter?.value);
+            if (!text) return '';
+            return `${getTableColumnLabel(field)} contains "${text}"`;
+        })
+        .filter(Boolean)
+        .join(', ') || 'None';
+
+    return { sortText, groupText, filterText };
+}
+
+function updateTableConfig(session, updateFn) {
+    if (!session || typeof updateFn !== 'function') return false;
+    const current = session.config && typeof session.config.table === 'object' ? session.config.table : {};
+    const next = updateFn({
+        sortLevels: normalizeTableSortLevels(current.sortLevels || []),
+        groupLevels: normalizeTableGroupLevels(current.groupLevels || []),
+        filters: normalizeTableFilters(current.filters || {})
+    });
+
+    session.config = {
+        ...session.config,
+        table: {
+            sortLevels: normalizeTableSortLevels(next?.sortLevels || []),
+            groupLevels: normalizeTableGroupLevels(next?.groupLevels || []),
+            filters: normalizeTableFilters(next?.filters || {})
+        }
+    };
+    setSession(session.reportId, session);
+    return true;
+}
+
+function setTableSortLevel(session, field, direction) {
+    return updateTableConfig(session, (table) => ({
+        ...table,
+        sortLevels: [{ field, direction }, ...table.sortLevels.filter((level) => level.field !== field)].slice(0, 3)
+    }));
+}
+
+function clearTableSortLevel(session, field) {
+    return updateTableConfig(session, (table) => ({
+        ...table,
+        sortLevels: table.sortLevels.filter((level) => level.field !== field)
+    }));
+}
+
+function setTableFilterValue(session, field, value, mode = 'contains') {
+    return updateTableConfig(session, (table) => ({
+        ...table,
+        filters: {
+            ...table.filters,
+            [field]: {
+                value,
+                mode
+            }
+        }
+    }));
+}
+
+function clearTableFilterValue(session, field) {
+    return updateTableConfig(session, (table) => {
+        const nextFilters = { ...table.filters };
+        delete nextFilters[field];
+        return {
+            ...table,
+            filters: nextFilters
+        };
+    });
+}
+
+function setTableGroupLevel(session, field, mode = 'values') {
+    return updateTableConfig(session, (table) => ({
+        ...table,
+        groupLevels: [{ field, mode }, ...table.groupLevels.filter((level) => level.field !== field)].slice(0, 3)
+    }));
+}
+
+function clearTableGroupLevel(session, field) {
+    return updateTableConfig(session, (table) => ({
+        ...table,
+        groupLevels: table.groupLevels.filter((level) => level.field !== field)
+    }));
+}
+
+function clearAllTableGroups(session) {
+    return updateTableConfig(session, (table) => ({
+        ...table,
+        groupLevels: []
+    }));
+}
+
+function clearAllTableSorts(session) {
+    return updateTableConfig(session, (table) => ({
+        ...table,
+        sortLevels: []
+    }));
 }
 
 function applyFilters(findings, config) {
@@ -387,6 +740,26 @@ function buildGroupTree(findings, config) {
 
 function createViewModel(config) {
     const source = getReportFindingRecords();
+    const normalizedMode = normalizeText(config?.mode).toLowerCase();
+
+    if (normalizedMode === 'table') {
+        const tableConfig = normalizeTableConfig(config);
+        const filtered = applyTableFilters(source, tableConfig);
+        const searched = applyTableSearch(filtered, config?.searchText);
+        const sorted = applyTableSorting(searched, tableConfig);
+        const groups = buildTableGroupTree(sorted, tableConfig);
+        return {
+            totalCount: source.length,
+            visibleCount: sorted.length,
+            findings: sorted,
+            groups,
+            table: {
+                columns: TABLE_COLUMNS,
+                config: tableConfig
+            }
+        };
+    }
+
     const filtered = applyFilters(source, config);
     const searched = applySearch(filtered, config);
     const sorted = applySorting(searched, config);
@@ -425,21 +798,30 @@ function getMainContainer() {
 }
 
 function renderSummary(config, model) {
-    const sortText = (config.sortLevels || []).map((level) => `${level.field} (${normalizeText(level.direction) === 'desc' ? 'Descending' : 'Ascending'})`).join(', ') || 'None';
-    const groupText = (config.groupBy || []).join(', ') || 'None';
+    const normalizedMode = normalizeText(config.mode).toLowerCase();
+    const tableSummary = normalizedMode === 'table' ? getTableColumnSummaryText(model.table?.config || normalizeTableConfig(config)) : null;
+    const sortText = tableSummary ? tableSummary.sortText : ((config.sortLevels || []).map((level) => `${level.field} (${normalizeText(level.direction) === 'desc' ? 'Descending' : 'Ascending'})`).join(', ') || 'None');
+    const groupText = tableSummary ? tableSummary.groupText : ((config.groupBy || []).join(', ') || 'None');
     const filterParts = [];
-    Object.entries(config.filters || {}).forEach(([key, value]) => {
-        if (!normalizeText(value)) return;
-        filterParts.push(`${key}=${value}`);
-    });
-    const filterText = filterParts.length ? filterParts.join(', ') : 'None';
+
+    if (tableSummary) {
+        filterParts.push(tableSummary.filterText);
+    } else {
+        Object.entries(config.filters || {}).forEach(([key, value]) => {
+            if (!normalizeText(value)) return;
+            filterParts.push(`${key}=${value}`);
+        });
+    }
+    const filterText = filterParts.filter(Boolean).join(', ') || 'None';
 
     return `
         <section class="report-views-summary" aria-labelledby="report-views-summary-heading">
             <h2 id="report-views-summary-heading">Working View Summary</h2>
+            <p>Mode: ${escapeHtml(getModeLabel(config.mode))}</p>
             <p>Grouped by: ${escapeHtml(groupText)}</p>
             <p>Sorted by: ${escapeHtml(sortText)}</p>
             <p>Filtered by: ${escapeHtml(filterText)}</p>
+            ${normalizedMode === 'table' ? '<p>Column menu buttons are available in the table header for per-column sorting, grouping, and filtering.</p>' : ''}
             <p>Showing ${model.visibleCount} of ${model.totalCount} findings.</p>
         </section>
     `;
@@ -508,8 +890,179 @@ function renderGroupNodes(nodes, config, reportType, offsetRef) {
     }).join('');
 }
 
+function renderTableRowButton(finding, index, reportType) {
+    const tagText = (finding.tags || []).join(', ');
+    const details = [
+        finding.severity ? `Severity: ${finding.severity}` : '',
+        finding.status ? `Status: ${finding.status}` : '',
+        finding.reviewer ? `Tester: ${finding.reviewer}` : '',
+        finding.page ? `Page: ${finding.page}` : '',
+        finding.wcag ? `Success Criteria: ${finding.wcag}` : '',
+        finding.component ? `Component: ${finding.component}` : '',
+        tagText ? `Tags: ${tagText}` : ''
+    ].filter(Boolean).join(' | ');
+
+    const isAudit = reportType === 'Audit Log' && Number.isInteger(finding.entryIndex) && finding.entryIndex >= 0;
+
+    return `
+        <button type="button" class="report-views-finding report-views-table-row-button" data-finding-id="${escapeHtml(finding.id)}" data-finding-index="${index}" data-entry-index="${isAudit ? finding.entryIndex : -1}" data-field-index="${Number.isInteger(finding.fieldIndex) ? finding.fieldIndex : -1}">
+            <span class="report-views-finding-title">${escapeHtml(finding.label)}</span>
+            <span class="report-views-finding-meta">${escapeHtml(details || 'No additional metadata')}</span>
+        </button>
+    `;
+}
+
+function renderWorkingViewTableHeader(columns, findings, tableConfig, activeField = '') {
+    const sortLevels = normalizeTableSortLevels(tableConfig?.sortLevels || []);
+    const filters = normalizeTableFilters(tableConfig?.filters || {});
+
+    return `
+        <thead>
+            <tr>
+                ${columns.map((column) => {
+                    const sort = sortLevels.find((level) => level.field === column.field);
+                    const filter = filters[column.field];
+                    const uniqueCount = getTableColumnMenuValues(findings, column.field).length;
+                    const currentState = [
+                        sort ? `Sorted ${normalizeText(sort.direction) === 'desc' ? 'descending' : 'ascending'}` : '',
+                        filter?.value ? `Filtered ${normalizeText(filter.mode) === 'exact' ? 'exactly' : 'by text'}` : '',
+                        uniqueCount > 0 ? `${uniqueCount} dynamic option${uniqueCount === 1 ? '' : 's'}` : ''
+                    ].filter(Boolean).join('. ');
+                    return `
+                        <th scope="col" id="working-view-table-col-${escapeHtml(column.field)}">
+                            <div class="working-view-table-header">
+                                <span>${escapeHtml(column.label)}</span>
+                                <button type="button" class="working-view-table-menu-button" data-working-view-table-column-menu="${escapeHtml(column.field)}" aria-haspopup="dialog" aria-controls="working-view-column-menu-dialog" aria-expanded="${activeField === column.field ? 'true' : 'false'}" aria-label="Open ${escapeHtml(column.label)} column menu">Menu</button>
+                            </div>
+                            ${currentState ? `<span class="working-view-table-header-status">${escapeHtml(currentState)}</span>` : ''}
+                        </th>
+                    `;
+                }).join('')}
+            </tr>
+        </thead>
+    `;
+}
+
+function renderWorkingViewTableBody(findings, reportType) {
+    if (!Array.isArray(findings) || findings.length === 0) {
+        return '<tbody><tr><td colspan="9">No findings match the current Table view criteria.</td></tr></tbody>';
+    }
+
+    return `
+        <tbody>
+            ${findings.map((finding, index) => `
+                <tr data-finding-id="${escapeHtml(finding.id)}">
+                    <th scope="row" headers="working-view-table-col-label">${renderTableRowButton(finding, index, reportType)}</th>
+                    <td headers="working-view-table-col-severity">${createTableCellMarkup(finding, 'severity')}</td>
+                    <td headers="working-view-table-col-status">${createTableCellMarkup(finding, 'status')}</td>
+                    <td headers="working-view-table-col-reviewer">${createTableCellMarkup(finding, 'reviewer')}</td>
+                    <td headers="working-view-table-col-page">${createTableCellMarkup(finding, 'page')}</td>
+                    <td headers="working-view-table-col-wcag">${createTableCellMarkup(finding, 'wcag')}</td>
+                    <td headers="working-view-table-col-component">${createTableCellMarkup(finding, 'component')}</td>
+                    <td headers="working-view-table-col-type">${createTableCellMarkup(finding, 'type')}</td>
+                    <td headers="working-view-table-col-tags">${createTableCellMarkup(finding, 'tags')}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+}
+
+function renderWorkingViewTable(findings, config, reportType, activeField = '') {
+    const columns = TABLE_COLUMNS;
+    return `
+        <div class="working-view-table-shell" aria-label="Working view table results">
+            <div class="working-view-table-scroll">
+                <table class="working-view-table">
+                    <caption class="sr-only">Working View table for ${escapeHtml(config.name || 'Working View')}</caption>
+                    ${renderWorkingViewTableHeader(columns, findings, config.table || {}, activeField)}
+                    ${renderWorkingViewTableBody(findings, reportType)}
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+function renderWorkingViewTableGroupNodes(nodes, config, reportType, activeField = '') {
+    return nodes.map((node) => {
+        const isExpanded = config.expandedGroups?.[node.key] !== false;
+
+        if (!node.children || node.children.length === 0) {
+            return `
+                <details class="report-views-group" data-group-key="${escapeHtml(node.key)}" ${isExpanded ? 'open' : ''}>
+                    <summary>${escapeHtml(node.label)} (${node.count || node.findings.length})</summary>
+                    ${renderWorkingViewTable(node.findings, config, reportType, activeField)}
+                </details>
+            `;
+        }
+
+        return `
+            <details class="report-views-group" data-group-key="${escapeHtml(node.key)}" ${isExpanded ? 'open' : ''}>
+                <summary>${escapeHtml(node.label)} (${node.count})</summary>
+                <div class="report-views-group-children">
+                    ${renderWorkingViewTableGroupNodes(node.children, config, reportType, activeField)}
+                </div>
+            </details>
+        `;
+    }).join('');
+}
+
+function buildWorkingViewColumnMenuBody(activeField, findings, session) {
+    const column = TABLE_COLUMNS.find((item) => item.field === activeField) || null;
+    if (!column) {
+        return `
+            <h2 id="working-view-column-menu-heading">Column Menu</h2>
+            <p>No column is selected.</p>
+            <form method="dialog"><button type="submit">Close</button></form>
+        `;
+    }
+
+    const tableConfig = normalizeTableConfig(session.config);
+    const sortLevel = tableConfig.sortLevels.find((level) => level.field === column.field) || null;
+    const groupLevel = tableConfig.groupLevels.find((level) => level.field === column.field) || null;
+    const filter = tableConfig.filters[column.field] || null;
+    const dynamicValues = getTableColumnMenuValues(findings, column.field);
+    const supportsConformanceGrouping = column.field === 'wcag';
+
+    return `
+            <h2 id="working-view-column-menu-heading">${escapeHtml(column.label)} Column Menu</h2>
+            <p id="working-view-column-menu-description">Choose sorting, grouping, or filtering options for this column.</p>
+            <section class="working-view-column-menu-section" aria-label="Sorting options">
+                <h3>Sort</h3>
+                <div class="viewer-dialog-actions" role="group" aria-label="Sort options">
+                    <button type="button" data-working-view-column-action="sort-asc" data-working-view-column="${escapeHtml(column.field)}">Sort Ascending</button>
+                    <button type="button" data-working-view-column-action="sort-desc" data-working-view-column="${escapeHtml(column.field)}">Sort Descending</button>
+                    <button type="button" data-working-view-column-action="sort-clear" data-working-view-column="${escapeHtml(column.field)}" ${sortLevel ? '' : 'disabled'}>Clear Sort</button>
+                </div>
+            </section>
+            <section class="working-view-column-menu-section" aria-label="Grouping options">
+                <h3>Group</h3>
+                <div class="viewer-dialog-actions" role="group" aria-label="Grouping options">
+                    <button type="button" data-working-view-column-action="group-values" data-working-view-column="${escapeHtml(column.field)}">Group by Values</button>
+                    ${supportsConformanceGrouping ? `<button type="button" data-working-view-column-action="group-conformance" data-working-view-column="${escapeHtml(column.field)}">Group by Conformance Level</button>` : ''}
+                    <button type="button" data-working-view-column-action="group-clear" data-working-view-column="${escapeHtml(column.field)}" ${groupLevel ? '' : 'disabled'}>Clear Grouping</button>
+                </div>
+            </section>
+            <section class="working-view-column-menu-section" aria-label="Filtering options">
+                <h3>Filter</h3>
+                <div class="working-view-column-menu-quick-values" aria-label="Dynamic filter options">
+                    ${dynamicValues.length > 0 ? dynamicValues.map((value) => `<button type="button" data-working-view-column-action="filter-exact" data-working-view-column="${escapeHtml(column.field)}" data-working-view-column-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join('') : '<p>No dynamic values available.</p>'}
+                </div>
+                <label for="working-view-column-filter-input">Filter values containing</label>
+                <input id="working-view-column-filter-input" type="text" value="${escapeHtml(filter?.value || '')}" list="working-view-column-filter-values">
+                ${dynamicValues.length > 0 ? `<datalist id="working-view-column-filter-values">${dynamicValues.map((value) => `<option value="${escapeHtml(value)}"></option>`).join('')}</datalist>` : ''}
+                <div class="viewer-dialog-actions" role="group" aria-label="Filter actions">
+                    <button type="button" data-working-view-column-action="filter-apply" data-working-view-column="${escapeHtml(column.field)}">Apply Filter</button>
+                    <button type="button" data-working-view-column-action="filter-clear" data-working-view-column="${escapeHtml(column.field)}" ${filter ? '' : 'disabled'}>Clear Filter</button>
+                </div>
+            </section>
+            <form method="dialog" class="viewer-dialog-actions">
+                <button type="submit">Close</button>
+            </form>
+    `;
+}
+
 function applyViewModeClasses(container, config) {
-    container.classList.remove('report-view-mode-standard', 'report-view-mode-working', 'report-view-mode-outline', 'report-view-mode-compact', 'report-view-mode-expanded', 'report-view-mode-reading', 'report-view-mode-review');
+    container.classList.remove('report-view-mode-standard', 'report-view-mode-working', 'report-view-mode-outline', 'report-view-mode-compact', 'report-view-mode-expanded', 'report-view-mode-reading', 'report-view-mode-review', 'report-view-mode-table');
     container.classList.add(`report-view-mode-${normalizeText(config.mode || 'working')}`);
 }
 
@@ -521,6 +1074,7 @@ function getModeLabel(mode) {
     if (value === 'expanded') return 'Expanded View';
     if (value === 'reading') return 'Reading View';
     if (value === 'review') return 'Review View';
+    if (value === 'table') return 'Table View';
     return 'Working View';
 }
 
@@ -558,10 +1112,20 @@ function renderWorkingView(session) {
         ? activeElementBeforeRender.id
         : '';
     const model = createViewModel(session.config);
+    const normalizedMode = normalizeText(session.config.mode).toLowerCase();
+    const isTableMode = normalizedMode === 'table';
 
     const heading = `Working View - ${session.config.name}`;
-    const breadcrumb = `Working View > Grouped by ${(session.config.groupBy || []).join(' > ') || 'None'} > Sorted by ${(session.config.sortLevels || []).map((item) => item.field).join(', ') || 'None'}`;
+    const tableConfig = model.table?.config || normalizeTableConfig(session.config);
+    const breadcrumb = isTableMode
+        ? `Table Working View > Grouped by ${(tableConfig.groupLevels || []).map((item) => `${getTableColumnLabel(item.field)}${normalizeText(item.mode) === 'conformance' ? ' (conformance level)' : ''}`).join(' > ') || 'None'} > Sorted by ${(tableConfig.sortLevels || []).map((item) => getTableColumnLabel(item.field)).join(', ') || 'None'}`
+        : `Working View > Grouped by ${(session.config.groupBy || []).join(' > ') || 'None'} > Sorted by ${(session.config.sortLevels || []).map((item) => item.field).join(', ') || 'None'}`;
     const offsetRef = { value: 0 };
+    const resultsMarkup = isTableMode
+        ? (model.groups.length === 1 && model.groups[0].key === '__all__'
+            ? renderWorkingViewTable(model.findings, session.config, normalizeText(appState.reportType), activeTableColumnField)
+            : renderWorkingViewTableGroupNodes(model.groups, session.config, normalizeText(appState.reportType), activeTableColumnField))
+        : renderGroupNodes(model.groups, session.config, normalizeText(appState.reportType), offsetRef);
 
     container.innerHTML = `
         <section id="report-working-view" aria-labelledby="report-working-view-heading">
@@ -598,8 +1162,13 @@ function renderWorkingView(session) {
             </div>
             ${renderSummary(session.config, model)}
             <div class="report-views-results" aria-label="Working view results">
-                ${renderGroupNodes(model.groups, session.config, normalizeText(appState.reportType), offsetRef)}
+                ${resultsMarkup}
             </div>
+            ${isTableMode ? `
+                <dialog id="working-view-column-menu-dialog" aria-labelledby="working-view-column-menu-heading" aria-describedby="working-view-column-menu-description">
+                    <div id="working-view-column-menu-body"></div>
+                </dialog>
+            ` : ''}
             <dialog id="working-view-config-dialog" aria-labelledby="working-view-config-heading">
                 <h2 id="working-view-config-heading">Working View Configuration</h2>
                 <label for="working-view-name">Working View Name</label>
@@ -613,6 +1182,7 @@ function renderWorkingView(session) {
                     <option value="expanded" ${session.config.mode === 'expanded' ? 'selected' : ''}>Expanded</option>
                     <option value="reading" ${session.config.mode === 'reading' ? 'selected' : ''}>Reading</option>
                     <option value="review" ${session.config.mode === 'review' ? 'selected' : ''}>Review</option>
+                    <option value="table" ${session.config.mode === 'table' ? 'selected' : ''}>Table</option>
                     <option value="standard" ${session.config.mode === 'standard' ? 'selected' : ''}>Standard</option>
                 </select>
 
@@ -725,6 +1295,28 @@ function updateSessionConfigFromDialog(session) {
             status: String(document.getElementById('working-view-filter-status')?.value || ''),
             reviewer: String(document.getElementById('working-view-filter-reviewer')?.value || ''),
             tag: String(document.getElementById('working-view-filter-tag')?.value || '')
+        },
+        table: mode === 'table'
+            ? {
+                ...(session.config.table || {}),
+                sortLevels,
+                groupLevels: groupValues.map((field) => ({
+                    field,
+                    mode: field === 'wcag' ? 'conformance' : 'values'
+                })),
+                filters: {
+                    ...(normalizeTableFilters(session.config.table?.filters || {})),
+                    severity: String(document.getElementById('working-view-filter-severity')?.value || ''),
+                    status: String(document.getElementById('working-view-filter-status')?.value || ''),
+                    reviewer: String(document.getElementById('working-view-filter-reviewer')?.value || ''),
+                    tags: String(document.getElementById('working-view-filter-tag')?.value || '')
+                }
+            }
+            : session.config.table || {
+                sortLevels: [],
+                groupLevels: [],
+                filters: {}
+            }
         }
     };
 }
@@ -821,6 +1413,49 @@ function runBatchActionPrompt(session, key, label, options = {}) {
 
 function bindWorkingViewInteractions(session, model) {
     const dialog = document.getElementById('working-view-config-dialog');
+    const columnMenuDialog = document.getElementById('working-view-column-menu-dialog');
+    const columnMenuBody = document.getElementById('working-view-column-menu-body');
+    const isTableMode = normalizeText(session.config.mode).toLowerCase() === 'table';
+
+    const openColumnMenu = (field) => {
+        if (!isTableMode || !columnMenuDialog || !columnMenuBody) return;
+        activeTableColumnField = normalizeText(field).toLowerCase();
+        columnMenuBody.innerHTML = buildWorkingViewColumnMenuBody(activeTableColumnField, model.findings, session);
+        if (typeof columnMenuDialog.showModal === 'function' && !columnMenuDialog.open) {
+            columnMenuDialog.showModal();
+        }
+        window.setTimeout(() => {
+            document.getElementById('working-view-column-filter-input')?.focus();
+        }, 0);
+    };
+
+    const handleColumnMenuAction = (action, field, value) => {
+        if (!field) return;
+
+        if (action === 'sort-asc' || action === 'sort-desc') {
+            setTableSortLevel(session, field, action === 'sort-desc' ? 'desc' : 'asc');
+        } else if (action === 'sort-clear') {
+            clearTableSortLevel(session, field);
+        } else if (action === 'group-values') {
+            setTableGroupLevel(session, field, 'values');
+        } else if (action === 'group-conformance') {
+            setTableGroupLevel(session, field, 'conformance');
+        } else if (action === 'group-clear') {
+            clearTableGroupLevel(session, field);
+        } else if (action === 'filter-exact') {
+            setTableFilterValue(session, field, value, 'exact');
+        } else if (action === 'filter-apply') {
+            const input = document.getElementById('working-view-column-filter-input');
+            setTableFilterValue(session, field, String(input?.value || ''), 'contains');
+        } else if (action === 'filter-clear') {
+            clearTableFilterValue(session, field);
+        }
+
+        activeTableColumnField = '';
+        columnMenuDialog?.close();
+        renderWorkingView(session);
+        announce(`Updated ${getTableColumnLabel(field)} column.`);
+    };
 
     document.getElementById('btn-working-view-apply-built-in-preset')?.addEventListener('click', () => {
         const presetId = normalizeText(document.getElementById('working-view-built-in-preset')?.value);
@@ -840,6 +1475,27 @@ function bindWorkingViewInteractions(session, model) {
         setSession(session.reportId, session);
         renderWorkingView(session);
         announce(`Applied built-in preset: ${preset.name}.`);
+    });
+
+    document.querySelectorAll('[data-working-view-table-column-menu]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const field = normalizeText(button.getAttribute('data-working-view-table-column-menu')).toLowerCase();
+            openColumnMenu(field);
+        });
+    });
+
+    columnMenuDialog?.addEventListener('click', (event) => {
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (!target) return;
+        const action = normalizeText(target.getAttribute('data-working-view-column-action')).toLowerCase();
+        const field = normalizeText(target.getAttribute('data-working-view-column')).toLowerCase();
+        if (!action || !field) return;
+        event.preventDefault();
+        handleColumnMenuAction(action, field, normalizeText(target.getAttribute('data-working-view-column-value')));
+    });
+
+    columnMenuDialog?.addEventListener('close', () => {
+        activeTableColumnField = '';
     });
 
     document.getElementById('btn-working-view-open-config')?.addEventListener('click', () => {
@@ -993,6 +1649,11 @@ function bindWorkingViewInteractions(session, model) {
     root?.addEventListener('keydown', (event) => {
         const active = document.activeElement;
         if (event.key === 'Escape') {
+            if (columnMenuDialog?.open) {
+                event.preventDefault();
+                columnMenuDialog.close();
+                return;
+            }
             const dialogOpen = Boolean(dialog && dialog.open);
             if (dialogOpen) {
                 event.preventDefault();
@@ -1502,6 +2163,7 @@ export function initReportViewsFramework() {
 
     window.addEventListener('art-working-view-reveal-request', (event) => {
         const detail = event?.detail || {};
+    activeTableColumnField = '';
         openWorkingViewFromCommand({
             showConfig: false,
             config: {

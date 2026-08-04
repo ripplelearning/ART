@@ -272,6 +272,7 @@ function getDefaultMenuLocation(action, category) {
         case 'setExpandedReportView':
         case 'setReadingReportView':
         case 'setReviewReportView':
+        case 'setTableReportView':
         case 'toggleReportViewMode':
         case 'addField':
         case 'done':
@@ -1300,6 +1301,13 @@ const COMMAND_DEFINITIONS = [
         category: 'Report',
         description: 'Use Review View mode.',
         handler: () => runSetReportViewModeWorkflow('review')
+    },
+    {
+        action: 'setTableReportView',
+        id: 'ReportViews.SetTableMode',
+        category: 'Report',
+        description: 'Use Table View mode.',
+        handler: () => runSetReportViewModeWorkflow('table')
     },
     {
         action: 'toggleReportViewMode',
