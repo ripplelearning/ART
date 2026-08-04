@@ -150,13 +150,6 @@ import {
     toggleReportViewModeFromCommand
 } from './reportViewsFramework.js';
 import {
-    clearHistoryFromCommand,
-    executeRedoFromCommand,
-    executeUndoFromCommand,
-    openCompareVersionsDialog,
-    openHistoryDialogFromCommand,
-    openVersionHistoryFromCommand,
-    restorePreviousVersionFromCommand,
     addSelectedResourceToCollectionFromCommand,
     assignTagToSelectedResourceFromCommand,
     createCollectionFromCommand,
@@ -175,6 +168,15 @@ import {
     replaceOrganizationResourceReferences,
     toggleFavorite
 } from './resourceOrganizationFramework.js';
+import {
+    clearHistoryFromCommand,
+    executeRedoFromCommand,
+    executeUndoFromCommand,
+    openCompareVersionsDialog,
+    openHistoryDialogFromCommand,
+    openVersionHistoryFromCommand,
+    restorePreviousVersionFromCommand
+} from './historyFramework.js';
 
 let commandsRegistered = false;
 

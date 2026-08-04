@@ -493,7 +493,8 @@ function executeCommand(command) {
     }).then((result) => {
         if (result?.ok) {
             announce(`Executed ${command.displayName}.`);
-            closeAllMenus(true);
+            const hasOpenDialog = Boolean(document.querySelector('[role="dialog"]:not([hidden])'));
+            closeAllMenus(!hasOpenDialog);
             return;
         }
 
