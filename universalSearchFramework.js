@@ -1,5 +1,7 @@
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
+import { revealWorkspaceResourceFromCommand } from './projectWorkspaceFramework.js';
+import { buildRelationshipSearchIndex } from './resourceRelationshipFramework.js';
 import {
     announce,
     appState,
@@ -400,6 +402,25 @@ function buildProjectAssetProviderResults(queryModel) {
     return assets;
 }
 
+function buildRelationshipProviderResults(queryModel) {
+    const indexedRelationships = buildRelationshipSearchIndex();
+    return indexedRelationships
+        .filter((item) => matchesQueryText(item.searchableText, queryModel))
+        .map((item) => ({
+            id: item.id,
+            type: 'relationship-match',
+            title: item.resource.name,
+            subtitle: `Relationship Match | ${item.category.label}`,
+            description: item.category.resources.length > 0
+                ? item.category.resources.map((resource) => resource.name).slice(0, 3).join(', ')
+                : `${item.category.count} related resource${item.category.count === 1 ? '' : 's'}`,
+            score: scoreTextMatch(item.searchableText, queryModel) + 0.15,
+            resourceType: item.resource.type,
+            workspaceId: item.resource.workspaceId,
+            raw: item
+        }));
+}
+
 function buildHelpProviderResults(queryModel) {
     const candidates = [
         { id: 'help:user-guide', title: 'ART User Guide and Documentation', description: 'Integrated Help content and navigation.', anchor: '#help-heading' },
@@ -475,6 +496,18 @@ function registerBuiltInProviders() {
             advertisedFields: ['name', 'source']
         },
         search: ({ queryModel }) => buildTemplateProviderResults(queryModel)
+    });
+
+    registerUniversalSearchProvider({
+        id: 'resource-relationships',
+        name: 'Resource Relationships',
+        priority: 35,
+        capabilities: {
+            scopes: ['workspace', 'project-workspace', 'reports', 'templates', 'project-assets'],
+            itemTypes: ['relationship-match'],
+            advertisedFields: ['relationshipType', 'resourceName', 'relatedResource', 'workspaceScope']
+        },
+        search: ({ queryModel }) => buildRelationshipProviderResults(queryModel)
     });
 
     registerUniversalSearchProvider({
@@ -555,6 +588,7 @@ function resolveProviderIdsForScope(scope) {
         case 'commands': return ['commands'];
         case 'reports': return ['reports'];
         case 'templates': return ['templates'];
+        case 'relationships': return ['resource-relationships'];
         case 'standards': return ['accessibility-standards'];
         case 'shortcuts': return ['shortcuts'];
         case 'project-workspace': return ['project-workspaces'];
@@ -995,6 +1029,14 @@ export function executeUniversalSearchResult(result) {
             }, 0);
         }
         return true;
+    }
+
+    if (item.type === 'relationship-match' && item.raw?.resource?.id && item.raw?.resource?.type) {
+        return revealWorkspaceResourceFromCommand(item.raw.resource.type, item.raw.resource.id, {
+            workspaceId: item.raw.resource.workspaceId,
+            select: true,
+            focus: true
+        });
     }
 
     return false;

@@ -27,6 +27,8 @@ Supported extension points include:
 
 - commands
 - searchProviders
+- relationshipProviders
+- relationshipValidators
 - resourceTypes
 - reportTypes
 - importProviders
@@ -66,11 +68,54 @@ Plugin UI and interactions must:
 
 ## Best Practices
 - Use existing ART frameworks and commands.
+- Register relationships through the Resource Relationship Framework instead of storing duplicate relationship state in plugin-owned structures.
 - Keep plugin scope focused.
 - Avoid assigning default keyboard shortcuts unless explicitly requested.
 - Treat failures as isolated; do not block startup.
 - Keep permission declarations minimal and explicit.
 - Keep dependency declarations accurate and stable across updates.
+
+## Relationship Providers and Validators
+Relationship providers may contribute computed or organization-specific relationships.
+
+Relationship validators may contribute additional rules such as:
+
+- dependency constraints
+- organization policy checks
+- compatibility checks between resource types
+
+Provider and validator guidance:
+
+- return normalized resource relationship records
+- prefer computed relationships over copying existing resource data
+- keep validation side-effect free
+- publish diagnostics through framework failures rather than direct UI changes
+
+Example capability shape:
+```json
+{
+  "pluginId": "org.example.relationships",
+  "displayName": "Sample Relationship Provider",
+  "description": "Adds computed relationships.",
+  "version": "1.0.0",
+  "author": "Example Team",
+  "publisher": "Example Org",
+  "license": "MIT",
+  "supportedArtVersion": "1.5",
+  "capabilities": {
+    "relationshipProviders": [
+      {
+        "id": "org.example.provider"
+      }
+    ],
+    "relationshipValidators": [
+      {
+        "id": "org.example.validator"
+      }
+    ]
+  }
+}
+```
 
 ## Configuration Portability
 Plugin and package configuration can be exported/imported from Plugin & Package Manager.

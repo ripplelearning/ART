@@ -15,6 +15,7 @@ import { registerApplicationCommands } from './commandCatalog.js';
 import { initExplorerFramework } from './explorerFramework.js';
 import { initReportViewsFramework } from './reportViewsFramework.js';
 import { initPluginFramework } from './pluginFramework.js';
+import { initializeResourceRelationshipFramework } from './resourceRelationshipFramework.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
 
@@ -192,6 +193,7 @@ function initializeApp() {
     runStartupStage('setupTabs', () => setupTabs());
     runStartupStage('initApplicationIdentity', () => initApplicationIdentity());
     runStartupStage('initThemeEngine', () => initThemeEngine());
+    runStartupStage('initializeResourceRelationshipFramework', () => initializeResourceRelationshipFramework());
     runStartupStage('initializeUniversalSearchFramework', () => initializeUniversalSearchFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());

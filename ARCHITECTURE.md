@@ -9,6 +9,7 @@ ART 2.0 now also introduces a Project Workspace Framework that provides project-
 ART 2.0 now also introduces a Universal Search Framework that standardizes provider search, result aggregation, and search UI behavior.
 ART 2.0 now also introduces a Global Context Menu Framework that generates context-sensitive menus from context providers and registered commands.
 ART Version 1.5 now also introduces a Plugin Framework that provides centralized lifecycle management and extension-point registration for plugins and packages.
+ART Version 1.5 now also introduces a Resource Relationship Framework that centralizes relationship registration, derivation, validation, navigation, and impact analysis across workspace resources.
 
 ## Core Layers
 
@@ -83,6 +84,14 @@ ART Version 1.5 now also introduces a Plugin Framework that provides centralized
 - Tracks non-executable packages registered after existing ART workflows complete.
 - Exposes diagnostics and validation through the Settings-based Plugin & Package Manager.
 
+### Resource Relationship Framework
+- Uses the existing workspace relationship state as the authoritative persisted relationship store.
+- Derives additional relationships from current workspace resources instead of duplicating resource ownership.
+- Normalizes relationship types into shared categories including Contains, Uses, References, Depends On, Shared With, and Generated From.
+- Exposes query helpers for Explorer, Properties, deletion analysis, validation, and Universal Search.
+- Publishes relationship events and supports provider and validator extension points through the Plugin Framework.
+- Reconciles workspace relationship integrity automatically after report, template, and accessibility standard update events.
+
 ## Project Workspace Lifecycle
 
 Lifecycle commands are command-driven and include:
@@ -128,11 +137,16 @@ Standard workspace folders:
 
 - Project Assets are tracked as first-class workspace resources.
 - Asset metadata includes filename, category, tags, linked report ids, linked finding ids, timestamps, and relative paths.
-- Workspace relationships are modeled in a normalized structure suitable for future integration and plugin extension.
+- Workspace relationships are modeled in a normalized structure and consumed through the Resource Relationship Framework rather than ad hoc UI logic.
+- Derived relationships are computed from existing workspace resources and report metadata so ART can answer usage and impact questions without changing existing resource file formats.
+- Explorer renders virtual relationship nodes lazily beneath supported resources while preserving the underlying resource hierarchy.
+- Universal Search registers a relationship-aware provider that returns resources together with the relationship category that matched the query.
+- Project and resource properties dialogs consume shared relationship summaries and impact analysis instead of maintaining their own relationship model.
 
 ## Validation Architecture
 
 - Project workspace validation currently checks required project identity, resource structure availability, and duplicate relationship edges.
+- Relationship validation also checks registered relationship types, missing source or target resources, duplicate relationships, and self-referential containment.
 - Validation publishes workspace validation events for observability and future UI integration.
 
 ## Extensibility Points
@@ -141,7 +155,7 @@ Standard workspace folders:
 - Workspace resources support extension metadata for future plugin resource types.
 - Integration metadata and plugin metadata are persisted at workspace scope.
 - Command registration supports future provider commands without architectural redesign.
-- Plugin extension points include commands, search providers, resource types, dashboard providers, explorer providers, context menu providers, working view providers, validation providers, and integration providers.
+- Plugin extension points include commands, search providers, relationship providers, relationship validators, resource types, dashboard providers, explorer providers, context menu providers, working view providers, validation providers, and integration providers.
 - Package extension points include accessibility standards, templates, keyboard profiles, working view presets, saved searches, dashboard layouts, and future package categories.
 
 ## UI Integration
@@ -199,6 +213,7 @@ Standard workspace folders:
 - Universal search provider registry, query parsing, session state, and Search Everywhere dialog: [universalSearchFramework.js](universalSearchFramework.js)
 - Shared search results rendering and keyboard interaction controller: [searchResultsFramework.js](searchResultsFramework.js)
 - Plugin lifecycle, extension-point registry, package registration, and extension diagnostics: [pluginFramework.js](pluginFramework.js)
+- Resource relationship derivation, relationship queries, deletion analysis, search indexing, diagnostics, and plugin relationship extensions: [resourceRelationshipFramework.js](resourceRelationshipFramework.js)
 - Accessibility behavior: [menuBar.js](menuBar.js) and [commandPalette.js](commandPalette.js)
 - Keyboard interaction and workspace shortcut tooltip synchronization: [navigation.js](navigation.js) and [menuBar.js](menuBar.js)
 - Command execution: [commandExecutionService.js](commandExecutionService.js)

@@ -135,6 +135,11 @@ const defaultState = {
         removeProjectAsset: '',
         refreshWorkspaceAssets: '',
         openProjectProperties: 'Ctrl+Alt+P',
+        openResourceRelationships: '',
+        openResourceDependents: '',
+        openResourceReferences: '',
+        previewResourceDeletionImpact: '',
+        repairWorkspaceRelationships: '',
         openProjectStatistics: '',
         openWorkspaceSettings: '',
         openReport: '',
@@ -144,12 +149,16 @@ const defaultState = {
         resetLookup: 'Alt+Shift+D',
         closeReport: 'Alt+Shift+C',
         configureReport: '',
+        renameReport: '',
+        replaceReport: '',
         editReport: '',
         viewReport: '',
         deleteReport: '',
         newTemplate: '',
         useTemplate: '',
         openTemplate: '',
+        renameTemplate: '',
+        replaceTemplate: '',
         editTemplate: '',
         deleteTemplate: '',
         importTemplate: '',
@@ -1043,6 +1052,11 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'removeProjectAsset', label: 'Remove Project Asset', defaultShortcut: defaultState.shortcuts.removeProjectAsset },
     { action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets', defaultShortcut: defaultState.shortcuts.refreshWorkspaceAssets },
     { action: 'openProjectProperties', label: 'Open Project Properties', defaultShortcut: defaultState.shortcuts.openProjectProperties },
+    { action: 'openResourceRelationships', label: 'Show Resource Relationships', defaultShortcut: defaultState.shortcuts.openResourceRelationships },
+    { action: 'openResourceDependents', label: 'Show Resource Dependents', defaultShortcut: defaultState.shortcuts.openResourceDependents },
+    { action: 'openResourceReferences', label: 'Show Resource References', defaultShortcut: defaultState.shortcuts.openResourceReferences },
+    { action: 'previewResourceDeletionImpact', label: 'Preview Resource Deletion Impact', defaultShortcut: defaultState.shortcuts.previewResourceDeletionImpact },
+    { action: 'repairWorkspaceRelationships', label: 'Repair Workspace Relationships', defaultShortcut: defaultState.shortcuts.repairWorkspaceRelationships },
     { action: 'openProjectStatistics', label: 'Open Project Statistics', defaultShortcut: defaultState.shortcuts.openProjectStatistics },
     { action: 'openWorkspaceSettings', label: 'Open Workspace Settings', defaultShortcut: defaultState.shortcuts.openWorkspaceSettings },
     { action: 'openReport', label: 'Open/Import report', defaultShortcut: defaultState.shortcuts.openReport },
@@ -1052,12 +1066,16 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'resetLookup', label: 'Reset Accessibility Lookup Tool', defaultShortcut: defaultState.shortcuts.resetLookup },
     { action: 'closeReport', label: 'Close Report', defaultShortcut: defaultState.shortcuts.closeReport },
     { action: 'configureReport', label: 'Configure Report', defaultShortcut: defaultState.shortcuts.configureReport },
+    { action: 'renameReport', label: 'Rename Report', defaultShortcut: defaultState.shortcuts.renameReport },
+    { action: 'replaceReport', label: 'Replace Report', defaultShortcut: defaultState.shortcuts.replaceReport },
     { action: 'editReport', label: 'Edit Report', defaultShortcut: defaultState.shortcuts.editReport },
     { action: 'viewReport', label: 'View Report', defaultShortcut: defaultState.shortcuts.viewReport },
     { action: 'deleteReport', label: 'Delete Report', defaultShortcut: defaultState.shortcuts.deleteReport },
     { action: 'newTemplate', label: 'Create Template', defaultShortcut: defaultState.shortcuts.newTemplate },
     { action: 'useTemplate', label: 'Use Template', defaultShortcut: defaultState.shortcuts.useTemplate },
     { action: 'openTemplate', label: 'View Template', defaultShortcut: defaultState.shortcuts.openTemplate },
+    { action: 'renameTemplate', label: 'Rename Template', defaultShortcut: defaultState.shortcuts.renameTemplate },
+    { action: 'replaceTemplate', label: 'Replace Template', defaultShortcut: defaultState.shortcuts.replaceTemplate },
     { action: 'editTemplate', label: 'Edit Template', defaultShortcut: defaultState.shortcuts.editTemplate },
     { action: 'deleteTemplate', label: 'Delete Template', defaultShortcut: defaultState.shortcuts.deleteTemplate },
     { action: 'importTemplate', label: 'Import Template', defaultShortcut: defaultState.shortcuts.importTemplate },
@@ -1233,6 +1251,11 @@ export function getAssignableActions() {
         { action: 'removeProjectAsset', label: 'Remove Project Asset' },
         { action: 'refreshWorkspaceAssets', label: 'Refresh Workspace Assets' },
         { action: 'openProjectProperties', label: 'Open Project Properties' },
+        { action: 'openResourceRelationships', label: 'Show Resource Relationships' },
+        { action: 'openResourceDependents', label: 'Show Resource Dependents' },
+        { action: 'openResourceReferences', label: 'Show Resource References' },
+        { action: 'previewResourceDeletionImpact', label: 'Preview Resource Deletion Impact' },
+        { action: 'repairWorkspaceRelationships', label: 'Repair Workspace Relationships' },
         { action: 'openProjectStatistics', label: 'Open Project Statistics' },
         { action: 'openWorkspaceSettings', label: 'Open Workspace Settings' },
         { action: 'openReport', label: 'Open/Import report' },
@@ -1242,12 +1265,16 @@ export function getAssignableActions() {
         { action: 'resetLookup', label: 'Reset Accessibility Lookup Tool' },
         { action: 'closeReport', label: 'Close Report' },
         { action: 'configureReport', label: 'Configure Report' },
+        { action: 'renameReport', label: 'Rename Report' },
+        { action: 'replaceReport', label: 'Replace Report' },
         { action: 'editReport', label: 'Edit Report' },
         { action: 'viewReport', label: 'View Report' },
         { action: 'deleteReport', label: 'Delete Report' },
         { action: 'newTemplate', label: 'Create Template' },
         { action: 'useTemplate', label: 'Use Template' },
         { action: 'openTemplate', label: 'View Template' },
+        { action: 'renameTemplate', label: 'Rename Template' },
+        { action: 'replaceTemplate', label: 'Replace Template' },
         { action: 'editTemplate', label: 'Edit Template' },
         { action: 'deleteTemplate', label: 'Delete Template' },
         { action: 'importTemplate', label: 'Import Template' },
@@ -1918,6 +1945,7 @@ export function createUserTemplate(name, templateData) {
     });
     appState.userTemplates.push(template);
     saveState({ action: `Created template ${template.name}` });
+    window.dispatchEvent(new Event('art-templates-updated'));
     return template;
 }
 
@@ -1932,7 +1960,30 @@ export function deleteUserTemplate(templateId) {
     if (idx < 0) return null;
     const removed = appState.userTemplates.splice(idx, 1)[0];
     saveState({ action: `Deleted template ${removed.name}` });
+    window.dispatchEvent(new Event('art-templates-updated'));
     return removed;
+}
+
+export function renameUserTemplateById(templateId, newName) {
+    const idx = appState.userTemplates.findIndex((template) => template.id === templateId);
+    if (idx < 0) return null;
+
+    const name = String(newName || '').trim();
+    if (!name) return null;
+
+    const updatedTemplate = normalizeTemplate({
+        ...appState.userTemplates[idx],
+        name
+    });
+    appState.userTemplates[idx] = updatedTemplate;
+
+    if (String(appState.templateEditingId || '').trim() === templateId) {
+        appState.templateName = name;
+    }
+
+    saveState({ action: `Renamed template ${updatedTemplate.name}` });
+    window.dispatchEvent(new Event('art-templates-updated'));
+    return updatedTemplate;
 }
 
 export function saveCurrentReportToUserTemplate(templateId) {
@@ -1950,6 +2001,7 @@ export function saveCurrentReportToUserTemplate(templateId) {
     });
     appState.userTemplates[idx] = updatedTemplate;
     saveState({ action: `Saved template ${updatedTemplate.name}` });
+    window.dispatchEvent(new Event('art-templates-updated'));
     return updatedTemplate;
 }
 
@@ -2333,6 +2385,7 @@ export function importTemplateWithConflictStrategy(templatePayload, strategy = '
 
     appState.lastCreatedTemplateId = importedTemplate.id;
     saveState({ action: `Imported template ${importedTemplate.name}` });
+    window.dispatchEvent(new Event('art-templates-updated'));
     return importedTemplate;
 }
 
@@ -4170,6 +4223,34 @@ export function deleteReportById(reportId) {
     saveState({ action: `Deleted report ${removed.name}` });
     window.dispatchEvent(new Event('art-reports-updated'));
     return removed;
+}
+
+export function renameReportById(reportId, newName) {
+    const index = (appState.reports || []).findIndex((report) => report.id === reportId);
+    if (index < 0) return null;
+
+    const name = String(newName || '').trim();
+    if (!name) return null;
+
+    const current = appState.reports[index];
+    const updated = {
+        ...current,
+        name,
+        updatedAt: Date.now(),
+        data: {
+            ...current.data,
+            reportTitle: name
+        }
+    };
+    appState.reports[index] = updated;
+
+    if (String(appState.selectedReportId || '').trim() === reportId) {
+        appState.reportTitle = name;
+    }
+
+    saveState({ action: `Renamed report ${updated.name}` });
+    window.dispatchEvent(new Event('art-reports-updated'));
+    return updated;
 }
 
 export function reportNameExists(name) {

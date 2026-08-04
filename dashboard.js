@@ -156,6 +156,8 @@ function updateTemplateButtons(selectEl, buttons) {
     buttons.create.hidden = !isScratch;
     buttons.use.hidden = isScratch;
     buttons.open.hidden = isScratch;
+    buttons.rename.hidden = !isUserTemplate;
+    buttons.replace.hidden = !isUserTemplate;
     buttons.edit.hidden = isScratch;
     buttons.delete.hidden = !isUserTemplate;
     buttons.export.hidden = isScratch;
@@ -500,6 +502,22 @@ export function renderDashboard() {
     const btnDelete = document.getElementById('btn-template-delete');
     const btnTemplateImport = document.getElementById('btn-template-import');
     const btnTemplateExport = document.getElementById('btn-template-export');
+    const templateActionContainer = btnTemplateExport?.parentElement || btnDelete?.parentElement || null;
+    if (templateActionContainer && !document.getElementById('btn-template-rename')) {
+        const renameTemplateButton = document.createElement('button');
+        renameTemplateButton.type = 'button';
+        renameTemplateButton.id = 'btn-template-rename';
+        renameTemplateButton.textContent = 'Rename Template';
+        templateActionContainer.insertBefore(renameTemplateButton, btnEdit.nextSibling);
+
+        const replaceTemplateButton = document.createElement('button');
+        replaceTemplateButton.type = 'button';
+        replaceTemplateButton.id = 'btn-template-replace';
+        replaceTemplateButton.textContent = 'Replace Template';
+        templateActionContainer.insertBefore(replaceTemplateButton, btnDelete.nextSibling);
+    }
+    const btnTemplateRename = document.getElementById('btn-template-rename');
+    const btnTemplateReplace = document.getElementById('btn-template-replace');
     const templateStatus = document.getElementById('template-status');
     const deleteDialog = document.getElementById('template-delete-dialog');
     const deleteMessage = document.getElementById('template-delete-message');
@@ -520,6 +538,19 @@ export function renderDashboard() {
     const btnViewReportDashboard = document.getElementById('btn-view-report-dashboard');
     const btnDeleteReportDashboard = document.getElementById('btn-delete-report-dashboard');
     const reportActionContainer = btnViewReportDashboard?.parentElement || btnConfigureReport?.parentElement || null;
+    if (reportActionContainer && !document.getElementById('btn-rename-report-dashboard')) {
+        const renameReportButton = document.createElement('button');
+        renameReportButton.type = 'button';
+        renameReportButton.id = 'btn-rename-report-dashboard';
+        renameReportButton.textContent = 'Rename Report';
+        reportActionContainer.appendChild(renameReportButton);
+
+        const replaceReportButton = document.createElement('button');
+        replaceReportButton.type = 'button';
+        replaceReportButton.id = 'btn-replace-report-dashboard';
+        replaceReportButton.textContent = 'Replace Report';
+        reportActionContainer.appendChild(replaceReportButton);
+    }
     if (reportActionContainer && !document.getElementById('btn-open-working-view-dashboard')) {
         const openWorkingViewButton = document.createElement('button');
         openWorkingViewButton.type = 'button';
@@ -533,6 +564,8 @@ export function renderDashboard() {
         loadWorkingViewButton.textContent = 'Load Working View Preset';
         reportActionContainer.appendChild(loadWorkingViewButton);
     }
+    const btnRenameReportDashboard = document.getElementById('btn-rename-report-dashboard');
+    const btnReplaceReportDashboard = document.getElementById('btn-replace-report-dashboard');
     const btnOpenWorkingViewDashboard = document.getElementById('btn-open-working-view-dashboard');
     const btnLoadWorkingViewDashboard = document.getElementById('btn-load-working-view-dashboard');
     const reportMetricsList = document.getElementById('report-metrics-list');
@@ -554,11 +587,11 @@ export function renderDashboard() {
     const networkDetail = document.getElementById('network-activity-detail');
 
     if (
-        !btnNew || !btnOpenReport || !btnSaveProject || !btnSaveProjectAs || !btnImportData || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateImport || !btnTemplateExport || !templateStatus
+        !btnNew || !btnOpenReport || !btnSaveProject || !btnSaveProjectAs || !btnImportData || !builderTab || !editorTab || !templateSelect || !btnCreate || !btnUse || !btnOpen || !btnEdit || !btnDelete || !btnTemplateRename || !btnTemplateReplace || !btnTemplateImport || !btnTemplateExport || !templateStatus
         || !deleteDialog || !deleteMessage || !btnDeleteYes || !btnDeleteNo
         || !createDialog || !createNameInput || !btnCreateSave || !btnCreateCancel
         || !editConfirmDialog || !editConfirmMessage || !btnEditYes || !btnEditNo
-        || !recentReportsSelect || !btnCloseActiveReport || !btnConfigureReport || !btnEditReportDashboard || !btnViewReportDashboard || !btnDeleteReportDashboard
+        || !recentReportsSelect || !btnCloseActiveReport || !btnConfigureReport || !btnEditReportDashboard || !btnViewReportDashboard || !btnDeleteReportDashboard || !btnRenameReportDashboard || !btnReplaceReportDashboard
         || !btnOpenWorkingViewDashboard || !btnLoadWorkingViewDashboard
         || !reportMetricsList || !reportDeleteDialog || !reportDeleteMessage || !btnReportDeleteConfirm || !btnReportDeleteCancel
         || !importConflictDialog || !importConflictMessage || !btnImportReplace || !btnImportCopy || !btnImportCancel
@@ -1065,6 +1098,8 @@ export function renderDashboard() {
         create: btnCreate,
         use: btnUse,
         open: btnOpen,
+        rename: btnTemplateRename,
+        replace: btnTemplateReplace,
         edit: btnEdit,
         delete: btnDelete,
         export: btnTemplateExport
@@ -1137,6 +1172,8 @@ export function renderDashboard() {
         btnEditReportDashboard.disabled = !hasReportSelection;
         btnViewReportDashboard.disabled = !hasReportSelection;
         btnDeleteReportDashboard.disabled = !hasReportSelection;
+        btnRenameReportDashboard.disabled = !hasReportSelection;
+        btnReplaceReportDashboard.disabled = !hasReportSelection;
         btnOpenWorkingViewDashboard.disabled = !hasReportSelection;
         btnLoadWorkingViewDashboard.disabled = !hasReportSelection;
         btnCloseActiveReport.disabled = !hasReportSelection;
@@ -1355,6 +1392,14 @@ export function renderDashboard() {
         void executeDashboardAction('editTemplate', { templateId: selectedTemplateId });
     });
 
+    btnTemplateRename.addEventListener('click', () => {
+        void executeDashboardAction('renameTemplate', { templateId: templateSelect.value });
+    });
+
+    btnTemplateReplace.addEventListener('click', () => {
+        void executeDashboardAction('replaceTemplate', { templateId: templateSelect.value });
+    });
+
     btnEditYes.addEventListener('click', () => {
         if (!pendingEditTemplateId) return;
         const sourceTemplateId = pendingEditTemplateId;
@@ -1399,6 +1444,8 @@ export function renderDashboard() {
         btnEditReportDashboard.disabled = !hasReportSelection;
         btnViewReportDashboard.disabled = !hasReportSelection;
         btnDeleteReportDashboard.disabled = !hasReportSelection;
+        btnRenameReportDashboard.disabled = !hasReportSelection;
+        btnReplaceReportDashboard.disabled = !hasReportSelection;
         btnOpenWorkingViewDashboard.disabled = !hasReportSelection;
         btnLoadWorkingViewDashboard.disabled = !hasReportSelection;
         btnCloseActiveReport.disabled = !hasReportSelection;
@@ -1423,6 +1470,14 @@ export function renderDashboard() {
 
     btnViewReportDashboard.addEventListener('click', () => {
         void executeDashboardAction('viewReport', { reportId: recentReportsSelect.value });
+    });
+
+    btnRenameReportDashboard.addEventListener('click', () => {
+        void executeDashboardAction('renameReport', { reportId: recentReportsSelect.value });
+    });
+
+    btnReplaceReportDashboard.addEventListener('click', () => {
+        void executeDashboardAction('replaceReport', { reportId: recentReportsSelect.value });
     });
 
     btnOpenWorkingViewDashboard.addEventListener('click', () => {

@@ -1,5 +1,6 @@
 import { getApplicationInfo, getImportedAccessibilityStandards, getIntegrationStatusMap, getShortcutDefinitions, getUniversalSearchConfig, getUserTemplates } from './state.js';
 import { commandRegistry } from './commandRegistry.js';
+import { registerRelationshipProvider, registerRelationshipValidator } from './resourceRelationshipFramework.js';
 import { registerUniversalSearchProvider } from './universalSearchFramework.js';
 
 const PLUGIN_STORAGE_KEY = 'art-plugin-framework-state-v1';
@@ -18,6 +19,8 @@ const EXTENSION_POINTS = Object.freeze([
     'toolbars',
     'keyboardShortcuts',
     'searchProviders',
+    'relationshipProviders',
+    'relationshipValidators',
     'workingViewProviders',
     'validationRules',
     'accessibilityStandards',
@@ -402,6 +405,32 @@ function registerPluginCapabilities(plugin) {
                     registerUniversalSearchProvider(provider);
                 } catch (error) {
                     recordDiagnostic('warning', 'Search provider registration failed for plugin.', {
+                        pluginId,
+                        reason: String(error?.message || error)
+                    });
+                }
+            });
+        }
+
+        if (point === 'relationshipProviders') {
+            items.forEach((provider) => {
+                try {
+                    registerRelationshipProvider(provider);
+                } catch (error) {
+                    recordDiagnostic('warning', 'Relationship provider registration failed for plugin.', {
+                        pluginId,
+                        reason: String(error?.message || error)
+                    });
+                }
+            });
+        }
+
+        if (point === 'relationshipValidators') {
+            items.forEach((validator) => {
+                try {
+                    registerRelationshipValidator(validator);
+                } catch (error) {
+                    recordDiagnostic('warning', 'Relationship validator registration failed for plugin.', {
                         pluginId,
                         reason: String(error?.message || error)
                     });

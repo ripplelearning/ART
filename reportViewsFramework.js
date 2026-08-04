@@ -8,12 +8,27 @@ import {
 } from './state.js';
 import { activateTabCommand } from './navigation.js';
 import { setActivePanel, syncDocumentTitle } from './appIdentity.js';
+import { getPluginFrameworkSnapshot } from './pluginFramework.js';
 import { runUniversalSearch } from './universalSearchFramework.js';
 import { formatWcagCriterionDisplay, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 const STORAGE_KEY = 'art-report-views-v1';
-const GROUPABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type'];
-const SORTABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type', 'label'];
+const GROUPABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type', 'standard', 'template', 'attachment', 'relationship'];
+const SORTABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type', 'standard', 'template', 'attachment', 'relationship', 'label'];
+const WORKING_VIEW_FIELD_LABELS = Object.freeze({
+    severity: 'Severity',
+    status: 'Status',
+    reviewer: 'Reviewer',
+    wcag: 'Success Criteria',
+    page: 'Page',
+    component: 'Component',
+    type: 'Type',
+    standard: 'Accessibility Standard',
+    template: 'Template',
+    attachment: 'Attachment',
+    relationship: 'Relationship',
+    label: 'Finding'
+});
 const TABLE_COLUMNS = Object.freeze([
     { field: 'label', label: 'Finding' },
     { field: 'severity', label: 'Severity' },
@@ -23,6 +38,10 @@ const TABLE_COLUMNS = Object.freeze([
     { field: 'wcag', label: 'Success Criteria' },
     { field: 'component', label: 'Component' },
     { field: 'type', label: 'Type' },
+    { field: 'standard', label: 'Accessibility Standard' },
+    { field: 'template', label: 'Template' },
+    { field: 'attachment', label: 'Attachment' },
+    { field: 'relationship', label: 'Relationship Summary' },
     { field: 'tags', label: 'Tags' }
 ]);
 const BUILT_IN_PRESETS = [
@@ -67,7 +86,52 @@ const BUILT_IN_PRESETS = [
                 { field: 'wcag', direction: 'asc' },
                 { field: 'label', direction: 'asc' }
             ],
-            filters: { severity: '', status: '', reviewer: '', tag: '' },
+            filters: { severity: '', status: '', reviewer: '', tag: '', relationship: '' },
+            searchText: ''
+        }
+    },
+    {
+        id: 'preset-relationship-attachments',
+        name: 'Grouped by Attachment',
+        description: 'Temporarily group findings by attached evidence and supporting files.',
+        config: {
+            groupBy: ['attachment', 'page'],
+            sortLevels: [
+                { field: 'attachment', direction: 'asc' },
+                { field: 'page', direction: 'asc' },
+                { field: 'label', direction: 'asc' }
+            ],
+            filters: { severity: '', status: '', reviewer: '', tag: '', relationship: '' },
+            searchText: ''
+        }
+    },
+    {
+        id: 'preset-relationship-standards',
+        name: 'Grouped by Accessibility Standard',
+        description: 'Temporarily group findings by their related accessibility standard and criterion.',
+        config: {
+            groupBy: ['standard', 'wcag'],
+            sortLevels: [
+                { field: 'standard', direction: 'asc' },
+                { field: 'wcag', direction: 'asc' },
+                { field: 'label', direction: 'asc' }
+            ],
+            filters: { severity: '', status: '', reviewer: '', tag: '', relationship: '' },
+            searchText: ''
+        }
+    },
+    {
+        id: 'preset-relationship-shared-evidence',
+        name: 'Shared Evidence Review',
+        description: 'Temporarily group findings by shared relationship evidence and review status.',
+        config: {
+            groupBy: ['relationship', 'status'],
+            sortLevels: [
+                { field: 'relationship', direction: 'asc' },
+                { field: 'status', direction: 'asc' },
+                { field: 'label', direction: 'asc' }
+            ],
+            filters: { severity: '', status: '', reviewer: '', tag: '', relationship: '' },
             searchText: ''
         }
     }
@@ -82,6 +146,45 @@ let workingViewStore = {
 
 function normalizeText(value) {
     return String(value || '').trim();
+}
+
+function normalizeArray(value) {
+    return Array.isArray(value) ? value : [];
+}
+
+function getWorkingViewFieldLabel(field) {
+    const normalized = normalizeText(field).toLowerCase();
+    return WORKING_VIEW_FIELD_LABELS[normalized] || normalizeText(field);
+}
+
+function normalizeWorkingViewProviderPreset(entry, index = 0) {
+    const source = entry && typeof entry === 'object' ? entry : {};
+    const value = source.value && typeof source.value === 'object' ? source.value : source;
+    if (!value.config || typeof value.config !== 'object') return null;
+
+    return {
+        id: normalizeText(value.id || `plugin-working-view-${index + 1}`),
+        name: normalizeText(value.name || value.displayName || `Plugin Working View ${index + 1}`),
+        description: normalizeText(value.description || 'Plugin-provided Working View preset.'),
+        pluginId: normalizeText(source.pluginId || value.pluginId),
+        config: value.config,
+        source: 'plugin'
+    };
+}
+
+function getAvailableWorkingViewProviders() {
+    try {
+        const snapshot = getPluginFrameworkSnapshot();
+        return normalizeArray(snapshot?.extensionRegistry?.workingViewProviders)
+            .map((entry, index) => normalizeWorkingViewProviderPreset(entry, index))
+            .filter(Boolean);
+    } catch (error) {
+        return [];
+    }
+}
+
+function getAvailablePresetOptions() {
+    return [...BUILT_IN_PRESETS, ...getAvailableWorkingViewProviders()];
 }
 
 function ensureStoreShape() {
@@ -118,6 +221,83 @@ function getCurrentReportId() {
 
 function getCurrentReportName() {
     return normalizeText(appState.reportTitle) || 'Untitled Report';
+}
+
+function normalizeAttachmentList(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item) => {
+            if (!item || typeof item !== 'object') return null;
+            const name = normalizeText(item.name);
+            const dataBase64 = normalizeText(item.dataBase64);
+            if (!name || !dataBase64) return null;
+            return {
+                id: normalizeText(item.id),
+                name,
+                type: normalizeText(item.type || 'application/octet-stream')
+            };
+        })
+        .filter(Boolean);
+}
+
+function dedupeValues(values) {
+    const seen = new Set();
+    return normalizeArray(values).filter((value) => {
+        const normalized = normalizeText(value);
+        if (!normalized) return false;
+        const key = normalized.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function extractRelationshipMetadata(fieldValues = {}, fieldIndex = -1) {
+    const attachments = [];
+    const standards = [];
+    const reportStandard = normalizeText(appState.standard);
+    const templateName = normalizeText(appState.templateName || appState.templateOption);
+
+    normalizeArray(appState.fields).forEach((field, index) => {
+        if (fieldIndex >= 0 && index !== fieldIndex) return;
+        const rawValue = fieldValues[index];
+        if (!rawValue) return;
+
+        const attachmentList = normalizeAttachmentList(rawValue);
+        if (attachmentList.length > 0) {
+            attachments.push(...attachmentList.map((item) => item.name));
+        }
+
+        if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+            const directStandard = normalizeText(rawValue.standard || rawValue.standardName);
+            if (directStandard) standards.push(directStandard);
+        }
+
+        if (isWcagCriterionFieldType(normalizeText(field?.type)) || isWcagCriterionFieldType(normalizeText(field?.label))) {
+            const display = formatWcagCriterionDisplay(rawValue);
+            const fallbackStandard = normalizeText(rawValue?.standard || reportStandard);
+            if (fallbackStandard) standards.push(fallbackStandard);
+            if (!fallbackStandard && display && reportStandard) standards.push(reportStandard);
+        }
+    });
+
+    const standardValues = dedupeValues(standards.length > 0 ? standards : [reportStandard]);
+    const attachmentValues = dedupeValues(attachments);
+    const standardText = standardValues.join(', ');
+    const attachmentText = attachmentValues.join(', ');
+    const relationshipParts = [
+        standardText ? `Uses ${standardText}` : '',
+        templateName ? `Template ${templateName}` : '',
+        attachmentText ? `Evidence ${attachmentText}` : ''
+    ].filter(Boolean);
+
+    return {
+        standard: standardText,
+        template: templateName,
+        attachment: attachmentText,
+        relationship: relationshipParts.join(' | '),
+        attachmentCount: attachmentValues.length
+    };
 }
 
 function getCurrentTabId() {
@@ -172,6 +352,7 @@ function getAuditFindingRecords() {
         const findingType = indexMap.findingType >= 0 ? normalizeText(values[indexMap.findingType]) : '';
         const component = indexMap.component >= 0 ? normalizeText(values[indexMap.component]) : '';
         const tags = indexMap.tags >= 0 ? toTags(values[indexMap.tags]) : [];
+        const relationshipMetadata = extractRelationshipMetadata(values);
 
         return {
             id: normalizeText(entry?.id) || `entry-${entryIndex + 1}`,
@@ -185,6 +366,11 @@ function getAuditFindingRecords() {
             wcag,
             component,
             tags,
+            standard: relationshipMetadata.standard,
+            template: relationshipMetadata.template,
+            attachment: relationshipMetadata.attachment,
+            relationship: relationshipMetadata.relationship,
+            attachmentCount: relationshipMetadata.attachmentCount,
             rawValues: values
         };
     });
@@ -196,6 +382,7 @@ function getNonAuditFindingRecords() {
     return (appState.fields || []).map((field, fieldIndex) => {
         const label = normalizeText(field?.label) || `Field ${fieldIndex + 1}`;
         const value = normalizeText(values[fieldIndex]);
+        const relationshipMetadata = extractRelationshipMetadata(values, fieldIndex);
         return {
             id: `field-${fieldIndex + 1}`,
             label,
@@ -209,6 +396,11 @@ function getNonAuditFindingRecords() {
             wcag: indexMap.wcag === fieldIndex ? value : '',
             component: indexMap.component === fieldIndex ? value : '',
             tags: indexMap.tags === fieldIndex ? toTags(value) : [],
+            standard: relationshipMetadata.standard,
+            template: relationshipMetadata.template,
+            attachment: relationshipMetadata.attachment,
+            relationship: relationshipMetadata.relationship,
+            attachmentCount: relationshipMetadata.attachmentCount,
             rawValue: value
         };
     });
@@ -311,7 +503,7 @@ function compareByLevel(left, right, level) {
 
 function getTableColumnLabel(field) {
     const item = TABLE_COLUMNS.find((column) => column.field === field);
-    return item ? item.label : normalizeText(field);
+    return item ? item.label : getWorkingViewFieldLabel(field);
 }
 
 function normalizeTableValue(value, field = '') {
@@ -649,12 +841,17 @@ function applyFilters(findings, config) {
     const status = normalizeText(config?.filters?.status).toLowerCase();
     const reviewer = normalizeText(config?.filters?.reviewer).toLowerCase();
     const tag = normalizeText(config?.filters?.tag).toLowerCase();
+    const relationship = normalizeText(config?.filters?.relationship).toLowerCase();
 
     return findings.filter((finding) => {
         if (severity && normalizeText(finding.severity).toLowerCase() !== severity) return false;
         if (status && normalizeText(finding.status).toLowerCase() !== status) return false;
         if (reviewer && !normalizeText(finding.reviewer).toLowerCase().includes(reviewer)) return false;
         if (tag && !(finding.tags || []).some((item) => normalizeText(item).toLowerCase().includes(tag))) return false;
+        if (relationship) {
+            const relationshipHaystack = [finding.relationship, finding.standard, finding.template, finding.attachment].join(' ').toLowerCase();
+            if (!relationshipHaystack.includes(relationship)) return false;
+        }
         return true;
     });
 }
@@ -679,6 +876,10 @@ function applySearch(findings, config) {
             finding.wcag,
             finding.component,
             finding.type,
+            finding.standard,
+            finding.template,
+            finding.attachment,
+            finding.relationship,
             ...(finding.tags || [])
         ].join(' ').toLowerCase();
         return haystack.includes(text);
@@ -720,7 +921,7 @@ function buildGroupTree(findings, config) {
             const key = parentKey ? `${parentKey}::${field}:${value}` : `${field}:${value}`;
             const node = {
                 key,
-                label: `${value}`,
+                label: `${getWorkingViewFieldLabel(field)}: ${value}`,
                 field,
                 value,
                 level,
@@ -800,8 +1001,8 @@ function getMainContainer() {
 function renderSummary(config, model) {
     const normalizedMode = normalizeText(config.mode).toLowerCase();
     const tableSummary = normalizedMode === 'table' ? getTableColumnSummaryText(model.table?.config || normalizeTableConfig(config)) : null;
-    const sortText = tableSummary ? tableSummary.sortText : ((config.sortLevels || []).map((level) => `${level.field} (${normalizeText(level.direction) === 'desc' ? 'Descending' : 'Ascending'})`).join(', ') || 'None');
-    const groupText = tableSummary ? tableSummary.groupText : ((config.groupBy || []).join(', ') || 'None');
+    const sortText = tableSummary ? tableSummary.sortText : ((config.sortLevels || []).map((level) => `${getWorkingViewFieldLabel(level.field)} (${normalizeText(level.direction) === 'desc' ? 'Descending' : 'Ascending'})`).join(', ') || 'None');
+    const groupText = tableSummary ? tableSummary.groupText : ((config.groupBy || []).map((field) => getWorkingViewFieldLabel(field)).join(', ') || 'None');
     const filterParts = [];
 
     if (tableSummary) {
@@ -809,7 +1010,7 @@ function renderSummary(config, model) {
     } else {
         Object.entries(config.filters || {}).forEach(([key, value]) => {
             if (!normalizeText(value)) return;
-            filterParts.push(`${key}=${value}`);
+            filterParts.push(`${getWorkingViewFieldLabel(key)}=${value}`);
         });
     }
     const filterText = filterParts.filter(Boolean).join(', ') || 'None';
@@ -845,6 +1046,9 @@ function renderFindingItem(finding, index, reportType) {
         finding.page ? `Page: ${finding.page}` : '',
         finding.wcag ? `WCAG: ${finding.wcag}` : '',
         finding.component ? `Component: ${finding.component}` : '',
+        finding.standard ? `Accessibility Standard: ${finding.standard}` : '',
+        finding.template ? `Template: ${finding.template}` : '',
+        finding.attachment ? `Attachment: ${finding.attachment}` : '',
         tagText ? `Tags: ${tagText}` : ''
     ].filter(Boolean).join(' | ');
 
@@ -899,6 +1103,8 @@ function renderTableRowButton(finding, index, reportType) {
         finding.page ? `Page: ${finding.page}` : '',
         finding.wcag ? `Success Criteria: ${finding.wcag}` : '',
         finding.component ? `Component: ${finding.component}` : '',
+        finding.standard ? `Accessibility Standard: ${finding.standard}` : '',
+        finding.attachment ? `Attachment: ${finding.attachment}` : '',
         tagText ? `Tags: ${tagText}` : ''
     ].filter(Boolean).join(' | ');
 
@@ -944,8 +1150,9 @@ function renderWorkingViewTableHeader(columns, findings, tableConfig, activeFiel
 }
 
 function renderWorkingViewTableBody(findings, reportType) {
+    const dataColumns = TABLE_COLUMNS.filter((column) => column.field !== 'label');
     if (!Array.isArray(findings) || findings.length === 0) {
-        return '<tbody><tr><td colspan="9">No findings match the current Table view criteria.</td></tr></tbody>';
+        return `<tbody><tr><td colspan="${dataColumns.length + 1}">No findings match the current Table view criteria.</td></tr></tbody>`;
     }
 
     return `
@@ -953,14 +1160,7 @@ function renderWorkingViewTableBody(findings, reportType) {
             ${findings.map((finding, index) => `
                 <tr data-finding-id="${escapeHtml(finding.id)}">
                     <th scope="row" headers="working-view-table-col-label">${renderTableRowButton(finding, index, reportType)}</th>
-                    <td headers="working-view-table-col-severity">${createTableCellMarkup(finding, 'severity')}</td>
-                    <td headers="working-view-table-col-status">${createTableCellMarkup(finding, 'status')}</td>
-                    <td headers="working-view-table-col-reviewer">${createTableCellMarkup(finding, 'reviewer')}</td>
-                    <td headers="working-view-table-col-page">${createTableCellMarkup(finding, 'page')}</td>
-                    <td headers="working-view-table-col-wcag">${createTableCellMarkup(finding, 'wcag')}</td>
-                    <td headers="working-view-table-col-component">${createTableCellMarkup(finding, 'component')}</td>
-                    <td headers="working-view-table-col-type">${createTableCellMarkup(finding, 'type')}</td>
-                    <td headers="working-view-table-col-tags">${createTableCellMarkup(finding, 'tags')}</td>
+                    ${dataColumns.map((column) => `<td headers="working-view-table-col-${escapeHtml(column.field)}">${createTableCellMarkup(finding, column.field)}</td>`).join('')}
                 </tr>
             `).join('')}
         </tbody>
@@ -1119,7 +1319,7 @@ function renderWorkingView(session) {
     const tableConfig = model.table?.config || normalizeTableConfig(session.config);
     const breadcrumb = isTableMode
         ? `Table Working View > Grouped by ${(tableConfig.groupLevels || []).map((item) => `${getTableColumnLabel(item.field)}${normalizeText(item.mode) === 'conformance' ? ' (conformance level)' : ''}`).join(' > ') || 'None'} > Sorted by ${(tableConfig.sortLevels || []).map((item) => getTableColumnLabel(item.field)).join(', ') || 'None'}`
-        : `Working View > Grouped by ${(session.config.groupBy || []).join(' > ') || 'None'} > Sorted by ${(session.config.sortLevels || []).map((item) => item.field).join(', ') || 'None'}`;
+        : `Working View > Grouped by ${(session.config.groupBy || []).map((item) => getWorkingViewFieldLabel(item)).join(' > ') || 'None'} > Sorted by ${(session.config.sortLevels || []).map((item) => getWorkingViewFieldLabel(item.field)).join(', ') || 'None'}`;
     const offsetRef = { value: 0 };
     const resultsMarkup = isTableMode
         ? (model.groups.length === 1 && model.groups[0].key === '__all__'
@@ -1156,7 +1356,7 @@ function renderWorkingView(session) {
                 <label for="working-view-built-in-preset">Built-in Preset</label>
                 <select id="working-view-built-in-preset">
                     <option value="">Choose Preset</option>
-                    ${BUILT_IN_PRESETS.map((preset) => `<option value="${escapeHtml(preset.id)}">${escapeHtml(preset.name)}</option>`).join('')}
+                    ${getAvailablePresetOptions().map((preset) => `<option value="${escapeHtml(preset.id)}">${escapeHtml(preset.name)}</option>`).join('')}
                 </select>
                 <button id="btn-working-view-apply-built-in-preset" type="button">Apply Built-in Preset</button>
             </div>
@@ -1189,7 +1389,7 @@ function renderWorkingView(session) {
                 <fieldset>
                     <legend>Group By (up to 3 levels)</legend>
                     ${GROUPABLE_FIELDS.map((field) => `
-                        <label><input type="checkbox" class="working-view-group-field" value="${escapeHtml(field)}" ${normalizeGroupBy(session.config.groupBy).includes(field) ? 'checked' : ''}> ${escapeHtml(field)}</label>
+                        <label><input type="checkbox" class="working-view-group-field" value="${escapeHtml(field)}" ${normalizeGroupBy(session.config.groupBy).includes(field) ? 'checked' : ''}> ${escapeHtml(getWorkingViewFieldLabel(field))}</label>
                     `).join('')}
                 </fieldset>
 
@@ -1202,7 +1402,7 @@ function renderWorkingView(session) {
                                 <label for="working-view-sort-${index}">Sort ${index + 1} Field</label>
                                 <select id="working-view-sort-${index}">
                                     <option value="">None</option>
-                                    ${SORTABLE_FIELDS.map((field) => `<option value="${escapeHtml(field)}" ${level.field === field ? 'selected' : ''}>${escapeHtml(field)}</option>`).join('')}
+                                    ${SORTABLE_FIELDS.map((field) => `<option value="${escapeHtml(field)}" ${level.field === field ? 'selected' : ''}>${escapeHtml(getWorkingViewFieldLabel(field))}</option>`).join('')}
                                 </select>
                                 <label for="working-view-sort-direction-${index}">Direction</label>
                                 <select id="working-view-sort-direction-${index}">
@@ -1225,6 +1425,9 @@ function renderWorkingView(session) {
 
                 <label for="working-view-filter-tag">Filter Tag</label>
                 <input id="working-view-filter-tag" type="text" value="${escapeHtml(session.config.filters?.tag || '')}">
+
+                <label for="working-view-filter-relationship">Filter Relationship</label>
+                <input id="working-view-filter-relationship" type="text" value="${escapeHtml(session.config.filters?.relationship || '')}">
 
                 <label for="working-view-search">Search Criteria</label>
                 <input id="working-view-search" type="search" value="${escapeHtml(session.config.searchText || '')}">
@@ -1294,7 +1497,8 @@ function updateSessionConfigFromDialog(session) {
             severity: String(document.getElementById('working-view-filter-severity')?.value || ''),
             status: String(document.getElementById('working-view-filter-status')?.value || ''),
             reviewer: String(document.getElementById('working-view-filter-reviewer')?.value || ''),
-            tag: String(document.getElementById('working-view-filter-tag')?.value || '')
+            tag: String(document.getElementById('working-view-filter-tag')?.value || ''),
+            relationship: String(document.getElementById('working-view-filter-relationship')?.value || '')
         },
         table: mode === 'table'
             ? {
@@ -1309,7 +1513,8 @@ function updateSessionConfigFromDialog(session) {
                     severity: String(document.getElementById('working-view-filter-severity')?.value || ''),
                     status: String(document.getElementById('working-view-filter-status')?.value || ''),
                     reviewer: String(document.getElementById('working-view-filter-reviewer')?.value || ''),
-                    tags: String(document.getElementById('working-view-filter-tag')?.value || '')
+                    tags: String(document.getElementById('working-view-filter-tag')?.value || ''),
+                    relationship: String(document.getElementById('working-view-filter-relationship')?.value || '')
                 }
             }
             : session.config.table || {
@@ -1458,7 +1663,7 @@ function bindWorkingViewInteractions(session, model) {
 
     document.getElementById('btn-working-view-apply-built-in-preset')?.addEventListener('click', () => {
         const presetId = normalizeText(document.getElementById('working-view-built-in-preset')?.value);
-        const preset = BUILT_IN_PRESETS.find((item) => item.id === presetId);
+        const preset = getAvailablePresetOptions().find((item) => item.id === presetId);
         if (!preset) {
             announce('Select a built-in preset first.');
             return;
@@ -1473,7 +1678,7 @@ function bindWorkingViewInteractions(session, model) {
         };
         setSession(session.reportId, session);
         renderWorkingView(session);
-        announce(`Applied built-in preset: ${preset.name}.`);
+        announce(`Applied Working View preset: ${preset.name}.`);
     });
 
     document.querySelectorAll('[data-working-view-table-column-menu]').forEach((button) => {
@@ -1660,6 +1865,15 @@ function bindWorkingViewInteractions(session, model) {
                 return;
             }
             if (active === document.getElementById('working-view-search')) {
+                const searchInput = document.getElementById('working-view-search');
+                if (searchInput instanceof HTMLInputElement && searchInput.value) {
+                    event.preventDefault();
+                    searchInput.value = '';
+                    session.config.searchText = '';
+                    setSession(session.reportId, session);
+                    renderWorkingView(session);
+                    announce('Working View search cleared.');
+                }
                 return;
             }
             event.preventDefault();
@@ -2176,6 +2390,16 @@ export function initReportViewsFramework() {
         const session = getActiveSessionForCurrentReport();
         if (!session) return;
         renderWorkingView(session);
+    });
+
+    window.addEventListener('art-plugin-framework-event', (event) => {
+        const type = normalizeText(event?.detail?.type);
+        if (!type) return;
+        if (type === 'Plugin Loaded' || type === 'Plugin Enabled' || type === 'Plugin Disabled') {
+            const session = getActiveSessionForCurrentReport();
+            if (!session || !document.getElementById('report-working-view')) return;
+            renderWorkingView(session);
+        }
     });
 
     return true;

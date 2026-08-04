@@ -133,6 +133,8 @@ function getMenuLocation(command) {
         case 'printPreview': return 'File>Export';
         case 'closeReport': return 'File>Close';
         case 'configureReport':
+        case 'renameReport':
+        case 'replaceReport':
         case 'editReport':
         case 'viewReport':
         case 'deleteReport':
@@ -144,6 +146,8 @@ function getMenuLocation(command) {
         case 'newTemplate':
         case 'useTemplate':
         case 'openTemplate':
+        case 'renameTemplate':
+        case 'replaceTemplate':
         case 'editTemplate':
         case 'deleteTemplate':
         case 'importTemplate':

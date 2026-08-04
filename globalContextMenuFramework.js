@@ -56,6 +56,7 @@ const contextRoots = new Map([
     ['dashboard-widget', ['Dashboard', 'Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
     ['project-workspace', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
     ['project-asset', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
+    ['project-relationship', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
     ['report-builder', ['Workspace', 'Templates', 'Report', 'Import', 'Dashboard', 'Edit', 'Search', 'Settings', 'Help']],
     ['field-configuration', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
     ['editor', ['Workspace', 'Templates', 'Report', 'Import', 'Edit', 'Search', 'Settings', 'Help']],
@@ -122,6 +123,11 @@ const contextActionAllowlists = new Map([
         'newProjectWorkspace',
         'addProjectAsset',
         'openProjectProperties',
+        'openResourceRelationships',
+        'openResourceDependents',
+        'openResourceReferences',
+        'previewResourceDeletionImpact',
+        'repairWorkspaceRelationships',
         'newTemplate',
         'newReport',
         'importData',
@@ -133,9 +139,23 @@ const contextActionAllowlists = new Map([
         'exportProjectWorkspace',
         'addProjectAsset',
         'openProjectProperties',
+        'openResourceRelationships',
+        'openResourceDependents',
+        'openResourceReferences',
+        'previewResourceDeletionImpact',
+        'repairWorkspaceRelationships',
         'searchProjectAssets',
         'searchCommands',
         'openSettings',
+        'openHelp'
+    ])],
+    ['project-relationship', new Set([
+        'openResourceRelationships',
+        'openResourceDependents',
+        'openResourceReferences',
+        'previewResourceDeletionImpact',
+        'openProjectProperties',
+        'searchCommands',
         'openHelp'
     ])],
     ['report-builder', new Set([
@@ -365,6 +385,21 @@ function getApplicationContextFromFocus(anchorElement = document.activeElement) 
         const resourceButton = focused.closest?.('[data-workspace-resource="true"]');
         if (resourceButton) {
             const resourceType = resourceButton.getAttribute('data-resource-type') || 'project-asset';
+            if (resourceButton.hasAttribute('data-related-resource')) {
+                return { ...base, kind: 'project-relationship', contextLabel: 'Resource Relationship' };
+            }
+            return { ...base, kind: resourceType === 'asset' ? 'project-asset' : 'project-workspace', contextLabel: resourceType === 'asset' ? 'Project Asset' : 'Project Workspace' };
+        }
+        return { ...base, kind: 'project-workspace', contextLabel: 'Project Workspace' };
+    }
+
+    if (focused?.closest?.('#workspace-resource-properties-dialog, #workspace-resource-deletion-dialog')) {
+        const resourceButton = focused.closest?.('[data-resource-type][data-resource-id]');
+        if (resourceButton) {
+            if (resourceButton.hasAttribute('data-related-resource')) {
+                return { ...base, kind: 'project-relationship', contextLabel: 'Resource Relationship' };
+            }
+            const resourceType = resourceButton.getAttribute('data-resource-type') || 'project-workspace';
             return { ...base, kind: resourceType === 'asset' ? 'project-asset' : 'project-workspace', contextLabel: resourceType === 'asset' ? 'Project Asset' : 'Project Workspace' };
         }
         return { ...base, kind: 'project-workspace', contextLabel: 'Project Workspace' };
@@ -1752,7 +1787,7 @@ function registerDefaultProviders() {
 
     createProvider('dashboard-context-provider', 'Dashboard Context Provider', ['dashboard'], contextRoots.get('dashboard') || [], 'Dashboard commands and layout actions.');
     createProvider('dashboard-widget-context-provider', 'Dashboard Widget Context Provider', ['dashboard-widget'], contextRoots.get('dashboard-widget') || [], 'Widget commands and dashboard actions.');
-    createProvider('project-workspace-context-provider', 'Project Workspace Context Provider', ['project-workspace', 'project-asset'], contextRoots.get('project-workspace') || [], 'Workspace lifecycle, project asset, and project settings commands.');
+    createProvider('project-workspace-context-provider', 'Project Workspace Context Provider', ['project-workspace', 'project-asset', 'project-relationship'], contextRoots.get('project-workspace') || [], 'Workspace lifecycle, project asset, relationship, and project settings commands.');
     createProvider('report-builder-context-provider', 'Report Builder Context Provider', ['report-builder', 'field-configuration'], contextRoots.get('report-builder') || [], 'Builder, validation, and report configuration commands.');
     createProvider('editor-context-provider', 'Editor Context Provider', ['editor'], contextRoots.get('editor') || [], 'Editor, validation, spell check, and report commands.');
     createProvider('report-viewer-context-provider', 'Report Viewer Context Provider', ['report-viewer'], contextRoots.get('report-viewer') || [], 'Viewer, export, and report commands.');

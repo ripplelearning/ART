@@ -19,11 +19,16 @@ import {
     isProgressLogEnabled,
     loadReportById,
     loadTemplate,
+    renameReportById,
+    renameUserTemplateById,
     resetReportToBlank,
+    reportNameExists,
     saveState,
     serializeArtxTemplatePayload,
+    templateNameExists,
     getActiveWorkspaceView,
 } from './state.js';
+import { removeResourceReferencesFromAllWorkspaces, replaceResourceReferencesAcrossWorkspaces } from './resourceRelationshipFramework.js';
 import { openCommandPalette } from './commandPalette.js';
 import { focusMenuBarFromCommand, focusMenuSearchFromCommand } from './menuBar.js';
 import { openHelpDialog } from './help.js';
@@ -92,11 +97,17 @@ import {
     duplicateProjectWorkspaceFromCommand,
     exportProjectWorkspaceFromCommand,
     importProjectWorkspaceFromCommand,
+    openResourceDeletionAnalysisFromCommand,
+    openResourceDependentsFromCommand,
     openProjectPropertiesFromCommand,
     openProjectStatisticsFromCommand,
     openProjectWorkspaceFromCommand,
+    openResourceReferencesFromCommand,
+    openResourceRelationshipsFromCommand,
     openRecentProjectWorkspaceFromCommand,
     openWorkspaceSettingsFromCommand,
+    previewResourceDeletionImpactFromCommand,
+    repairWorkspaceRelationshipsFromCommand,
     refreshWorkspaceAssetsFromCommand,
     removeProjectAssetFromCommand,
     renameProjectWorkspaceFromCommand,
@@ -135,6 +146,51 @@ import {
 } from './reportViewsFramework.js';
 
 let commandsRegistered = false;
+
+function clearTemplateReferencesFromReports(templateId, templateName = '') {
+    const targetId = String(templateId || '').trim();
+    const targetName = String(templateName || '').trim().toLowerCase();
+    if (!targetId && !targetName) return 0;
+
+    let updatedCount = 0;
+    appState.reports = (appState.reports || []).map((report) => {
+        const currentTemplateId = String(report?.data?.templateOption || '').trim();
+        const currentTemplateName = String(report?.data?.templateName || '').trim().toLowerCase();
+        const matches = (targetId && currentTemplateId === targetId) || (targetName && currentTemplateName === targetName);
+        if (!matches) return report;
+        updatedCount += 1;
+        return {
+            ...report,
+            data: {
+                ...report.data,
+                templateOption: '',
+                templateName: ''
+            }
+        };
+    });
+
+    if (updatedCount > 0) {
+        saveState({ action: `Removed deleted template references from ${updatedCount} report${updatedCount === 1 ? '' : 's'}` });
+        window.dispatchEvent(new Event('art-reports-updated'));
+    }
+
+    return updatedCount;
+}
+
+function hasWorkspaceResourceTarget(context = {}) {
+    const source = context && typeof context === 'object' ? context : {};
+    if (String(source.resourceType || source.type || '').trim() && String(source.resourceId || source.id || '').trim()) {
+        return true;
+    }
+    const anchor = source.triggerElement instanceof HTMLElement
+        ? source.triggerElement
+        : source.anchorElement instanceof HTMLElement
+            ? source.anchorElement
+            : document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+    return Boolean(anchor?.closest?.('[data-resource-type][data-resource-id]'));
+}
 
 const shortcutByAction = new Map(getShortcutDefinitions().map((definition) => [definition.action, definition.shortcut]));
 const labelByAction = new Map(getAssignableActions().map((item) => [item.action, item.label]));
@@ -233,6 +289,11 @@ function getDefaultMenuLocation(action, category) {
         case 'openProjectProperties':
         case 'openProjectStatistics':
         case 'openWorkspaceSettings': return 'View>Project Workspace';
+        case 'openResourceRelationships':
+        case 'openResourceDependents':
+        case 'openResourceReferences':
+        case 'previewResourceDeletionImpact':
+        case 'repairWorkspaceRelationships': return 'View>Project Workspace';
         case 'continueWorking': return 'View>Dashboard';
         case 'addProjectAsset':
         case 'createAssetFolder':
@@ -242,6 +303,8 @@ function getDefaultMenuLocation(action, category) {
         case 'printPreview': return 'File>Export';
         case 'closeReport': return 'File>Close';
         case 'configureReport':
+        case 'renameReport':
+        case 'replaceReport':
         case 'editReport':
         case 'viewReport':
         case 'deleteReport':
@@ -283,6 +346,8 @@ function getDefaultMenuLocation(action, category) {
         case 'newTemplate':
         case 'useTemplate':
         case 'openTemplate':
+        case 'renameTemplate':
+        case 'replaceTemplate':
         case 'editTemplate':
         case 'deleteTemplate':
         case 'importTemplate':
@@ -387,6 +452,20 @@ function executeClipboardCommand(type) {
             announce(`Selection ${verb}.`);
             return true;
         }
+    {
+        action: 'renameReport',
+        id: 'Report.Rename',
+        category: 'Report',
+        description: 'Rename the selected report.',
+        handler: (context) => runRenameReportWorkflow(context)
+    },
+    {
+        action: 'replaceReport',
+        id: 'Report.Replace',
+        category: 'Report',
+        description: 'Replace the selected report with another report and update workspace references.',
+        handler: (context) => runReplaceReportWorkflow(context)
+    },
     } catch (error) {
         return false;
     }
@@ -632,29 +711,158 @@ function runEditTemplateWorkflow(context = {}) {
     return activateTabCommand('tab-builder', 'builder-heading', 'Report Builder');
 }
 
-function runDeleteTemplateWorkflow(context = {}) {
+function replaceTemplateReferencesInReports(oldTemplate, newTemplate) {
+    const oldId = String(oldTemplate?.id || '').trim();
+    const oldName = String(oldTemplate?.name || '').trim().toLowerCase();
+    const nextId = String(newTemplate?.id || '').trim();
+    const nextName = String(newTemplate?.name || '').trim();
+    if (!oldId || !nextId || !nextName) return 0;
+
+    let updatedCount = 0;
+    appState.reports = (appState.reports || []).map((report) => {
+        const currentTemplateId = String(report?.data?.templateOption || '').trim();
+        const currentTemplateName = String(report?.data?.templateName || '').trim().toLowerCase();
+        const matches = currentTemplateId === oldId || (oldName && currentTemplateName === oldName);
+        if (!matches) return report;
+        updatedCount += 1;
+        return {
+            ...report,
+            data: {
+                ...report.data,
+                templateOption: nextId,
+                templateName: nextName
+            }
+        };
+    });
+
+    if (String(appState.templateOption || '').trim() === oldId || String(appState.templateName || '').trim().toLowerCase() === oldName) {
+        appState.templateOption = nextId;
+        appState.templateName = nextName;
+    }
+
+    if (updatedCount > 0) {
+        saveState({ action: `Replaced template references in ${updatedCount} report${updatedCount === 1 ? '' : 's'}` });
+        window.dispatchEvent(new Event('art-reports-updated'));
+    }
+
+    return updatedCount;
+}
+
+function runRenameTemplateWorkflow(context = {}) {
     const templateId = getSelectedTemplateId(context);
-    if (!templateId || context.confirm !== true) return false;
+    const selected = getTemplateById(templateId);
+    if (!selected || !String(selected.id || '').startsWith('user-')) return false;
 
-    const deleted = deleteUserTemplate(templateId);
-    if (!deleted) return false;
+    const nextName = String(window.prompt('Rename Template', selected.name) || '').trim();
+    if (!nextName || nextName === selected.name) return false;
+    if (templateNameExists(nextName)) {
+        announce(`A template named ${nextName} already exists.`);
+        return false;
+    }
 
-    const dialog = document.getElementById('template-delete-dialog');
-    if (dialog) dialog.hidden = true;
-
-    window.dispatchEvent(new Event('art-templates-updated'));
+    const renamed = renameUserTemplateById(selected.id, nextName);
+    if (!renamed) return false;
 
     const templateSelect = document.getElementById('template-selection');
-    if (templateSelect) {
+    if (templateSelect instanceof HTMLSelectElement) {
         window.setTimeout(() => {
-            templateSelect.value = 'scratch';
+            templateSelect.value = renamed.id;
             templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
             templateSelect.focus();
         }, 0);
     }
 
-    announce(`${deleted.name} template deleted`);
+    announce(`Renamed template to ${renamed.name}.`);
     return true;
+}
+
+function runReplaceTemplateWorkflow(context = {}) {
+    const templateId = getSelectedTemplateId(context);
+    const selected = getTemplateById(templateId);
+    if (!selected || !String(selected.id || '').startsWith('user-')) return false;
+
+    const candidates = [
+        ...document.querySelectorAll('#template-selection option')
+    ]
+        .map((option) => ({ id: String(option.value || '').trim(), name: String(option.textContent || '').trim() }))
+        .filter((option) => option.id && option.id !== 'scratch' && option.id !== selected.id);
+    if (!candidates.length) {
+        announce('No replacement template is available.');
+        return false;
+    }
+
+    const choice = Number(window.prompt(`Replace ${selected.name} with:\n${candidates.map((item, index) => `${index + 1}. ${item.name}`).join('\n')}`, '1')) - 1;
+    if (!Number.isInteger(choice) || choice < 0 || choice >= candidates.length) return false;
+
+    const replacement = getTemplateById(candidates[choice].id);
+    if (!replacement) return false;
+
+    const confirmed = window.confirm(`Replace ${selected.name} with ${replacement.name}? Reports and workspace references will point to the replacement template, and the original template will be deleted.`);
+    if (!confirmed) return false;
+
+    const updatedReports = replaceTemplateReferencesInReports(selected, replacement);
+    const cleanup = replaceResourceReferencesAcrossWorkspaces('template', selected.id, replacement.id, {
+        action: `Replaced workspace references from template ${selected.name} to ${replacement.name}`,
+        persist: true
+    });
+    const deleted = deleteUserTemplate(selected.id);
+    if (!deleted) return false;
+
+    const templateSelect = document.getElementById('template-selection');
+    if (templateSelect instanceof HTMLSelectElement) {
+        window.setTimeout(() => {
+            templateSelect.value = replacement.id;
+            templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            templateSelect.focus();
+        }, 0);
+    }
+
+    announce(`Replaced template ${selected.name} with ${replacement.name}.${updatedReports > 0 ? ` Updated ${updatedReports} report reference${updatedReports === 1 ? '' : 's'}.` : ''}${cleanup.replacedReferenceCount > 0 ? ` Updated ${cleanup.replacedReferenceCount} workspace reference${cleanup.replacedReferenceCount === 1 ? '' : 's'}.` : ''}`);
+    return true;
+}
+
+function runDeleteTemplateWorkflow(context = {}) {
+    const templateId = getSelectedTemplateId(context);
+    const selected = getTemplateById(templateId);
+    if (!selected) return false;
+
+    const performDelete = () => {
+        const clearedReportCount = clearTemplateReferencesFromReports(selected.id, selected.name);
+        const cleanup = removeResourceReferencesFromAllWorkspaces('template', selected.id, {
+            action: `Removed workspace references for deleted template ${selected.name}`,
+            persist: true
+        });
+        const deleted = deleteUserTemplate(selected.id);
+        if (!deleted) return false;
+
+        const dialog = document.getElementById('template-delete-dialog');
+        if (dialog) dialog.hidden = true;
+
+        window.dispatchEvent(new Event('art-templates-updated'));
+
+        const templateSelect = document.getElementById('template-selection');
+        if (templateSelect) {
+            window.setTimeout(() => {
+                templateSelect.value = 'scratch';
+                templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                templateSelect.focus();
+            }, 0);
+        }
+
+        const cleanupText = [];
+        if (clearedReportCount > 0) cleanupText.push(`${clearedReportCount} report reference${clearedReportCount === 1 ? '' : 's'} cleared`);
+        if (cleanup.removedReferenceCount > 0) cleanupText.push(`${cleanup.removedReferenceCount} workspace relationship${cleanup.removedReferenceCount === 1 ? '' : 's'} removed`);
+        announce(cleanupText.length > 0 ? `${deleted.name} template deleted. ${cleanupText.join('. ')}.` : `${deleted.name} template deleted`);
+        return true;
+    };
+
+    if (appState.activeWorkspaceId) {
+        const opened = openResourceDeletionAnalysisFromCommand('template', selected.id, performDelete, context.triggerElement || document.activeElement || null);
+        if (opened) return true;
+    }
+
+    if (context.confirm !== true && !window.confirm(`Delete template ${selected.name}?`)) return false;
+    return performDelete();
 }
 
 function runExportTemplateWorkflow(context = {}) {
@@ -698,6 +906,20 @@ function runImportReportWorkflow(context = {}) {
             return false;
         }
 
+        {
+            action: 'renameTemplate',
+            id: 'Templates.Rename',
+            category: 'Templates',
+            description: 'Rename the selected user template.',
+            handler: (context) => runRenameTemplateWorkflow(context)
+        },
+        {
+            action: 'replaceTemplate',
+            id: 'Templates.Replace',
+            category: 'Templates',
+            description: 'Replace the selected user template with another template and update references.',
+            handler: (context) => runReplaceTemplateWorkflow(context)
+        },
         const imported = importReportWithConflictStrategy(payload, context.strategy);
         dialog?.removeAttribute('data-import-payload');
         dialog?.removeAttribute('data-import-file-name');
@@ -825,30 +1047,109 @@ function runDeleteReportWorkflow(context = {}) {
     const report = reportId ? getReportById(reportId) : null;
     if (!report) return false;
 
-    const dialog = document.getElementById('report-delete-dialog');
-    const message = document.getElementById('report-delete-message');
-    const confirmButton = document.getElementById('btn-report-delete-confirm');
-    const recentReportsSelect = document.getElementById('recent-reports-select');
-
-    if (context.confirm === true) {
+    const performDelete = () => {
         const removed = deleteReportById(reportId);
         if (!removed) return false;
 
+        const cleanup = removeResourceReferencesFromAllWorkspaces('report', reportId, {
+            action: `Removed workspace references for deleted report ${removed.name}`,
+            persist: true
+        });
+
+        const dialog = document.getElementById('report-delete-dialog');
+        const confirmButton = document.getElementById('btn-report-delete-confirm');
+        const recentReportsSelect = document.getElementById('recent-reports-select');
         if (dialog) dialog.hidden = true;
         if (confirmButton) confirmButton.removeAttribute('data-report-id');
-        announce(`Deleted report ${removed.name}`);
+        announce(cleanup.removedReferenceCount > 0
+            ? `Deleted report ${removed.name}. Removed ${cleanup.removedReferenceCount} related workspace reference${cleanup.removedReferenceCount === 1 ? '' : 's'}.`
+            : `Deleted report ${removed.name}`);
         window.setTimeout(() => {
             recentReportsSelect?.focus();
         }, 0);
         return true;
+    };
+
+    if (appState.activeWorkspaceId) {
+        const opened = openResourceDeletionAnalysisFromCommand('report', reportId, performDelete, context.triggerElement || document.activeElement || null);
+        if (opened) return true;
     }
 
-    if (!dialog || !message || !confirmButton) return false;
+    if (context.confirm !== true && !window.confirm(`Delete report ${report.name}?`)) return false;
+    return performDelete();
+}
 
-    message.innerHTML = `Are you sure you want to delete <strong>${report.name}</strong>?<br>This action cannot be undone.`;
-    confirmButton.setAttribute('data-report-id', reportId);
-    dialog.hidden = false;
-    window.setTimeout(() => confirmButton.focus(), 0);
+function runRenameReportWorkflow(context = {}) {
+    const reportId = getSelectedReportId(context);
+    const report = reportId ? getReportById(reportId) : null;
+    if (!report) return false;
+
+    const nextName = String(window.prompt('Rename Report', report.name) || '').trim();
+    if (!nextName || nextName === report.name) return false;
+    if (reportNameExists(nextName)) {
+        announce(`A report named ${nextName} already exists.`);
+        return false;
+    }
+
+    const renamed = renameReportById(reportId, nextName);
+    if (!renamed) return false;
+
+    const recentReportsSelect = document.getElementById('recent-reports-select');
+    if (recentReportsSelect instanceof HTMLSelectElement) {
+        window.setTimeout(() => {
+            recentReportsSelect.value = renamed.id;
+            recentReportsSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            recentReportsSelect.focus();
+        }, 0);
+    }
+
+    announce(`Renamed report to ${renamed.name}.`);
+    return true;
+}
+
+function runReplaceReportWorkflow(context = {}) {
+    const reportId = getSelectedReportId(context);
+    const report = reportId ? getReportById(reportId) : null;
+    if (!report) return false;
+
+    const candidates = getRecentReports()
+        .filter((item) => item.id !== report.id)
+        .map((item) => ({ id: item.id, name: item.name }));
+    if (!candidates.length) {
+        announce('No replacement report is available.');
+        return false;
+    }
+
+    const choice = Number(window.prompt(`Replace ${report.name} with:\n${candidates.map((item, index) => `${index + 1}. ${item.name}`).join('\n')}`, '1')) - 1;
+    if (!Number.isInteger(choice) || choice < 0 || choice >= candidates.length) return false;
+
+    const replacement = getReportById(candidates[choice].id);
+    if (!replacement) return false;
+
+    const confirmed = window.confirm(`Replace ${report.name} with ${replacement.name}? Workspace references will point to the replacement report, and the original report will be deleted.`);
+    if (!confirmed) return false;
+
+    const cleanup = replaceResourceReferencesAcrossWorkspaces('report', report.id, replacement.id, {
+        action: `Replaced workspace references from report ${report.name} to ${replacement.name}`,
+        persist: true
+    });
+    const removed = deleteReportById(report.id);
+    if (!removed) return false;
+
+    if (String(appState.selectedReportId || '').trim() !== replacement.id) {
+        loadReportById(replacement.id);
+    }
+
+    const recentReportsSelect = document.getElementById('recent-reports-select');
+    if (recentReportsSelect instanceof HTMLSelectElement) {
+        window.setTimeout(() => {
+            recentReportsSelect.value = replacement.id;
+            recentReportsSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            recentReportsSelect.focus();
+        }, 0);
+    }
+
+    announce(`Replaced report ${report.name} with ${replacement.name}.${cleanup.replacedReferenceCount > 0 ? ` Updated ${cleanup.replacedReferenceCount} workspace reference${cleanup.replacedReferenceCount === 1 ? '' : 's'}.` : ''}`);
     return true;
 }
 
@@ -1571,6 +1872,45 @@ const COMMAND_DEFINITIONS = [
         category: 'Workspace',
         description: 'Open workspace settings.',
         handler: () => openWorkspaceSettingsFromCommand()
+    },
+    {
+        action: 'openResourceRelationships',
+        id: 'Workspace.ResourceRelationships',
+        category: 'Workspace',
+        description: 'Open relationship details for the selected workspace resource.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => openResourceRelationshipsFromCommand(context)
+    },
+    {
+        action: 'openResourceDependents',
+        id: 'Workspace.ResourceDependents',
+        category: 'Workspace',
+        description: 'Show dependent resources for the selected workspace resource.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => openResourceDependentsFromCommand(context)
+    },
+    {
+        action: 'openResourceReferences',
+        id: 'Workspace.ResourceReferences',
+        category: 'Workspace',
+        description: 'Show references and outbound relationships for the selected workspace resource.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => openResourceReferencesFromCommand(context)
+    },
+    {
+        action: 'previewResourceDeletionImpact',
+        id: 'Workspace.ResourceDeletionImpact',
+        category: 'Workspace',
+        description: 'Preview the deletion impact for the selected workspace resource.',
+        visible: (context) => hasWorkspaceResourceTarget(context),
+        handler: (context) => previewResourceDeletionImpactFromCommand(context)
+    },
+    {
+        action: 'repairWorkspaceRelationships',
+        id: 'Workspace.RepairRelationships',
+        category: 'Workspace',
+        description: 'Repair invalid workspace relationships and remove broken references.',
+        handler: (context) => repairWorkspaceRelationshipsFromCommand(context?.triggerElement || context?.anchorElement || null)
     },
     {
         action: 'saveProject',

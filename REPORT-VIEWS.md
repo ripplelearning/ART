@@ -6,15 +6,16 @@ The Report Views Framework adds temporary, non-destructive report presentations 
 
 A Working View can:
 - Group findings by severity, status, reviewer, WCAG criterion, page, component, or type.
+- Group findings by relationship-derived metadata such as accessibility standard, template, attachment, and relationship summary.
 - Group by up to 3 levels in sequence.
 - Sort findings by one or more configured fields.
 - Sort by up to 3 levels with per-level direction.
-- Filter findings by severity, status, reviewer, and tags.
+- Filter findings by severity, status, reviewer, tags, and relationship text.
 - Switch to Table mode for a column-based Working View with per-column menu controls.
 - Sort, group, and filter directly from accessible table header menus, including dynamic values and custom text filters.
 - Search within current report findings.
 - Save and reload reusable view presets.
-- Apply built-in presets for common triage and review workflows.
+- Apply built-in presets for common triage, review, and relationship-analysis workflows.
 
 By default, Working View is temporary. It does not modify report content unless Apply Working View is selected.
 
@@ -64,6 +65,9 @@ Integration commands:
 - Triage by Severity and Status
 - Reviewer Queue
 - WCAG by Page
+- Grouped by Attachment
+- Grouped by Accessibility Standard
+- Shared Evidence Review
 
 Built-in presets can be applied directly in Working View and then customized before saving as a scoped preset.
 
@@ -107,3 +111,5 @@ The framework follows ART accessibility patterns:
 Apply Working View currently commits presentation ordering for Audit Log reports by reordering visible audit entries. For non-Audit report types, Apply keeps the view state and confirmation flow without mutating field content.
 
 Table mode preserves the same Working View lifecycle and adds a dynamic column-oriented presentation for the visible findings. Column menus support value-based sorting, value grouping, conformance-level grouping for WCAG columns, and exact or contains filtering.
+
+Relationship-based Working Views derive resource context from the current report state, including criterion standard information, current template metadata, and attachment evidence stored on findings. The views remain temporary unless Apply Working View is used on a report type that supports reordering.

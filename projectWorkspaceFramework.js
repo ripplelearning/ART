@@ -15,12 +15,20 @@ import {
     getRecentProjectWorkspaces,
     importArtProjectPayload,
     renameProjectWorkspace,
+    removeProjectWorkspaceAsset,
     saveState,
     setActiveProjectWorkspace,
     updateProjectWorkspaceState,
     upsertProjectWorkspace
 } from './state.js';
-import { getWorkspaceResourceGroups } from './resourceFramework.js';
+import { getWorkspaceResourceDetails, getWorkspaceResourceGroups } from './resourceFramework.js';
+import {
+    getDeletionPreview,
+    getRelationshipSummaryForResource,
+    reconcileWorkspaceRelationshipIntegrity,
+    repairWorkspaceRelationships as repairWorkspaceRelationshipStore,
+    validateWorkspaceRelationships
+} from './resourceRelationshipFramework.js';
 
 const PROJECT_WORKSPACE_FORMAT = 'ART Project Workspace';
 const PROJECT_WORKSPACE_FORMAT_VERSION = '2.0';
@@ -67,6 +75,7 @@ const runtimeHandles = {
 let frameworkInitialized = false;
 let workspaceAssetFileInput = null;
 let workspaceImportFileInput = null;
+let pendingDeletionRequest = null;
 let workspaceOptions = {
     onWorkspaceChanged: null
 };
@@ -223,6 +232,62 @@ function ensureWorkspaceDialogs() {
         </div>
     `;
     document.body.appendChild(exportDialog);
+
+    const resourceDialog = document.createElement('div');
+    resourceDialog.id = 'workspace-resource-properties-dialog';
+    resourceDialog.className = 'workspace-dialog';
+    resourceDialog.setAttribute('role', 'dialog');
+    resourceDialog.setAttribute('aria-modal', 'true');
+    resourceDialog.setAttribute('aria-labelledby', 'workspace-resource-properties-heading');
+    resourceDialog.hidden = true;
+    resourceDialog.innerHTML = `
+        <div class="workspace-dialog__header">
+            <h3 id="workspace-resource-properties-heading">Resource Properties</h3>
+            <button id="btn-workspace-resource-properties-close" type="button">Close</button>
+        </div>
+        <div id="workspace-resource-properties-content" class="workspace-dialog__content"></div>
+        <div class="workspace-dialog__actions" role="group" aria-label="Resource Properties actions">
+            <button id="btn-workspace-resource-reveal" type="button">Reveal in Explorer</button>
+            <button id="btn-workspace-resource-show-relationships" type="button">Show Relationships</button>
+            <button id="btn-workspace-resource-show-dependents" type="button">Show Dependents</button>
+            <button id="btn-workspace-resource-show-references" type="button">Show References</button>
+            <button id="btn-workspace-resource-preview-deletion" type="button">Preview Deletion Impact</button>
+            <button id="btn-workspace-resource-copy-name" type="button">Copy Resource Name</button>
+            <button id="btn-workspace-resource-copy-path" type="button">Copy Resource Path</button>
+            <button id="btn-workspace-resource-copy-relationships" type="button">Copy Relationship Information</button>
+        </div>
+    `;
+    document.body.appendChild(resourceDialog);
+
+    const deletionDialog = document.createElement('div');
+    deletionDialog.id = 'workspace-resource-deletion-dialog';
+    deletionDialog.className = 'workspace-dialog';
+    deletionDialog.setAttribute('role', 'dialog');
+    deletionDialog.setAttribute('aria-modal', 'true');
+    deletionDialog.setAttribute('aria-labelledby', 'workspace-resource-deletion-heading');
+    deletionDialog.hidden = true;
+    deletionDialog.innerHTML = `
+        <div class="workspace-dialog__header">
+            <h3 id="workspace-resource-deletion-heading">Deletion Analysis</h3>
+            <button id="btn-workspace-resource-deletion-close" type="button">Close</button>
+        </div>
+        <div id="workspace-resource-deletion-content" class="workspace-dialog__content"></div>
+        <div class="workspace-dialog__actions" role="group" aria-label="Deletion Analysis actions">
+            <button id="btn-workspace-resource-deletion-repair" type="button">Repair Relationships</button>
+            <button id="btn-workspace-resource-deletion-confirm" type="button">Delete</button>
+            <button id="btn-workspace-resource-deletion-cancel" type="button">Cancel</button>
+        </div>
+    `;
+    document.body.appendChild(deletionDialog);
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function getWorkspaceDialogFocusableElements(dialog) {
@@ -270,39 +335,40 @@ function buildWorkspaceStatistics(workspace) {
 }
 
 function buildProjectWorkspacePayload(workspace, options = {}) {
+    const reconciledWorkspace = reconcileWorkspaceRelationshipIntegrity(workspace, { persist: false }).workspace || workspace;
     const includeReports = options.includeReports !== false;
     const includeTemplates = options.includeTemplates !== false;
     const includeAssets = options.includeAssets !== false;
     const includeWorkspaceState = options.includeWorkspaceState !== false;
 
-    const { statistics, health } = buildWorkspaceStatistics(workspace);
+    const { statistics, health } = buildWorkspaceStatistics(reconciledWorkspace);
 
     const payload = {
         format: PROJECT_WORKSPACE_FORMAT,
         formatVersion: PROJECT_WORKSPACE_FORMAT_VERSION,
         schemaVersion: PROJECT_WORKSPACE_SCHEMA_VERSION,
         metadata: {
-            projectName: workspace.name,
-            projectId: workspace.id,
-            projectDescription: workspace.description,
-            projectOwner: workspace.owner,
-            organization: workspace.organization,
-            dateCreated: workspace.createdAt,
+            projectName: reconciledWorkspace.name,
+            projectId: reconciledWorkspace.id,
+            projectDescription: reconciledWorkspace.description,
+            projectOwner: reconciledWorkspace.owner,
+            organization: reconciledWorkspace.organization,
+            dateCreated: reconciledWorkspace.createdAt,
             lastModified: new Date().toISOString(),
-            projectVersion: workspace.projectVersion || '2.0',
-            currentStatus: workspace.status
+            projectVersion: reconciledWorkspace.projectVersion || '2.0',
+            currentStatus: reconciledWorkspace.status
         },
         workspace: {
-            ...workspace,
+            ...reconciledWorkspace,
             lastModifiedAt: new Date().toISOString(),
             statistics,
             health,
-            workspaceState: includeWorkspaceState ? workspace.workspaceState : {},
+            workspaceState: includeWorkspaceState ? reconciledWorkspace.workspaceState : {},
             resources: {
-                ...workspace.resources,
-                reports: includeReports ? workspace.resources.reports : [],
-                templates: includeTemplates ? workspace.resources.templates : [],
-                projectAssets: includeAssets ? workspace.resources.projectAssets : []
+                ...reconciledWorkspace.resources,
+                reports: includeReports ? reconciledWorkspace.resources.reports : [],
+                templates: includeTemplates ? reconciledWorkspace.resources.templates : [],
+                projectAssets: includeAssets ? reconciledWorkspace.resources.projectAssets : []
             }
         },
         artProjectPayload: createArtProjectPayload()
@@ -339,8 +405,10 @@ function applyWorkspaceFromPayload(payload, context = {}) {
         lastModifiedAt: new Date().toISOString()
     };
 
-    const saved = upsertProjectWorkspace(workspace, {
-        action: `Opened project workspace ${workspace.name}`,
+    const reconciledWorkspace = reconcileWorkspaceRelationshipIntegrity(workspace, { persist: false }).workspace || workspace;
+
+    const saved = upsertProjectWorkspace(reconciledWorkspace, {
+        action: `Opened project workspace ${reconciledWorkspace.name}`,
         setActive: true,
         persist: true
     });
@@ -425,7 +493,7 @@ async function writeProjectAssetsMetadata(workspaceRoot, workspace) {
 
 function captureActiveWorkspaceState(workspace) {
     if (!workspace) return workspace;
-    return {
+    const captured = {
         ...workspace,
         associatedReportIds: Array.from(new Set((appState.reports || []).map((report) => report.id))),
         associatedTemplateIds: Array.from(new Set((appState.userTemplates || []).map((template) => template.id))),
@@ -443,6 +511,7 @@ function captureActiveWorkspaceState(workspace) {
         },
         lastModifiedAt: new Date().toISOString()
     };
+    return reconcileWorkspaceRelationshipIntegrity(captured, { persist: false }).workspace || captured;
 }
 
 async function persistWorkspaceToDirectory(workspace, destinationDirectoryHandle) {
@@ -591,17 +660,77 @@ function renderWorkspaceExplorer() {
 
     const filterValue = normalizeText(filterInput.value).toLowerCase();
     const grouped = getWorkspaceResourceGroups(active);
+    const expandedResourceIds = Array.isArray(active.workspaceState?.resourceNavigator?.expandedResourceIds)
+        ? active.workspaceState.resourceNavigator.expandedResourceIds.map((value) => normalizeText(value)).filter(Boolean)
+        : [];
+
+    const renderRelationshipTree = (item) => {
+        const relationshipSummary = Array.isArray(item.relationshipSummary) ? item.relationshipSummary : [];
+        if (!relationshipSummary.length) {
+            return '<p class="workspace-explorer__relationship-empty">No related resources are registered.</p>';
+        }
+
+        return relationshipSummary.map((category) => {
+            const relatedItems = (category.resources || []).map((resource) => `
+                <li>
+                    <button
+                        type="button"
+                        class="workspace-explorer__relationship-link"
+                        data-workspace-resource="true"
+                        data-related-resource="true"
+                        data-resource-type="${escapeHtml(resource.type)}"
+                        data-resource-id="${escapeHtml(resource.id)}"
+                    >
+                        ${escapeHtml(resource.name)}
+                    </button>
+                </li>
+            `).join('');
+
+            return `
+                <section class="workspace-explorer__relationship-group" role="group" aria-label="${escapeHtml(category.label)}">
+                    <h5>${escapeHtml(category.label)} (${Number(category.count || 0)})</h5>
+                    <ul>${relatedItems || '<li><span class="workspace-explorer__empty">No related resources.</span></li>'}</ul>
+                </section>
+            `;
+        }).join('');
+    };
+
+    const renderResourceNode = (item) => {
+        const nodeId = `${item.type}:${item.id}`;
+        const expanded = expandedResourceIds.includes(nodeId);
+        const hasRelationships = Number(item.relationshipCount || 0) > 0;
+        const summaryText = hasRelationships
+            ? `${item.relationshipCount} relationship${item.relationshipCount === 1 ? '' : 's'}`
+            : 'No relationships';
+
+        return `
+            <li>
+                <details class="workspace-explorer__resource-node" data-workspace-resource-node="true" data-resource-node-id="${escapeHtml(nodeId)}" ${expanded ? 'open' : ''}>
+                    <summary>
+                        <span class="workspace-explorer__resource-summary">
+                            <button type="button" data-workspace-resource="true" data-resource-type="${escapeHtml(item.type)}" data-resource-id="${escapeHtml(item.id)}">
+                                ${escapeHtml(item.name)}
+                            </button>
+                            <span class="workspace-explorer__resource-meta">${escapeHtml(item.subtitle || summaryText)}</span>
+                            <span class="workspace-explorer__resource-badge">${escapeHtml(summaryText)}</span>
+                        </span>
+                    </summary>
+                    <div class="workspace-explorer__resource-actions" role="group" aria-label="${escapeHtml(item.name)} actions">
+                        <button type="button" data-open-resource-properties="true" data-resource-type="${escapeHtml(item.type)}" data-resource-id="${escapeHtml(item.id)}">Show Properties</button>
+                        <button type="button" data-go-to-resource="true" data-resource-type="${escapeHtml(item.type)}" data-resource-id="${escapeHtml(item.id)}">Go To Resource</button>
+                    </div>
+                    <div class="workspace-explorer__relationships" aria-label="${escapeHtml(item.name)} relationships">
+                        ${expanded ? renderRelationshipTree(item) : '<p class="workspace-explorer__relationship-empty">Expand to load relationships.</p>'}
+                    </div>
+                </details>
+            </li>
+        `;
+    };
 
     groups.innerHTML = grouped.map((group) => {
         const visibleItems = group.items.filter((item) => !filterValue || String(item.name || '').toLowerCase().includes(filterValue));
         const listItems = visibleItems.length > 0
-            ? visibleItems.map((item) => `
-                <li>
-                    <button type="button" data-workspace-resource="true" data-resource-type="${item.type}" data-resource-id="${item.id}">
-                        ${item.name}
-                    </button>
-                </li>
-            `).join('')
+            ? visibleItems.map((item) => renderResourceNode(item)).join('')
             : '<li><span class="workspace-explorer__empty">No matching resources.</span></li>';
 
         return `
@@ -634,8 +763,19 @@ function showProjectPropertiesDialog(triggerElement = null) {
     }
 
     const { statistics, health } = buildWorkspaceStatistics(workspace);
+    const workspaceRelationships = getRelationshipSummaryForResource({
+        resourceType: 'workspace',
+        resourceId: workspace.id,
+        workspaceId: workspace.id
+    });
+    const validationIssues = validateWorkspaceRelationships(workspace);
 
     content.innerHTML = `
+        <div class="workspace-dialog__tabs" role="tablist" aria-label="Project Properties tabs">
+            <button id="workspace-properties-tab-general" type="button" role="tab" aria-selected="true" aria-controls="workspace-properties-panel-general">General</button>
+            <button id="workspace-properties-tab-relationships" type="button" role="tab" aria-selected="false" aria-controls="workspace-properties-panel-relationships">Relationships</button>
+        </div>
+        <section id="workspace-properties-panel-general" role="tabpanel" aria-labelledby="workspace-properties-tab-general">
         <label for="workspace-properties-name">Project Name</label>
         <input id="workspace-properties-name" type="text" value="${workspace.name}">
         <label for="workspace-properties-description">Project Description</label>
@@ -666,7 +806,45 @@ function showProjectPropertiesDialog(triggerElement = null) {
             <li>Outstanding Findings: ${health.outstandingFindings || 0}</li>
             <li>Validation Status: ${health.validationStatus || 'stable'}</li>
         </ul>
+        </section>
+        <section id="workspace-properties-panel-relationships" role="tabpanel" aria-labelledby="workspace-properties-tab-relationships" hidden>
+            <h4>Relationship Summary</h4>
+            <ul>
+                ${workspaceRelationships.length > 0
+                    ? workspaceRelationships.map((category) => `<li>${escapeHtml(category.label)} (${Number(category.count || 0)})</li>`).join('')
+                    : '<li>No relationships are currently registered.</li>'}
+            </ul>
+            <h4>Impact Analysis</h4>
+            <p>This workspace currently contains ${statistics.relationships || 0} registered relationships across ${statistics.totalReports || 0} reports, ${statistics.templates || 0} templates, and ${statistics.projectAssets || 0} project assets.</p>
+            <h4>Relationship Validation</h4>
+            <ul>
+                ${validationIssues.length > 0
+                    ? validationIssues.map((issue) => `<li>${escapeHtml(issue.message || issue.code || 'Relationship issue detected.')}</li>`).join('')
+                    : '<li>No relationship validation issues were detected.</li>'}
+            </ul>
+            <button id="btn-workspace-relationships-repair" type="button">Repair Relationships</button>
+        </section>
     `;
+
+    const tabGeneral = document.getElementById('workspace-properties-tab-general');
+    const tabRelationships = document.getElementById('workspace-properties-tab-relationships');
+    const panelGeneral = document.getElementById('workspace-properties-panel-general');
+    const panelRelationships = document.getElementById('workspace-properties-panel-relationships');
+    const repairRelationshipsButton = document.getElementById('btn-workspace-relationships-repair');
+    const switchTab = (target) => {
+        if (!tabGeneral || !tabRelationships || !panelGeneral || !panelRelationships) return;
+        const showRelationships = target === 'relationships';
+        tabGeneral.setAttribute('aria-selected', String(!showRelationships));
+        tabRelationships.setAttribute('aria-selected', String(showRelationships));
+        panelGeneral.hidden = showRelationships;
+        panelRelationships.hidden = !showRelationships;
+    };
+    tabGeneral?.addEventListener('click', () => switchTab('general'));
+    tabRelationships?.addEventListener('click', () => switchTab('relationships'));
+    repairRelationshipsButton?.addEventListener('click', () => {
+        repairWorkspaceRelationshipsFromCommand(repairRelationshipsButton);
+        closeWorkspaceDialog(dialog, triggerElement);
+    });
 
     const closeDialogHandler = () => closeWorkspaceDialog(dialog, triggerElement);
     closeButton.onclick = closeDialogHandler;
@@ -717,6 +895,295 @@ function showProjectPropertiesDialog(triggerElement = null) {
     };
 
     openWorkspaceDialog(dialog, document.getElementById('workspace-properties-name'));
+    return true;
+}
+
+async function copyTextToClipboard(text, successMessage) {
+    const value = normalizeText(text);
+    if (!value || !navigator.clipboard?.writeText) return false;
+    await navigator.clipboard.writeText(value);
+    announce(successMessage);
+    return true;
+}
+
+function resolveWorkspaceResourceTargetFromContext(context = {}) {
+    const source = context && typeof context === 'object' ? context : {};
+    const resourceType = normalizeText(source.resourceType || source.type);
+    const resourceId = normalizeText(source.resourceId || source.id);
+    if (resourceType && resourceId) {
+        return {
+            resourceType,
+            resourceId,
+            triggerElement: source.triggerElement || source.anchorElement || null
+        };
+    }
+
+    const anchor = source.triggerElement instanceof HTMLElement
+        ? source.triggerElement
+        : source.anchorElement instanceof HTMLElement
+            ? source.anchorElement
+            : document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+    const element = anchor?.closest?.('[data-resource-type][data-resource-id]');
+    if (!(element instanceof HTMLElement)) return null;
+
+    return {
+        resourceType: normalizeText(element.getAttribute('data-resource-type')),
+        resourceId: normalizeText(element.getAttribute('data-resource-id')),
+        triggerElement: element
+    };
+}
+
+function filterRelationshipCategories(categories, mode = 'all') {
+    const normalizedMode = normalizeText(mode).toLowerCase();
+    const filters = {
+        dependents: new Set(['used-by', 'referenced-by', 'required-by', 'contained-in', 'generated-outputs', 'shared-with']),
+        references: new Set(['references', 'uses', 'depends-on', 'contains', 'generated-from', 'shared-with'])
+    };
+    if (normalizedMode === 'all') return Array.isArray(categories) ? categories : [];
+    const allowed = filters[normalizedMode];
+    if (!allowed) return Array.isArray(categories) ? categories : [];
+    return (Array.isArray(categories) ? categories : []).filter((category) => allowed.has(normalizeText(category.relationshipType).toLowerCase()));
+}
+
+function showResourcePropertiesDialog(resourceType, resourceId, triggerElement = null, options = {}) {
+    ensureWorkspaceDialogs();
+    const dialog = document.getElementById('workspace-resource-properties-dialog');
+    const content = document.getElementById('workspace-resource-properties-content');
+    const closeButton = document.getElementById('btn-workspace-resource-properties-close');
+    const revealButton = document.getElementById('btn-workspace-resource-reveal');
+    const showRelationshipsButton = document.getElementById('btn-workspace-resource-show-relationships');
+    const showDependentsButton = document.getElementById('btn-workspace-resource-show-dependents');
+    const showReferencesButton = document.getElementById('btn-workspace-resource-show-references');
+    const previewDeletionButton = document.getElementById('btn-workspace-resource-preview-deletion');
+    const copyNameButton = document.getElementById('btn-workspace-resource-copy-name');
+    const copyPathButton = document.getElementById('btn-workspace-resource-copy-path');
+    const copyRelationshipsButton = document.getElementById('btn-workspace-resource-copy-relationships');
+    const active = getActiveWorkspaceSafe();
+
+    if (!dialog || !content || !closeButton || !revealButton || !showRelationshipsButton || !showDependentsButton || !showReferencesButton || !previewDeletionButton || !copyNameButton || !copyPathButton || !copyRelationshipsButton || !active) {
+        return false;
+    }
+
+    const details = getWorkspaceResourceDetails({ resourceType, resourceId }, active);
+    if (!details) return false;
+
+    [revealButton, showRelationshipsButton, showDependentsButton, showReferencesButton, previewDeletionButton, copyNameButton, copyPathButton, copyRelationshipsButton]
+        .forEach((button) => {
+            button.setAttribute('data-resource-type', details.type);
+            button.setAttribute('data-resource-id', details.id);
+        });
+
+    const requestedMode = normalizeText(options.relationshipMode || 'all').toLowerCase() || 'all';
+    const requestedSearch = normalizeText(options.relationshipSearch || document.getElementById('workspace-resource-relationship-search')?.value || '');
+    const visibleRelationshipCategories = filterRelationshipCategories(details.relationships || [], requestedMode);
+
+    const relationshipRows = visibleRelationshipCategories.filter((category) => {
+        const filterValue = requestedSearch.toLowerCase();
+        if (!filterValue) return true;
+        return String(category.label || '').toLowerCase().includes(filterValue)
+            || (category.resources || []).some((item) => String(item.name || '').toLowerCase().includes(filterValue));
+    });
+
+    content.innerHTML = `
+        <div class="workspace-dialog__tabs" role="tablist" aria-label="Resource Properties tabs">
+            <button id="workspace-resource-tab-overview" type="button" role="tab" aria-selected="true" aria-controls="workspace-resource-panel-overview">Overview</button>
+            <button id="workspace-resource-tab-relationships" type="button" role="tab" aria-selected="false" aria-controls="workspace-resource-panel-relationships">Relationships</button>
+        </div>
+        <section id="workspace-resource-panel-overview" role="tabpanel" aria-labelledby="workspace-resource-tab-overview">
+            <p><strong>Name:</strong> ${escapeHtml(details.name)}</p>
+            <p><strong>Type:</strong> ${escapeHtml(details.type)}</p>
+            <p><strong>Category:</strong> ${escapeHtml(details.category || details.subtitle || 'Resource')}</p>
+            <p><strong>Path:</strong> ${escapeHtml(details.path || 'Not available')}</p>
+            <h4>Impact Analysis</h4>
+            <ul>
+                ${details.impact?.categories?.length > 0
+                    ? details.impact.categories.map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')
+                    : '<li>No related resources are currently affected.</li>'}
+            </ul>
+        </section>
+        <section id="workspace-resource-panel-relationships" role="tabpanel" aria-labelledby="workspace-resource-tab-relationships" hidden>
+            <label for="workspace-resource-relationship-search">Search relationships</label>
+            <input id="workspace-resource-relationship-search" type="search" autocomplete="off" spellcheck="false" value="${escapeHtml(requestedSearch)}">
+            <p class="workspace-explorer__resource-meta">Press Escape to clear the relationship search.</p>
+            <div id="workspace-resource-relationship-results">
+                ${(relationshipRows.length > 0 ? relationshipRows : visibleRelationshipCategories).map((category) => `
+                    <section class="workspace-explorer__relationship-group" role="group" aria-label="${escapeHtml(category.label)}">
+                        <h5>${escapeHtml(category.label)} (${Number(category.count || 0)})</h5>
+                        <ul>
+                            ${(category.resources || []).map((resource) => `
+                                <li>
+                                    <button type="button" data-workspace-resource="true" data-related-resource="true" data-resource-type="${escapeHtml(resource.type)}" data-resource-id="${escapeHtml(resource.id)}">
+                                        ${escapeHtml(resource.name)}
+                                    </button>
+                                </li>
+                            `).join('') || '<li><span class="workspace-explorer__empty">No related resources.</span></li>'}
+                        </ul>
+                    </section>
+                `).join('') || '<p>No related resources are currently registered.</p>'}
+            </div>
+        </section>
+    `;
+
+    const tabOverview = document.getElementById('workspace-resource-tab-overview');
+    const tabRelationships = document.getElementById('workspace-resource-tab-relationships');
+    const panelOverview = document.getElementById('workspace-resource-panel-overview');
+    const panelRelationships = document.getElementById('workspace-resource-panel-relationships');
+    const searchInput = document.getElementById('workspace-resource-relationship-search');
+    const switchTab = (target) => {
+        if (!tabOverview || !tabRelationships || !panelOverview || !panelRelationships) return;
+        const showRelationships = target === 'relationships';
+        tabOverview.setAttribute('aria-selected', String(!showRelationships));
+        tabRelationships.setAttribute('aria-selected', String(showRelationships));
+        panelOverview.hidden = showRelationships;
+        panelRelationships.hidden = !showRelationships;
+        if (showRelationships && searchInput instanceof HTMLInputElement) {
+            window.setTimeout(() => searchInput.focus(), 0);
+        }
+    };
+
+    tabOverview?.addEventListener('click', () => switchTab('overview'));
+    tabRelationships?.addEventListener('click', () => switchTab('relationships'));
+
+    if (normalizeText(options.initialTab).toLowerCase() === 'relationships') {
+        switchTab('relationships');
+    }
+
+    searchInput?.addEventListener('input', () => {
+        showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+            initialTab: 'relationships',
+            relationshipMode: requestedMode,
+            relationshipSearch: searchInput.value
+        });
+        switchTab('relationships');
+    });
+    searchInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && searchInput instanceof HTMLInputElement) {
+            if (searchInput.value) {
+                event.preventDefault();
+                searchInput.value = '';
+                showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+                    initialTab: 'relationships',
+                    relationshipMode: requestedMode,
+                    relationshipSearch: ''
+                });
+                switchTab('relationships');
+                return;
+            }
+        }
+    });
+
+    const closeDialogHandler = () => closeWorkspaceDialog(dialog, triggerElement);
+    closeButton.onclick = closeDialogHandler;
+    revealButton.onclick = () => {
+        revealWorkspaceResourceFromCommand(resourceType, resourceId, { select: true, focus: true });
+        closeDialogHandler();
+    };
+    showRelationshipsButton.onclick = () => {
+        showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+            initialTab: 'relationships',
+            relationshipMode: 'all'
+        });
+    };
+    showDependentsButton.onclick = () => {
+        showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+            initialTab: 'relationships',
+            relationshipMode: 'dependents'
+        });
+    };
+    showReferencesButton.onclick = () => {
+        showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+            initialTab: 'relationships',
+            relationshipMode: 'references'
+        });
+    };
+    previewDeletionButton.onclick = () => {
+        openResourceDeletionAnalysisFromCommand(resourceType, resourceId, () => false, triggerElement);
+    };
+    copyNameButton.onclick = () => {
+        void copyTextToClipboard(details.name, `Copied ${details.name}.`);
+    };
+    copyPathButton.onclick = () => {
+        void copyTextToClipboard(details.path || details.name, `Copied path for ${details.name}.`);
+    };
+    copyRelationshipsButton.onclick = () => {
+        const text = (details.relationships || []).map((category) => `${category.label}: ${(category.resources || []).map((resource) => resource.name).join(', ')}`).join('\n');
+        void copyTextToClipboard(text, `Copied relationship information for ${details.name}.`);
+    };
+
+    dialog.onkeydown = (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDialogHandler();
+        }
+    };
+
+    openWorkspaceDialog(dialog, tabOverview || closeButton);
+    return true;
+}
+
+function showDeletionAnalysisDialog(resourceType, resourceId, onConfirm, triggerElement = null) {
+    ensureWorkspaceDialogs();
+    const dialog = document.getElementById('workspace-resource-deletion-dialog');
+    const content = document.getElementById('workspace-resource-deletion-content');
+    const closeButton = document.getElementById('btn-workspace-resource-deletion-close');
+    const repairButton = document.getElementById('btn-workspace-resource-deletion-repair');
+    const confirmButton = document.getElementById('btn-workspace-resource-deletion-confirm');
+    const cancelButton = document.getElementById('btn-workspace-resource-deletion-cancel');
+    const active = getActiveWorkspaceSafe();
+    if (!dialog || !content || !closeButton || !repairButton || !confirmButton || !cancelButton || !active) return false;
+
+    const resource = getWorkspaceResourceDetails({ resourceType, resourceId }, active);
+    const preview = getDeletionPreview({ resourceType, resourceId, workspaceId: active.id });
+    if (!resource) return false;
+
+    confirmButton.textContent = resource.type === 'report' || resource.type === 'template'
+        ? 'Delete and Remove References'
+        : 'Delete';
+    repairButton.hidden = preview.brokenRelationshipCount <= 0;
+    repairButton.disabled = preview.brokenRelationshipCount <= 0;
+
+    content.innerHTML = `
+        <p>The selected ${escapeHtml(resource.type)} is <strong>${escapeHtml(resource.name)}</strong>.</p>
+        <p>${preview.consequences.join(' ') || 'No relationship impact was detected.'}</p>
+        <h4>Affected Resources</h4>
+        <ul>
+            ${preview.affectedResources.length > 0
+                ? preview.affectedResources.map((item) => `<li>${escapeHtml(item.name)} (${escapeHtml(item.type)})</li>`).join('')
+                : '<li>No affected resources were detected.</li>'}
+        </ul>
+    `;
+
+    pendingDeletionRequest = {
+        onConfirm: typeof onConfirm === 'function' ? onConfirm : null,
+        triggerElement
+    };
+
+    const closeDialogHandler = () => {
+        pendingDeletionRequest = null;
+        closeWorkspaceDialog(dialog, triggerElement);
+    };
+
+    closeButton.onclick = closeDialogHandler;
+    repairButton.onclick = () => {
+        repairWorkspaceRelationshipsFromCommand(repairButton);
+        closeDialogHandler();
+    };
+    cancelButton.onclick = closeDialogHandler;
+    confirmButton.onclick = () => {
+        const confirmed = pendingDeletionRequest?.onConfirm ? pendingDeletionRequest.onConfirm() : false;
+        if (confirmed !== false) closeDialogHandler();
+    };
+
+    dialog.onkeydown = (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDialogHandler();
+        }
+    };
+
+    openWorkspaceDialog(dialog, confirmButton);
     return true;
 }
 
@@ -908,6 +1375,11 @@ function restoreWorkspaceRuntimeState(workspace) {
         };
     }
     saveState({ action: `Restored workspace ${workspace.name}`, recordHistory: false });
+    reconcileWorkspaceRelationshipIntegrity(workspace.id || workspace, {
+        persist: true,
+        action: `Reconciled restored workspace ${workspace.name}`,
+        setActive: true
+    });
     window.dispatchEvent(new Event('art-dashboard-config-updated'));
     window.dispatchEvent(new Event('art-reports-updated'));
     dispatchWorkspaceUpdatedEvent('WorkspaceRestored', {
@@ -1038,6 +1510,21 @@ function bindWorkspaceExplorerEvents() {
     });
 
     shell.addEventListener('click', (event) => {
+        const propertyTrigger = event.target instanceof Element ? event.target.closest('[data-open-resource-properties="true"]') : null;
+        if (propertyTrigger instanceof HTMLElement) {
+            showResourcePropertiesDialog(propertyTrigger.getAttribute('data-resource-type') || '', propertyTrigger.getAttribute('data-resource-id') || '', propertyTrigger);
+            return;
+        }
+
+        const gotoTrigger = event.target instanceof Element ? event.target.closest('[data-go-to-resource="true"]') : null;
+        if (gotoTrigger instanceof HTMLElement) {
+            revealWorkspaceResourceFromCommand(gotoTrigger.getAttribute('data-resource-type') || '', gotoTrigger.getAttribute('data-resource-id') || '', {
+                select: true,
+                focus: true
+            });
+            return;
+        }
+
         const trigger = event.target instanceof Element ? event.target.closest('[data-workspace-resource="true"]') : null;
         if (!trigger) return;
 
@@ -1071,7 +1558,39 @@ function bindWorkspaceExplorerEvents() {
             const asset = active?.resources?.projectAssets?.find((item) => item.id === resourceId);
             if (!asset) return;
             updateExplorerStatus(`Project asset selected: ${asset.title || asset.fileName}.`);
+            return;
         }
+
+        updateExplorerStatus('Resource selected in Explorer.');
+    });
+
+    shell.addEventListener('toggle', (event) => {
+        const details = event.target instanceof HTMLElement ? event.target.closest('[data-workspace-resource-node="true"]') : null;
+        if (!(details instanceof HTMLElement)) return;
+        const active = getActiveWorkspaceSafe();
+        if (!active) return;
+
+        const nodeId = normalizeText(details.getAttribute('data-resource-node-id'));
+        if (!nodeId) return;
+        const expanded = new Set(Array.isArray(active.workspaceState?.resourceNavigator?.expandedResourceIds)
+            ? active.workspaceState.resourceNavigator.expandedResourceIds.map((value) => normalizeText(value)).filter(Boolean)
+            : []);
+
+        if (details.hasAttribute('open')) {
+            expanded.add(nodeId);
+        } else {
+            expanded.delete(nodeId);
+        }
+
+        updateProjectWorkspaceState(active.id, {
+            resourceNavigator: {
+                ...(active.workspaceState?.resourceNavigator || {}),
+                expandedResourceIds: [...expanded]
+            }
+        }, {
+            action: 'Updated resource relationship expansion state',
+            persist: true
+        });
     });
 }
 
@@ -1142,7 +1661,12 @@ function collectProjectWorkspaceValidation(workspace) {
         seen.add(key);
     });
 
-    return issues;
+    const relationshipIssues = validateWorkspaceRelationships(workspace);
+    relationshipIssues.forEach((issue) => {
+        if (issue?.message) issues.push(issue.message);
+    });
+
+    return [...new Set(issues)];
 }
 
 function publishValidationResults(workspace) {
@@ -1388,6 +1912,11 @@ export function renameProjectWorkspaceFromCommand() {
     });
 
     if (!renamed) return false;
+    reconcileWorkspaceRelationshipIntegrity(renamed.id, {
+        persist: true,
+        action: `Reconciled renamed workspace ${renamed.name}`,
+        setActive: true
+    });
     appState.projectName = renamed.name;
     saveState({ action: `Renamed project workspace ${renamed.name}`, recordHistory: false });
     renderWorkspaceExplorer();
@@ -1412,6 +1941,11 @@ export function duplicateProjectWorkspaceFromCommand() {
     });
 
     if (!duplicate) return false;
+    reconcileWorkspaceRelationshipIntegrity(duplicate.id, {
+        persist: true,
+        action: `Reconciled duplicated workspace ${duplicate.name}`,
+        setActive: true
+    });
     renderWorkspaceExplorer();
     updateExplorerStatus(`Duplicated Project Workspace as ${duplicate.name}.`);
     return true;
@@ -1442,19 +1976,18 @@ export function deleteProjectWorkspaceFromCommand() {
         return false;
     }
 
-    const confirmed = window.confirm(`Delete Project Workspace ${active.name} from ART workspace state? This does not delete files from disk.`);
-    if (!confirmed) return false;
+    return showDeletionAnalysisDialog('workspace', active.id, () => {
+        const deleted = deleteProjectWorkspace(active.id, {
+            action: `Deleted project workspace ${active.name}`,
+            persist: true
+        });
+        if (!deleted) return false;
 
-    const deleted = deleteProjectWorkspace(active.id, {
-        action: `Deleted project workspace ${active.name}`,
-        persist: true
+        runtimeHandles.workspaceDirectories.delete(active.id);
+        renderWorkspaceExplorer();
+        updateExplorerStatus(`Deleted Project Workspace ${deleted.name} from ART state.`);
+        return true;
     });
-    if (!deleted) return false;
-
-    runtimeHandles.workspaceDirectories.delete(active.id);
-    renderWorkspaceExplorer();
-    updateExplorerStatus(`Deleted Project Workspace ${deleted.name} from ART state.`);
-    return true;
 }
 
 export function openProjectPropertiesFromCommand(triggerElement = null) {
@@ -1544,19 +2077,18 @@ export function removeProjectAssetFromCommand() {
     if (!Number.isInteger(parsedIndex) || parsedIndex < 1 || parsedIndex > assets.length) return false;
 
     const selectedAsset = assets[parsedIndex - 1];
-    const confirmed = window.confirm(`Remove project asset ${selectedAsset.title || selectedAsset.fileName} from workspace?`);
-    if (!confirmed) return false;
+    return showDeletionAnalysisDialog('asset', selectedAsset.id, () => {
+        const removed = removeProjectWorkspaceAsset(active.id, selectedAsset.id, {
+            action: `Removed project asset ${selectedAsset.title || selectedAsset.fileName}`,
+            persist: true
+        });
 
-    const removed = removeProjectWorkspaceAsset(active.id, selectedAsset.id, {
-        action: `Removed project asset ${selectedAsset.title || selectedAsset.fileName}`,
-        persist: true
+        if (!removed) return false;
+
+        renderWorkspaceExplorer();
+        updateExplorerStatus(`Removed project asset ${removed.title || removed.fileName}.`);
+        return true;
     });
-
-    if (!removed) return false;
-
-    renderWorkspaceExplorer();
-    updateExplorerStatus(`Removed project asset ${removed.title || removed.fileName}.`);
-    return true;
 }
 
 export function refreshWorkspaceAssetsFromCommand() {
@@ -1570,6 +2102,29 @@ export function refreshWorkspaceAssetsFromCommand() {
     renderWorkspaceExplorer();
     const issues = publishValidationResults(getActiveWorkspaceSafe());
     updateExplorerStatus(`Workspace refreshed. Validation found ${issues.length} issue${issues.length === 1 ? '' : 's'}.`);
+    return true;
+}
+
+export function repairWorkspaceRelationshipsFromCommand(triggerElement = null) {
+    const active = getActiveWorkspaceSafe();
+    if (!active) {
+        updateExplorerStatus('No active Project Workspace.');
+        return false;
+    }
+
+    const result = repairWorkspaceRelationshipStore(active.id, {
+        action: `Repaired workspace relationships for ${active.name}`,
+        persist: true,
+        setActive: true
+    });
+    renderWorkspaceExplorer();
+    const repairedCount = Number(result.removedIssueCount || 0);
+    updateExplorerStatus(repairedCount > 0
+        ? `Relationship repair completed. Resolved ${repairedCount} issue${repairedCount === 1 ? '' : 's'}.`
+        : 'Relationship repair completed. No invalid relationships remained.');
+    if (triggerElement && typeof triggerElement.focus === 'function') {
+        window.setTimeout(() => triggerElement.focus(), 0);
+    }
     return true;
 }
 
@@ -1606,6 +2161,90 @@ export function revealWorkspaceReportFromCommand(reportId, options = {}) {
     trigger.scrollIntoView({ block: 'nearest' });
     updateExplorerStatus('Revealed report in Resource Navigator.');
     return true;
+}
+
+export function revealWorkspaceResourceFromCommand(resourceType, resourceId, options = {}) {
+    const active = options.workspaceId ? getProjectWorkspaces().find((workspace) => workspace.id === options.workspaceId) || getActiveWorkspaceSafe() : getActiveWorkspaceSafe();
+    if (!active) {
+        updateExplorerStatus('No active Project Workspace.');
+        return false;
+    }
+
+    const targetType = normalizeText(resourceType);
+    const targetId = normalizeText(resourceId);
+    if (!targetType || !targetId) return false;
+
+    const filterInput = document.getElementById('workspace-resource-filter');
+    if (filterInput instanceof HTMLInputElement && options.clearFilter !== false) {
+        filterInput.value = '';
+    }
+
+    const expanded = new Set(Array.isArray(active.workspaceState?.resourceNavigator?.expandedResourceIds)
+        ? active.workspaceState.resourceNavigator.expandedResourceIds.map((value) => normalizeText(value)).filter(Boolean)
+        : []);
+    expanded.add(`${targetType}:${targetId}`);
+
+    updateProjectWorkspaceState(active.id, {
+        resourceNavigator: {
+            ...(active.workspaceState?.resourceNavigator || {}),
+            expandedResourceIds: [...expanded]
+        }
+    }, {
+        action: 'Revealed related workspace resource',
+        persist: true
+    });
+
+    renderWorkspaceExplorer();
+
+    const selector = `[data-workspace-resource="true"][data-resource-type="${targetType}"][data-resource-id="${targetId}"]`;
+    const trigger = document.querySelector(selector);
+    if (!(trigger instanceof HTMLElement)) {
+        updateExplorerStatus('The requested resource could not be revealed in Resource Navigator.');
+        return false;
+    }
+
+    if (options.select !== false) trigger.click();
+    if (options.focus !== false) trigger.focus({ preventScroll: true });
+    trigger.scrollIntoView({ block: 'nearest' });
+    updateExplorerStatus('Revealed related resource in Resource Navigator.');
+    return true;
+}
+
+export function openResourceDeletionAnalysisFromCommand(resourceType, resourceId, onConfirm = null, triggerElement = null) {
+    return showDeletionAnalysisDialog(resourceType, resourceId, onConfirm, triggerElement);
+}
+
+export function openResourceRelationshipsFromCommand(context = {}) {
+    const target = resolveWorkspaceResourceTargetFromContext(context);
+    if (!target) return false;
+    return showResourcePropertiesDialog(target.resourceType, target.resourceId, target.triggerElement, {
+        initialTab: 'relationships',
+        relationshipMode: 'all'
+    });
+}
+
+export function openResourceDependentsFromCommand(context = {}) {
+    const target = resolveWorkspaceResourceTargetFromContext(context);
+    if (!target) return false;
+    return showResourcePropertiesDialog(target.resourceType, target.resourceId, target.triggerElement, {
+        initialTab: 'relationships',
+        relationshipMode: 'dependents'
+    });
+}
+
+export function openResourceReferencesFromCommand(context = {}) {
+    const target = resolveWorkspaceResourceTargetFromContext(context);
+    if (!target) return false;
+    return showResourcePropertiesDialog(target.resourceType, target.resourceId, target.triggerElement, {
+        initialTab: 'relationships',
+        relationshipMode: 'references'
+    });
+}
+
+export function previewResourceDeletionImpactFromCommand(context = {}) {
+    const target = resolveWorkspaceResourceTargetFromContext(context);
+    if (!target) return false;
+    return openResourceDeletionAnalysisFromCommand(target.resourceType, target.resourceId, () => false, target.triggerElement);
 }
 
 export function revealWorkspaceCurrentReportFromCommand(options = {}) {
