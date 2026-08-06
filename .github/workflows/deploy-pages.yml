@@ -18,10 +18,9 @@ jobs:
     permissions:
       pages: write
       id-token: write
-      contents: read
     environment:
       name: github-pages
-      url: ${{ steps.deployment_primary.outputs.page_url || steps.deployment_retry.outputs.page_url }}
+      url: ${{ steps.deployment_result.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -45,4 +44,21 @@ jobs:
       - name: Retry GitHub Pages deployment
         id: deployment_retry
         if: steps.deployment_primary.outcome == 'failure'
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+
+      - name: Select deployment URL
+        id: deployment_result
+        if: ${{ always() }}
+        run: |
+          if [[ "${{ steps.deployment_primary.outcome }}" == "success" ]]; then
+            echo "page_url=${{ steps.deployment_primary.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ steps.deployment_retry.outcome }}" == "success" ]]; then
+            echo "page_url=${{ steps.deployment_retry.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fail if deployment did not succeed
+        if: ${{ always() && steps.deployment_primary.outcome == 'failure' && steps.deployment_retry.outcome != 'success' }}
+        run: |
+          echo "Both GitHub Pages deployment attempts failed."
+          exit 1
