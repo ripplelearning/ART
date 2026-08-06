@@ -63,6 +63,194 @@ function editorEventToShortcut(event) {
     return parts.join('+');
 }
 
+function normalizeSmartDataEntryValue(value) {
+    if (value && typeof value === 'object') {
+        return String(value.label || value.name || value.value || value.title || '').trim();
+    }
+    return String(value || '').trim();
+}
+
+function getSmartDataEntrySuggestions(fieldIndex, query = '') {
+    const normalizedQuery = String(query || '').trim().toLowerCase();
+    const entries = currentReportSupportsAuditEntries() ? getAuditEntries() : [];
+    const seen = new Set();
+    const suggestions = [];
+
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+        const value = normalizeSmartDataEntryValue(entries[index]?.fieldValues?.[fieldIndex]);
+        if (!value) continue;
+        const key = value.toLowerCase();
+        if (seen.has(key)) continue;
+        if (normalizedQuery && !key.startsWith(normalizedQuery)) continue;
+        seen.add(key);
+        suggestions.push(value);
+    }
+
+    return suggestions;
+}
+
+function closeSmartDataEntryListbox(control, input, listbox, state, options = {}) {
+    const shouldFocusInput = options.focusInput !== false;
+    const resetAnnouncement = options.resetAnnouncement !== false;
+
+    listbox.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+    state.isOpen = false;
+    state.activeIndex = -1;
+    if (resetAnnouncement) {
+        state.announcementSent = false;
+    }
+    if (shouldFocusInput) {
+        input.focus();
+    }
+}
+
+function renderSmartDataEntryListbox(listbox, suggestions, activeIndex) {
+    listbox.innerHTML = suggestions.map((suggestion, index) => `
+        <li
+            id="${listbox.id}-option-${index}"
+            role="option"
+            tabindex="-1"
+            aria-selected="${index === activeIndex ? 'true' : 'false'}"
+            data-option-index="${index}"
+        >${escapeHtml(suggestion)}</li>
+    `).join('');
+}
+
+function attachSmartDataEntryAutocomplete(control, fieldIndex) {
+    const wrapper = control.parentElement;
+    const listbox = wrapper?.querySelector('.smart-data-entry-listbox');
+    if (!wrapper || !listbox) return;
+
+    const state = {
+        suggestions: [],
+        activeIndex: -1,
+        isOpen: false,
+        announcementSent: false
+    };
+
+    const focusOption = (nextIndex) => {
+        if (state.suggestions.length === 0) return;
+        state.activeIndex = Math.max(0, Math.min(nextIndex, state.suggestions.length - 1));
+        renderSmartDataEntryListbox(listbox, state.suggestions, state.activeIndex);
+        const option = listbox.querySelector(`[data-option-index="${state.activeIndex}"]`);
+        option?.focus();
+    };
+
+    const refreshSuggestions = ({ announceAvailability = true } = {}) => {
+        state.suggestions = getSmartDataEntrySuggestions(fieldIndex, control.value);
+        if (state.suggestions.length === 0) {
+            closeSmartDataEntryListbox(control, control, listbox, state, { focusInput: false, resetAnnouncement: true });
+            return [];
+        }
+
+        if (announceAvailability && !state.announcementSent && document.activeElement === control) {
+            announce('Suggestions available.');
+            state.announcementSent = true;
+        }
+
+        state.activeIndex = Math.min(state.activeIndex < 0 ? 0 : state.activeIndex, state.suggestions.length - 1);
+        if (state.isOpen) {
+            renderSmartDataEntryListbox(listbox, state.suggestions, state.activeIndex);
+        }
+        return state.suggestions;
+    };
+
+    const openListbox = () => {
+        if (state.suggestions.length === 0) return;
+        state.isOpen = true;
+        listbox.hidden = false;
+        control.setAttribute('aria-expanded', 'true');
+        renderSmartDataEntryListbox(listbox, state.suggestions, state.activeIndex < 0 ? 0 : state.activeIndex);
+        focusOption(state.activeIndex < 0 ? 0 : state.activeIndex);
+    };
+
+    const acceptSuggestion = (suggestion) => {
+        if (!suggestion) return;
+        control.value = suggestion;
+        const event = new Event('input', { bubbles: true, cancelable: true });
+        control.dispatchEvent(event);
+        window.setTimeout(() => {
+            control.focus();
+            try {
+                control.setSelectionRange(suggestion.length, suggestion.length);
+            } catch (error) {
+                // Some browsers do not support selection APIs on every text field.
+            }
+        }, 0);
+        closeSmartDataEntryListbox(control, control, listbox, state, { focusInput: false, resetAnnouncement: true });
+    };
+
+    control.addEventListener('input', () => {
+        refreshSuggestions();
+    });
+
+    control.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || (event.altKey && event.key === 'ArrowDown')) {
+            if (!refreshSuggestions({ announceAvailability: true }).length) return;
+            event.preventDefault();
+            openListbox();
+            return;
+        }
+
+        if (event.key === 'Escape' && state.isOpen) {
+            event.preventDefault();
+            closeSmartDataEntryListbox(control, control, listbox, state, { focusInput: true, resetAnnouncement: true });
+        }
+    });
+
+    control.addEventListener('blur', () => {
+        window.setTimeout(() => {
+            if (!wrapper.contains(document.activeElement)) {
+                closeSmartDataEntryListbox(control, control, listbox, state, { focusInput: false, resetAnnouncement: true });
+            }
+        }, 0);
+    });
+
+    listbox.addEventListener('mousedown', (event) => event.preventDefault());
+    listbox.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            focusOption(Math.min(state.activeIndex + 1, state.suggestions.length - 1));
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            focusOption(Math.max(0, state.activeIndex - 1));
+            return;
+        }
+        if (event.key === 'Home') {
+            event.preventDefault();
+            focusOption(0);
+            return;
+        }
+        if (event.key === 'End') {
+            event.preventDefault();
+            focusOption(state.suggestions.length - 1);
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            acceptSuggestion(state.suggestions[state.activeIndex]);
+            return;
+        }
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeSmartDataEntryListbox(control, control, listbox, state, { focusInput: true, resetAnnouncement: true });
+        }
+    });
+
+    listbox.addEventListener('click', (event) => {
+        const option = event.target.closest('[data-option-index]');
+        if (!option) return;
+        const optionIndex = Number(option.getAttribute('data-option-index'));
+        acceptSuggestion(state.suggestions[optionIndex]);
+    });
+
+    refreshSuggestions({ announceAvailability: false });
+}
+
 function levenshteinDistance(a, b) {
     const left = String(a || '');
     const right = String(b || '');
@@ -771,7 +959,16 @@ function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly
     }
 
     if (type === 'textarea') {
-        return `<textarea id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>${escapeHtml(storedValue)}</textarea>`;
+        if (readOnly) {
+            return `<textarea id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" readonly aria-readonly="true">${escapeHtml(storedValue)}</textarea>`;
+        }
+
+        return `
+            <div class="smart-data-entry" data-smart-data-entry="true">
+                <textarea id="editor-field-${entryIndex}-${fieldIndex}" class="smart-data-entry-input" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-controls="editor-field-${entryIndex}-${fieldIndex}-smart-listbox" autocomplete="off">${escapeHtml(storedValue)}</textarea>
+                <ul id="editor-field-${entryIndex}-${fieldIndex}-smart-listbox" class="smart-data-entry-listbox" role="listbox" hidden></ul>
+            </div>
+        `;
     }
 
     if (type === 'dropdown') {
@@ -827,7 +1024,16 @@ function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly
         `;
     }
 
-    return `<input type="text" id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" value="${escapeHtml(storedValue)}"${readOnly ? ' readonly aria-readonly="true"' : ''}>`;
+    if (readOnly) {
+        return `<input type="text" id="editor-field-${entryIndex}-${fieldIndex}" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" value="${escapeHtml(storedValue)}" readonly aria-readonly="true">`;
+    }
+
+    return `
+        <div class="smart-data-entry" data-smart-data-entry="true">
+            <input type="text" id="editor-field-${entryIndex}-${fieldIndex}" class="smart-data-entry-input" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-controls="editor-field-${entryIndex}-${fieldIndex}-smart-listbox" autocomplete="off" value="${escapeHtml(storedValue)}">
+            <ul id="editor-field-${entryIndex}-${fieldIndex}-smart-listbox" class="smart-data-entry-listbox" role="listbox" hidden></ul>
+        </div>
+    `;
 }
 
 function bindAttachmentControl(control, isAuditLogContext) {
@@ -1518,6 +1724,10 @@ function bindAuditTableEvents(criteria) {
             bindAttachmentControl(control, true);
             return;
         }
+        if (control.matches('input.smart-data-entry-input, textarea.smart-data-entry-input')) {
+            const fieldIndex = Number(control.getAttribute('data-field-index'));
+            attachSmartDataEntryAutocomplete(control, fieldIndex);
+        }
         const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';
         control.addEventListener(eventName, (event) => {
             const entryIndex = Number(event.target.getAttribute('data-entry-index'));
@@ -1750,6 +1960,10 @@ export async function renderEditor() {
             if (control.classList.contains('attachment-control')) {
                 bindAttachmentControl(control, false);
                 return;
+            }
+            if (control.matches('input.smart-data-entry-input, textarea.smart-data-entry-input')) {
+                const fieldIndex = Number(control.getAttribute('data-field-index'));
+                attachSmartDataEntryAutocomplete(control, fieldIndex);
             }
             const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';
             control.addEventListener(eventName, (event) => {

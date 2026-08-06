@@ -398,6 +398,46 @@ a {
 }
 .wcag-combobox-listbox li { padding: 8px; cursor: pointer; }
 .wcag-combobox-listbox li[aria-selected="true"] { background: #dfefff; }
+
+.smart-data-entry {
+    position: relative;
+    display: grid;
+    gap: 6px;
+}
+
+.smart-data-entry-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.smart-data-entry-listbox {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 240px;
+    overflow: auto;
+    background: var(--art-surface-background);
+    border: var(--art-border-width) solid var(--art-border-color);
+    border-radius: 10px;
+    padding: 6px;
+    margin: 0;
+    list-style: none;
+    box-shadow: 0 10px 20px rgba(16, 33, 43, 0.14);
+}
+
+.smart-data-entry-listbox li {
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.smart-data-entry-listbox li[aria-selected="true"],
+.smart-data-entry-listbox li:focus-visible {
+    background: #dfefff;
+    outline: none;
+}
 .attachment-control { display: grid; gap: 8px; }
 .attachment-list { margin: 0; padding-left: 20px; }
 .attachment-list li { margin-bottom: 6px; }
