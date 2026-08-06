@@ -2144,7 +2144,10 @@ function getCurrentReportSnapshotData() {
         progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
         progressItems: normalizeProgressItems(appState.progressItems),
         branding: normalizeBranding(appState.branding),
-        fields: appState.fields.map((field) => normalizeField(field))
+        fields: appState.fields.map((field) => normalizeField(field)),
+        editorFieldValues: normalizeEditorFieldValues(appState.editorFieldValues),
+        auditEntries: normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues),
+        activeAuditEntryIndex: appState.activeAuditEntryIndex
     };
 }
 
@@ -3570,7 +3573,21 @@ function parseSeveritySummary(summaryText) {
 export function getReportAnalyticsSnapshot(reportId = '') {
     const targetId = String(reportId || appState.selectedReportId || '').trim();
     const report = targetId ? getReportById(targetId) : null;
-    if (!report) return null;
+    if (!report) {
+        const hasCurrentReport = Boolean(String(appState.reportTitle || '').trim())
+            || (Array.isArray(appState.fields) && appState.fields.length > 0)
+            || (Array.isArray(appState.auditEntries) && appState.auditEntries.length > 0);
+        if (!hasCurrentReport) return null;
+
+        return {
+            reportId: targetId || 'current-report',
+            reportName: String(appState.reportTitle || 'Untitled Report').trim() || 'Untitled Report',
+            reportType: String(appState.reportType || '').trim(),
+            metrics: getCurrentReportMetrics(),
+            progress: getProgressLogMetrics(),
+            updatedAt: Date.now()
+        };
+    }
 
     return {
         reportId: report.id,

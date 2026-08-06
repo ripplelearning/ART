@@ -476,14 +476,15 @@ function getPluginAnalyticsSections() {
 
 function renderDashboardAnalyticsWidget(container) {
     const analyticsConfig = getAnalyticsConfig();
+    const reportAnalytics = getReportAnalyticsSnapshot();
     const workspaceAnalytics = getWorkspaceAnalyticsSnapshot();
 
     container.innerHTML = '';
 
-    if (!workspaceAnalytics) {
+    if (!reportAnalytics && !workspaceAnalytics) {
         const message = document.createElement('p');
         message.className = 'dashboard-widget__status';
-        message.textContent = 'Open a Project Workspace to view dashboard analytics.';
+        message.textContent = 'Open a report, Working View, or Project Workspace to view dashboard analytics.';
         container.appendChild(message);
 
         const actions = document.createElement('div');
@@ -526,7 +527,6 @@ function renderDashboardAnalyticsWidget(container) {
     container.appendChild(controlsWrap);
 
     const workingViewActive = isWorkingViewActiveForCurrentReport();
-    const reportAnalytics = getReportAnalyticsSnapshot();
     const supportsScopeSwitch = Boolean(reportAnalytics && workspaceAnalytics);
 
     let activeScope = 'workspace';
@@ -706,7 +706,7 @@ function renderDashboardAnalyticsWidget(container) {
         }
 
         scopeStatus.textContent = isReportScope
-            ? 'Showing analytics for the current Working View report.'
+            ? 'Showing analytics for the current report.'
             : 'Showing analytics for the active Project Workspace.';
     };
 
