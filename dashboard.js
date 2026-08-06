@@ -371,6 +371,14 @@ function formatNumeric(value) {
     return String(Math.round(number));
 }
 
+function formatCountList(list = [], limit = 5, emptyLabel = 'None') {
+    const items = (Array.isArray(list) ? list : [])
+        .filter((item) => String(item?.label || '').trim() && Number(item?.count || 0) > 0)
+        .slice(0, Math.max(1, Number(limit || 1)));
+    if (items.length === 0) return emptyLabel;
+    return items.map((item) => `${item.label}: ${item.count}`).join(', ');
+}
+
 function buildDefinitionList(items = []) {
     const list = document.createElement('dl');
     list.className = 'dashboard-widget__definition-list';
@@ -572,12 +580,18 @@ function renderDashboardAnalyticsWidget(container) {
             const reportFindings = buildDefinitionList([
                 { label: 'Issues by Severity', value: String(reportAnalytics.metrics.issuesBySeverity || 'None') },
                 { label: 'WCAG Criteria Referenced', value: formatNumeric(reportAnalytics.metrics.wcagCriteria) },
-                { label: 'Audit Entries', value: formatNumeric(reportAnalytics.metrics.totalAuditEntries) }
+                { label: 'Audit Entries', value: formatNumeric(reportAnalytics.metrics.totalAuditEntries) },
+                { label: 'Most Frequent Issue Type', value: reportAnalytics.insights?.topIssueType ? `${reportAnalytics.insights.topIssueType.label} (${reportAnalytics.insights.topIssueType.count})` : 'Not enough data' },
+                { label: 'Most Frequent Severity', value: reportAnalytics.insights?.topSeverity ? `${reportAnalytics.insights.topSeverity.label} (${reportAnalytics.insights.topSeverity.count})` : 'Not enough data' },
+                { label: 'Issue Types (Top)', value: formatCountList(reportAnalytics.insights?.issueTypeCounts, 5, 'No issue type field detected') },
+                { label: 'Severity Breakdown', value: formatCountList(reportAnalytics.insights?.severityCounts, 5, 'No severity field detected') },
+                { label: 'Status Breakdown', value: formatCountList(reportAnalytics.insights?.statusCounts, 4, 'No status field detected') },
+                { label: 'Most Affected Page', value: reportAnalytics.insights?.topPage ? `${reportAnalytics.insights.topPage.label} (${reportAnalytics.insights.topPage.count})` : 'No page field detected' }
             ]);
             sectionsHost.appendChild(buildAnalyticsSection({
                 id: 'report-findings',
                 title: 'Findings and Coverage',
-                description: 'Issue distribution and standards coverage for this report.',
+                description: 'Issue distribution, dominant issue patterns, and standards coverage for this report.',
                 expanded: expanded.has('report-findings'),
                 emphasizeDescription: emphasizeDescriptions,
                 contentNode: reportFindings
@@ -619,7 +633,13 @@ function renderDashboardAnalyticsWidget(container) {
                 { label: 'Accessibility Findings', value: formatNumeric(workspaceAnalytics.statistics.accessibilityFindings) },
                 { label: 'Open Findings', value: formatNumeric(workspaceAnalytics.statistics.openFindings) },
                 { label: 'Resolved Findings', value: formatNumeric(workspaceAnalytics.statistics.resolvedFindings) },
-                { label: 'Deferred Findings', value: formatNumeric(workspaceAnalytics.statistics.deferredFindings) }
+                { label: 'Deferred Findings', value: formatNumeric(workspaceAnalytics.statistics.deferredFindings) },
+                { label: 'Most Frequent Issue Type', value: workspaceAnalytics.insights?.topIssueType ? `${workspaceAnalytics.insights.topIssueType.label} (${workspaceAnalytics.insights.topIssueType.count})` : 'Not enough data' },
+                { label: 'Most Frequent Severity', value: workspaceAnalytics.insights?.topSeverity ? `${workspaceAnalytics.insights.topSeverity.label} (${workspaceAnalytics.insights.topSeverity.count})` : 'Not enough data' },
+                { label: 'Issue Types (Top)', value: formatCountList(workspaceAnalytics.insights?.issueTypeCounts, 5, 'No issue type field detected') },
+                { label: 'Severity Breakdown', value: formatCountList(workspaceAnalytics.insights?.severityCounts, 5, 'No severity field detected') },
+                { label: 'Status Breakdown', value: formatCountList(workspaceAnalytics.insights?.statusCounts, 4, 'No status field detected') },
+                { label: 'Most Affected Page', value: workspaceAnalytics.insights?.topPage ? `${workspaceAnalytics.insights.topPage.label} (${workspaceAnalytics.insights.topPage.count})` : 'No page field detected' }
             ];
             if (showPercentages) {
                 const total = Number(workspaceAnalytics.statistics.accessibilityFindings || 0);

@@ -3570,6 +3570,121 @@ function parseSeveritySummary(summaryText) {
     return counts;
 }
 
+function getInsightFieldIndexes(fields = []) {
+    const indexed = (Array.isArray(fields) ? fields : []).map((field, index) => ({
+        field,
+        index,
+        label: String(field?.label || '').trim()
+    }));
+
+    const findIndexes = (patterns = []) => indexed
+        .filter((item) => patterns.some((pattern) => pattern.test(item.label)))
+        .map((item) => item.index);
+
+    return {
+        issueTypeIndexes: findIndexes([/issue\s*type/i, /finding\s*type/i, /category/i, /defect\s*type/i]),
+        severityIndexes: findIndexes([/severity/i, /risk/i, /priority/i]),
+        statusIndexes: findIndexes([/status/i, /state/i, /disposition/i]),
+        pageIndexes: findIndexes([/page/i, /url/i, /screen/i, /view/i])
+    };
+}
+
+function getInsightValue(rawValue) {
+    if (rawValue && typeof rawValue === 'object') {
+        const preferred = String(rawValue.label || rawValue.name || rawValue.identifier || rawValue.value || '').trim();
+        if (preferred) return preferred;
+        return String(rawValue.title || '').trim();
+    }
+    return String(rawValue || '').trim();
+}
+
+function buildSortedCountList(countMap = new Map()) {
+    return [...countMap.entries()]
+        .map(([label, count]) => ({ label, count: Number(count || 0) }))
+        .filter((item) => item.label && item.count > 0)
+        .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+}
+
+function addCountListToObject(target = {}, list = []) {
+    (Array.isArray(list) ? list : []).forEach((item) => {
+        const label = String(item?.label || '').trim();
+        const count = Number(item?.count || 0);
+        if (!label || count <= 0) return;
+        target[label] = Number(target[label] || 0) + count;
+    });
+    return target;
+}
+
+function buildSortedCountListFromObject(counts = {}) {
+    return Object.entries(counts || {})
+        .map(([label, count]) => ({ label: String(label || '').trim(), count: Number(count || 0) }))
+        .filter((item) => item.label && item.count > 0)
+        .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+}
+
+function summarizeReportInsights(reportData) {
+    const fields = Array.isArray(reportData?.fields) ? reportData.fields : [];
+    const entries = Array.isArray(reportData?.auditEntries) && reportData.auditEntries.length > 0
+        ? reportData.auditEntries
+        : [{ fieldValues: reportData?.editorFieldValues || {} }];
+
+    const {
+        issueTypeIndexes,
+        severityIndexes,
+        statusIndexes,
+        pageIndexes
+    } = getInsightFieldIndexes(fields);
+
+    const issueTypeCounts = new Map();
+    const severityCounts = new Map();
+    const statusCounts = new Map();
+    const pageCounts = new Map();
+
+    entries.forEach((entry) => {
+        const values = entry?.fieldValues || {};
+
+        issueTypeIndexes.forEach((index) => {
+            const value = getInsightValue(values[index]);
+            if (!value) return;
+            issueTypeCounts.set(value, Number(issueTypeCounts.get(value) || 0) + 1);
+        });
+
+        severityIndexes.forEach((index) => {
+            const value = getInsightValue(values[index]);
+            if (!value) return;
+            severityCounts.set(value, Number(severityCounts.get(value) || 0) + 1);
+        });
+
+        statusIndexes.forEach((index) => {
+            const value = getInsightValue(values[index]);
+            if (!value) return;
+            statusCounts.set(value, Number(statusCounts.get(value) || 0) + 1);
+        });
+
+        pageIndexes.forEach((index) => {
+            const value = getInsightValue(values[index]);
+            if (!value) return;
+            pageCounts.set(value, Number(pageCounts.get(value) || 0) + 1);
+        });
+    });
+
+    const issueTypeList = buildSortedCountList(issueTypeCounts);
+    const severityList = buildSortedCountList(severityCounts);
+    const statusList = buildSortedCountList(statusCounts);
+    const pageList = buildSortedCountList(pageCounts);
+
+    return {
+        issueTypeCounts: issueTypeList,
+        severityCounts: severityList,
+        statusCounts: statusList,
+        pageCounts: pageList,
+        topIssueType: issueTypeList[0] || null,
+        topSeverity: severityList[0] || null,
+        topStatus: statusList[0] || null,
+        topPage: pageList[0] || null
+    };
+}
+
 export function getReportAnalyticsSnapshot(reportId = '') {
     const targetId = String(reportId || appState.selectedReportId || '').trim();
     const report = targetId ? getReportById(targetId) : null;
@@ -3585,6 +3700,7 @@ export function getReportAnalyticsSnapshot(reportId = '') {
             reportType: String(appState.reportType || '').trim(),
             metrics: getCurrentReportMetrics(),
             progress: getProgressLogMetrics(),
+            insights: summarizeReportInsights(getCurrentReportSnapshotData()),
             updatedAt: Date.now()
         };
     }
@@ -3595,6 +3711,7 @@ export function getReportAnalyticsSnapshot(reportId = '') {
         reportType: String(report.data?.reportType || '').trim(),
         metrics: computeReportMetrics(report),
         progress: getProgressLogMetrics(report),
+        insights: summarizeReportInsights(report.data || {}),
         updatedAt: Number(report.updatedAt || 0)
     };
 }
@@ -3620,7 +3737,7 @@ export function getWorkspaceAnalyticsSnapshot(workspaceId = '') {
     const aggregate = reports.reduce((accumulator, report) => {
         const reportMetrics = computeReportMetrics(report);
         const progressMetrics = getProgressLogMetrics(report);
-        const severityMap = parseSeveritySummary(reportMetrics.issuesBySeverity);
+        const reportInsights = summarizeReportInsights(report.data || {});
 
         accumulator.totalIssues += Number(reportMetrics.totalIssues || 0);
         accumulator.totalAuditEntries += Number(reportMetrics.totalAuditEntries || 0);
@@ -3629,9 +3746,10 @@ export function getWorkspaceAnalyticsSnapshot(workspaceId = '') {
         accumulator.totalEvaluationItems += Number(progressMetrics.totalEvaluationItems || 0);
         accumulator.completedEvaluationItems += Number(progressMetrics.completed || 0);
 
-        Object.entries(severityMap).forEach(([label, count]) => {
-            accumulator.severityCounts[label] = (Number(accumulator.severityCounts[label]) || 0) + Number(count || 0);
-        });
+        addCountListToObject(accumulator.severityCounts, reportInsights.severityCounts);
+        addCountListToObject(accumulator.issueTypeCounts, reportInsights.issueTypeCounts);
+        addCountListToObject(accumulator.statusCounts, reportInsights.statusCounts);
+        addCountListToObject(accumulator.pageCounts, reportInsights.pageCounts);
 
         return accumulator;
     }, {
@@ -3641,8 +3759,16 @@ export function getWorkspaceAnalyticsSnapshot(workspaceId = '') {
         wcagCriteria: 0,
         totalEvaluationItems: 0,
         completedEvaluationItems: 0,
-        severityCounts: {}
+        severityCounts: {},
+        issueTypeCounts: {},
+        statusCounts: {},
+        pageCounts: {}
     });
+
+    const severityList = buildSortedCountListFromObject(aggregate.severityCounts);
+    const issueTypeList = buildSortedCountListFromObject(aggregate.issueTypeCounts);
+    const statusList = buildSortedCountListFromObject(aggregate.statusCounts);
+    const pageList = buildSortedCountListFromObject(aggregate.pageCounts);
 
     return {
         workspaceId: workspace.id,
@@ -3656,6 +3782,16 @@ export function getWorkspaceAnalyticsSnapshot(workspaceId = '') {
             pagesTested: aggregate.pagesTested,
             wcagCriteria: aggregate.wcagCriteria,
             severityCounts: aggregate.severityCounts
+        },
+        insights: {
+            severityCounts: severityList,
+            issueTypeCounts: issueTypeList,
+            statusCounts: statusList,
+            pageCounts: pageList,
+            topIssueType: issueTypeList[0] || null,
+            topSeverity: severityList[0] || null,
+            topStatus: statusList[0] || null,
+            topPage: pageList[0] || null
         },
         progressAggregate: {
             totalEvaluationItems: aggregate.totalEvaluationItems,
