@@ -3,6 +3,7 @@ import {
     appState,
     ensureAuditEntries,
     getAuditEntries,
+    getReportById,
     saveState,
     upsertCurrentReport
 } from './state.js';
@@ -29,15 +30,21 @@ const WORKING_VIEW_FIELD_LABELS = Object.freeze({
     relationship: 'Relationship',
     label: 'Finding'
 });
-const WORKING_VIEW_FIELD_INDEX_KEYS = Object.freeze({
-    severity: 'severity',
-    status: 'status',
-    reviewer: 'reviewer',
-    wcag: 'wcag',
-    page: 'page',
-    component: 'component',
-    type: 'findingType'
-});
+const WORKING_VIEW_LABEL_ORDER = Object.freeze([
+    'label',
+    'severity',
+    'status',
+    'reviewer',
+    'page',
+    'wcag',
+    'component',
+    'type',
+    'standard',
+    'template',
+    'attachment',
+    'relationship',
+    'tags'
+]);
 const TABLE_COLUMNS = Object.freeze([
     { field: 'label', label: 'Finding' },
     { field: 'severity', label: 'Severity' },
@@ -167,18 +174,26 @@ function getWorkingViewFieldLabel(field) {
     return dynamicLabels[normalized] || WORKING_VIEW_FIELD_LABELS[normalized] || normalizeText(field);
 }
 
+function getActiveReportFieldDefinitions() {
+    const selectedReport = appState.selectedReportId ? getReportById(appState.selectedReportId) : null;
+    const selectedFields = Array.isArray(selectedReport?.data?.fields) ? selectedReport.data.fields : [];
+    if (selectedFields.length > 0) return selectedFields;
+    return Array.isArray(appState.fields) ? appState.fields : [];
+}
+
+function getActiveReportFieldLabel(index, fallback = '') {
+    const fields = getActiveReportFieldDefinitions();
+    return normalizeText(fields[index]?.label) || normalizeText(fallback);
+}
+
 function getResolvedWorkingViewFieldLabels() {
     const labels = {
         ...WORKING_VIEW_FIELD_LABELS
     };
-    const indexMap = inferFieldIndexes();
 
-    Object.entries(WORKING_VIEW_FIELD_INDEX_KEYS).forEach(([fieldKey, indexKey]) => {
-        const fieldIndex = Number(indexMap[indexKey]);
-        if (!Number.isInteger(fieldIndex) || fieldIndex < 0) return;
-        const reportField = appState.fields?.[fieldIndex];
-        const reportLabel = normalizeText(reportField?.label);
-        if (reportLabel) labels[fieldKey] = reportLabel;
+    WORKING_VIEW_LABEL_ORDER.forEach((fieldKey, index) => {
+        const activeLabel = getActiveReportFieldLabel(index, labels[fieldKey]);
+        if (activeLabel) labels[fieldKey] = activeLabel;
     });
 
     return labels;
@@ -530,7 +545,11 @@ function compareByLevel(left, right, level) {
 
 function getTableColumnLabel(field) {
     const item = TABLE_COLUMNS.find((column) => column.field === field);
-    if (item && WORKING_VIEW_FIELD_LABELS[field]) return getWorkingViewFieldLabel(field);
+    if (item) {
+        const columnIndex = TABLE_COLUMNS.findIndex((column) => column.field === field);
+        const activeLabel = getActiveReportFieldLabel(columnIndex, item.label);
+        return activeLabel || getWorkingViewFieldLabel(field);
+    }
     return item ? item.label : getWorkingViewFieldLabel(field);
 }
 
