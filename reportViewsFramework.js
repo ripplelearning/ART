@@ -1313,9 +1313,7 @@ function syncWindowTitleForSession(session) {
         return;
     }
 
-    const titleName = normalizeText(session.config?.name) || 'Working View';
-    const titleLabel = `${titleName} - Working View`;
-    setActivePanel(titleLabel);
+    setActivePanel('Working View');
     syncDocumentTitle();
 }
 

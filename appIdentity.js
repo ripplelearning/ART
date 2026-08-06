@@ -74,6 +74,7 @@ function mapPanelFromFocusTarget(target) {
     if (!target || typeof target.closest !== 'function') return '';
     if (target.closest('#dashboard')) return 'Dashboard';
     if (target.closest('#lookup-tool')) return 'Accessibility Lookup Tool';
+    if (target.closest('#report-working-view')) return 'Working View';
     if (target.closest('#main-inner')) return getSelectedTabPanelName();
     return '';
 }
