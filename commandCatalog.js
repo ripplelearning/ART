@@ -43,6 +43,8 @@ import {
     createSettingsBackupFromCommand,
     exportSettingsPluginFrameworkConfigFromCommand,
     importSettingsPluginFrameworkConfigFromCommand,
+    openSettingsAnalyticsSectionFromCommand,
+    openSettingsIntegrationsSectionFromCommand,
     openSettingsPasteStandardTableFromCommand,
     openSettingsResetDialogFromCommand,
     openSettingsDialogFromCommand,
@@ -321,6 +323,7 @@ function getDefaultMenuLocation(action, category) {
         case 'settingsImportReportFile':
         case 'settingsImportTemplateFile':
         case 'settingsOpenIntegrations':
+        case 'settingsCustomizeAnalytics':
         case 'settingsPluginInstall':
         case 'settingsPluginValidate':
         case 'settingsPluginRefresh':
@@ -634,18 +637,6 @@ function runNewReportFromTemplateWorkflow() {
         templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
     return runUseTemplateWorkflow({ templateId: firstTemplate?.value || '' });
-}
-
-function focusIntegrationsSection() {
-    if (!openSettingsDialogFromCommand()) return false;
-    window.setTimeout(() => {
-        const integrationsHeading = document.getElementById('settings-integrations-heading');
-        if (!integrationsHeading) return;
-        integrationsHeading.scrollIntoView({ block: 'start' });
-        if (!integrationsHeading.hasAttribute('tabindex')) integrationsHeading.setAttribute('tabindex', '-1');
-        integrationsHeading.focus();
-    }, 0);
-    return true;
 }
 
 function getSelectedReportId(context = {}) {
@@ -2490,7 +2481,14 @@ const BASE_COMMAND_DEFINITIONS = [
         id: 'Settings.OpenIntegrations',
         category: 'Settings',
         description: 'Open the Integrations section in Settings.',
-        handler: () => focusIntegrationsSection()
+        handler: () => openSettingsIntegrationsSectionFromCommand()
+    },
+    {
+        action: 'settingsCustomizeAnalytics',
+        id: 'Settings.CustomizeAnalytics',
+        category: 'Settings',
+        description: 'Open the Analytics section in Settings.',
+        handler: () => openSettingsAnalyticsSectionFromCommand()
     },
     {
         action: 'settingsPluginInstall',

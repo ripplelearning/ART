@@ -224,6 +224,7 @@ const defaultState = {
         settingsImportReportFile: '',
         settingsImportTemplateFile: '',
         settingsOpenIntegrations: '',
+        settingsCustomizeAnalytics: '',
         settingsPluginInstall: '',
         settingsPluginValidate: '',
         settingsPluginRefresh: '',
@@ -310,6 +311,7 @@ const defaultState = {
             'current-project',
             'current-report',
             'report-metrics',
+            'dashboard-analytics',
             'recent-activity',
             'notifications',
             'dashboard-search'
@@ -320,6 +322,7 @@ const defaultState = {
             'current-project',
             'current-report',
             'report-metrics',
+            'dashboard-analytics',
             'recent-activity',
             'notifications',
             'dashboard-search'
@@ -344,10 +347,23 @@ const defaultState = {
             {
                 id: 'analytics',
                 name: 'Analytics',
-                widgetIds: ['recent-activity']
+                widgetIds: ['dashboard-analytics', 'recent-activity']
             }
         ],
         customWidgets: []
+    },
+    analytics: {
+        defaultScope: 'auto',
+        expandedSections: [],
+        displayOptions: {
+            showPercentages: true,
+            showTrendPlaceholders: true,
+            showPluginSections: true
+        },
+        accessibilityOptions: {
+            announceScopeChanges: true,
+            emphasizeSectionDescriptions: true
+        }
     },
     workspaceView: {
         active: 'dashboard',
@@ -710,6 +726,36 @@ function normalizeDashboardConfig(config) {
         collapsedWidgets,
         tabs,
         customWidgets
+    };
+}
+
+function normalizeAnalyticsConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    const allowedScopes = new Set(['auto', 'report', 'workspace']);
+    const defaultScope = String(source.defaultScope || defaultState.analytics.defaultScope).trim().toLowerCase();
+    const expandedSections = Array.isArray(source.expandedSections)
+        ? [...new Set(source.expandedSections.map((value) => String(value || '').trim()).filter(Boolean))]
+        : [...defaultState.analytics.expandedSections];
+
+    const displaySource = source.displayOptions && typeof source.displayOptions === 'object'
+        ? source.displayOptions
+        : {};
+    const accessibilitySource = source.accessibilityOptions && typeof source.accessibilityOptions === 'object'
+        ? source.accessibilityOptions
+        : {};
+
+    return {
+        defaultScope: allowedScopes.has(defaultScope) ? defaultScope : defaultState.analytics.defaultScope,
+        expandedSections,
+        displayOptions: {
+            showPercentages: displaySource.showPercentages !== false,
+            showTrendPlaceholders: displaySource.showTrendPlaceholders !== false,
+            showPluginSections: displaySource.showPluginSections !== false
+        },
+        accessibilityOptions: {
+            announceScopeChanges: accessibilitySource.announceScopeChanges !== false,
+            emphasizeSectionDescriptions: accessibilitySource.emphasizeSectionDescriptions !== false
+        }
     };
 }
 
@@ -1269,6 +1315,7 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'settingsImportReportFile', label: 'Import Report File from Device', defaultShortcut: defaultState.shortcuts.settingsImportReportFile },
     { action: 'settingsImportTemplateFile', label: 'Import Template File from Device', defaultShortcut: defaultState.shortcuts.settingsImportTemplateFile },
     { action: 'settingsOpenIntegrations', label: 'Open Integrations Section', defaultShortcut: defaultState.shortcuts.settingsOpenIntegrations },
+    { action: 'settingsCustomizeAnalytics', label: 'Open Analytics Settings Section', defaultShortcut: defaultState.shortcuts.settingsCustomizeAnalytics },
     { action: 'settingsPluginInstall', label: 'Install Plugin Manifest', defaultShortcut: defaultState.shortcuts.settingsPluginInstall },
     { action: 'settingsPluginValidate', label: 'Validate Plugin Extensions', defaultShortcut: defaultState.shortcuts.settingsPluginValidate },
     { action: 'settingsPluginRefresh', label: 'Refresh Plugin Manager', defaultShortcut: defaultState.shortcuts.settingsPluginRefresh },
@@ -1562,6 +1609,7 @@ export function getAssignableActions() {
         { action: 'settingsImportReportFile', label: 'Import Report File from Device' },
         { action: 'settingsImportTemplateFile', label: 'Import Template File from Device' },
         { action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
+        { action: 'settingsCustomizeAnalytics', label: 'Open Analytics Settings Section' },
         { action: 'settingsPluginInstall', label: 'Install Plugin Manifest' },
         { action: 'settingsPluginValidate', label: 'Validate Plugin Extensions' },
         { action: 'settingsPluginRefresh', label: 'Refresh Plugin Manager' },
@@ -1886,6 +1934,7 @@ export let appState = {
     hasUnsavedChanges: Boolean(storedState.hasUnsavedChanges),
     security: normalizeSecurityConfig(storedState.security),
     visualAccessibility: normalizeVisualAccessibilityConfig(storedState.visualAccessibility),
+    analytics: normalizeAnalyticsConfig(storedState.analytics),
     workspaceView: normalizeWorkspaceViewConfig(storedState.workspaceView),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
@@ -1917,6 +1966,7 @@ function normalizeStateSnapshot(rawState) {
         hasUnsavedChanges: Boolean(base.hasUnsavedChanges),
         security: normalizeSecurityConfig(base.security),
         visualAccessibility: normalizeVisualAccessibilityConfig(base.visualAccessibility),
+        analytics: normalizeAnalyticsConfig(base.analytics),
         workspaceView: normalizeWorkspaceViewConfig(base.workspaceView),
         dashboard: normalizeDashboardConfig(base.dashboard),
         resourceOrganization: normalizeResourceOrganizationConfig(base.resourceOrganization),
@@ -3045,6 +3095,39 @@ export function updateWorkspaceViewConfig(updates = {}, options = {}) {
     return getWorkspaceViewConfig();
 }
 
+export function getAnalyticsConfig() {
+    return normalizeAnalyticsConfig(appState.analytics);
+}
+
+export function updateAnalyticsConfig(updates = {}, options = {}) {
+    const source = updates && typeof updates === 'object' ? updates : {};
+    const next = normalizeAnalyticsConfig({
+        ...appState.analytics,
+        ...source,
+        displayOptions: {
+            ...(appState.analytics?.displayOptions || {}),
+            ...(source.displayOptions && typeof source.displayOptions === 'object' ? source.displayOptions : {})
+        },
+        accessibilityOptions: {
+            ...(appState.analytics?.accessibilityOptions || {}),
+            ...(source.accessibilityOptions && typeof source.accessibilityOptions === 'object' ? source.accessibilityOptions : {})
+        }
+    });
+
+    appState.analytics = next;
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated analytics settings'), recordHistory: false });
+    }
+
+    window.dispatchEvent(new CustomEvent('art-analytics-settings-updated', {
+        detail: {
+            config: getAnalyticsConfig()
+        }
+    }));
+
+    return getAnalyticsConfig();
+}
+
 export function setUniversalSearchScopePreference(scopePreference, options = {}) {
     return updateUniversalSearchConfig({ scopePreference }, {
         ...options,
@@ -3439,6 +3522,105 @@ export function calculateProjectWorkspaceHealth(workspaceId) {
         projectActivity: statistics.imports + statistics.exports,
         recentChanges: statistics.relationships,
         validationStatus
+    };
+}
+
+function parseSeveritySummary(summaryText) {
+    const counts = {};
+    String(summaryText || '')
+        .split(',')
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+        .forEach((part) => {
+            const [labelRaw, countRaw] = part.split(':');
+            const label = String(labelRaw || '').trim();
+            const count = Number(String(countRaw || '').trim());
+            if (!label || !Number.isFinite(count)) return;
+            counts[label] = (Number(counts[label]) || 0) + count;
+        });
+    return counts;
+}
+
+export function getReportAnalyticsSnapshot(reportId = '') {
+    const targetId = String(reportId || appState.selectedReportId || '').trim();
+    const report = targetId ? getReportById(targetId) : null;
+    if (!report) return null;
+
+    return {
+        reportId: report.id,
+        reportName: String(report.name || '').trim() || 'Untitled Report',
+        reportType: String(report.data?.reportType || '').trim(),
+        metrics: computeReportMetrics(report),
+        progress: getProgressLogMetrics(report),
+        updatedAt: Number(report.updatedAt || 0)
+    };
+}
+
+export function getWorkspaceAnalyticsSnapshot(workspaceId = '') {
+    const activeWorkspace = getActiveProjectWorkspace();
+    const targetWorkspaceId = String(workspaceId || activeWorkspace?.id || '').trim();
+    if (!targetWorkspaceId) return null;
+
+    const statistics = calculateProjectWorkspaceStatistics(targetWorkspaceId);
+    const health = calculateProjectWorkspaceHealth(targetWorkspaceId);
+    if (!statistics || !health) return null;
+
+    const workspace = getProjectWorkspaces().find((item) => item.id === targetWorkspaceId) || null;
+    if (!workspace) return null;
+
+    const reportIds = new Set([
+        ...(workspace.associatedReportIds || []),
+        ...((workspace.resources && Array.isArray(workspace.resources.reports)) ? workspace.resources.reports : [])
+    ]);
+    const reports = (appState.reports || []).filter((report) => reportIds.size === 0 || reportIds.has(report.id));
+
+    const aggregate = reports.reduce((accumulator, report) => {
+        const reportMetrics = computeReportMetrics(report);
+        const progressMetrics = getProgressLogMetrics(report);
+        const severityMap = parseSeveritySummary(reportMetrics.issuesBySeverity);
+
+        accumulator.totalIssues += Number(reportMetrics.totalIssues || 0);
+        accumulator.totalAuditEntries += Number(reportMetrics.totalAuditEntries || 0);
+        accumulator.pagesTested += Number(reportMetrics.pagesTested || 0);
+        accumulator.wcagCriteria += Number(reportMetrics.wcagCriteria || 0);
+        accumulator.totalEvaluationItems += Number(progressMetrics.totalEvaluationItems || 0);
+        accumulator.completedEvaluationItems += Number(progressMetrics.completed || 0);
+
+        Object.entries(severityMap).forEach(([label, count]) => {
+            accumulator.severityCounts[label] = (Number(accumulator.severityCounts[label]) || 0) + Number(count || 0);
+        });
+
+        return accumulator;
+    }, {
+        totalIssues: 0,
+        totalAuditEntries: 0,
+        pagesTested: 0,
+        wcagCriteria: 0,
+        totalEvaluationItems: 0,
+        completedEvaluationItems: 0,
+        severityCounts: {}
+    });
+
+    return {
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        statistics,
+        health,
+        reportAggregate: {
+            totalReports: reports.length,
+            totalIssues: aggregate.totalIssues,
+            totalAuditEntries: aggregate.totalAuditEntries,
+            pagesTested: aggregate.pagesTested,
+            wcagCriteria: aggregate.wcagCriteria,
+            severityCounts: aggregate.severityCounts
+        },
+        progressAggregate: {
+            totalEvaluationItems: aggregate.totalEvaluationItems,
+            completed: aggregate.completedEvaluationItems,
+            completionPercent: aggregate.totalEvaluationItems > 0
+                ? Math.round((aggregate.completedEvaluationItems / aggregate.totalEvaluationItems) * 100)
+                : 0
+        }
     };
 }
 
@@ -3905,12 +4087,14 @@ export function resetUserPreferences() {
     appState.standard = defaultState.standard;
     appState.security = normalizeSecurityConfig(defaultState.security);
     appState.visualAccessibility = normalizeVisualAccessibilityConfig(defaultState.visualAccessibility);
+    appState.analytics = normalizeAnalyticsConfig(defaultState.analytics);
     appState.dashboard = normalizeDashboardConfig(defaultState.dashboard);
     appState.workspaceView = normalizeWorkspaceViewConfig(defaultState.workspaceView);
     saveState({ action: 'Reset user preferences' });
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
     window.dispatchEvent(new Event('art-visual-accessibility-updated'));
+    window.dispatchEvent(new Event('art-analytics-settings-updated'));
     window.dispatchEvent(new Event('art-dashboard-config-updated'));
     window.dispatchEvent(new Event('art-workspace-view-settings-updated'));
     window.dispatchEvent(new CustomEvent('art-workspace-view-changed', {
@@ -3936,6 +4120,7 @@ export function resetAllApplicationData() {
     window.dispatchEvent(new Event('art-accessibility-standards-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
     window.dispatchEvent(new Event('art-visual-accessibility-updated'));
+    window.dispatchEvent(new Event('art-analytics-settings-updated'));
     window.dispatchEvent(new Event('art-workspace-view-settings-updated'));
     window.dispatchEvent(new CustomEvent('art-workspace-view-changed', {
         detail: {
@@ -3963,6 +4148,7 @@ export function getApplicationInfo() {
             criteriaCount: Array.isArray(standard.criteria) ? standard.criteria.length : 0
         })),
         visualAccessibility: getVisualAccessibilityConfig(),
+        analytics: getAnalyticsConfig(),
         workspaceView: getWorkspaceViewConfig()
     };
 }
@@ -3999,6 +4185,7 @@ function createManagedDataSnapshot() {
         userStandards: appState.userStandards,
         importedStandards: appState.importedStandards,
         shortcuts: appState.shortcuts,
+        analytics: appState.analytics,
         dashboard: appState.dashboard,
         workspaceView: appState.workspaceView,
         resourceOrganization: appState.resourceOrganization,
@@ -4024,6 +4211,7 @@ function applyManagedDataSnapshot(snapshot) {
     window.dispatchEvent(new Event('art-shortcuts-updated'));
     window.dispatchEvent(new Event('art-accessibility-standards-updated'));
     window.dispatchEvent(new Event('art-security-updated'));
+    window.dispatchEvent(new Event('art-analytics-settings-updated'));
     window.dispatchEvent(new Event('art-workspace-view-settings-updated'));
     window.dispatchEvent(new CustomEvent('art-workspace-view-changed', {
         detail: {

@@ -7,6 +7,7 @@ import {
     createRestorePoint,
     findImportedStandardConflict,
     findShortcutConflict,
+    getAnalyticsConfig,
     getApplicationInfo,
     getAssignableActions,
     getIntegrationStatusMap,
@@ -35,6 +36,7 @@ import {
     updateImportedAccessibilityStandard,
     updateWorkspaceViewConfig,
     updateSecurityConfig,
+    updateAnalyticsConfig,
     updateVisualAccessibilityConfig,
     updateShortcut,
     templateNameExists,
@@ -758,6 +760,85 @@ function applyWorkspaceViewSettings() {
     return true;
 }
 
+function getAnalyticsControls() {
+    return {
+        defaultScope: document.getElementById('settings-analytics-default-scope'),
+        expandedOverview: document.getElementById('settings-analytics-expand-overview'),
+        expandedFindings: document.getElementById('settings-analytics-expand-findings'),
+        expandedProgress: document.getElementById('settings-analytics-expand-progress'),
+        expandedQuality: document.getElementById('settings-analytics-expand-quality'),
+        expandedActivity: document.getElementById('settings-analytics-expand-activity'),
+        expandedPlugins: document.getElementById('settings-analytics-expand-plugins'),
+        showPercentages: document.getElementById('settings-analytics-show-percentages'),
+        showTrendPlaceholders: document.getElementById('settings-analytics-show-trends'),
+        showPluginSections: document.getElementById('settings-analytics-show-plugins'),
+        announceScopeChanges: document.getElementById('settings-analytics-announce-scope'),
+        emphasizeDescriptions: document.getElementById('settings-analytics-emphasize-descriptions'),
+        applyButton: document.getElementById('btn-settings-analytics-apply'),
+        summary: document.getElementById('settings-analytics-summary')
+    };
+}
+
+function renderAnalyticsSettings() {
+    const controls = getAnalyticsControls();
+    if (!controls.defaultScope || !controls.applyButton) return;
+
+    const config = getAnalyticsConfig();
+    const expanded = new Set(Array.isArray(config.expandedSections) ? config.expandedSections : []);
+
+    controls.defaultScope.value = String(config.defaultScope || 'auto');
+    if (controls.expandedOverview) controls.expandedOverview.checked = expanded.has('workspace-overview') || expanded.has('report-overview');
+    if (controls.expandedFindings) controls.expandedFindings.checked = expanded.has('workspace-findings') || expanded.has('report-findings');
+    if (controls.expandedProgress) controls.expandedProgress.checked = expanded.has('workspace-progress') || expanded.has('report-progress');
+    if (controls.expandedQuality) controls.expandedQuality.checked = expanded.has('workspace-quality');
+    if (controls.expandedActivity) controls.expandedActivity.checked = expanded.has('workspace-activity');
+    if (controls.expandedPlugins) controls.expandedPlugins.checked = expanded.has('plugin-default');
+
+    if (controls.showPercentages) controls.showPercentages.checked = config.displayOptions?.showPercentages !== false;
+    if (controls.showTrendPlaceholders) controls.showTrendPlaceholders.checked = config.displayOptions?.showTrendPlaceholders !== false;
+    if (controls.showPluginSections) controls.showPluginSections.checked = config.displayOptions?.showPluginSections !== false;
+    if (controls.announceScopeChanges) controls.announceScopeChanges.checked = config.accessibilityOptions?.announceScopeChanges !== false;
+    if (controls.emphasizeDescriptions) controls.emphasizeDescriptions.checked = config.accessibilityOptions?.emphasizeSectionDescriptions !== false;
+
+    if (controls.summary) {
+        controls.summary.textContent = `Default scope ${controls.defaultScope.value}. Percentages ${controls.showPercentages?.checked ? 'on' : 'off'}.`;
+    }
+}
+
+function applyAnalyticsSettings() {
+    const controls = getAnalyticsControls();
+    if (!controls.defaultScope) return false;
+
+    const expandedSections = [];
+    if (controls.expandedOverview?.checked) expandedSections.push('workspace-overview', 'report-overview');
+    if (controls.expandedFindings?.checked) expandedSections.push('workspace-findings', 'report-findings');
+    if (controls.expandedProgress?.checked) expandedSections.push('workspace-progress', 'report-progress');
+    if (controls.expandedQuality?.checked) expandedSections.push('workspace-quality');
+    if (controls.expandedActivity?.checked) expandedSections.push('workspace-activity');
+    if (controls.expandedPlugins?.checked) expandedSections.push('plugin-default');
+
+    updateAnalyticsConfig({
+        defaultScope: controls.defaultScope.value || 'auto',
+        expandedSections,
+        displayOptions: {
+            showPercentages: Boolean(controls.showPercentages?.checked),
+            showTrendPlaceholders: Boolean(controls.showTrendPlaceholders?.checked),
+            showPluginSections: Boolean(controls.showPluginSections?.checked)
+        },
+        accessibilityOptions: {
+            announceScopeChanges: Boolean(controls.announceScopeChanges?.checked),
+            emphasizeSectionDescriptions: Boolean(controls.emphasizeDescriptions?.checked)
+        }
+    }, {
+        action: 'Updated dashboard analytics settings',
+        persist: true
+    });
+
+    writeStatus('Dashboard analytics settings applied.');
+    renderAnalyticsSettings();
+    return true;
+}
+
 function importAccessibilityStandardList(standards, overwrite = false) {
     const list = Array.isArray(standards) ? standards : [];
     if (list.length === 0) return { ok: false, reason: 'empty' };
@@ -865,6 +946,7 @@ function refreshSettingsView() {
         renderImportedStandards();
         renderIntegrationSettings();
         renderVisualAccessibilitySettings();
+        renderAnalyticsSettings();
         renderWorkspaceViewSettings();
         renderPluginManager();
         renderAbout();
@@ -1330,6 +1412,26 @@ function closeSettingsDialog(restoreFocus) {
 export function openSettingsDialogFromCommand() {
     const openButton = document.getElementById('btn-app-settings');
     return openSettingsDialog(openButton || null);
+}
+
+function focusSettingsSectionByHeadingId(headingId = '') {
+    if (!openSettingsDialogFromCommand()) return false;
+    window.setTimeout(() => {
+        const heading = document.getElementById(String(headingId || '').trim());
+        if (!heading) return;
+        heading.scrollIntoView({ block: 'start' });
+        if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+        heading.focus();
+    }, 0);
+    return true;
+}
+
+export function openSettingsAnalyticsSectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-analytics-heading');
+}
+
+export function openSettingsIntegrationsSectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-integrations-heading');
 }
 
 export function closeSettingsDialogFromCommand() {
@@ -1966,6 +2068,14 @@ function bindWorkspaceViewSettings() {
     });
 }
 
+function bindAnalyticsSettings() {
+    const controls = getAnalyticsControls();
+    if (!controls.applyButton) return;
+    controls.applyButton.addEventListener('click', () => {
+        applyAnalyticsSettings();
+    });
+}
+
 function bindStandardExport() {
     const exportButton = document.getElementById('btn-settings-export-standards');
     if (!exportButton) return;
@@ -2113,6 +2223,7 @@ export function initSettings() {
 
     bindShortcutCapture();
     bindVisualAccessibilitySettings();
+    bindAnalyticsSettings();
     bindWorkspaceViewSettings();
     bindStandardImport();
     bindStandardExport();
@@ -2127,6 +2238,7 @@ export function initSettings() {
     window.addEventListener('art-visual-accessibility-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-accessibility-standards-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-security-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-analytics-settings-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-workspace-view-settings-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-plugin-framework-event', refreshSettingsViewIfDialogOpen);
 

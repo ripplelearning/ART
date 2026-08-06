@@ -14,52 +14,9 @@ import { runUniversalSearch } from './universalSearchFramework.js';
 import { formatWcagCriterionDisplay, isWcagCriterionFieldType } from './wcagCatalog.js';
 
 const STORAGE_KEY = 'art-report-views-v1';
-const GROUPABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type', 'standard', 'template', 'attachment', 'relationship'];
-const SORTABLE_FIELDS = ['severity', 'status', 'reviewer', 'wcag', 'page', 'component', 'type', 'standard', 'template', 'attachment', 'relationship', 'label'];
 const WORKING_VIEW_FIELD_LABELS = Object.freeze({
-    severity: 'Severity',
-    status: 'Status',
-    reviewer: 'Reviewer',
-    wcag: 'Success Criteria',
-    page: 'Page',
-    component: 'Component',
-    type: 'Type',
-    standard: 'Accessibility Standard',
-    template: 'Template',
-    attachment: 'Attachment',
-    relationship: 'Relationship',
     label: 'Finding'
 });
-const WORKING_VIEW_LABEL_ORDER = Object.freeze([
-    'label',
-    'severity',
-    'status',
-    'reviewer',
-    'page',
-    'wcag',
-    'component',
-    'type',
-    'standard',
-    'template',
-    'attachment',
-    'relationship',
-    'tags'
-]);
-const TABLE_COLUMNS = Object.freeze([
-    { field: 'label', label: 'Finding' },
-    { field: 'severity', label: 'Severity' },
-    { field: 'status', label: 'Status' },
-    { field: 'reviewer', label: 'Tester' },
-    { field: 'page', label: 'Page Name' },
-    { field: 'wcag', label: 'Success Criteria' },
-    { field: 'component', label: 'Component' },
-    { field: 'type', label: 'Type' },
-    { field: 'standard', label: 'Accessibility Standard' },
-    { field: 'template', label: 'Template' },
-    { field: 'attachment', label: 'Attachment' },
-    { field: 'relationship', label: 'Relationship Summary' },
-    { field: 'tags', label: 'Tags' }
-]);
 const BUILT_IN_PRESETS = [
     {
         id: 'preset-triage-severity-status',
@@ -168,12 +125,6 @@ function normalizeArray(value) {
     return Array.isArray(value) ? value : [];
 }
 
-function getWorkingViewFieldLabel(field) {
-    const normalized = normalizeText(field).toLowerCase();
-    const dynamicLabels = getResolvedWorkingViewFieldLabels();
-    return dynamicLabels[normalized] || WORKING_VIEW_FIELD_LABELS[normalized] || normalizeText(field);
-}
-
 function getActiveReportFieldDefinitions() {
     const selectedReport = appState.selectedReportId ? getReportById(appState.selectedReportId) : null;
     const selectedFields = Array.isArray(selectedReport?.data?.fields) ? selectedReport.data.fields : [];
@@ -181,22 +132,51 @@ function getActiveReportFieldDefinitions() {
     return Array.isArray(appState.fields) ? appState.fields : [];
 }
 
-function getActiveReportFieldLabel(index, fallback = '') {
-    const fields = getActiveReportFieldDefinitions();
-    return normalizeText(fields[index]?.label) || normalizeText(fallback);
+function getWorkingViewFieldCatalog() {
+    const catalog = [{ key: 'label', label: WORKING_VIEW_FIELD_LABELS.label, visible: false }];
+    const seen = new Set(['label']);
+
+    getActiveReportFieldDefinitions().forEach((field, index) => {
+        const label = normalizeText(field?.label) || `Field ${index + 1}`;
+        const key = `field-${index}`;
+        const normalizedKey = normalizeText(key).toLowerCase();
+        if (seen.has(normalizedKey)) return;
+        seen.add(normalizedKey);
+        catalog.push({ key, label, visible: true });
+    });
+
+    return catalog;
+}
+
+function getVisibleWorkingViewFieldCatalog() {
+    const visibleFields = getWorkingViewFieldCatalog().filter((entry) => entry.visible !== false);
+    if (visibleFields.length > 0) return visibleFields;
+    return getWorkingViewFieldCatalog().filter((entry) => entry.key === 'label');
+}
+
+function getWorkingViewTableColumns() {
+    return getVisibleWorkingViewFieldCatalog();
 }
 
 function getResolvedWorkingViewFieldLabels() {
-    const labels = {
-        ...WORKING_VIEW_FIELD_LABELS
-    };
+    const labels = {};
 
-    WORKING_VIEW_LABEL_ORDER.forEach((fieldKey, index) => {
-        const activeLabel = getActiveReportFieldLabel(index, labels[fieldKey]);
-        if (activeLabel) labels[fieldKey] = activeLabel;
+    getWorkingViewFieldCatalog().forEach((entry) => {
+        labels[normalizeText(entry.key).toLowerCase()] = entry.label;
     });
 
     return labels;
+}
+
+function getWorkingViewFieldLabel(field) {
+    const normalized = normalizeText(field).toLowerCase();
+    const dynamicLabels = getResolvedWorkingViewFieldLabels();
+    return dynamicLabels[normalized] || WORKING_VIEW_FIELD_LABELS[normalized] || normalizeText(field);
+}
+
+function getActiveReportFieldLabel(index, fallback = '') {
+    const fields = getActiveReportFieldDefinitions();
+    return normalizeText(fields[index]?.label) || normalizeText(fallback);
 }
 
 function normalizeWorkingViewProviderPreset(entry, index = 0) {
@@ -383,6 +363,7 @@ function toTags(value) {
 function getAuditFindingRecords() {
     ensureAuditEntries();
     const indexMap = inferFieldIndexes();
+    const workingViewFields = getVisibleWorkingViewFieldCatalog();
     return getAuditEntries().map((entry, entryIndex) => {
         const values = entry?.fieldValues || {};
         const label = normalizeText(values[0]) || `Finding ${entryIndex + 1}`;
@@ -396,7 +377,7 @@ function getAuditFindingRecords() {
         const tags = indexMap.tags >= 0 ? toTags(values[indexMap.tags]) : [];
         const relationshipMetadata = extractRelationshipMetadata(values);
 
-        return {
+        const record = {
             id: normalizeText(entry?.id) || `entry-${entryIndex + 1}`,
             label,
             entryIndex,
@@ -415,17 +396,24 @@ function getAuditFindingRecords() {
             attachmentCount: relationshipMetadata.attachmentCount,
             rawValues: values
         };
+
+        workingViewFields.forEach((fieldEntry, fieldIndex) => {
+            record[fieldEntry.key] = values[fieldIndex];
+        });
+
+        return record;
     });
 }
 
 function getNonAuditFindingRecords() {
     const indexMap = inferFieldIndexes();
     const values = appState.editorFieldValues || {};
+    const workingViewFields = getVisibleWorkingViewFieldCatalog();
     return (appState.fields || []).map((field, fieldIndex) => {
         const label = normalizeText(field?.label) || `Field ${fieldIndex + 1}`;
         const value = normalizeText(values[fieldIndex]);
         const relationshipMetadata = extractRelationshipMetadata(values, fieldIndex);
-        return {
+        const record = {
             id: `field-${fieldIndex + 1}`,
             label,
             fieldIndex,
@@ -445,6 +433,12 @@ function getNonAuditFindingRecords() {
             attachmentCount: relationshipMetadata.attachmentCount,
             rawValue: value
         };
+
+        workingViewFields.forEach((fieldEntry, activeFieldIndex) => {
+            record[fieldEntry.key] = values[activeFieldIndex];
+        });
+
+        return record;
     });
 }
 
@@ -454,13 +448,17 @@ function getReportFindingRecords() {
 }
 
 function defaultConfig() {
+    const availableFields = getVisibleWorkingViewFieldCatalog().map((entry) => entry.key);
+    const primaryField = availableFields[0] || 'label';
+    const secondaryField = availableFields[1] || primaryField;
+
     return {
         name: 'Working View',
         mode: 'working',
         temporary: true,
         sortLevels: [
-            { field: 'severity', direction: 'asc' },
-            { field: 'status', direction: 'asc' },
+            { field: primaryField, direction: 'asc' },
+            { field: secondaryField, direction: 'asc' },
             { field: 'label', direction: 'asc' }
         ],
         filters: {
@@ -469,7 +467,7 @@ function defaultConfig() {
             reviewer: '',
             tag: ''
         },
-        groupBy: ['severity', 'status'],
+        groupBy: [primaryField, secondaryField],
         searchText: '',
         highlightMatches: true,
         display: {
@@ -502,14 +500,17 @@ function normalizeFieldValueForSort(value) {
 
 function normalizeGroupBy(groupBy) {
     if (!Array.isArray(groupBy)) return [];
+    const allowedFields = new Map(getWorkingViewFieldCatalog().map((entry) => [normalizeText(entry.key).toLowerCase(), entry.key]));
     const seen = new Set();
     const normalized = [];
     groupBy.forEach((field) => {
         const text = normalizeText(field).toLowerCase();
-        if (!GROUPABLE_FIELDS.includes(text)) return;
-        if (seen.has(text)) return;
-        seen.add(text);
-        normalized.push(text);
+        const canonical = allowedFields.get(text);
+        if (!canonical) return;
+        const key = normalizeText(canonical).toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        normalized.push(canonical);
     });
     return normalized.slice(0, 3);
 }
@@ -520,12 +521,15 @@ function normalizeSortLevels(sortLevels) {
     ];
     if (!Array.isArray(sortLevels)) return fallback;
 
+    const allowedFields = new Map(getWorkingViewFieldCatalog().map((entry) => [normalizeText(entry.key).toLowerCase(), entry.key]));
+
     const normalized = sortLevels
         .map((level) => {
             const field = normalizeText(level?.field).toLowerCase();
-            if (!SORTABLE_FIELDS.includes(field)) return null;
+            const canonical = allowedFields.get(field);
+            if (!canonical) return null;
             const direction = normalizeText(level?.direction).toLowerCase() === 'desc' ? 'desc' : 'asc';
-            return { field, direction };
+            return { field: canonical, direction };
         })
         .filter(Boolean)
         .slice(0, 3);
@@ -544,12 +548,8 @@ function compareByLevel(left, right, level) {
 }
 
 function getTableColumnLabel(field) {
-    const item = TABLE_COLUMNS.find((column) => column.field === field);
-    if (item) {
-        const columnIndex = TABLE_COLUMNS.findIndex((column) => column.field === field);
-        const activeLabel = getActiveReportFieldLabel(columnIndex, item.label);
-        return activeLabel || getWorkingViewFieldLabel(field);
-    }
+    const catalog = getWorkingViewTableColumns();
+    const item = catalog.find((column) => column.key === field);
     return item ? item.label : getWorkingViewFieldLabel(field);
 }
 
@@ -596,15 +596,17 @@ function normalizeTableSortLevels(sortLevels) {
     if (!Array.isArray(sortLevels)) return [];
 
     const seen = new Set();
+    const allowedFields = new Map(getWorkingViewTableColumns().map((entry) => [normalizeText(entry.key).toLowerCase(), entry.key]));
     return sortLevels
         .map((level) => {
             const field = normalizeText(level?.field).toLowerCase();
-            if (!TABLE_COLUMNS.some((column) => column.field === field)) return null;
+            const canonical = allowedFields.get(field);
+            if (!canonical) return null;
             const direction = normalizeText(level?.direction).toLowerCase() === 'desc' ? 'desc' : 'asc';
-            const key = `${field}|${direction}`;
+            const key = `${canonical}|${direction}`;
             if (seen.has(key)) return null;
             seen.add(key);
-            return { field, direction };
+            return { field: canonical, direction };
         })
         .filter(Boolean)
         .slice(0, 3);
@@ -614,17 +616,17 @@ function normalizeTableGroupLevels(groupLevels) {
     if (!Array.isArray(groupLevels)) return [];
 
     const seen = new Set();
+    const allowedFields = new Map(getWorkingViewTableColumns().map((entry) => [normalizeText(entry.key).toLowerCase(), entry.key]));
     return groupLevels
         .map((level) => {
             const field = normalizeText(level?.field).toLowerCase();
-            if (!TABLE_COLUMNS.some((column) => column.field === field)) return null;
-            const mode = normalizeText(level?.mode).toLowerCase() === 'conformance' && field === 'wcag'
-                ? 'conformance'
-                : 'values';
-            const key = `${field}|${mode}`;
+            const canonical = allowedFields.get(field);
+            if (!canonical) return null;
+            const mode = normalizeText(level?.mode).toLowerCase() === 'conformance' ? 'conformance' : 'values';
+            const key = `${canonical}|${mode}`;
             if (seen.has(key)) return null;
             seen.add(key);
-            return { field, mode };
+            return { field: canonical, mode };
         })
         .filter(Boolean)
         .slice(0, 3);
@@ -634,9 +636,11 @@ function normalizeTableFilters(filters) {
     if (!filters || typeof filters !== 'object') return {};
 
     const normalized = {};
+    const allowedFields = new Map(getWorkingViewTableColumns().map((entry) => [normalizeText(entry.key).toLowerCase(), entry.key]));
     Object.entries(filters).forEach(([field, value]) => {
-        const key = normalizeText(field).toLowerCase() === 'tag' ? 'tags' : normalizeText(field).toLowerCase();
-        if (!TABLE_COLUMNS.some((column) => column.field === key)) return;
+        const candidate = normalizeText(field).toLowerCase() === 'tag' ? 'tags' : normalizeText(field).toLowerCase();
+        const key = allowedFields.get(candidate);
+        if (!key) return;
         const text = normalizeText(value?.value ?? value);
         if (!text) return;
         normalized[key] = {
@@ -661,19 +665,21 @@ function normalizeTableConfig(config = {}) {
 }
 
 function buildTableRows(findings) {
+    const columns = getWorkingViewTableColumns();
     return normalizeArray(findings).map((finding, index) => ({
         ...finding,
         rowIndex: index,
-        columnValues: Object.fromEntries(TABLE_COLUMNS.map((column) => [column.field, normalizeTableValue(finding[column.field], column.field)]))
+        columnValues: Object.fromEntries(columns.map((column) => [column.key, normalizeTableValue(finding[column.key], column.key)]))
     }));
 }
 
 function applyTableFilters(findings, tableConfig) {
     const filters = tableConfig?.filters || {};
+    const columns = getWorkingViewTableColumns();
     return normalizeArray(findings).filter((finding) => {
         return Object.entries(filters).every(([field, filter]) => {
             const normalizedField = normalizeText(field).toLowerCase();
-            if (!TABLE_COLUMNS.some((column) => column.field === normalizedField)) return true;
+            if (!columns.some((column) => column.key === normalizedField)) return true;
             const filterValue = normalizeText(filter?.value);
             if (!filterValue) return true;
             const sourceValue = normalizeTableValue(finding[normalizedField], normalizedField).toLowerCase();
@@ -689,9 +695,10 @@ function applyTableFilters(findings, tableConfig) {
 function applyTableSearch(findings, searchText) {
     const text = normalizeText(searchText).toLowerCase();
     if (!text) return findings;
+    const columns = getWorkingViewTableColumns();
 
     return normalizeArray(findings).filter((finding) => {
-        const haystack = TABLE_COLUMNS.map((column) => normalizeTableValue(finding[column.field], column.field)).join(' ').toLowerCase();
+        const haystack = columns.map((column) => normalizeTableValue(finding[column.key], column.key)).join(' ').toLowerCase();
         return haystack.includes(text);
     });
 }
@@ -718,7 +725,7 @@ function getTableGroupValue(finding, groupLevel) {
     if (!groupLevel) return 'All Findings';
     const field = normalizeText(groupLevel.field).toLowerCase();
     const value = finding[field];
-    if (normalizeText(groupLevel.mode).toLowerCase() === 'conformance' && field === 'wcag') {
+    if (normalizeText(groupLevel.mode).toLowerCase() === 'conformance') {
         return getTableConformanceLevel(value) || 'Unspecified';
     }
     const text = normalizeTableValue(value, field);
@@ -991,6 +998,7 @@ function createViewModel(config) {
     const normalizedMode = normalizeText(config?.mode).toLowerCase();
 
     if (normalizedMode === 'table') {
+        const columns = getWorkingViewTableColumns();
         const tableConfig = normalizeTableConfig(config);
         const filtered = applyTableFilters(source, tableConfig);
         const searched = applyTableSearch(filtered, config?.searchText);
@@ -1002,7 +1010,7 @@ function createViewModel(config) {
             findings: sorted,
             groups,
             table: {
-                columns: TABLE_COLUMNS,
+                columns,
                 config: tableConfig
             }
         };
@@ -1173,19 +1181,19 @@ function renderWorkingViewTableHeader(columns, findings, tableConfig, activeFiel
         <thead>
             <tr>
                 ${columns.map((column) => {
-                    const sort = sortLevels.find((level) => level.field === column.field);
-                    const filter = filters[column.field];
-                    const uniqueCount = getTableColumnMenuValues(findings, column.field).length;
+                    const sort = sortLevels.find((level) => level.field === column.key);
+                    const filter = filters[column.key];
+                    const uniqueCount = getTableColumnMenuValues(findings, column.key).length;
                     const currentState = [
                         sort ? `Sorted ${normalizeText(sort.direction) === 'desc' ? 'descending' : 'ascending'}` : '',
                         filter?.value ? `Filtered ${normalizeText(filter.mode) === 'exact' ? 'exactly' : 'by text'}` : '',
                         uniqueCount > 0 ? `${uniqueCount} dynamic option${uniqueCount === 1 ? '' : 's'}` : ''
                     ].filter(Boolean).join('. ');
                     return `
-                        <th scope="col" id="working-view-table-col-${escapeHtml(column.field)}">
+                        <th scope="col" id="working-view-table-col-${escapeHtml(column.key)}">
                             <div class="working-view-table-header">
                                 <span>${escapeHtml(column.label)}</span>
-                                <button type="button" class="working-view-table-menu-button" data-working-view-table-column-menu="${escapeHtml(column.field)}" aria-haspopup="dialog" aria-controls="working-view-column-menu-dialog" aria-expanded="${activeField === column.field ? 'true' : 'false'}" aria-label="Open ${escapeHtml(column.label)} column menu">Menu</button>
+                                <button type="button" class="working-view-table-menu-button" data-working-view-table-column-menu="${escapeHtml(column.key)}" aria-haspopup="dialog" aria-controls="working-view-column-menu-dialog" aria-expanded="${activeField === column.key ? 'true' : 'false'}" aria-label="Open ${escapeHtml(column.label)} column menu">Menu</button>
                             </div>
                             ${currentState ? `<span class="working-view-table-header-status">${escapeHtml(currentState)}</span>` : ''}
                         </th>
@@ -1196,18 +1204,18 @@ function renderWorkingViewTableHeader(columns, findings, tableConfig, activeFiel
     `;
 }
 
-function renderWorkingViewTableBody(findings, reportType) {
-    const dataColumns = TABLE_COLUMNS.filter((column) => column.field !== 'label');
+function renderWorkingViewTableBody(findings, columns, reportType) {
+    const dataColumns = normalizeArray(columns);
     if (!Array.isArray(findings) || findings.length === 0) {
-        return `<tbody><tr><td colspan="${dataColumns.length + 1}">No findings match the current Table view criteria.</td></tr></tbody>`;
+        return `<tbody><tr><td colspan="${Math.max(1, dataColumns.length + 1)}">No findings match the current Table view criteria.</td></tr></tbody>`;
     }
 
     return `
         <tbody>
             ${findings.map((finding, index) => `
                 <tr data-finding-id="${escapeHtml(finding.id)}">
-                    <th scope="row" headers="working-view-table-col-label">${renderTableRowButton(finding, index, reportType)}</th>
-                    ${dataColumns.map((column) => `<td headers="working-view-table-col-${escapeHtml(column.field)}">${createTableCellMarkup(finding, column.field)}</td>`).join('')}
+                    <th scope="row">${renderTableRowButton(finding, index, reportType)}</th>
+                    ${dataColumns.map((column) => `<td headers="working-view-table-col-${escapeHtml(column.key)}">${createTableCellMarkup(finding, column.key)}</td>`).join('')}
                 </tr>
             `).join('')}
         </tbody>
@@ -1215,14 +1223,14 @@ function renderWorkingViewTableBody(findings, reportType) {
 }
 
 function renderWorkingViewTable(findings, config, reportType, activeField = '') {
-    const columns = TABLE_COLUMNS;
+    const columns = getWorkingViewTableColumns();
     return `
         <div class="working-view-table-shell" aria-label="Working view table results">
             <div class="working-view-table-scroll">
                 <table class="working-view-table">
                     <caption class="sr-only">Working View table for ${escapeHtml(config.name || 'Working View')}</caption>
                     ${renderWorkingViewTableHeader(columns, findings, config.table || {}, activeField)}
-                    ${renderWorkingViewTableBody(findings, reportType)}
+                    ${renderWorkingViewTableBody(findings, columns, reportType)}
                 </table>
             </div>
         </div>
@@ -1254,7 +1262,7 @@ function renderWorkingViewTableGroupNodes(nodes, config, reportType, activeField
 }
 
 function buildWorkingViewColumnMenuBody(activeField, findings, session) {
-    const column = TABLE_COLUMNS.find((item) => item.field === activeField) || null;
+    const column = getWorkingViewTableColumns().find((item) => item.key === activeField) || null;
     if (!column) {
         return `
             <h2 id="working-view-column-menu-heading">Column Menu</h2>
@@ -1264,11 +1272,10 @@ function buildWorkingViewColumnMenuBody(activeField, findings, session) {
     }
 
     const tableConfig = normalizeTableConfig(session.config);
-    const sortLevel = tableConfig.sortLevels.find((level) => level.field === column.field) || null;
-    const groupLevel = tableConfig.groupLevels.find((level) => level.field === column.field) || null;
-    const filter = tableConfig.filters[column.field] || null;
-    const dynamicValues = getTableColumnMenuValues(findings, column.field);
-    const supportsConformanceGrouping = column.field === 'wcag';
+    const sortLevel = tableConfig.sortLevels.find((level) => level.field === column.key) || null;
+    const groupLevel = tableConfig.groupLevels.find((level) => level.field === column.key) || null;
+    const filter = tableConfig.filters[column.key] || null;
+    const dynamicValues = getTableColumnMenuValues(findings, column.key);
 
     return `
             <h2 id="working-view-column-menu-heading">${escapeHtml(column.label)} Column Menu</h2>
@@ -1276,30 +1283,29 @@ function buildWorkingViewColumnMenuBody(activeField, findings, session) {
             <section class="working-view-column-menu-section" aria-label="Sorting options">
                 <h3>Sort</h3>
                 <div class="viewer-dialog-actions" role="group" aria-label="Sort options">
-                    <button type="button" data-working-view-column-action="sort-asc" data-working-view-column="${escapeHtml(column.field)}">Sort Ascending</button>
-                    <button type="button" data-working-view-column-action="sort-desc" data-working-view-column="${escapeHtml(column.field)}">Sort Descending</button>
-                    <button type="button" data-working-view-column-action="sort-clear" data-working-view-column="${escapeHtml(column.field)}" ${sortLevel ? '' : 'disabled'}>Clear Sort</button>
+                    <button type="button" data-working-view-column-action="sort-asc" data-working-view-column="${escapeHtml(column.key)}">Sort Ascending</button>
+                    <button type="button" data-working-view-column-action="sort-desc" data-working-view-column="${escapeHtml(column.key)}">Sort Descending</button>
+                    <button type="button" data-working-view-column-action="sort-clear" data-working-view-column="${escapeHtml(column.key)}" ${sortLevel ? '' : 'disabled'}>Clear Sort</button>
                 </div>
             </section>
             <section class="working-view-column-menu-section" aria-label="Grouping options">
                 <h3>Group</h3>
                 <div class="viewer-dialog-actions" role="group" aria-label="Grouping options">
-                    <button type="button" data-working-view-column-action="group-values" data-working-view-column="${escapeHtml(column.field)}">Group by Values</button>
-                    ${supportsConformanceGrouping ? `<button type="button" data-working-view-column-action="group-conformance" data-working-view-column="${escapeHtml(column.field)}">Group by Conformance Level</button>` : ''}
-                    <button type="button" data-working-view-column-action="group-clear" data-working-view-column="${escapeHtml(column.field)}" ${groupLevel ? '' : 'disabled'}>Clear Grouping</button>
+                    <button type="button" data-working-view-column-action="group-values" data-working-view-column="${escapeHtml(column.key)}">Group by Values</button>
+                    <button type="button" data-working-view-column-action="group-clear" data-working-view-column="${escapeHtml(column.key)}" ${groupLevel ? '' : 'disabled'}>Clear Grouping</button>
                 </div>
             </section>
             <section class="working-view-column-menu-section" aria-label="Filtering options">
                 <h3>Filter</h3>
                 <div class="working-view-column-menu-quick-values" aria-label="Dynamic filter options">
-                    ${dynamicValues.length > 0 ? dynamicValues.map((value) => `<button type="button" data-working-view-column-action="filter-exact" data-working-view-column="${escapeHtml(column.field)}" data-working-view-column-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join('') : '<p>No dynamic values available.</p>'}
+                    ${dynamicValues.length > 0 ? dynamicValues.map((value) => `<button type="button" data-working-view-column-action="filter-exact" data-working-view-column="${escapeHtml(column.key)}" data-working-view-column-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join('') : '<p>No dynamic values available.</p>'}
                 </div>
                 <label for="working-view-column-filter-input">Filter values containing</label>
                 <input id="working-view-column-filter-input" type="text" value="${escapeHtml(filter?.value || '')}" list="working-view-column-filter-values">
                 ${dynamicValues.length > 0 ? `<datalist id="working-view-column-filter-values">${dynamicValues.map((value) => `<option value="${escapeHtml(value)}"></option>`).join('')}</datalist>` : ''}
                 <div class="viewer-dialog-actions" role="group" aria-label="Filter actions">
-                    <button type="button" data-working-view-column-action="filter-apply" data-working-view-column="${escapeHtml(column.field)}">Apply Filter</button>
-                    <button type="button" data-working-view-column-action="filter-clear" data-working-view-column="${escapeHtml(column.field)}" ${filter ? '' : 'disabled'}>Clear Filter</button>
+                    <button type="button" data-working-view-column-action="filter-apply" data-working-view-column="${escapeHtml(column.key)}">Apply Filter</button>
+                    <button type="button" data-working-view-column-action="filter-clear" data-working-view-column="${escapeHtml(column.key)}" ${filter ? '' : 'disabled'}>Clear Filter</button>
                 </div>
             </section>
             <form method="dialog" class="viewer-dialog-actions">
@@ -1452,8 +1458,8 @@ function renderWorkingView(session) {
 
                 <fieldset>
                     <legend>Group By (up to 3 levels)</legend>
-                    ${GROUPABLE_FIELDS.map((field) => `
-                        <label><input type="checkbox" class="working-view-group-field" value="${escapeHtml(field)}" ${normalizeGroupBy(session.config.groupBy).includes(field) ? 'checked' : ''}> ${escapeHtml(getWorkingViewFieldLabel(field))}</label>
+                    ${getVisibleWorkingViewFieldCatalog().map((field) => `
+                        <label><input type="checkbox" class="working-view-group-field" value="${escapeHtml(field.key)}" ${normalizeGroupBy(session.config.groupBy).includes(field.key) ? 'checked' : ''}> ${escapeHtml(field.label)}</label>
                     `).join('')}
                 </fieldset>
 
@@ -1466,7 +1472,7 @@ function renderWorkingView(session) {
                                 <label for="working-view-sort-${index}">Sort ${index + 1} Field</label>
                                 <select id="working-view-sort-${index}">
                                     <option value="">None</option>
-                                    ${SORTABLE_FIELDS.map((field) => `<option value="${escapeHtml(field)}" ${level.field === field ? 'selected' : ''}>${escapeHtml(getWorkingViewFieldLabel(field))}</option>`).join('')}
+                                    ${getWorkingViewFieldCatalog().map((field) => `<option value="${escapeHtml(field.key)}" ${level.field === field.key ? 'selected' : ''}>${escapeHtml(field.label)}</option>`).join('')}
                                 </select>
                                 <label for="working-view-sort-direction-${index}">Direction</label>
                                 <select id="working-view-sort-direction-${index}">

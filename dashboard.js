@@ -17,8 +17,9 @@ import {
     getWorkspaceExplorerSummary,
     initProjectWorkspaceFramework
 } from './projectWorkspaceFramework.js';
-import { registerPackageFromWorkflow } from './pluginFramework.js';
+import { getPluginFrameworkSnapshot, registerPackageFromWorkflow } from './pluginFramework.js';
 import { getResourceOrganizationSnapshot, openSavedViewFromCommand } from './resourceOrganizationFramework.js';
+import { isWorkingViewActiveForCurrentReport } from './reportViewsFramework.js';
 
 import {
     addAuditEntry,
@@ -29,7 +30,10 @@ import {
     closeCurrentReportSession,
     clearProjectRecoveryMark,
     computeReportMetrics,
+    getAnalyticsConfig,
+    getReportAnalyticsSnapshot,
     getProgressLogMetrics,
+    getWorkspaceAnalyticsSnapshot,
     deleteUserTemplate,
     deleteReportById,
     getAuditEntries,
@@ -179,6 +183,7 @@ function ensureDashboardStateShape() {
             'current-project',
             'current-report',
             'report-metrics',
+            'dashboard-analytics',
             'recent-activity',
             'notifications',
             'dashboard-search'
@@ -189,6 +194,7 @@ function ensureDashboardStateShape() {
             'current-project',
             'current-report',
             'report-metrics',
+            'dashboard-analytics',
             'recent-activity',
             'notifications',
             'dashboard-search'
@@ -198,7 +204,7 @@ function ensureDashboardStateShape() {
             { id: 'workspace', name: 'Workspace', widgetIds: ['quick-actions', 'continue-working', 'recent-activity', 'notifications', 'dashboard-search'] },
             { id: 'projects', name: 'Projects', widgetIds: ['current-project'] },
             { id: 'reports', name: 'Reports', widgetIds: ['current-report', 'report-metrics'] },
-            { id: 'analytics', name: 'Analytics', widgetIds: ['recent-activity'] }
+            { id: 'analytics', name: 'Analytics', widgetIds: ['dashboard-analytics', 'recent-activity'] }
         ],
         customWidgets: []
     };
@@ -359,6 +365,397 @@ function renderRecentActivityWidget(container) {
     `;
 }
 
+function formatNumeric(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return '0';
+    return String(Math.round(number));
+}
+
+function buildDefinitionList(items = []) {
+    const list = document.createElement('dl');
+    list.className = 'dashboard-widget__definition-list';
+    items.forEach((item) => {
+        const row = document.createElement('div');
+        const term = document.createElement('dt');
+        const detail = document.createElement('dd');
+        term.textContent = String(item.label || 'Metric');
+        detail.textContent = String(item.value || '0');
+        row.append(term, detail);
+        list.appendChild(row);
+    });
+    return list;
+}
+
+function buildAnalyticsSection({
+    id,
+    title,
+    description,
+    expanded,
+    emphasizeDescription,
+    contentNode
+}) {
+    const section = document.createElement('section');
+    section.className = 'dashboard-analytics-section';
+
+    const heading = document.createElement('h4');
+    heading.className = 'dashboard-analytics-section__heading';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dashboard-widget__toggle';
+    toggle.id = `dashboard-analytics-toggle-${id}`;
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    toggle.setAttribute('aria-controls', `dashboard-analytics-panel-${id}`);
+    toggle.textContent = title;
+    heading.appendChild(toggle);
+
+    const panel = document.createElement('div');
+    panel.className = 'dashboard-analytics-section__panel';
+    panel.id = `dashboard-analytics-panel-${id}`;
+    panel.hidden = !expanded;
+    panel.setAttribute('role', 'region');
+    panel.setAttribute('aria-labelledby', toggle.id);
+
+    if (description && emphasizeDescription) {
+        const descriptionNode = document.createElement('p');
+        descriptionNode.className = 'dashboard-widget__status';
+        descriptionNode.textContent = description;
+        panel.appendChild(descriptionNode);
+    }
+    if (contentNode) panel.appendChild(contentNode);
+
+    toggle.addEventListener('click', () => {
+        const nextExpanded = toggle.getAttribute('aria-expanded') !== 'true';
+        toggle.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+        panel.hidden = !nextExpanded;
+    });
+
+    section.append(heading, panel);
+    return section;
+}
+
+function getPluginAnalyticsSections() {
+    try {
+        const snapshot = getPluginFrameworkSnapshot();
+        const dashboardCards = Array.isArray(snapshot?.extensionRegistry?.dashboardCards)
+            ? snapshot.extensionRegistry.dashboardCards
+            : [];
+
+        return dashboardCards
+            .map((entry, index) => {
+                const value = entry && typeof entry === 'object' ? (entry.value || {}) : {};
+                const analyticsValue = value.analyticsSection && typeof value.analyticsSection === 'object'
+                    ? value.analyticsSection
+                    : value;
+                const category = String(value.category || analyticsValue.category || '').trim().toLowerCase();
+                const include = Boolean(value.analyticsSection) || category === 'analytics';
+                if (!include) return null;
+
+                const title = String(analyticsValue.title || analyticsValue.heading || analyticsValue.name || `Plugin Analytics ${index + 1}`).trim();
+                const description = String(analyticsValue.description || '').trim();
+                const items = Array.isArray(analyticsValue.items)
+                    ? analyticsValue.items
+                        .map((item) => ({
+                            label: String(item?.label || '').trim(),
+                            value: String(item?.value ?? '').trim()
+                        }))
+                        .filter((item) => item.label)
+                    : [];
+
+                return {
+                    id: `plugin-${String(entry?.pluginId || 'analytics').trim()}-${index + 1}`,
+                    title,
+                    description,
+                    items
+                };
+            })
+            .filter(Boolean);
+    } catch (error) {
+        return [];
+    }
+}
+
+function renderDashboardAnalyticsWidget(container) {
+    const analyticsConfig = getAnalyticsConfig();
+    const workspaceAnalytics = getWorkspaceAnalyticsSnapshot();
+
+    container.innerHTML = '';
+
+    if (!workspaceAnalytics) {
+        const message = document.createElement('p');
+        message.className = 'dashboard-widget__status';
+        message.textContent = 'Open a Project Workspace to view dashboard analytics.';
+        container.appendChild(message);
+
+        const actions = document.createElement('div');
+        actions.className = 'viewer-dialog-actions';
+        const customizeButton = document.createElement('button');
+        customizeButton.type = 'button';
+        customizeButton.textContent = 'Customize Analytics...';
+        customizeButton.addEventListener('click', () => {
+            const command = commandRegistry.findCommands({ action: 'settingsCustomizeAnalytics' })[0] || null;
+            if (!command?.id) return;
+            commandExecutionService.executeCommand(command.id, { source: 'dashboard', action: 'settingsCustomizeAnalytics' });
+        });
+        actions.appendChild(customizeButton);
+        container.appendChild(actions);
+        return;
+    }
+
+    const pluginSections = getPluginAnalyticsSections();
+    const expanded = new Set(Array.isArray(analyticsConfig.expandedSections) ? analyticsConfig.expandedSections : []);
+    const showPercentages = analyticsConfig.displayOptions?.showPercentages !== false;
+    const showTrendPlaceholders = analyticsConfig.displayOptions?.showTrendPlaceholders !== false;
+    const showPluginSections = analyticsConfig.displayOptions?.showPluginSections !== false;
+    const emphasizeDescriptions = analyticsConfig.accessibilityOptions?.emphasizeSectionDescriptions !== false;
+    const shouldAnnounceScope = analyticsConfig.accessibilityOptions?.announceScopeChanges !== false;
+
+    const controlsWrap = document.createElement('div');
+    controlsWrap.className = 'viewer-dialog-actions';
+    controlsWrap.setAttribute('role', 'group');
+    controlsWrap.setAttribute('aria-label', 'Analytics actions');
+
+    const customizeButton = document.createElement('button');
+    customizeButton.type = 'button';
+    customizeButton.textContent = 'Customize Analytics...';
+    customizeButton.addEventListener('click', () => {
+        const command = commandRegistry.findCommands({ action: 'settingsCustomizeAnalytics' })[0] || null;
+        if (!command?.id) return;
+        commandExecutionService.executeCommand(command.id, { source: 'dashboard', action: 'settingsCustomizeAnalytics' });
+    });
+    controlsWrap.appendChild(customizeButton);
+    container.appendChild(controlsWrap);
+
+    const workingViewActive = isWorkingViewActiveForCurrentReport();
+    const reportAnalytics = workingViewActive ? getReportAnalyticsSnapshot() : null;
+    const supportsScopeSwitch = Boolean(workingViewActive && reportAnalytics);
+
+    let activeScope = 'workspace';
+    if (supportsScopeSwitch) {
+        const preferred = String(analyticsConfig.defaultScope || 'auto').trim().toLowerCase();
+        activeScope = preferred === 'workspace' ? 'workspace' : 'report';
+    }
+
+    const scopeStatus = document.createElement('p');
+    scopeStatus.className = 'dashboard-widget__status';
+    scopeStatus.setAttribute('role', 'status');
+    scopeStatus.setAttribute('aria-live', 'polite');
+
+    const sectionsHost = document.createElement('div');
+    sectionsHost.className = 'dashboard-analytics-sections';
+
+    const renderScopeSections = () => {
+        sectionsHost.innerHTML = '';
+        const isReportScope = activeScope === 'report' && supportsScopeSwitch;
+
+        if (isReportScope && reportAnalytics) {
+            const reportOverview = buildDefinitionList([
+                { label: 'Report Name', value: reportAnalytics.reportName },
+                { label: 'Report Type', value: reportAnalytics.reportType || 'Not specified' },
+                { label: 'Total Issues', value: formatNumeric(reportAnalytics.metrics.totalIssues) },
+                { label: 'Pages Tested', value: formatNumeric(reportAnalytics.metrics.pagesTested) }
+            ]);
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'report-overview',
+                title: 'Report Overview',
+                description: 'Summary for the currently active Working View report.',
+                expanded: expanded.has('report-overview'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: reportOverview
+            }));
+
+            const reportFindings = buildDefinitionList([
+                { label: 'Issues by Severity', value: String(reportAnalytics.metrics.issuesBySeverity || 'None') },
+                { label: 'WCAG Criteria Referenced', value: formatNumeric(reportAnalytics.metrics.wcagCriteria) },
+                { label: 'Audit Entries', value: formatNumeric(reportAnalytics.metrics.totalAuditEntries) }
+            ]);
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'report-findings',
+                title: 'Findings and Coverage',
+                description: 'Issue distribution and standards coverage for this report.',
+                expanded: expanded.has('report-findings'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: reportFindings
+            }));
+
+            const reportProgressItems = [
+                { label: 'Evaluation Items', value: formatNumeric(reportAnalytics.progress.totalEvaluationItems) },
+                { label: 'Completed', value: formatNumeric(reportAnalytics.progress.completed) }
+            ];
+            if (showPercentages) {
+                reportProgressItems.push({ label: 'Testing Completion', value: `${formatNumeric(reportAnalytics.progress.testingCompletionPercent)}%` });
+            }
+            const reportProgress = buildDefinitionList(reportProgressItems);
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'report-progress',
+                title: 'Progress',
+                description: 'Evaluation workflow progress for this report.',
+                expanded: expanded.has('report-progress'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: reportProgress
+            }));
+        } else {
+            const workspaceOverview = buildDefinitionList([
+                { label: 'Workspace Name', value: workspaceAnalytics.workspaceName || 'Untitled Workspace' },
+                { label: 'Total Reports', value: formatNumeric(workspaceAnalytics.statistics.totalReports) },
+                { label: 'Project Assets', value: formatNumeric(workspaceAnalytics.statistics.projectAssets) },
+                { label: 'Validation Status', value: String(workspaceAnalytics.health.validationStatus || 'unknown') }
+            ]);
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'workspace-overview',
+                title: 'Workspace Overview',
+                description: 'Top-level health and inventory snapshot for the active workspace.',
+                expanded: expanded.has('workspace-overview'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: workspaceOverview
+            }));
+
+            const findingsItems = [
+                { label: 'Accessibility Findings', value: formatNumeric(workspaceAnalytics.statistics.accessibilityFindings) },
+                { label: 'Open Findings', value: formatNumeric(workspaceAnalytics.statistics.openFindings) },
+                { label: 'Resolved Findings', value: formatNumeric(workspaceAnalytics.statistics.resolvedFindings) },
+                { label: 'Deferred Findings', value: formatNumeric(workspaceAnalytics.statistics.deferredFindings) }
+            ];
+            if (showPercentages) {
+                const total = Number(workspaceAnalytics.statistics.accessibilityFindings || 0);
+                const resolved = Number(workspaceAnalytics.statistics.resolvedFindings || 0);
+                const percent = total > 0 ? Math.round((resolved / total) * 100) : 0;
+                findingsItems.push({ label: 'Resolution Rate', value: `${formatNumeric(percent)}%` });
+            }
+            const findings = buildDefinitionList(findingsItems);
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'workspace-findings',
+                title: 'Findings and Severity',
+                description: 'Open, resolved, and deferred finding counts across workspace reports.',
+                expanded: expanded.has('workspace-findings'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: findings
+            }));
+
+            const progressItems = [
+                { label: 'Evaluation Items', value: formatNumeric(workspaceAnalytics.progressAggregate.totalEvaluationItems) },
+                { label: 'Completed', value: formatNumeric(workspaceAnalytics.progressAggregate.completed) }
+            ];
+            if (showPercentages) {
+                progressItems.push({ label: 'Testing Completion', value: `${formatNumeric(workspaceAnalytics.progressAggregate.completionPercent)}%` });
+            }
+            const progress = buildDefinitionList(progressItems);
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'workspace-progress',
+                title: 'Progress',
+                description: 'Progress Log completion status across associated reports.',
+                expanded: expanded.has('workspace-progress'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: progress
+            }));
+
+            const quality = buildDefinitionList([
+                { label: 'Project Completion', value: `${formatNumeric(workspaceAnalytics.health.projectCompletion)}%` },
+                { label: 'Reports Remaining', value: formatNumeric(workspaceAnalytics.health.reportsRemaining) },
+                { label: 'Relationships', value: formatNumeric(workspaceAnalytics.statistics.relationships) },
+                { label: 'Recent Changes', value: formatNumeric(workspaceAnalytics.health.recentChanges) }
+            ]);
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'workspace-quality',
+                title: 'Quality and Health',
+                description: 'Quality indicators derived from workspace completion and relationships.',
+                expanded: expanded.has('workspace-quality'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: quality
+            }));
+
+            if (showTrendPlaceholders) {
+                const trendText = document.createElement('p');
+                trendText.className = 'dashboard-widget__status';
+                trendText.textContent = 'Trend analysis will appear as more historical workspace activity is recorded.';
+                sectionsHost.appendChild(buildAnalyticsSection({
+                    id: 'workspace-activity',
+                    title: 'Activity and Trends',
+                    description: 'Activity indicators and trend placeholders for future history depth.',
+                    expanded: expanded.has('workspace-activity'),
+                    emphasizeDescription: emphasizeDescriptions,
+                    contentNode: trendText
+                }));
+            }
+        }
+
+        if (showPluginSections && pluginSections.length > 0) {
+            pluginSections.forEach((pluginSection) => {
+                const content = pluginSection.items.length > 0
+                    ? buildDefinitionList(pluginSection.items)
+                    : (() => {
+                        const empty = document.createElement('p');
+                        empty.className = 'dashboard-widget__status';
+                        empty.textContent = 'Plugin section is available but has no metrics to display yet.';
+                        return empty;
+                    })();
+                sectionsHost.appendChild(buildAnalyticsSection({
+                    id: pluginSection.id,
+                    title: pluginSection.title,
+                    description: pluginSection.description,
+                    expanded: expanded.has(pluginSection.id) || expanded.has('plugin-default'),
+                    emphasizeDescription: emphasizeDescriptions,
+                    contentNode: content
+                }));
+            });
+        }
+
+        scopeStatus.textContent = isReportScope
+            ? 'Showing analytics for the current Working View report.'
+            : 'Showing analytics for the active Project Workspace.';
+    };
+
+    if (supportsScopeSwitch) {
+        const fieldset = document.createElement('fieldset');
+        fieldset.className = 'dashboard-analytics-scope';
+        const legend = document.createElement('legend');
+        legend.textContent = 'Analytics Scope';
+        fieldset.appendChild(legend);
+
+        const reportId = 'dashboard-analytics-scope-report';
+        const workspaceId = 'dashboard-analytics-scope-workspace';
+
+        const reportLabel = document.createElement('label');
+        const reportInput = document.createElement('input');
+        reportInput.type = 'radio';
+        reportInput.name = 'dashboard-analytics-scope';
+        reportInput.id = reportId;
+        reportInput.value = 'report';
+        reportInput.checked = activeScope === 'report';
+        reportLabel.htmlFor = reportId;
+        reportLabel.append(reportInput, ' Current Working View Report');
+
+        const workspaceLabel = document.createElement('label');
+        const workspaceInput = document.createElement('input');
+        workspaceInput.type = 'radio';
+        workspaceInput.name = 'dashboard-analytics-scope';
+        workspaceInput.id = workspaceId;
+        workspaceInput.value = 'workspace';
+        workspaceInput.checked = activeScope === 'workspace';
+        workspaceLabel.htmlFor = workspaceId;
+        workspaceLabel.append(workspaceInput, ' Active Workspace');
+
+        fieldset.append(reportLabel, workspaceLabel);
+        container.appendChild(fieldset);
+
+        fieldset.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement)) return;
+            if (!['report', 'workspace'].includes(target.value)) return;
+            activeScope = target.value;
+            renderScopeSections();
+            if (shouldAnnounceScope) {
+                announce(activeScope === 'report'
+                    ? 'Analytics scope changed to current report.'
+                    : 'Analytics scope changed to workspace.');
+            }
+        });
+    }
+
+    container.appendChild(scopeStatus);
+    container.appendChild(sectionsHost);
+    renderScopeSections();
+}
+
 function renderNotificationsWidget(container) {
     const notices = [];
     const security = getSecurityConfig();
@@ -495,6 +892,15 @@ function registerDashboardWidgetsIfNeeded() {
         description: 'Metrics for the selected report.',
         category: 'Reports',
         resolveElement: () => document.getElementById('report-metrics')
+    });
+
+    registerDashboardWidget({
+        id: 'dashboard-analytics',
+        name: 'Dashboard Analytics',
+        heading: 'Dashboard Analytics',
+        description: 'Context-aware workspace and report analytics.',
+        category: 'Analytics',
+        render: renderDashboardAnalyticsWidget
     });
 
     registerDashboardWidget({
@@ -1673,6 +2079,7 @@ export function renderDashboard() {
     window.addEventListener('art-state-restored', rebuildRecentReports);
     window.addEventListener('art-progress-log-updated', refreshReportMetrics);
     window.addEventListener('art-security-updated', refreshDashboardWidgetFramework);
+    window.addEventListener('art-analytics-settings-updated', refreshDashboardWidgetFramework);
     window.addEventListener('art-dashboard-config-updated', refreshDashboardWidgetFramework);
 
     const projectInfo = getProjectDocumentInfo();

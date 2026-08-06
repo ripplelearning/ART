@@ -811,6 +811,48 @@ a {
     font-size: 0.9em;
 }
 
+.dashboard-analytics-scope {
+    border: 1px solid var(--art-border-color);
+    padding: 8px;
+    display: grid;
+    gap: 8px;
+}
+
+.dashboard-analytics-scope label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dashboard-analytics-sections {
+    display: grid;
+    gap: 10px;
+}
+
+.dashboard-analytics-section {
+    border: 1px solid var(--art-border-color);
+    background: var(--art-surface-background);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dashboard-analytics-section__heading {
+    margin: 0;
+}
+
+.dashboard-analytics-section__heading .dashboard-widget__toggle {
+    border: none;
+    border-radius: 0;
+    padding: 10px;
+    background: var(--art-surface-alt-background);
+}
+
+.dashboard-analytics-section__panel {
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+}
+
 .dashboard-widget-tabs {
     display: grid;
     gap: 10px;

@@ -258,6 +258,29 @@ These commands are available in Edit > History, Command Palette, and Menu Bar co
 
 ## Undo and Redo Behavior
 - Undo and Redo operate on centralized transactions.
+
+## Dashboard Analytics Framework
+ART Dashboard now includes a dedicated Dashboard Analytics widget in the Analytics tab.
+
+Analytics behavior is context-aware:
+
+- if no Project Workspace is open, the widget shows an empty-state guidance message
+- if a Project Workspace is open, the widget shows workspace analytics sections
+- if Working View is active for the current report, the widget can switch between report analytics and workspace analytics
+
+Analytics sections are rendered as accessible accordion regions with keyboard-operable toggle buttons and aria-expanded state.
+
+## Analytics Settings
+Use Application Settings -> Dashboard Analytics to configure:
+
+- default analytics scope
+- default expanded analytics sections
+- display options (percentages, trend placeholders, plugin sections)
+- accessibility options (scope change announcements and section description emphasis)
+
+Use the command Open Analytics Settings Section to open this settings section directly.
+
+The command is registered in Keyboard Shortcut Manager and is unassigned by default.
 - Performing a new undoable action clears the Redo stack.
 - Undo and Redo availability is exposed programmatically and reflected in command enabled state.
 

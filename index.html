@@ -196,6 +196,45 @@
                 </div>
             </section>
 
+            <section aria-labelledby="settings-analytics-heading">
+                <h4 id="settings-analytics-heading">Dashboard Analytics</h4>
+                <p id="settings-analytics-summary" role="status" aria-live="polite" aria-atomic="true">Configure analytics scope, sections, and display preferences.</p>
+
+                <label for="settings-analytics-default-scope">Default Analytics Scope</label>
+                <select id="settings-analytics-default-scope">
+                    <option value="auto">Auto (Working View Report when available)</option>
+                    <option value="report">Report</option>
+                    <option value="workspace">Workspace</option>
+                </select>
+
+                <fieldset>
+                    <legend>Default Expanded Sections</legend>
+                    <label><input id="settings-analytics-expand-overview" type="checkbox"> Overview</label>
+                    <label><input id="settings-analytics-expand-findings" type="checkbox"> Findings</label>
+                    <label><input id="settings-analytics-expand-progress" type="checkbox"> Progress</label>
+                    <label><input id="settings-analytics-expand-quality" type="checkbox"> Quality and Health</label>
+                    <label><input id="settings-analytics-expand-activity" type="checkbox"> Activity and Trends</label>
+                    <label><input id="settings-analytics-expand-plugins" type="checkbox"> Plugin Sections</label>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Display Options</legend>
+                    <label><input id="settings-analytics-show-percentages" type="checkbox"> Show percentages</label>
+                    <label><input id="settings-analytics-show-trends" type="checkbox"> Show trend placeholders</label>
+                    <label><input id="settings-analytics-show-plugins" type="checkbox"> Show plugin analytics sections</label>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Accessibility Options</legend>
+                    <label><input id="settings-analytics-announce-scope" type="checkbox"> Announce scope changes</label>
+                    <label><input id="settings-analytics-emphasize-descriptions" type="checkbox"> Emphasize section descriptions</label>
+                </fieldset>
+
+                <div class="viewer-dialog-actions" role="group" aria-label="Dashboard analytics actions">
+                    <button id="btn-settings-analytics-apply" type="button">Apply Analytics Settings</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-integrations-heading">
                 <h4 id="settings-integrations-heading">Integrations</h4>
                 <p id="settings-local-files-help">ART uses local and network-accessible file workflows for import, export, and project operations.</p>

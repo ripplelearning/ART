@@ -6,6 +6,7 @@ const DEFAULT_WIDGET_IDS = [
     'current-project',
     'current-report',
     'report-metrics',
+    'dashboard-analytics',
     'recent-activity',
     'notifications',
     'dashboard-search'
@@ -15,7 +16,7 @@ const DEFAULT_TAB_DEFINITIONS = [
     { id: 'workspace', name: 'Workspace', widgetIds: ['quick-actions', 'continue-working', 'recent-activity', 'notifications', 'dashboard-search'] },
     { id: 'projects', name: 'Projects', widgetIds: ['current-project'] },
     { id: 'reports', name: 'Reports', widgetIds: ['current-report', 'report-metrics'] },
-    { id: 'analytics', name: 'Analytics', widgetIds: ['recent-activity'] }
+    { id: 'analytics', name: 'Analytics', widgetIds: ['dashboard-analytics', 'recent-activity'] }
 ];
 
 const DEFAULT_LAYOUT = 'cards';
