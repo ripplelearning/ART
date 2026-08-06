@@ -526,13 +526,19 @@ function renderDashboardAnalyticsWidget(container) {
     container.appendChild(controlsWrap);
 
     const workingViewActive = isWorkingViewActiveForCurrentReport();
-    const reportAnalytics = workingViewActive ? getReportAnalyticsSnapshot() : null;
-    const supportsScopeSwitch = Boolean(workingViewActive && reportAnalytics);
+    const reportAnalytics = getReportAnalyticsSnapshot();
+    const supportsScopeSwitch = Boolean(reportAnalytics && workspaceAnalytics);
 
     let activeScope = 'workspace';
-    if (supportsScopeSwitch) {
+    if (reportAnalytics) {
         const preferred = String(analyticsConfig.defaultScope || 'auto').trim().toLowerCase();
-        activeScope = preferred === 'workspace' ? 'workspace' : 'report';
+        if (preferred === 'workspace' && workspaceAnalytics) {
+            activeScope = 'workspace';
+        } else {
+            activeScope = 'report';
+        }
+    } else if (workspaceAnalytics) {
+        activeScope = 'workspace';
     }
 
     const scopeStatus = document.createElement('p');
@@ -545,7 +551,7 @@ function renderDashboardAnalyticsWidget(container) {
 
     const renderScopeSections = () => {
         sectionsHost.innerHTML = '';
-        const isReportScope = activeScope === 'report' && supportsScopeSwitch;
+        const isReportScope = activeScope === 'report' && Boolean(reportAnalytics);
 
         if (isReportScope && reportAnalytics) {
             const reportOverview = buildDefinitionList([

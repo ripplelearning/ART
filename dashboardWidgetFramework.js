@@ -81,7 +81,8 @@ function normalizeTabs(tabs, availableWidgetIds) {
     const normalized = source.map((tab, index) => {
         const id = normalizeText(tab?.id) || `tab-${index + 1}`;
         const name = normalizeText(tab?.name) || `Tab ${index + 1}`;
-        const widgetIds = ensureUnique(tab?.widgetIds).filter((widgetId) => availableWidgetIds.includes(widgetId));
+        const widgetIds = ensureUnique([...(tab?.widgetIds || []), ...((fallback[index] && fallback[index].widgetIds) || [])])
+            .filter((widgetId) => availableWidgetIds.includes(widgetId));
         return { id, name, widgetIds };
     });
 

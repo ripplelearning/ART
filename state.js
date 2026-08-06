@@ -676,28 +676,54 @@ function normalizeRecentProjectFiles(list) {
 function normalizeDashboardConfig(config) {
     const source = config && typeof config === 'object' ? config : {};
     const allowedLayouts = new Set(['cards', 'tabs', 'compact']);
+    const defaultWidgetOrder = [...defaultState.dashboard.widgetOrder];
+    const defaultVisibleWidgetIds = [...defaultState.dashboard.visibleWidgetIds];
+    const defaultTabs = defaultState.dashboard.tabs.map((tab) => ({ ...tab, widgetIds: [...tab.widgetIds] }));
 
-    const widgetOrder = Array.isArray(source.widgetOrder)
-        ? source.widgetOrder.map((value) => String(value || '').trim()).filter(Boolean)
-        : [...defaultState.dashboard.widgetOrder];
+    const mergeUnique = (primary = [], fallback = []) => {
+        const seen = new Set();
+        return [...primary, ...fallback].filter((value) => {
+            const key = String(value || '').trim();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    };
 
-    const visibleWidgetIds = Array.isArray(source.visibleWidgetIds)
-        ? source.visibleWidgetIds.map((value) => String(value || '').trim()).filter(Boolean)
-        : [...defaultState.dashboard.visibleWidgetIds];
+    const widgetOrder = mergeUnique(
+        Array.isArray(source.widgetOrder)
+            ? source.widgetOrder.map((value) => String(value || '').trim()).filter(Boolean)
+            : [],
+        defaultWidgetOrder
+    );
+
+    const visibleWidgetIds = mergeUnique(
+        Array.isArray(source.visibleWidgetIds)
+            ? source.visibleWidgetIds.map((value) => String(value || '').trim()).filter(Boolean)
+            : [],
+        defaultVisibleWidgetIds
+    );
 
     const collapsedWidgets = source.collapsedWidgets && typeof source.collapsedWidgets === 'object'
         ? Object.fromEntries(Object.entries(source.collapsedWidgets).map(([key, value]) => [String(key), Boolean(value)]))
         : {};
 
-    const tabs = Array.isArray(source.tabs) && source.tabs.length > 0
-        ? source.tabs.map((tab, index) => ({
-            id: String(tab?.id || `tab-${index + 1}`).trim() || `tab-${index + 1}`,
-            name: String(tab?.name || `Tab ${index + 1}`).trim() || `Tab ${index + 1}`,
-            widgetIds: Array.isArray(tab?.widgetIds)
-                ? tab.widgetIds.map((value) => String(value || '').trim()).filter(Boolean)
-                : []
-        }))
-        : defaultState.dashboard.tabs.map((tab) => ({ ...tab, widgetIds: [...tab.widgetIds] }));
+    const tabsSource = Array.isArray(source.tabs) && source.tabs.length > 0
+        ? source.tabs
+        : defaultTabs;
+    const tabs = tabsSource.map((tab, index) => {
+        const fallbackTab = defaultTabs[index] || { id: `tab-${index + 1}`, name: `Tab ${index + 1}`, widgetIds: [] };
+        return {
+            id: String(tab?.id || fallbackTab.id || `tab-${index + 1}`).trim() || `tab-${index + 1}`,
+            name: String(tab?.name || fallbackTab.name || `Tab ${index + 1}`).trim() || `Tab ${index + 1}`,
+            widgetIds: mergeUnique(
+                Array.isArray(tab?.widgetIds)
+                    ? tab.widgetIds.map((value) => String(value || '').trim()).filter(Boolean)
+                    : [],
+                Array.isArray(fallbackTab.widgetIds) ? fallbackTab.widgetIds : []
+            )
+        };
+    });
 
     const customWidgets = Array.isArray(source.customWidgets)
         ? source.customWidgets.map((item, index) => ({
