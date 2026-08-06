@@ -772,6 +772,7 @@ function getAnalyticsControls() {
         showPercentages: document.getElementById('settings-analytics-show-percentages'),
         showTrendPlaceholders: document.getElementById('settings-analytics-show-trends'),
         showPluginSections: document.getElementById('settings-analytics-show-plugins'),
+        showUnrelatedReportTrends: document.getElementById('settings-analytics-show-unrelated-report-trends'),
         announceScopeChanges: document.getElementById('settings-analytics-announce-scope'),
         emphasizeDescriptions: document.getElementById('settings-analytics-emphasize-descriptions'),
         applyButton: document.getElementById('btn-settings-analytics-apply'),
@@ -797,11 +798,12 @@ function renderAnalyticsSettings() {
     if (controls.showPercentages) controls.showPercentages.checked = config.displayOptions?.showPercentages !== false;
     if (controls.showTrendPlaceholders) controls.showTrendPlaceholders.checked = config.displayOptions?.showTrendPlaceholders !== false;
     if (controls.showPluginSections) controls.showPluginSections.checked = config.displayOptions?.showPluginSections !== false;
+    if (controls.showUnrelatedReportTrends) controls.showUnrelatedReportTrends.checked = config.displayOptions?.showUnrelatedReportTrends === true;
     if (controls.announceScopeChanges) controls.announceScopeChanges.checked = config.accessibilityOptions?.announceScopeChanges !== false;
     if (controls.emphasizeDescriptions) controls.emphasizeDescriptions.checked = config.accessibilityOptions?.emphasizeSectionDescriptions !== false;
 
     if (controls.summary) {
-        controls.summary.textContent = `Default scope ${controls.defaultScope.value}. Percentages ${controls.showPercentages?.checked ? 'on' : 'off'}.`;
+        controls.summary.textContent = `Default scope ${controls.defaultScope.value}. Percentages ${controls.showPercentages?.checked ? 'on' : 'off'}. Unrelated standalone trends ${controls.showUnrelatedReportTrends?.checked ? 'on' : 'off'}.`;
     }
 }
 
@@ -823,7 +825,8 @@ function applyAnalyticsSettings() {
         displayOptions: {
             showPercentages: Boolean(controls.showPercentages?.checked),
             showTrendPlaceholders: Boolean(controls.showTrendPlaceholders?.checked),
-            showPluginSections: Boolean(controls.showPluginSections?.checked)
+            showPluginSections: Boolean(controls.showPluginSections?.checked),
+            showUnrelatedReportTrends: Boolean(controls.showUnrelatedReportTrends?.checked)
         },
         accessibilityOptions: {
             announceScopeChanges: Boolean(controls.announceScopeChanges?.checked),

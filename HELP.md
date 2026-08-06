@@ -268,6 +268,12 @@ Analytics behavior is context-aware:
 - if a Project Workspace is open, the widget shows workspace analytics sections
 - if Working View is active for the current report, the widget can switch between report analytics and workspace analytics
 
+Trend analytics are included in the Activity and Trends section:
+
+- within a Project Workspace, trends are based on report history inside that workspace
+- for standalone reports, trends are grouped across standalone reports with the same Organization/Company value
+- optionally, you can include an aggregate trend across all standalone reports, including unrelated organizations
+
 Analytics sections are rendered as accessible accordion regions with keyboard-operable toggle buttons and aria-expanded state.
 
 ## Analytics Settings
@@ -275,7 +281,7 @@ Use Application Settings -> Dashboard Analytics to configure:
 
 - default analytics scope
 - default expanded analytics sections
-- display options (percentages, trend placeholders, plugin sections)
+- display options (percentages, trend insights, plugin sections, unrelated standalone trend inclusion)
 - accessibility options (scope change announcements and section description emphasis)
 
 Use the command Open Analytics Settings Section to open this settings section directly.

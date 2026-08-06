@@ -358,7 +358,8 @@ const defaultState = {
         displayOptions: {
             showPercentages: true,
             showTrendPlaceholders: true,
-            showPluginSections: true
+            showPluginSections: true,
+            showUnrelatedReportTrends: false
         },
         accessibilityOptions: {
             announceScopeChanges: true,
@@ -776,7 +777,8 @@ function normalizeAnalyticsConfig(config) {
         displayOptions: {
             showPercentages: displaySource.showPercentages !== false,
             showTrendPlaceholders: displaySource.showTrendPlaceholders !== false,
-            showPluginSections: displaySource.showPluginSections !== false
+            showPluginSections: displaySource.showPluginSections !== false,
+            showUnrelatedReportTrends: displaySource.showUnrelatedReportTrends === true
         },
         accessibilityOptions: {
             announceScopeChanges: accessibilitySource.announceScopeChanges !== false,
@@ -3685,6 +3687,116 @@ function summarizeReportInsights(reportData) {
     };
 }
 
+function toIsoDate(value) {
+    const timestamp = Number(value || 0);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
+    return new Date(timestamp).toISOString();
+}
+
+function normalizeOrganizationName(value) {
+    const text = String(value || '').trim();
+    return text || 'Unspecified Organization';
+}
+
+function buildReportTrendPoint(report) {
+    const metrics = computeReportMetrics(report);
+    const insights = summarizeReportInsights(report?.data || {});
+    return {
+        reportId: report.id,
+        reportName: String(report.name || '').trim() || 'Untitled Report',
+        organization: normalizeOrganizationName(report?.data?.orgClient),
+        updatedAt: Number(report.updatedAt || 0),
+        updatedAtIso: toIsoDate(report.updatedAt),
+        totalIssues: Number(metrics.totalIssues || 0),
+        openFindings: Number(metrics.totalAuditEntries || 0),
+        topIssueType: insights.topIssueType,
+        topSeverity: insights.topSeverity
+    };
+}
+
+function summarizeTrendGroup(id, label, reports = []) {
+    const sorted = [...reports]
+        .sort((left, right) => Number(left.updatedAt || 0) - Number(right.updatedAt || 0));
+    const points = sorted.map((report) => buildReportTrendPoint(report));
+    const latest = points[points.length - 1] || null;
+    const previous = points.length > 1 ? points[points.length - 2] : null;
+    const deltaTotalIssues = latest && previous
+        ? Number(latest.totalIssues || 0) - Number(previous.totalIssues || 0)
+        : 0;
+    const direction = points.length < 2
+        ? 'no-baseline'
+        : deltaTotalIssues > 0
+            ? 'up'
+            : deltaTotalIssues < 0
+                ? 'down'
+                : 'flat';
+
+    return {
+        id: String(id || '').trim() || `trend-${Date.now()}`,
+        label: String(label || '').trim() || 'Trend Group',
+        reportCount: points.length,
+        latest,
+        previous,
+        deltaTotalIssues,
+        direction,
+        points
+    };
+}
+
+export function getAnalyticsTrendSnapshot(options = {}) {
+    const source = options && typeof options === 'object' ? options : {};
+    const includeUnrelated = Boolean(source.includeUnrelatedReports);
+    const reports = Array.isArray(appState.reports) ? [...appState.reports] : [];
+    const workspaces = getProjectWorkspaces();
+
+    const workspaceReportIds = new Set();
+    const reportToWorkspaceId = {};
+    const workspaceTrends = workspaces
+        .map((workspace) => {
+            const ids = new Set([
+                ...(workspace.associatedReportIds || []),
+                ...((workspace.resources && Array.isArray(workspace.resources.reports)) ? workspace.resources.reports : [])
+            ]);
+
+            ids.forEach((reportId) => {
+                workspaceReportIds.add(reportId);
+                reportToWorkspaceId[reportId] = workspace.id;
+            });
+
+            const relatedReports = reports.filter((report) => ids.has(report.id));
+            return summarizeTrendGroup(`workspace:${workspace.id}`, workspace.name || 'Untitled Workspace', relatedReports);
+        })
+        .filter((trend) => trend.reportCount > 0)
+        .sort((left, right) => left.label.localeCompare(right.label));
+
+    const standaloneReports = reports.filter((report) => !workspaceReportIds.has(report.id));
+    const standaloneByOrg = standaloneReports.reduce((map, report) => {
+        const org = normalizeOrganizationName(report?.data?.orgClient);
+        if (!map.has(org)) map.set(org, []);
+        map.get(org).push(report);
+        return map;
+    }, new Map());
+
+    const organizationTrends = [...standaloneByOrg.entries()]
+        .map(([org, orgReports]) => summarizeTrendGroup(`organization:${org.toLowerCase()}`, org, orgReports))
+        .filter((trend) => trend.reportCount > 0)
+        .sort((left, right) => left.label.localeCompare(right.label));
+
+    const unrelatedStandaloneTrend = includeUnrelated
+        ? summarizeTrendGroup('standalone:all', 'All Standalone Reports', standaloneReports)
+        : null;
+
+    return {
+        workspaceTrends,
+        organizationTrends,
+        unrelatedStandaloneTrend: unrelatedStandaloneTrend && unrelatedStandaloneTrend.reportCount > 0
+            ? unrelatedStandaloneTrend
+            : null,
+        reportToWorkspaceId,
+        standaloneReportIds: standaloneReports.map((report) => report.id)
+    };
+}
+
 export function getReportAnalyticsSnapshot(reportId = '') {
     const targetId = String(reportId || appState.selectedReportId || '').trim();
     const report = targetId ? getReportById(targetId) : null;
@@ -3698,6 +3810,7 @@ export function getReportAnalyticsSnapshot(reportId = '') {
             reportId: targetId || 'current-report',
             reportName: String(appState.reportTitle || 'Untitled Report').trim() || 'Untitled Report',
             reportType: String(appState.reportType || '').trim(),
+            organization: normalizeOrganizationName(appState.orgClient),
             metrics: getCurrentReportMetrics(),
             progress: getProgressLogMetrics(),
             insights: summarizeReportInsights(getCurrentReportSnapshotData()),
@@ -3709,6 +3822,7 @@ export function getReportAnalyticsSnapshot(reportId = '') {
         reportId: report.id,
         reportName: String(report.name || '').trim() || 'Untitled Report',
         reportType: String(report.data?.reportType || '').trim(),
+        organization: normalizeOrganizationName(report?.data?.orgClient),
         metrics: computeReportMetrics(report),
         progress: getProgressLogMetrics(report),
         insights: summarizeReportInsights(report.data || {}),

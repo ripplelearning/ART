@@ -31,6 +31,7 @@ import {
     clearProjectRecoveryMark,
     computeReportMetrics,
     getAnalyticsConfig,
+    getAnalyticsTrendSnapshot,
     getReportAnalyticsSnapshot,
     getProgressLogMetrics,
     getWorkspaceAnalyticsSnapshot,
@@ -379,6 +380,25 @@ function formatCountList(list = [], limit = 5, emptyLabel = 'None') {
     return items.map((item) => `${item.label}: ${item.count}`).join(', ');
 }
 
+function formatTrendDirection(direction = 'no-baseline') {
+    if (direction === 'up') return 'Increasing';
+    if (direction === 'down') return 'Decreasing';
+    if (direction === 'flat') return 'Stable';
+    return 'Insufficient baseline';
+}
+
+function formatTrendDelta(value = 0) {
+    const delta = Number(value || 0);
+    if (!Number.isFinite(delta)) return '0';
+    if (delta > 0) return `+${delta}`;
+    return String(delta);
+}
+
+function findTrendGroupByPrefix(groups = [], prefix = '', value = '') {
+    const key = `${String(prefix || '').trim()}:${String(value || '').trim().toLowerCase()}`;
+    return (Array.isArray(groups) ? groups : []).find((group) => String(group.id || '').toLowerCase() === key) || null;
+}
+
 function buildDefinitionList(items = []) {
     const list = document.createElement('dl');
     list.className = 'dashboard-widget__definition-list';
@@ -486,6 +506,9 @@ function renderDashboardAnalyticsWidget(container) {
     const analyticsConfig = getAnalyticsConfig();
     const reportAnalytics = getReportAnalyticsSnapshot();
     const workspaceAnalytics = getWorkspaceAnalyticsSnapshot();
+    const trendSnapshot = getAnalyticsTrendSnapshot({
+        includeUnrelatedReports: analyticsConfig.displayOptions?.showUnrelatedReportTrends === true
+    });
 
     container.innerHTML = '';
 
@@ -690,13 +713,39 @@ function renderDashboardAnalyticsWidget(container) {
             }));
 
             if (showTrendPlaceholders) {
-                const trendText = document.createElement('p');
-                trendText.className = 'dashboard-widget__status';
-                trendText.textContent = 'Trend analysis will appear as more historical workspace activity is recorded.';
+                const workspaceTrend = findTrendGroupByPrefix(trendSnapshot.workspaceTrends, 'workspace', workspaceAnalytics.workspaceId);
+                const trendItems = workspaceTrend
+                    ? [
+                        { label: 'Active Workspace Trend Direction', value: formatTrendDirection(workspaceTrend.direction) },
+                        { label: 'Issue Delta vs Previous Report', value: formatTrendDelta(workspaceTrend.deltaTotalIssues) },
+                        { label: 'Workspace Reports in Trend', value: formatNumeric(workspaceTrend.reportCount) },
+                        { label: 'Latest Workspace Report', value: workspaceTrend.latest?.reportName || 'Not enough data' },
+                        { label: 'Latest Report Issues', value: formatNumeric(workspaceTrend.latest?.totalIssues || 0) },
+                        { label: 'Previous Report Issues', value: workspaceTrend.previous ? formatNumeric(workspaceTrend.previous.totalIssues) : 'Not enough data' },
+                        { label: 'Top Issue Type (Latest)', value: workspaceTrend.latest?.topIssueType ? `${workspaceTrend.latest.topIssueType.label} (${workspaceTrend.latest.topIssueType.count})` : 'Not enough data' },
+                        { label: 'Top Severity (Latest)', value: workspaceTrend.latest?.topSeverity ? `${workspaceTrend.latest.topSeverity.label} (${workspaceTrend.latest.topSeverity.count})` : 'Not enough data' }
+                    ]
+                    : [
+                        { label: 'Workspace Trend', value: 'No report history is available for this workspace yet.' }
+                    ];
+
+                const otherWorkspaceTrends = (trendSnapshot.workspaceTrends || [])
+                    .filter((group) => group.id !== `workspace:${workspaceAnalytics.workspaceId}`)
+                    .slice(0, 4)
+                    .map((group) => `${group.label}: ${formatTrendDirection(group.direction)} (${formatTrendDelta(group.deltaTotalIssues)})`);
+
+                if (otherWorkspaceTrends.length > 0) {
+                    trendItems.push({
+                        label: 'Other Workspace Trends',
+                        value: otherWorkspaceTrends.join(' | ')
+                    });
+                }
+
+                const trendText = buildDefinitionList(trendItems);
                 sectionsHost.appendChild(buildAnalyticsSection({
                     id: 'workspace-activity',
                     title: 'Activity and Trends',
-                    description: 'Activity indicators and trend placeholders for future history depth.',
+                    description: 'Trend signals within the active workspace and comparisons with other workspaces.',
                     expanded: expanded.has('workspace-activity'),
                     emphasizeDescription: emphasizeDescriptions,
                     contentNode: trendText
@@ -726,8 +775,63 @@ function renderDashboardAnalyticsWidget(container) {
         }
 
         scopeStatus.textContent = isReportScope
-            ? 'Showing analytics for the current report.'
+            ? `Showing analytics for the current ${workingViewActive ? 'Working View report' : 'report'}.`
             : 'Showing analytics for the active Project Workspace.';
+
+        if (isReportScope && showTrendPlaceholders && reportAnalytics) {
+            const inWorkspace = Boolean(reportAnalytics.reportId && trendSnapshot.reportToWorkspaceId?.[reportAnalytics.reportId]);
+            const reportTrendItems = [];
+
+            if (inWorkspace) {
+                const workspaceId = trendSnapshot.reportToWorkspaceId[reportAnalytics.reportId];
+                const workspaceTrend = findTrendGroupByPrefix(trendSnapshot.workspaceTrends, 'workspace', workspaceId);
+                reportTrendItems.push({
+                    label: 'Trend Scope',
+                    value: 'Current report belongs to a workspace. Trends are based on that workspace history.'
+                });
+                if (workspaceTrend) {
+                    reportTrendItems.push(
+                        { label: 'Workspace Trend Direction', value: formatTrendDirection(workspaceTrend.direction) },
+                        { label: 'Issue Delta vs Previous Report', value: formatTrendDelta(workspaceTrend.deltaTotalIssues) },
+                        { label: 'Workspace Reports in Trend', value: formatNumeric(workspaceTrend.reportCount) }
+                    );
+                }
+            } else {
+                const organizationTrend = findTrendGroupByPrefix(trendSnapshot.organizationTrends, 'organization', reportAnalytics.organization);
+                reportTrendItems.push({
+                    label: 'Trend Scope',
+                    value: `Standalone report trend group: ${reportAnalytics.organization || 'Unspecified Organization'}`
+                });
+                if (organizationTrend) {
+                    reportTrendItems.push(
+                        { label: 'Organization Trend Direction', value: formatTrendDirection(organizationTrend.direction) },
+                        { label: 'Issue Delta vs Previous Report', value: formatTrendDelta(organizationTrend.deltaTotalIssues) },
+                        { label: 'Organization Reports in Trend', value: formatNumeric(organizationTrend.reportCount) }
+                    );
+                } else {
+                    reportTrendItems.push({
+                        label: 'Organization Trend',
+                        value: 'No additional standalone reports were found for this organization.'
+                    });
+                }
+
+                if (trendSnapshot.unrelatedStandaloneTrend) {
+                    reportTrendItems.push({
+                        label: 'Unrelated Standalone Trend (All)',
+                        value: `${formatTrendDirection(trendSnapshot.unrelatedStandaloneTrend.direction)} (${formatTrendDelta(trendSnapshot.unrelatedStandaloneTrend.deltaTotalIssues)}) across ${formatNumeric(trendSnapshot.unrelatedStandaloneTrend.reportCount)} reports`
+                    });
+                }
+            }
+
+            sectionsHost.appendChild(buildAnalyticsSection({
+                id: 'report-activity',
+                title: 'Activity and Trends',
+                description: 'Trend indicators based on workspace history or matching standalone organization history.',
+                expanded: expanded.has('report-activity') || expanded.has('workspace-activity'),
+                emphasizeDescription: emphasizeDescriptions,
+                contentNode: buildDefinitionList(reportTrendItems)
+            }));
+        }
     };
 
     if (supportsScopeSwitch) {
