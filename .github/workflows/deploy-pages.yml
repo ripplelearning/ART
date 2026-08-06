@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -17,9 +15,13 @@ concurrency:
 
 jobs:
   deploy:
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment_primary.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,6 +35,14 @@ jobs:
         with:
           path: .
 
+      # GitHub Pages deployment can occasionally fail on transient OIDC key propagation.
+      # Retry once so a brief key-sync issue does not require a manual rerun.
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deployment_primary
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Retry GitHub Pages deployment
+        id: deployment_retry
+        if: steps.deployment_primary.outcome == 'failure'
         uses: actions/deploy-pages@v4
