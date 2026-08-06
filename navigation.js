@@ -478,7 +478,8 @@ function activateTabAndFocusHeading(tabId, headingId, fallbackLabel) {
     if (!tab) return;
     tab.click();
     notifyPanelChanged(panelNameMap[tabId] || fallbackLabel || 'Welcome');
-    window.setTimeout(() => {
+
+    const focusHeadingWithRetry = (attempt = 0) => {
         const heading = document.getElementById(headingId);
         if (heading) {
             if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
@@ -488,7 +489,33 @@ function activateTabAndFocusHeading(tabId, headingId, fallbackLabel) {
                 announce(label);
                 lastLandmarkAnnouncement = label;
             }
+            return;
         }
+
+        if (attempt === 0) {
+            const tabs = document.querySelectorAll('#top-tabs button[role="tab"]');
+            const selected = document.querySelector('#top-tabs button[role="tab"][aria-selected="true"]');
+            if (!selected || selected.id !== tabId) {
+                tabs.forEach((btn) => btn.setAttribute('aria-selected', 'false'));
+                tab.setAttribute('aria-selected', 'true');
+            }
+
+            const renderFn = renderMap[tabId];
+            if (typeof renderFn === 'function') {
+                const result = renderFn();
+                if (result && typeof result.catch === 'function') {
+                    result.catch(() => {});
+                }
+            }
+        }
+
+        if (attempt < 40) {
+            window.setTimeout(() => focusHeadingWithRetry(attempt + 1), 25);
+        }
+    };
+
+    window.setTimeout(() => {
+        focusHeadingWithRetry(0);
     }, 0);
 }
 
