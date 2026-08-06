@@ -217,8 +217,6 @@ function attachBrandingRichEditor(editorId, stateKey, fallbackKey = '') {
 
 function validateBrandingInputs(shouldAnnounce = true) {
     const branding = getBrandingState();
-    const brandingHeaderHtml = getBrandingEditorInitialHtml(branding.headerHtml, branding.headerText);
-    const brandingFooterHtml = getBrandingEditorInitialHtml(branding.footerHtml, '');
     const errorEl = document.getElementById('branding-logo-alt-error');
     const altInput = document.getElementById('branding-logo-alt');
 
@@ -484,6 +482,8 @@ export async function renderBuilder() {
             : [];
     const showTemplateSection = appState.reportLayout === 'Template' && !!appState.reportType;
     const branding = getBrandingState();
+    const brandingHeaderHtml = getBrandingEditorInitialHtml(branding.headerHtml, branding.headerText);
+    const brandingFooterHtml = getBrandingEditorInitialHtml(branding.footerHtml, '');
     const progressTypeSuggestions = getDefaultProgressItemTypes();
     const progressItemNames = getProgressItemNames();
     const progressStatusOptions = getProgressStatuses();
