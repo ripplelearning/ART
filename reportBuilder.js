@@ -2,7 +2,7 @@
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
-import { getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { formatWcagCriterionDisplay, getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { restoreFocus } from './focusManagement.js';
 
 let pendingFocus = null;
@@ -101,6 +101,8 @@ function getBrandingState() {
     return {
         enabled: Boolean(appState.branding?.enabled),
         headerText: String(appState.branding?.headerText || ''),
+        headerHtml: String(appState.branding?.headerHtml || ''),
+        footerHtml: String(appState.branding?.footerHtml || ''),
         primaryColor: String(appState.branding?.primaryColor || '#005a9c'),
         logoDataUrl: String(appState.branding?.logoDataUrl || ''),
         logoAltText: String(appState.branding?.logoAltText || ''),
@@ -109,8 +111,114 @@ function getBrandingState() {
     };
 }
 
+function htmlToPlainText(html) {
+    const container = document.createElement('div');
+    container.innerHTML = String(html || '');
+    return String(container.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function sanitizeBrandingHtml(html) {
+    const source = String(html || '').trim();
+    if (!source) return '';
+
+    const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'DIV']);
+    const template = document.createElement('template');
+    template.innerHTML = source;
+
+    const nodes = Array.from(template.content.querySelectorAll('*'));
+    nodes.forEach((node) => {
+        if (!allowedTags.has(node.tagName)) {
+            node.replaceWith(...Array.from(node.childNodes));
+            return;
+        }
+
+        const attributes = Array.from(node.attributes);
+        attributes.forEach((attribute) => {
+            const name = attribute.name.toLowerCase();
+            const value = String(attribute.value || '');
+
+            if (name.startsWith('on')) {
+                node.removeAttribute(attribute.name);
+                return;
+            }
+
+            if (name === 'style') {
+                const unsafeStyle = /(expression\s*\(|url\s*\(\s*['\"]?javascript:|behavior\s*:)/i.test(value);
+                if (unsafeStyle) node.removeAttribute(attribute.name);
+                return;
+            }
+
+            if (node.tagName === 'A') {
+                if (name === 'href') {
+                    const safeHref = /^(https?:|mailto:|tel:|#|\/)/i.test(value);
+                    if (!safeHref) node.removeAttribute(attribute.name);
+                    return;
+                }
+                if (name === 'target') return;
+                if (name === 'rel') return;
+            }
+
+            node.removeAttribute(attribute.name);
+        });
+
+        if (node.tagName === 'A') {
+            if (node.getAttribute('target') === '_blank' && !node.getAttribute('rel')) {
+                node.setAttribute('rel', 'noopener noreferrer');
+            }
+        }
+    });
+
+    return template.innerHTML.trim();
+}
+
+function getBrandingEditorInitialHtml(richHtml, fallbackText = '') {
+    const sanitized = sanitizeBrandingHtml(richHtml);
+    if (sanitized) return sanitized;
+    const fallback = String(fallbackText || '').trim();
+    return fallback ? `<p>${escapeHtml(fallback)}</p>` : '';
+}
+
+function applyBrandingFormatCommand(editorId, command) {
+    const editor = document.getElementById(editorId);
+    if (!(editor instanceof HTMLElement)) return;
+    editor.focus();
+
+    if (command === 'createLink') {
+        const url = window.prompt('Enter link URL (https://example.com)');
+        if (!url) return;
+        document.execCommand('createLink', false, url);
+        return;
+    }
+
+    document.execCommand(command, false, null);
+}
+
+function attachBrandingRichEditor(editorId, stateKey, fallbackKey = '') {
+    const editor = document.getElementById(editorId);
+    if (!(editor instanceof HTMLElement)) return;
+
+    const persist = () => {
+        const sanitized = sanitizeBrandingHtml(editor.innerHTML);
+        const nextBranding = {
+            ...getBrandingState(),
+            [stateKey]: sanitized
+        };
+        if (fallbackKey) nextBranding[fallbackKey] = htmlToPlainText(sanitized);
+        appState.branding = nextBranding;
+        saveState();
+    };
+
+    editor.addEventListener('input', persist);
+    editor.addEventListener('blur', () => {
+        editor.innerHTML = sanitizeBrandingHtml(editor.innerHTML);
+        persist();
+    });
+}
+
 function validateBrandingInputs(shouldAnnounce = true) {
     const branding = getBrandingState();
+    const brandingHeaderHtml = getBrandingEditorInitialHtml(branding.headerHtml, branding.headerText);
+    const brandingFooterHtml = getBrandingEditorInitialHtml(branding.footerHtml, '');
     const errorEl = document.getElementById('branding-logo-alt-error');
     const altInput = document.getElementById('branding-logo-alt');
 
@@ -425,7 +533,32 @@ export async function renderBuilder() {
                 </label>
 
                 <div id="branding-controls" ${branding.enabled ? '' : 'hidden'}>
-                    <label>Brand Header Text: <input type="text" id="branding-header-text" value="${escapeHtml(branding.headerText)}"></label>
+                    <div>
+                        <label for="branding-header-editor">Brand Header Content</label>
+                        <p id="branding-header-help">Paste rich text from Word, Docs, or web content. Formatting is preserved where supported.</p>
+                        <div class="branding-rich-toolbar" role="group" aria-label="Brand header formatting tools">
+                            <button type="button" data-branding-editor="branding-header-editor" data-branding-command="bold">Bold</button>
+                            <button type="button" data-branding-editor="branding-header-editor" data-branding-command="italic">Italic</button>
+                            <button type="button" data-branding-editor="branding-header-editor" data-branding-command="underline">Underline</button>
+                            <button type="button" data-branding-editor="branding-header-editor" data-branding-command="insertUnorderedList">Bullets</button>
+                            <button type="button" data-branding-editor="branding-header-editor" data-branding-command="createLink">Link</button>
+                            <button type="button" data-branding-editor="branding-header-editor" data-branding-command="removeFormat">Clear Format</button>
+                        </div>
+                        <div id="branding-header-editor" class="branding-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="branding-header-help">${brandingHeaderHtml}</div>
+                    </div>
+                    <div>
+                        <label for="branding-footer-editor">Brand Footer Content</label>
+                        <p id="branding-footer-help">Use the footer for legal text, privacy notices, or publication details.</p>
+                        <div class="branding-rich-toolbar" role="group" aria-label="Brand footer formatting tools">
+                            <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="bold">Bold</button>
+                            <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="italic">Italic</button>
+                            <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="underline">Underline</button>
+                            <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="insertUnorderedList">Bullets</button>
+                            <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="createLink">Link</button>
+                            <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="removeFormat">Clear Format</button>
+                        </div>
+                        <div id="branding-footer-editor" class="branding-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="branding-footer-help">${brandingFooterHtml}</div>
+                    </div>
                     <label>Primary Brand Color: <input type="color" id="branding-primary-color" value="${escapeHtml(branding.primaryColor)}"></label>
                     <label>Brand Logo: <input type="file" id="branding-logo-file" accept="image/*"></label>
                     <p id="branding-logo-file-name">${branding.logoFileName ? `Selected logo: ${escapeHtml(branding.logoFileName)}` : 'No logo selected'}</p>
@@ -490,7 +623,7 @@ export async function renderBuilder() {
                     <label for="wcag-options-preview">WCAG Success Criteria Preview</label>
                     <p id="wcag-options-help">The Report Editor will provide a searchable combobox using the currently selected accessibility standard.</p>
                     <select id="wcag-options-preview" size="6" aria-describedby="wcag-options-help" disabled>
-                        ${wcagCriteria.map((criterion) => `<option>${escapeHtml(`${criterion.number} ${criterion.title}`)}</option>`).join('')}
+                        ${wcagCriteria.map((criterion) => `<option>${escapeHtml(formatWcagCriterionDisplay(criterion))}</option>`).join('')}
                     </select>
                 </div>
                 <div id="progress-item-options-container" ${editType === 'evaluation-item-selection' ? '' : 'hidden'}>
@@ -589,16 +722,21 @@ export async function renderBuilder() {
         });
     }
 
-    const brandingHeaderText = document.getElementById('branding-header-text');
-    if (brandingHeaderText) {
-        brandingHeaderText.addEventListener('input', (e) => {
-            appState.branding = {
-                ...getBrandingState(),
-                headerText: e.target.value
-            };
-            saveState();
+    attachBrandingRichEditor('branding-header-editor', 'headerHtml', 'headerText');
+    attachBrandingRichEditor('branding-footer-editor', 'footerHtml');
+
+    const brandingToolbarButtons = document.querySelectorAll('button[data-branding-editor][data-branding-command]');
+    brandingToolbarButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const editorId = String(button.getAttribute('data-branding-editor') || '').trim();
+            const command = String(button.getAttribute('data-branding-command') || '').trim();
+            if (!editorId || !command) return;
+            applyBrandingFormatCommand(editorId, command);
+            const editor = document.getElementById(editorId);
+            if (!(editor instanceof HTMLElement)) return;
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
         });
-    }
+    });
 
     const brandingPrimaryColor = document.getElementById('branding-primary-color');
     if (brandingPrimaryColor) {

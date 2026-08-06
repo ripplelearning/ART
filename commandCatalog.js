@@ -131,6 +131,8 @@ import {
     batchAssignWorkingViewReviewerFromCommand,
     batchSetWorkingViewSeverityFromCommand,
     batchSetWorkingViewStatusFromCommand,
+    canCloseWorkingViewFromCommand,
+    closeWorkingViewFromCommand,
     collapseAllWorkingViewGroupsFromCommand,
     deleteWorkingViewFromCommand,
     exitWorkingViewFromCommand,
@@ -344,7 +346,6 @@ function getDefaultMenuLocation(action, category) {
         case 'newProjectWorkspace':
         case 'openProjectWorkspace':
         case 'openRecentProjectWorkspace':
-        case 'closeProjectWorkspace':
         case 'saveProjectWorkspace':
         case 'saveProjectWorkspaceAs':
         case 'renameProjectWorkspace':
@@ -352,6 +353,9 @@ function getDefaultMenuLocation(action, category) {
         case 'importProjectWorkspace':
         case 'exportProjectWorkspace':
         case 'deleteProjectWorkspace': return 'File>Project Workspace';
+        case 'closeProjectWorkspace':
+        case 'closeWorkingView':
+        case 'closeReport': return 'File>Close';
         case 'openProjectProperties':
         case 'openProjectStatistics':
         case 'openWorkspaceSettings': return 'View>Project Workspace';
@@ -385,7 +389,6 @@ function getDefaultMenuLocation(action, category) {
         case 'refreshWorkspaceAssets': return 'Tools>Project Assets';
         case 'exportReport':
         case 'printPreview': return 'File>Export';
-        case 'closeReport': return 'File>Close';
         case 'configureReport':
         case 'renameReport':
         case 'replaceReport':
@@ -1097,6 +1100,11 @@ function runCloseReportWorkflow() {
     announce(hadTemplateSession ? 'Closed template session.' : 'Closed active report.');
     activateTabCommand('tab-welcome', 'welcome-heading', 'Welcome');
     return true;
+}
+
+function runCloseWorkingViewWorkflow() {
+    if (!canCloseWorkingViewFromCommand()) return false;
+    return closeWorkingViewFromCommand({ promptToSave: true });
 }
 
 function runDeleteReportWorkflow(context = {}) {
@@ -2301,6 +2309,14 @@ const BASE_COMMAND_DEFINITIONS = [
         description: 'Close the active report session.',
         enabled: () => canCloseActiveSession(),
         handler: () => runCloseReportWorkflow()
+    },
+    {
+        action: 'closeWorkingView',
+        id: 'ReportViews.CloseWorkingView',
+        category: 'Report',
+        description: 'Close the active Working View session.',
+        enabled: () => canCloseWorkingViewFromCommand(),
+        handler: () => runCloseWorkingViewWorkflow()
     },
     {
         action: 'configureReport',

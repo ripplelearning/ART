@@ -924,7 +924,7 @@ function attachWcagCombobox(control, criteria, entryIndex, fieldIndex) {
             understandingUrl: criterion.understandingUrl,
             recommendationUrl: criterion.recommendationUrl
         };
-        input.value = `${criterion.number} ${criterion.title}`;
+        input.value = formatWcagCriterionDisplay(criterion);
         if (appState.reportType === 'Audit Log') {
             updateAuditEntryFieldValue(entryIndex, fieldIndex, structuredValue);
             if (fieldIndex === 0) updateEntryActionLabels(entryIndex);
@@ -941,7 +941,7 @@ function attachWcagCombobox(control, criteria, entryIndex, fieldIndex) {
                 role="option"
                 aria-selected="${optionIndex === activeIndex ? 'true' : 'false'}"
                 data-option-index="${optionIndex}"
-            >${escapeHtml(`${criterion.number} ${criterion.title}`)}</li>
+            >${escapeHtml(formatWcagCriterionDisplay(criterion))}</li>
         `).join('');
     };
 

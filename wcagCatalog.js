@@ -140,5 +140,8 @@ export function formatWcagCriterionDisplay(value) {
     if (!value || typeof value !== 'object') return '';
     const number = String(value.number || '').trim();
     const title = String(value.title || '').trim();
-    return [number, title].filter(Boolean).join(' ');
+    const level = String(value.level || value.conformanceLevel || value.conformance || '').trim();
+    const normalizedLevel = level.replace(/^level\s+/i, '').toUpperCase();
+    const levelText = normalizedLevel ? `(Level ${normalizedLevel})` : '';
+    return [number, title, levelText].filter(Boolean).join(' ');
 }

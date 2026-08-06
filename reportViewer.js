@@ -181,6 +181,8 @@ function getBrandingState() {
     return {
         enabled: Boolean(appState.branding?.enabled),
         headerText: String(appState.branding?.headerText || ''),
+        headerHtml: String(appState.branding?.headerHtml || ''),
+        footerHtml: String(appState.branding?.footerHtml || ''),
         primaryColor: String(appState.branding?.primaryColor || '#005a9c'),
         logoDataUrl: String(appState.branding?.logoDataUrl || ''),
         logoAltText: String(appState.branding?.logoAltText || ''),
@@ -188,12 +190,78 @@ function getBrandingState() {
     };
 }
 
+function htmlToPlainText(html) {
+    const container = document.createElement('div');
+    container.innerHTML = String(html || '');
+    return String(container.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function sanitizeBrandingHtml(html) {
+    const source = String(html || '').trim();
+    if (!source) return '';
+
+    const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'DIV']);
+    const template = document.createElement('template');
+    template.innerHTML = source;
+
+    const nodes = Array.from(template.content.querySelectorAll('*'));
+    nodes.forEach((node) => {
+        if (!allowedTags.has(node.tagName)) {
+            node.replaceWith(...Array.from(node.childNodes));
+            return;
+        }
+
+        const attributes = Array.from(node.attributes);
+        attributes.forEach((attribute) => {
+            const name = attribute.name.toLowerCase();
+            const value = String(attribute.value || '');
+
+            if (name.startsWith('on')) {
+                node.removeAttribute(attribute.name);
+                return;
+            }
+
+            if (name === 'style') {
+                const unsafeStyle = /(expression\s*\(|url\s*\(\s*['\"]?javascript:|behavior\s*:)/i.test(value);
+                if (unsafeStyle) node.removeAttribute(attribute.name);
+                return;
+            }
+
+            if (node.tagName === 'A') {
+                if (name === 'href') {
+                    const safeHref = /^(https?:|mailto:|tel:|#|\/)/i.test(value);
+                    if (!safeHref) node.removeAttribute(attribute.name);
+                    return;
+                }
+                if (name === 'target') return;
+                if (name === 'rel') return;
+            }
+
+            node.removeAttribute(attribute.name);
+        });
+
+        if (node.tagName === 'A') {
+            if (node.getAttribute('target') === '_blank' && !node.getAttribute('rel')) {
+                node.setAttribute('rel', 'noopener noreferrer');
+            }
+        }
+    });
+
+    return template.innerHTML.trim();
+}
+
 function getBrandingTextLines() {
     const branding = getBrandingState();
     if (!branding.enabled) return [];
 
+    const headerHtml = sanitizeBrandingHtml(branding.headerHtml);
+    const footerHtml = sanitizeBrandingHtml(branding.footerHtml);
+    const headerText = htmlToPlainText(headerHtml) || branding.headerText.trim();
+    const footerText = htmlToPlainText(footerHtml);
+
     const lines = [];
-    if (branding.headerText.trim()) lines.push(`Brand Header: ${branding.headerText.trim()}`);
+    if (headerText) lines.push(`Brand Header: ${headerText}`);
+    if (footerText) lines.push(`Brand Footer: ${footerText}`);
     if (branding.logoDataUrl) {
         lines.push(`Logo: ${branding.logoDecorative ? 'Decorative' : (branding.logoAltText.trim() || 'Brand logo')}`);
     }
@@ -423,8 +491,9 @@ function buildMarkdownSummary() {
 
 function buildHtmlSummary() {
     const metadataRows = getMetadataRows();
-        const branding = getBrandingState();
-        const brandingLines = getBrandingTextLines();
+    const branding = getBrandingState();
+    const headerHtml = sanitizeBrandingHtml(branding.headerHtml) || (branding.headerText.trim() ? `<p>${escapeHtml(branding.headerText.trim())}</p>` : '');
+    const footerHtml = sanitizeBrandingHtml(branding.footerHtml);
 
     const metadataItems = metadataRows
         .map(([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`)
@@ -450,11 +519,12 @@ function buildHtmlSummary() {
                 return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
             })
             .join('');
-        const brandingBlock = branding.enabled ? `
+    const brandingBlock = branding.enabled ? `
     <section aria-label="Branding">
         <h2>Branding</h2>
         ${branding.logoDataUrl ? `<img src="${escapeHtml(branding.logoDataUrl)}" ${branding.logoDecorative ? 'alt=""' : `alt="${escapeHtml(branding.logoAltText || 'Brand logo')}"`} style="max-height:80px; width:auto;"/>` : ''}
-        ${brandingLines.length > 0 ? `<ul>${brandingLines.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul>` : ''}
+        ${headerHtml ? `<div>${headerHtml}</div>` : ''}
+        ${footerHtml ? `<div>${footerHtml}</div>` : ''}
     </section>` : '';
 
     return `<!doctype html>
@@ -1274,20 +1344,27 @@ function renderBrandingBlock() {
     const branding = getBrandingState();
     if (!branding.enabled) return '';
     const hasLogo = Boolean(branding.logoDataUrl);
-    const hasHeader = branding.headerText.trim() !== '';
-    if (!hasLogo && !hasHeader) return '';
+    const headerHtml = sanitizeBrandingHtml(branding.headerHtml) || (branding.headerText.trim() ? `<p>${escapeHtml(branding.headerText.trim())}</p>` : '');
+    const footerHtml = sanitizeBrandingHtml(branding.footerHtml);
+    const hasHeader = headerHtml !== '';
+    const hasFooter = footerHtml !== '';
+    if (!hasLogo && !hasHeader && !hasFooter) return '';
 
     const logoMarkup = hasLogo
         ? `<img class="viewer-brand-logo" src="${escapeHtml(branding.logoDataUrl)}" ${branding.logoDecorative ? 'alt=""' : `alt="${escapeHtml(branding.logoAltText || 'Brand logo')}"`} />`
         : '';
 
     const headerStyle = `style="color:${escapeHtml(branding.primaryColor)};"`;
-    const headerMarkup = hasHeader ? `<p class="viewer-brand-header" ${headerStyle}>${escapeHtml(branding.headerText)}</p>` : '';
+    const headerMarkup = hasHeader ? `<div class="viewer-brand-header" ${headerStyle}>${headerHtml}</div>` : '';
+    const footerMarkup = hasFooter ? `<div class="viewer-brand-footer">${footerHtml}</div>` : '';
 
     return `
         <section class="viewer-branding" aria-label="Report branding">
             ${logoMarkup}
-            ${headerMarkup}
+            <div class="viewer-brand-copy">
+                ${headerMarkup}
+                ${footerMarkup}
+            </div>
         </section>
     `;
 }

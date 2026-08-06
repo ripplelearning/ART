@@ -117,7 +117,6 @@ function getMenuLocation(command) {
         case 'newProjectWorkspace':
         case 'openProjectWorkspace':
         case 'openRecentProjectWorkspace':
-        case 'closeProjectWorkspace':
         case 'saveProjectWorkspace':
         case 'saveProjectWorkspaceAs':
         case 'renameProjectWorkspace':
@@ -125,6 +124,9 @@ function getMenuLocation(command) {
         case 'importProjectWorkspace':
         case 'exportProjectWorkspace':
         case 'deleteProjectWorkspace': return 'File>Project Workspace';
+        case 'closeProjectWorkspace':
+        case 'closeWorkingView':
+        case 'closeReport': return 'File>Close';
         case 'openProjectProperties':
         case 'openProjectStatistics':
         case 'openWorkspaceSettings': return 'View>Project Workspace';
@@ -135,7 +137,6 @@ function getMenuLocation(command) {
         case 'refreshWorkspaceAssets': return 'Tools>Project Assets';
         case 'exportReport':
         case 'printPreview': return 'File>Export';
-        case 'closeReport': return 'File>Close';
         case 'configureReport':
         case 'renameReport':
         case 'replaceReport':
@@ -535,7 +536,7 @@ function getFocusableMenuItemsForPath(path) {
 }
 
 function focusMenuItemByPath(path, desiredIndex = 0) {
-    const items = getFocusableMenuItemsForPath(path).filter((item) => item.getAttribute('aria-disabled') !== 'true');
+    const items = getFocusableMenuItemsForPath(path);
     if (!items.length) return false;
     const index = Math.max(0, Math.min(desiredIndex, items.length - 1));
     menuFocusIndexByPath.set(path, index);
@@ -548,13 +549,13 @@ function focusFirstMenuItem(path) {
 }
 
 function focusLastMenuItem(path) {
-    const items = getFocusableMenuItemsForPath(path).filter((item) => item.getAttribute('aria-disabled') !== 'true');
+    const items = getFocusableMenuItemsForPath(path);
     if (!items.length) return false;
     return focusMenuItemByPath(path, items.length - 1);
 }
 
 function moveMenuItemFocus(path, delta) {
-    const items = getFocusableMenuItemsForPath(path).filter((item) => item.getAttribute('aria-disabled') !== 'true');
+    const items = getFocusableMenuItemsForPath(path);
     if (!items.length) return false;
 
     const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;

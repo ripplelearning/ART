@@ -29,6 +29,15 @@ const WORKING_VIEW_FIELD_LABELS = Object.freeze({
     relationship: 'Relationship',
     label: 'Finding'
 });
+const WORKING_VIEW_FIELD_INDEX_KEYS = Object.freeze({
+    severity: 'severity',
+    status: 'status',
+    reviewer: 'reviewer',
+    wcag: 'wcag',
+    page: 'page',
+    component: 'component',
+    type: 'findingType'
+});
 const TABLE_COLUMNS = Object.freeze([
     { field: 'label', label: 'Finding' },
     { field: 'severity', label: 'Severity' },
@@ -154,7 +163,25 @@ function normalizeArray(value) {
 
 function getWorkingViewFieldLabel(field) {
     const normalized = normalizeText(field).toLowerCase();
-    return WORKING_VIEW_FIELD_LABELS[normalized] || normalizeText(field);
+    const dynamicLabels = getResolvedWorkingViewFieldLabels();
+    return dynamicLabels[normalized] || WORKING_VIEW_FIELD_LABELS[normalized] || normalizeText(field);
+}
+
+function getResolvedWorkingViewFieldLabels() {
+    const labels = {
+        ...WORKING_VIEW_FIELD_LABELS
+    };
+    const indexMap = inferFieldIndexes();
+
+    Object.entries(WORKING_VIEW_FIELD_INDEX_KEYS).forEach(([fieldKey, indexKey]) => {
+        const fieldIndex = Number(indexMap[indexKey]);
+        if (!Number.isInteger(fieldIndex) || fieldIndex < 0) return;
+        const reportField = appState.fields?.[fieldIndex];
+        const reportLabel = normalizeText(reportField?.label);
+        if (reportLabel) labels[fieldKey] = reportLabel;
+    });
+
+    return labels;
 }
 
 function normalizeWorkingViewProviderPreset(entry, index = 0) {
@@ -503,6 +530,7 @@ function compareByLevel(left, right, level) {
 
 function getTableColumnLabel(field) {
     const item = TABLE_COLUMNS.find((column) => column.field === field);
+    if (item && WORKING_VIEW_FIELD_LABELS[field]) return getWorkingViewFieldLabel(field);
     return item ? item.label : getWorkingViewFieldLabel(field);
 }
 
@@ -1285,9 +1313,8 @@ function syncWindowTitleForSession(session) {
         return;
     }
 
-    const modeLabel = getModeLabel(session.config.mode);
-    const temporaryText = session.config.temporary ? ' (Temporary)' : '';
-    const titleLabel = `${modeLabel} - ${session.config.name}${temporaryText}`;
+    const titleName = normalizeText(session.config?.name) || 'Working View';
+    const titleLabel = `${titleName} - Working View`;
     setActivePanel(titleLabel);
     syncDocumentTitle();
 }
@@ -2131,6 +2158,10 @@ export function openWorkingViewFromCommand(context = {}) {
     return openWorkingViewWithConfig({ config, showConfig: context.showConfig !== false });
 }
 
+export function canCloseWorkingViewFromCommand() {
+    return Boolean(getActiveSessionForCurrentReport());
+}
+
 export function exitWorkingViewFromCommand() {
     const session = getActiveSessionForCurrentReport();
     if (!session) return false;
@@ -2139,6 +2170,20 @@ export function exitWorkingViewFromCommand() {
     announce('Exited Working View and restored the original report presentation.');
     window.dispatchEvent(new Event('art-working-view-exited'));
     return true;
+}
+
+export function closeWorkingViewFromCommand(options = {}) {
+    const session = getActiveSessionForCurrentReport();
+    if (!session) return false;
+
+    if (options?.promptToSave) {
+        const saveBeforeClose = window.confirm('Save Working View before closing?');
+        if (saveBeforeClose) {
+            saveWorkingViewFromCommand();
+        }
+    }
+
+    return exitWorkingViewFromCommand();
 }
 
 export function applyWorkingViewFromCommand() {

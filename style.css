@@ -354,6 +354,19 @@ a {
 .branding-toggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
 #branding-controls { display: grid; gap: 10px; }
 #branding-controls label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.branding-rich-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.branding-rich-toolbar button { width: fit-content; }
+.branding-rich-editor {
+    min-height: 84px;
+    border: 1px solid #bbb;
+    background: #fff;
+    padding: 8px;
+    overflow: auto;
+}
+.branding-rich-editor:focus {
+    outline: 2px solid #0a66c2;
+    outline-offset: 1px;
+}
 .branding-error { margin: 0; color: #8a0000; font-weight: 700; min-height: 1.2rem; }
 .branding-preview { max-height: 72px; width: auto; border: 1px solid #ddd; padding: 4px; background: #fff; }
 
@@ -400,14 +413,22 @@ a {
 .viewer-attachment-preview-frame { width: 100%; min-height: 320px; border: 1px solid #ccc; }
 .viewer-branding {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     padding: 10px;
     border: 1px solid #ddd;
     background: #f8fbff;
 }
 .viewer-brand-logo { max-height: 64px; width: auto; }
+.viewer-brand-copy { display: grid; gap: 8px; min-width: 0; }
 .viewer-brand-header { margin: 0; font-weight: 700; font-size: 1.05rem; }
+.viewer-brand-header p,
+.viewer-brand-footer p,
+.viewer-brand-header ul,
+.viewer-brand-footer ul,
+.viewer-brand-header ol,
+.viewer-brand-footer ol { margin: 0 0 8px; }
+.viewer-brand-footer { font-size: 0.95rem; }
 .viewer-metadata-list { margin: 0; padding: 0; display: grid; gap: 8px; }
 .viewer-metadata-item { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 8px; }
 .viewer-metadata-item dt { font-weight: 700; }
