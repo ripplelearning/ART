@@ -3,9 +3,58 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { restoreFocus } from './focusManagement.js';
 
 let pendingFocus = null;
 let pendingDelete = null;
+
+function requestBuilderFocus(action, index = null, itemId = '') {
+    pendingFocus = { index, action, itemId };
+}
+
+function resolveBuilderFocusTarget(request) {
+    const { index, action, itemId } = request || {};
+
+    if (
+        action === 'template-name-input'
+        || action === 'choose-template-select'
+        || action === 'template-file-input'
+        || action === 'template-option-select'
+        || action === 'report-type-select'
+        || action === 'btn-toggle-config'
+        || action === 'report-layout-select'
+        || action === 'branding-enabled'
+        || action === 'field-label-input'
+        || action === 'btn-add-field'
+        || action === 'btn-progress-item-add'
+    ) {
+        const targetById = document.getElementById(action);
+        return targetById instanceof HTMLElement ? targetById : null;
+    }
+
+    if (action === 'progress-item-name' && itemId) {
+        const target = document.querySelector(`[data-progress-item-id="${itemId}"] [data-progress-field="name"]`);
+        return target instanceof HTMLElement ? target : null;
+    }
+
+    const selector = `[data-field-action="${action}"][data-field-index="${index}"]`;
+    const button = document.querySelector(selector);
+    return button instanceof HTMLElement ? button : null;
+}
+
+function applyBuilderFocusRequest(request, attemptsRemaining = 6) {
+    const target = resolveBuilderFocusTarget(request);
+    if (target instanceof HTMLElement) {
+        restoreFocus(target, { retries: 1 });
+        return true;
+    }
+
+    if (attemptsRemaining <= 0) return false;
+    window.setTimeout(() => {
+        applyBuilderFocusRequest(request, attemptsRemaining - 1);
+    }, 25);
+    return true;
+}
 
 async function executeBuilderAction(action, context = {}) {
     const command = commandRegistry.findCommands({ action })[0] || null;
@@ -85,70 +134,9 @@ function validateBrandingInputs(shouldAnnounce = true) {
 function focusAfterRender() {
     if (!pendingFocus) return false;
 
-    const { index, action, itemId } = pendingFocus;
+    const request = pendingFocus;
     pendingFocus = null;
-
-    if (
-        action === 'template-name-input'
-        || action === 'choose-template-select'
-        || action === 'template-file-input'
-        || action === 'template-option-select'
-        || action === 'report-type-select'
-        || action === 'btn-toggle-config'
-        || action === 'report-layout-select'
-        || action === 'branding-enabled'
-    ) {
-        const target = document.getElementById(action);
-        if (target) {
-            target.focus();
-            return true;
-        }
-        return false;
-    }
-
-    if (action === 'field-label-input') {
-        const fieldLabelInput = document.getElementById('field-label-input');
-        if (fieldLabelInput) {
-            fieldLabelInput.focus();
-            return true;
-        }
-        return false;
-    }
-
-    if (action === 'btn-add-field') {
-        const addButton = document.getElementById('btn-add-field');
-        if (addButton) {
-            addButton.focus();
-            return true;
-        }
-        return false;
-    }
-
-    if (action === 'btn-progress-item-add') {
-        const addProgressButton = document.getElementById('btn-progress-item-add');
-        if (addProgressButton) {
-            addProgressButton.focus();
-            return true;
-        }
-        return false;
-    }
-
-    if (action === 'progress-item-name' && itemId) {
-        const target = document.querySelector(`[data-progress-item-id="${itemId}"] [data-progress-field="name"]`);
-        if (target instanceof HTMLElement) {
-            target.focus();
-            return true;
-        }
-        return false;
-    }
-
-    const selector = `[data-field-action="${action}"][data-field-index="${index}"]`;
-    const button = document.querySelector(selector);
-    if (button) {
-        button.focus();
-        return true;
-    }
-    return false;
+    return applyBuilderFocusRequest(request);
 }
 
 function buildTemplateSelectionMarkup() {
@@ -277,10 +265,17 @@ function setupSelectAnnouncement(selectElement, label) {
 
 export function executeAddFieldFromCommand() {
     const isAdding = appState.editingIndex === -1;
+    const previousCount = appState.fields.length;
     addOrUpdateField();
-    if (isAdding) {
-        pendingFocus = { index: null, action: 'field-label-input' };
+
+    if (isAdding && appState.fields.length > previousCount) {
+        appState.fieldsExpanded = true;
+        requestBuilderFocus('field-label-input');
+    } else if (isAdding) {
+        appState.fieldsExpanded = true;
+        requestBuilderFocus('field-label-input');
     }
+
     renderBuilder();
     return true;
 }
@@ -862,9 +857,9 @@ export async function renderBuilder() {
             deleteField(deleteIndex);
             hideDeleteDialog(false);
             if (nextIndex >= 0) {
-                pendingFocus = { index: nextIndex, action: 'delete' };
+                requestBuilderFocus('delete', nextIndex);
             } else {
-                pendingFocus = { index: null, action: 'btn-add-field' };
+                requestBuilderFocus('btn-add-field');
             }
             renderBuilder();
         });
@@ -914,33 +909,33 @@ export async function renderBuilder() {
             btnEdit.dataset.fieldAction = 'edit';
             btnEdit.dataset.fieldIndex = String(i);
             btnEdit.setAttribute('aria-label', `Edit ${f.label}`);
-            btnEdit.onclick = () => { setEditMode(i); pendingFocus = { index: null, action: 'field-label-input' }; renderBuilder(); };
+            btnEdit.onclick = () => { setEditMode(i); requestBuilderFocus('field-label-input'); renderBuilder(); };
 
             const btnMoveUp = document.createElement('button');
             btnMoveUp.innerText = 'Move Up';
             btnMoveUp.id = `btn-move-up-${i}`;
-            btnMoveUp.dataset.fieldAction = 'move-edit';
-            btnMoveUp.dataset.fieldIndex = String(i - 1 >= 0 ? i - 1 : i);
+            btnMoveUp.dataset.fieldAction = 'move-up';
+            btnMoveUp.dataset.fieldIndex = String(i);
             btnMoveUp.setAttribute('aria-label', `Move ${f.label} Up`);
             btnMoveUp.disabled = i === 0;
             btnMoveUp.onclick = () => {
                 const newIndex = moveField(i, -1);
                 if (newIndex === undefined) return;
-                pendingFocus = { index: newIndex, action: 'edit' };
+                requestBuilderFocus('move-up', newIndex);
                 renderBuilder();
             };
 
             const btnMoveDown = document.createElement('button');
             btnMoveDown.innerText = 'Move Down';
             btnMoveDown.id = `btn-move-down-${i}`;
-            btnMoveDown.dataset.fieldAction = 'move-edit';
-            btnMoveDown.dataset.fieldIndex = String(i + 1 < appState.fields.length ? i + 1 : i);
+            btnMoveDown.dataset.fieldAction = 'move-down';
+            btnMoveDown.dataset.fieldIndex = String(i);
             btnMoveDown.setAttribute('aria-label', `Move ${f.label} Down`);
             btnMoveDown.disabled = i === appState.fields.length - 1;
             btnMoveDown.onclick = () => {
                 const newIndex = moveField(i, 1);
                 if (newIndex === undefined) return;
-                pendingFocus = { index: newIndex, action: 'edit' };
+                requestBuilderFocus('move-down', newIndex);
                 renderBuilder();
             };
             

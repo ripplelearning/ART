@@ -549,7 +549,7 @@ function getFirstTemplateOption() {
 }
 
 function runAddFieldWorkflow() {
-    clickElementById('tab-builder');
+    clickTabIfNeeded('tab-builder');
     if (!document.getElementById('btn-add-field')) {
         document.getElementById('btn-toggle-config')?.click();
     }
@@ -1346,7 +1346,7 @@ const BASE_COMMAND_DEFINITIONS = [
         id: 'Help.OpenHelp',
         category: 'Help',
         description: 'Open the integrated Help documentation.',
-        handler: () => openHelpDialog(null)
+        handler: (context) => openHelpDialog(context?.triggerElement || context?.activeElement || null)
     },
     {
         action: 'openCommandPalette',

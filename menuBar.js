@@ -5,6 +5,7 @@ import { announce } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import { getRedoMenuLabel, getUndoMenuLabel } from './historyFramework.js';
 import { getTopLevelMenuShortcutAction } from './menuShortcuts.js';
+import { restoreFocus } from './focusManagement.js';
 
 let menuBarInitialized = false;
 let menubarFocusIndex = 0;
@@ -16,6 +17,7 @@ let searchEscapeArmed = false;
 let focusBeforeMenubar = null;
 let lastFocusOutsideMenubar = null;
 let inMenubarSession = false;
+let menubarSessionStartIndex = 0;
 let suppressNextMenuButtonClick = false;
 let menuSearchResultsController = null;
 
@@ -291,6 +293,10 @@ function rememberFocusBeforeMenubar(force = false) {
             ? active
             : null;
         focusBeforeMenubar = activeOutsideMenubar || lastFocusOutsideMenubar || null;
+        const menuButton = active instanceof HTMLElement ? active.closest('[data-menu-button="true"]') : null;
+        const buttons = getTopLevelButtons();
+        const activeMenuIndex = menuButton ? buttons.indexOf(menuButton) : -1;
+        menubarSessionStartIndex = activeMenuIndex >= 0 ? activeMenuIndex : menubarFocusIndex;
         inMenubarSession = true;
     }
 }
@@ -298,6 +304,7 @@ function rememberFocusBeforeMenubar(force = false) {
 function clearMenubarSession() {
     inMenubarSession = false;
     focusBeforeMenubar = null;
+    menubarSessionStartIndex = menubarFocusIndex;
 }
 
 function renderTopLevelButtons(roots) {
@@ -516,6 +523,9 @@ function focusTopLevelButton(index = menubarFocusIndex) {
     if (!buttons.length) return false;
     const next = ((index % buttons.length) + buttons.length) % buttons.length;
     menubarFocusIndex = next;
+    if (inMenubarSession && openPath.length === 0) {
+        menubarSessionStartIndex = next;
+    }
     buttons[next]?.focus();
     return true;
 }
@@ -643,6 +653,22 @@ function exitMenubarSession() {
     }
 }
 
+function exitMenubarInteractionToMenuButton() {
+    const startIndex = menubarSessionStartIndex;
+    closeAllMenus(false);
+    clearMenubarSession();
+
+    window.setTimeout(() => {
+        const buttons = getTopLevelButtons();
+        if (!buttons.length) return;
+
+        const nextIndex = Math.max(0, Math.min(startIndex, buttons.length - 1));
+        menubarFocusIndex = nextIndex;
+        restoreFocus(buttons[nextIndex], { retries: 1 });
+        setStatus('Menu bar focused.');
+    }, 0);
+}
+
 function openSubmenuFromTrigger(trigger, focusFirst = true) {
     const submenuPath = trigger.getAttribute('data-submenu-path') || '';
     if (!submenuPath) return false;
@@ -742,11 +768,7 @@ function handleMenuButtonKeydown(event, activeElement) {
 
     if (event.key === 'Escape') {
         event.preventDefault();
-        if (openPath.length) {
-            closeAllMenus(true);
-        } else {
-            exitMenubarSession();
-        }
+        exitMenubarInteractionToMenuButton();
         return true;
     }
 
@@ -832,7 +854,7 @@ function handleMenuItemKeydown(event, activeElement) {
         if (currentPath.includes('>')) {
             closeSubmenuAndFocusParent(currentPath);
         } else {
-            closeAllMenus(true);
+            exitMenubarInteractionToMenuButton();
         }
         return true;
     }
@@ -852,7 +874,7 @@ function handleSearchKeydown(event, activeElement) {
                 searchInput.value = '';
                 searchEscapeArmed = false;
                 renderMenuBar();
-                exitMenubarSession();
+                exitMenubarInteractionToMenuButton();
                 return true;
             }
 
@@ -863,7 +885,7 @@ function handleSearchKeydown(event, activeElement) {
                 return true;
             }
 
-            exitMenubarSession();
+            exitMenubarInteractionToMenuButton();
             return true;
         }
 
@@ -993,6 +1015,9 @@ function handleMenubarClick(event) {
 
     const buttons = getTopLevelButtons();
     menubarFocusIndex = Math.max(0, buttons.indexOf(target));
+    if (inMenubarSession) {
+        menubarSessionStartIndex = menubarFocusIndex;
+    }
 
     if (openPath.length && openPath[0] === target.getAttribute('data-menu-path')) {
         closeAllMenus(true);

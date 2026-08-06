@@ -1,4 +1,5 @@
 import { announce, getAssignableActions, getShortcutDefinitions, getShortcutForAction } from './state.js';
+import { resolveFocusTarget, restoreFocus } from './focusManagement.js';
 
 const reservedShortcutSet = new Set([
     'Ctrl+L',
@@ -626,7 +627,7 @@ function renderHelpDocumentation() {
     bindTocAnchors();
 }
 
-function closeHelpDialog(restoreFocus = true) {
+function closeHelpDialog(shouldRestoreFocus = true) {
     const dialog = document.getElementById('help-dialog');
     if (!dialog) return;
     dialog.hidden = true;
@@ -634,8 +635,12 @@ function closeHelpDialog(restoreFocus = true) {
         document.title = previousDocumentTitle;
         previousDocumentTitle = '';
     }
-    if (restoreFocus && lastHelpTrigger && typeof lastHelpTrigger.focus === 'function') {
-        lastHelpTrigger.focus();
+    if (shouldRestoreFocus) {
+        const fallbackTrigger = document.getElementById('btn-help');
+        const target = resolveFocusTarget(lastHelpTrigger, fallbackTrigger);
+        if (target) {
+            restoreFocus(target, { retries: 1 });
+        }
     }
 }
 
@@ -645,7 +650,8 @@ export function openHelpDialog(trigger = null) {
     const content = document.getElementById('help-content');
     if (!dialog || !closeButton || !content) return;
 
-    if (trigger) lastHelpTrigger = trigger;
+    const resolvedTrigger = resolveFocusTarget(trigger, document.activeElement, lastHelpTrigger);
+    if (resolvedTrigger) lastHelpTrigger = resolvedTrigger;
     renderHelpDocumentation();
     if (!previousDocumentTitle) previousDocumentTitle = document.title;
     document.title = 'User Guide | ART Version 1.5';
