@@ -248,6 +248,15 @@ const defaultState = {
         headerText: "",
         headerHtml: "",
         footerHtml: "",
+        headerImages: [],
+        footerImages: [],
+        pageMargins: {
+            top: 48,
+            right: 48,
+            bottom: 48,
+            left: 48
+        },
+        showPageNumbers: true,
         primaryColor: "#005a9c",
         logoDataUrl: "",
         logoAltText: "",
@@ -529,6 +538,76 @@ function normalizeProgressItems(list) {
     return list.map((item, index) => normalizeProgressItem(item, index));
 }
 
+function normalizeBrandingImage(image, index = 0) {
+    const source = image && typeof image === 'object' ? image : {};
+    const id = String(source.id || `branding-image-${Date.now()}-${index}`).trim() || `branding-image-${Date.now()}-${index}`;
+    const dataUrl = String(source.dataUrl || source.src || '').trim();
+    const fileName = String(source.fileName || '').trim();
+    const altText = String(source.altText || source.alt || '').trim();
+    const alignmentRaw = String(source.alignment || 'inline').trim().toLowerCase();
+    const alignment = ['inline', 'left', 'center', 'right'].includes(alignmentRaw) ? alignmentRaw : 'inline';
+    const spacingRaw = Number(source.spacing);
+    const maxDisplayWidthRaw = Number(source.maxDisplayWidth ?? source.maxWidth);
+    const maxDisplayHeightRaw = Number(source.maxDisplayHeight ?? source.maxHeight);
+
+    return {
+        id,
+        dataUrl,
+        fileName,
+        altText,
+        alignment,
+        spacing: Number.isFinite(spacingRaw) ? Math.max(0, Math.min(64, Math.round(spacingRaw))) : 8,
+        maxDisplayWidth: Number.isFinite(maxDisplayWidthRaw) ? Math.max(24, Math.min(2000, Math.round(maxDisplayWidthRaw))) : 160,
+        maxDisplayHeight: Number.isFinite(maxDisplayHeightRaw) ? Math.max(24, Math.min(2000, Math.round(maxDisplayHeightRaw))) : 80
+    };
+}
+
+function normalizeBrandingImages(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+        .map((image, index) => normalizeBrandingImage(image, index))
+        .filter((image) => String(image.dataUrl || '').trim());
+}
+
+function normalizeBrandingMargins(margins) {
+    const source = margins && typeof margins === 'object' ? margins : {};
+    const fallback = defaultState.branding.pageMargins || { top: 48, right: 48, bottom: 48, left: 48 };
+    const normalize = (value, fallbackValue) => {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) return fallbackValue;
+        return Math.max(0, Math.min(200, Math.round(parsed)));
+    };
+
+    return {
+        top: normalize(source.top, fallback.top),
+        right: normalize(source.right, fallback.right),
+        bottom: normalize(source.bottom, fallback.bottom),
+        left: normalize(source.left, fallback.left)
+    };
+}
+
+function getBrandingAltValidationMessage(branding) {
+    const source = normalizeBranding(branding);
+    const imageCollections = [
+        ...(Array.isArray(source.headerImages) ? source.headerImages : []),
+        ...(Array.isArray(source.footerImages) ? source.footerImages : [])
+    ];
+
+    const hasMissingImageAlt = imageCollections.some((image) => {
+        const hasImage = String(image?.dataUrl || '').trim() !== '';
+        return hasImage && !String(image?.altText || '').trim();
+    });
+    if (hasMissingImageAlt) {
+        return 'Alternative text is required for every branding image.';
+    }
+
+    if (source.enabled && source.logoDataUrl && !source.logoDecorative && !String(source.logoAltText || '').trim()) {
+        return 'Logo alternative text is required when logo is not decorative.';
+    }
+
+    return '';
+}
+
 function normalizeBranding(branding) {
     const toBool = (value) => {
         if (typeof value === 'boolean') return value;
@@ -542,6 +621,21 @@ function normalizeBranding(branding) {
 
     const rawColor = String(branding?.primaryColor || defaultState.branding.primaryColor);
     const safeColor = /^#[0-9a-fA-F]{6}$/.test(rawColor) ? rawColor : defaultState.branding.primaryColor;
+    const headerImages = normalizeBrandingImages(branding?.headerImages);
+    const footerImages = normalizeBrandingImages(branding?.footerImages);
+
+    if (headerImages.length === 0 && String(branding?.logoDataUrl || '').trim()) {
+        headerImages.push(normalizeBrandingImage({
+            id: 'branding-legacy-logo',
+            dataUrl: branding.logoDataUrl,
+            fileName: String(branding.logoFileName || '').trim(),
+            altText: String(branding.logoDecorative ? '' : (branding.logoAltText || '')).trim(),
+            alignment: 'left',
+            spacing: 8,
+            maxDisplayWidth: 160,
+            maxDisplayHeight: 80
+        }, 0));
+    }
 
     return {
         ...defaultState.branding,
@@ -550,6 +644,10 @@ function normalizeBranding(branding) {
         headerText: String(branding?.headerText || ''),
         headerHtml: String(branding?.headerHtml || ''),
         footerHtml: String(branding?.footerHtml || ''),
+        headerImages,
+        footerImages,
+        pageMargins: normalizeBrandingMargins(branding?.pageMargins),
+        showPageNumbers: toBool(branding?.showPageNumbers ?? defaultState.branding.showPageNumbers),
         primaryColor: safeColor,
         logoDataUrl: String(branding?.logoDataUrl || ''),
         logoAltText: String(branding?.logoAltText || ''),
@@ -838,6 +936,8 @@ function normalizeProjectWorkspace(workspace, index = 0) {
     const resources = source.resources && typeof source.resources === 'object' ? source.resources : {};
     const workspaceState = source.workspaceState && typeof source.workspaceState === 'object' ? source.workspaceState : {};
     const extensions = source.extensions && typeof source.extensions === 'object' ? source.extensions : {};
+    const integrationMetadata = source.integrationMetadata && typeof source.integrationMetadata === 'object' ? source.integrationMetadata : {};
+    const brandingDefaultsSource = source.brandingDefaults || integrationMetadata.brandingDefaults || null;
 
     return {
         id,
@@ -874,7 +974,11 @@ function normalizeProjectWorkspace(workspace, index = 0) {
             ? source.relationships.map((item, relationshipIndex) => normalizeWorkspaceRelationship(item, relationshipIndex))
             : [],
         tags: Array.isArray(source.tags) ? source.tags.map((item) => String(item || '').trim()).filter(Boolean) : [],
-        integrationMetadata: source.integrationMetadata && typeof source.integrationMetadata === 'object' ? { ...source.integrationMetadata } : {},
+        brandingDefaults: brandingDefaultsSource ? normalizeBranding(brandingDefaultsSource) : null,
+        integrationMetadata: {
+            ...integrationMetadata,
+            ...(brandingDefaultsSource ? { brandingDefaults: normalizeBranding(brandingDefaultsSource) } : {})
+        },
         pluginMetadata: source.pluginMetadata && typeof source.pluginMetadata === 'object' ? { ...source.pluginMetadata } : {},
         workspaceState: {
             openReportIds: Array.isArray(workspaceState.openReportIds)
@@ -2203,6 +2307,17 @@ function getDefaultMetadataObject() {
     };
 }
 
+function getDefaultBrandingForNewReport() {
+    const activeWorkspace = getActiveProjectWorkspace();
+    const workspaceBranding = activeWorkspace?.brandingDefaults
+        || activeWorkspace?.integrationMetadata?.brandingDefaults
+        || null;
+    if (workspaceBranding && typeof workspaceBranding === 'object') {
+        return normalizeBranding(workspaceBranding);
+    }
+    return normalizeBranding(defaultState.branding);
+}
+
 function keyToLabel(key) {
     const map = {
         reportTitle: 'Report Title',
@@ -2219,6 +2334,10 @@ function keyToLabel(key) {
         headerText: 'Brand Header Text',
         headerHtml: 'Brand Header Rich Text (HTML)',
         footerHtml: 'Brand Footer Rich Text (HTML)',
+        headerImages: 'Brand Header Images',
+        footerImages: 'Brand Footer Images',
+        pageMargins: 'Branding Page Margins',
+        showPageNumbers: 'Show Branding Page Numbers',
         primaryColor: 'Primary Brand Color',
         logoDataUrl: 'Brand Logo (Data URL)',
         logoAltText: 'Logo Alternative Text',
@@ -2368,7 +2487,10 @@ function applyReportData(data) {
 }
 
 export function resetReportToBlank() {
-    applyReportData(reportDefaults);
+    applyReportData({
+        ...reportDefaults,
+        branding: getDefaultBrandingForNewReport()
+    });
     appState.templateEditingId = null;
     saveState({ action: 'Reset report to blank' });
 }
@@ -3281,6 +3403,37 @@ export function upsertProjectWorkspace(workspace, options = {}) {
     });
 
     return normalized;
+}
+
+export function setActiveWorkspaceDefaultBranding(branding, options = {}) {
+    const active = getActiveProjectWorkspace();
+    if (!active) return null;
+
+    const normalizedBranding = normalizeBranding(branding);
+    const updated = normalizeProjectWorkspace({
+        ...active,
+        brandingDefaults: normalizedBranding,
+        integrationMetadata: {
+            ...(active.integrationMetadata || {}),
+            brandingDefaults: normalizedBranding
+        },
+        lastModifiedAt: new Date().toISOString()
+    });
+
+    const { index } = withWorkspaceIndex(updated.id);
+    if (index < 0) return null;
+    appState.workspaces[index] = updated;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || `Updated workspace branding defaults for ${updated.name}`), recordHistory: false });
+    }
+
+    dispatchWorkspaceEvent('WorkspaceBrandingDefaultsUpdated', {
+        workspaceId: updated.id,
+        workspaceName: updated.name
+    });
+
+    return updated;
 }
 
 export function setActiveProjectWorkspace(workspaceId, options = {}) {
@@ -4694,10 +4847,11 @@ export function getMetadataDescriptors() {
 
 export function validateMetadataDraft(draft) {
     const brandingDraft = normalizeBranding(draft?.branding || appState.branding);
-    if (brandingDraft.enabled && brandingDraft.logoDataUrl && !brandingDraft.logoDecorative && !String(brandingDraft.logoAltText || '').trim()) {
+    const brandingMessage = getBrandingAltValidationMessage(brandingDraft);
+    if (brandingMessage) {
         return {
             isValid: false,
-            message: 'Logo alternative text is required when logo is not decorative.'
+            message: brandingMessage
         };
     }
     return { isValid: true, message: '' };
@@ -4940,6 +5094,16 @@ export function validateCurrentReport() {
             message: 'At least one report field must be configured.',
             targetType: 'builder',
             target: 'btn-toggle-config'
+        });
+    }
+
+    const brandingMessage = getBrandingAltValidationMessage(appState.branding);
+    if (brandingMessage) {
+        issues.push({
+            code: 'branding-alt-missing',
+            message: brandingMessage,
+            targetType: 'builder',
+            target: 'branding-config-heading'
         });
     }
 

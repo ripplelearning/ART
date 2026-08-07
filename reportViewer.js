@@ -177,12 +177,104 @@ function normalizeAccessibilityLinkText(rawValue, fallbackText = '') {
         .trim();
 }
 
+function normalizeBrandingImageEntry(input, index = 0, section = 'header') {
+    const source = input && typeof input === 'object' ? input : {};
+    const dataUrl = String(source.dataUrl || '').trim();
+    if (!dataUrl) return null;
+
+    const alignment = String(source.alignment || 'inline').toLowerCase();
+    const safeAlignment = ['left', 'center', 'right', 'inline'].includes(alignment) ? alignment : 'inline';
+    const spacing = Number.isFinite(Number(source.spacing)) ? Number(source.spacing) : 8;
+    const maxDisplayWidth = Number.isFinite(Number(source.maxDisplayWidth)) ? Number(source.maxDisplayWidth) : 160;
+    const maxDisplayHeight = Number.isFinite(Number(source.maxDisplayHeight)) ? Number(source.maxDisplayHeight) : 80;
+
+    return {
+        id: String(source.id || `${section}-image-${index + 1}`),
+        dataUrl,
+        altText: String(source.altText || '').trim(),
+        fileName: String(source.fileName || '').trim(),
+        alignment: safeAlignment,
+        spacing: Math.max(0, Math.min(64, spacing)),
+        maxDisplayWidth: Math.max(24, Math.min(2000, maxDisplayWidth)),
+        maxDisplayHeight: Math.max(24, Math.min(2000, maxDisplayHeight))
+    };
+}
+
+function normalizeBrandingImageList(images, section = 'header') {
+    if (!Array.isArray(images)) return [];
+    return images
+        .map((entry, index) => normalizeBrandingImageEntry(entry, index, section))
+        .filter(Boolean);
+}
+
+function normalizeBrandingMargins(input) {
+    const source = input && typeof input === 'object' ? input : {};
+    const normalizeEdge = (key) => {
+        const value = Number(source[key]);
+        if (!Number.isFinite(value)) return 48;
+        return Math.max(0, Math.min(200, value));
+    };
+
+    return {
+        top: normalizeEdge('top'),
+        right: normalizeEdge('right'),
+        bottom: normalizeEdge('bottom'),
+        left: normalizeEdge('left')
+    };
+}
+
+function getBrandingImageStyle(image) {
+    const spacing = Number.isFinite(Number(image?.spacing)) ? Number(image.spacing) : 8;
+    const maxWidth = Number.isFinite(Number(image?.maxDisplayWidth)) ? Number(image.maxDisplayWidth) : 160;
+    const maxHeight = Number.isFinite(Number(image?.maxDisplayHeight)) ? Number(image.maxDisplayHeight) : 80;
+    const alignment = String(image?.alignment || 'inline');
+    const style = [`max-width:${Math.max(24, maxWidth)}px`, `max-height:${Math.max(24, maxHeight)}px`, 'width:auto', 'height:auto'];
+
+    if (alignment === 'left') {
+        style.push('display:block', `margin:${Math.max(0, spacing)}px auto ${Math.max(0, spacing)}px 0`);
+    } else if (alignment === 'center') {
+        style.push('display:block', `margin:${Math.max(0, spacing)}px auto`);
+    } else if (alignment === 'right') {
+        style.push('display:block', `margin:${Math.max(0, spacing)}px 0 ${Math.max(0, spacing)}px auto`);
+    } else {
+        style.push('display:inline-block', `margin:${Math.max(0, spacing)}px`, 'vertical-align:middle');
+    }
+
+    return style.join('; ');
+}
+
+function renderBrandingImageCollection(images) {
+    return normalizeBrandingImageList(images)
+        .map((image) => `<img class="viewer-brand-image" src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.altText || 'Brand image')}" style="${escapeHtml(getBrandingImageStyle(image))}" data-branding-image-id="${escapeHtml(image.id)}" />`)
+        .join('');
+}
+
 function getBrandingState() {
+    const headerImages = normalizeBrandingImageList(appState.branding?.headerImages, 'header');
+    const footerImages = normalizeBrandingImageList(appState.branding?.footerImages, 'footer');
+
+    if (headerImages.length === 0 && String(appState.branding?.logoDataUrl || '').trim()) {
+        headerImages.push(normalizeBrandingImageEntry({
+            id: 'legacy-logo',
+            dataUrl: String(appState.branding.logoDataUrl || ''),
+            altText: String(appState.branding.logoAltText || '').trim() || 'Brand logo',
+            fileName: String(appState.branding.logoFileName || '').trim(),
+            alignment: 'inline',
+            spacing: 8,
+            maxDisplayWidth: 160,
+            maxDisplayHeight: 80
+        }, 0, 'header'));
+    }
+
     return {
         enabled: Boolean(appState.branding?.enabled),
         headerText: String(appState.branding?.headerText || ''),
         headerHtml: String(appState.branding?.headerHtml || ''),
         footerHtml: String(appState.branding?.footerHtml || ''),
+        headerImages,
+        footerImages,
+        pageMargins: normalizeBrandingMargins(appState.branding?.pageMargins),
+        showPageNumbers: appState.branding?.showPageNumbers !== false,
         primaryColor: String(appState.branding?.primaryColor || '#005a9c'),
         logoDataUrl: String(appState.branding?.logoDataUrl || ''),
         logoAltText: String(appState.branding?.logoAltText || ''),
@@ -200,7 +292,11 @@ function sanitizeBrandingHtml(html) {
     const source = String(html || '').trim();
     if (!source) return '';
 
-    const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'DIV']);
+    const allowedTags = new Set([
+        'P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'DIV',
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD',
+        'BLOCKQUOTE', 'IMG'
+    ]);
     const template = document.createElement('template');
     template.innerHTML = source;
 
@@ -223,8 +319,44 @@ function sanitizeBrandingHtml(html) {
 
             if (name === 'style') {
                 const unsafeStyle = /(expression\s*\(|url\s*\(\s*['\"]?javascript:|behavior\s*:)/i.test(value);
-                if (unsafeStyle) node.removeAttribute(attribute.name);
+                if (unsafeStyle) {
+                    node.removeAttribute(attribute.name);
+                    return;
+                }
+
+                const safeDeclarations = value
+                    .split(';')
+                    .map((segment) => segment.trim())
+                    .filter(Boolean)
+                    .filter((segment) => {
+                        const key = String(segment.split(':')[0] || '').trim().toLowerCase();
+                        return [
+                            'font-family', 'font-size', 'font-weight', 'font-style', 'text-decoration',
+                            'color', 'background-color', 'text-align', 'margin', 'margin-left', 'margin-right',
+                            'margin-top', 'margin-bottom', 'padding', 'padding-left', 'padding-right',
+                            'padding-top', 'padding-bottom', 'border', 'border-collapse', 'border-spacing',
+                            'width', 'max-width', 'height', 'max-height', 'display', 'vertical-align'
+                        ].includes(key);
+                    });
+                if (safeDeclarations.length === 0) {
+                    node.removeAttribute(attribute.name);
+                } else {
+                    node.setAttribute('style', safeDeclarations.join('; '));
+                }
                 return;
+            }
+
+            if (name === 'lang' || name === 'dir' || name === 'scope' || name === 'colspan' || name === 'rowspan' || name === 'aria-label') {
+                return;
+            }
+
+            if (node.tagName === 'IMG') {
+                if (name === 'src') {
+                    const safeSrc = /^(https?:|data:image\/|blob:|\/)/i.test(value);
+                    if (!safeSrc) node.removeAttribute(attribute.name);
+                    return;
+                }
+                if (name === 'alt' || name === 'width' || name === 'height' || name === 'data-branding-image-id' || name === 'data-branding-section') return;
             }
 
             if (node.tagName === 'A') {
@@ -262,10 +394,15 @@ function getBrandingTextLines() {
     const lines = [];
     if (headerText) lines.push(`Brand Header: ${headerText}`);
     if (footerText) lines.push(`Brand Footer: ${footerText}`);
-    if (branding.logoDataUrl) {
-        lines.push(`Logo: ${branding.logoDecorative ? 'Decorative' : (branding.logoAltText.trim() || 'Brand logo')}`);
-    }
+    branding.headerImages.forEach((image, index) => {
+        lines.push(`Header Image ${index + 1}: ${image.altText || image.fileName || 'Brand image'}`);
+    });
+    branding.footerImages.forEach((image, index) => {
+        lines.push(`Footer Image ${index + 1}: ${image.altText || image.fileName || 'Brand image'}`);
+    });
     if (branding.primaryColor.trim()) lines.push(`Brand Color: ${branding.primaryColor.trim()}`);
+    if (branding.showPageNumbers) lines.push('Page Numbers: Enabled');
+    lines.push(`Page Margins (px): top ${branding.pageMargins.top}, right ${branding.pageMargins.right}, bottom ${branding.pageMargins.bottom}, left ${branding.pageMargins.left}`);
     return lines;
 }
 
@@ -494,6 +631,8 @@ function buildHtmlSummary() {
     const branding = getBrandingState();
     const headerHtml = sanitizeBrandingHtml(branding.headerHtml) || (branding.headerText.trim() ? `<p>${escapeHtml(branding.headerText.trim())}</p>` : '');
     const footerHtml = sanitizeBrandingHtml(branding.footerHtml);
+    const headerImagesMarkup = renderBrandingImageCollection(branding.headerImages);
+    const footerImagesMarkup = renderBrandingImageCollection(branding.footerImages);
 
     const metadataItems = metadataRows
         .map(([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`)
@@ -522,8 +661,9 @@ function buildHtmlSummary() {
     const brandingBlock = branding.enabled ? `
     <section aria-label="Branding">
         <h2>Branding</h2>
-        ${branding.logoDataUrl ? `<img src="${escapeHtml(branding.logoDataUrl)}" ${branding.logoDecorative ? 'alt=""' : `alt="${escapeHtml(branding.logoAltText || 'Brand logo')}"`} style="max-height:80px; width:auto;"/>` : ''}
+        ${headerImagesMarkup ? `<div class="export-branding-images export-branding-images--header">${headerImagesMarkup}</div>` : ''}
         ${headerHtml ? `<div>${headerHtml}</div>` : ''}
+        ${footerImagesMarkup ? `<div class="export-branding-images export-branding-images--footer">${footerImagesMarkup}</div>` : ''}
         ${footerHtml ? `<div>${footerHtml}</div>` : ''}
     </section>` : '';
 
@@ -1343,27 +1483,28 @@ function renderProgressAppendixViewer() {
 function renderBrandingBlock() {
     const branding = getBrandingState();
     if (!branding.enabled) return '';
-    const hasLogo = Boolean(branding.logoDataUrl);
     const headerHtml = sanitizeBrandingHtml(branding.headerHtml) || (branding.headerText.trim() ? `<p>${escapeHtml(branding.headerText.trim())}</p>` : '');
     const footerHtml = sanitizeBrandingHtml(branding.footerHtml);
+    const headerImagesMarkup = renderBrandingImageCollection(branding.headerImages);
+    const footerImagesMarkup = renderBrandingImageCollection(branding.footerImages);
     const hasHeader = headerHtml !== '';
     const hasFooter = footerHtml !== '';
-    if (!hasLogo && !hasHeader && !hasFooter) return '';
-
-    const logoMarkup = hasLogo
-        ? `<img class="viewer-brand-logo" src="${escapeHtml(branding.logoDataUrl)}" ${branding.logoDecorative ? 'alt=""' : `alt="${escapeHtml(branding.logoAltText || 'Brand logo')}"`} />`
-        : '';
+    const hasHeaderImages = headerImagesMarkup !== '';
+    const hasFooterImages = footerImagesMarkup !== '';
+    if (!hasHeaderImages && !hasFooterImages && !hasHeader && !hasFooter) return '';
 
     const headerStyle = `style="color:${escapeHtml(branding.primaryColor)};"`;
     const headerMarkup = hasHeader ? `<div class="viewer-brand-header" ${headerStyle}>${headerHtml}</div>` : '';
     const footerMarkup = hasFooter ? `<div class="viewer-brand-footer">${footerHtml}</div>` : '';
 
     return `
-        <section class="viewer-branding" aria-label="Report branding">
-            ${logoMarkup}
+        <section class="viewer-branding" aria-label="Report branding" style="--viewer-brand-margin-top:${Number(branding.pageMargins.top)}px; --viewer-brand-margin-right:${Number(branding.pageMargins.right)}px; --viewer-brand-margin-bottom:${Number(branding.pageMargins.bottom)}px; --viewer-brand-margin-left:${Number(branding.pageMargins.left)}px;">
             <div class="viewer-brand-copy">
+                ${hasHeaderImages ? `<div class="viewer-brand-images viewer-brand-images--header">${headerImagesMarkup}</div>` : ''}
                 ${headerMarkup}
+                ${hasFooterImages ? `<div class="viewer-brand-images viewer-brand-images--footer">${footerImagesMarkup}</div>` : ''}
                 ${footerMarkup}
+                ${branding.showPageNumbers ? '<p class="viewer-brand-page-number" aria-label="Page number preview">Page 1</p>' : ''}
             </div>
         </section>
     `;

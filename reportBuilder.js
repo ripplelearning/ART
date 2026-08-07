@@ -1,12 +1,13 @@
 // reportBuilder.js
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
-import { announce, appState, createUserTemplate, getBuiltInTemplates, getUserTemplates, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
+import { announce, appState, createUserTemplate, getActiveProjectWorkspace, getBuiltInTemplates, getUserTemplates, setActiveWorkspaceDefaultBranding, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { formatWcagCriterionDisplay, getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { restoreFocus } from './focusManagement.js';
 
 let pendingFocus = null;
 let pendingDelete = null;
+let applyWorkspaceBrandingDefault = false;
 
 function requestBuilderFocus(action, index = null, itemId = '') {
     pendingFocus = { index, action, itemId };
@@ -98,11 +99,38 @@ function escapeHtml(value) {
 }
 
 function getBrandingState() {
+    const headerImages = Array.isArray(appState.branding?.headerImages) ? appState.branding.headerImages : [];
+    const footerImages = Array.isArray(appState.branding?.footerImages) ? appState.branding.footerImages : [];
+    const legacyLogoDataUrl = String(appState.branding?.logoDataUrl || '').trim();
+    const nextHeaderImages = headerImages.length > 0
+        ? headerImages
+        : (legacyLogoDataUrl
+            ? [{
+                id: 'branding-legacy-logo',
+                dataUrl: legacyLogoDataUrl,
+                fileName: String(appState.branding?.logoFileName || '').trim(),
+                altText: String(appState.branding?.logoDecorative ? '' : (appState.branding?.logoAltText || '')).trim(),
+                alignment: 'left',
+                spacing: 8,
+                maxDisplayWidth: 160,
+                maxDisplayHeight: 80
+            }]
+            : []);
+
     return {
         enabled: Boolean(appState.branding?.enabled),
         headerText: String(appState.branding?.headerText || ''),
         headerHtml: String(appState.branding?.headerHtml || ''),
         footerHtml: String(appState.branding?.footerHtml || ''),
+        headerImages: nextHeaderImages,
+        footerImages,
+        pageMargins: {
+            top: Number(appState.branding?.pageMargins?.top || 48),
+            right: Number(appState.branding?.pageMargins?.right || 48),
+            bottom: Number(appState.branding?.pageMargins?.bottom || 48),
+            left: Number(appState.branding?.pageMargins?.left || 48)
+        },
+        showPageNumbers: appState.branding?.showPageNumbers !== false,
         primaryColor: String(appState.branding?.primaryColor || '#005a9c'),
         logoDataUrl: String(appState.branding?.logoDataUrl || ''),
         logoAltText: String(appState.branding?.logoAltText || ''),
@@ -121,7 +149,11 @@ function sanitizeBrandingHtml(html) {
     const source = String(html || '').trim();
     if (!source) return '';
 
-    const allowedTags = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'DIV']);
+    const allowedTags = new Set([
+        'P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'DIV',
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD',
+        'BLOCKQUOTE', 'IMG'
+    ]);
     const template = document.createElement('template');
     template.innerHTML = source;
 
@@ -144,8 +176,44 @@ function sanitizeBrandingHtml(html) {
 
             if (name === 'style') {
                 const unsafeStyle = /(expression\s*\(|url\s*\(\s*['\"]?javascript:|behavior\s*:)/i.test(value);
-                if (unsafeStyle) node.removeAttribute(attribute.name);
+                if (unsafeStyle) {
+                    node.removeAttribute(attribute.name);
+                    return;
+                }
+
+                const safeDeclarations = value
+                    .split(';')
+                    .map((segment) => segment.trim())
+                    .filter(Boolean)
+                    .filter((segment) => {
+                        const key = String(segment.split(':')[0] || '').trim().toLowerCase();
+                        return [
+                            'font-family', 'font-size', 'font-weight', 'font-style', 'text-decoration',
+                            'color', 'background-color', 'text-align', 'margin', 'margin-left', 'margin-right',
+                            'margin-top', 'margin-bottom', 'padding', 'padding-left', 'padding-right',
+                            'padding-top', 'padding-bottom', 'border', 'border-collapse', 'border-spacing',
+                            'width', 'max-width', 'height', 'max-height', 'display', 'vertical-align'
+                        ].includes(key);
+                    });
+                if (safeDeclarations.length === 0) {
+                    node.removeAttribute(attribute.name);
+                } else {
+                    node.setAttribute('style', safeDeclarations.join('; '));
+                }
                 return;
+            }
+
+            if (name === 'lang' || name === 'dir' || name === 'scope' || name === 'colspan' || name === 'rowspan' || name === 'aria-label') {
+                return;
+            }
+
+            if (node.tagName === 'IMG') {
+                if (name === 'src') {
+                    const safeSrc = /^(https?:|data:image\/|blob:|\/)/i.test(value);
+                    if (!safeSrc) node.removeAttribute(attribute.name);
+                    return;
+                }
+                if (name === 'alt' || name === 'width' || name === 'height' || name === 'data-branding-image-id' || name === 'data-branding-section') return;
             }
 
             if (node.tagName === 'A') {
@@ -193,19 +261,328 @@ function applyBrandingFormatCommand(editorId, command) {
     document.execCommand(command, false, null);
 }
 
+function getBrandingSectionFromEditorId(editorId) {
+    return editorId === 'branding-footer-editor' ? 'footer' : 'header';
+}
+
+function normalizeBrandingImageEntry(image, index = 0) {
+    const source = image && typeof image === 'object' ? image : {};
+    const maxDisplayWidth = Number(source.maxDisplayWidth ?? source.maxWidth);
+    const maxDisplayHeight = Number(source.maxDisplayHeight ?? source.maxHeight);
+    const spacing = Number(source.spacing);
+    const alignment = String(source.alignment || 'inline').trim().toLowerCase();
+    return {
+        id: String(source.id || `branding-image-${Date.now()}-${index}`).trim() || `branding-image-${Date.now()}-${index}`,
+        dataUrl: String(source.dataUrl || source.src || '').trim(),
+        fileName: String(source.fileName || '').trim(),
+        altText: String(source.altText || source.alt || '').trim(),
+        alignment: ['inline', 'left', 'center', 'right'].includes(alignment) ? alignment : 'inline',
+        spacing: Number.isFinite(spacing) ? Math.max(0, Math.min(64, Math.round(spacing))) : 8,
+        maxDisplayWidth: Number.isFinite(maxDisplayWidth) ? Math.max(24, Math.min(2000, Math.round(maxDisplayWidth))) : 160,
+        maxDisplayHeight: Number.isFinite(maxDisplayHeight) ? Math.max(24, Math.min(2000, Math.round(maxDisplayHeight))) : 80
+    };
+}
+
+function normalizeBrandingImageList(list = []) {
+    return (Array.isArray(list) ? list : [])
+        .map((item, index) => normalizeBrandingImageEntry(item, index))
+        .filter((item) => String(item.dataUrl || '').trim());
+}
+
+function getBrandingImageStyle(image) {
+    const normalized = normalizeBrandingImageEntry(image, 0);
+    const spacing = `${normalized.spacing}px`;
+    const maxWidth = `${normalized.maxDisplayWidth}px`;
+    const maxHeight = `${normalized.maxDisplayHeight}px`;
+    const base = [
+        'width:auto',
+        'height:auto',
+        `max-width:${maxWidth}`,
+        `max-height:${maxHeight}`,
+        `margin-top:${spacing}`,
+        `margin-bottom:${spacing}`
+    ];
+
+    if (normalized.alignment === 'inline') {
+        base.push('display:inline-block', `margin-left:${spacing}`, `margin-right:${spacing}`, 'vertical-align:middle');
+    } else if (normalized.alignment === 'left') {
+        base.push('display:block', 'margin-left:0', 'margin-right:auto');
+    } else if (normalized.alignment === 'right') {
+        base.push('display:block', 'margin-left:auto', 'margin-right:0');
+    } else {
+        base.push('display:block', 'margin-left:auto', 'margin-right:auto');
+    }
+
+    return base.join('; ');
+}
+
+function applyBrandingImageToNode(img, image, section) {
+    const normalized = normalizeBrandingImageEntry(image, 0);
+    img.setAttribute('src', normalized.dataUrl);
+    img.setAttribute('alt', normalized.altText);
+    img.setAttribute('data-branding-image-id', normalized.id);
+    img.setAttribute('data-branding-section', section);
+    img.setAttribute('style', getBrandingImageStyle(normalized));
+}
+
+function syncBrandingImagesFromEditor(editorId) {
+    const editor = document.getElementById(editorId);
+    if (!(editor instanceof HTMLElement)) return;
+
+    const section = getBrandingSectionFromEditorId(editorId);
+    const state = getBrandingState();
+    const current = normalizeBrandingImageList(section === 'header' ? state.headerImages : state.footerImages);
+    const byId = new Map(current.map((image) => [image.id, image]));
+
+    const nextImages = [];
+    editor.querySelectorAll('img').forEach((img, index) => {
+        const existingId = String(img.getAttribute('data-branding-image-id') || '').trim();
+        const imageId = existingId || `branding-image-${Date.now()}-${index}`;
+        const merged = normalizeBrandingImageEntry({
+            ...(byId.get(imageId) || {}),
+            id: imageId,
+            dataUrl: String(img.getAttribute('src') || '').trim(),
+            altText: String(img.getAttribute('alt') || '').trim(),
+            alignment: byId.get(imageId)?.alignment || 'inline',
+            spacing: byId.get(imageId)?.spacing,
+            maxDisplayWidth: byId.get(imageId)?.maxDisplayWidth,
+            maxDisplayHeight: byId.get(imageId)?.maxDisplayHeight
+        }, index);
+
+        applyBrandingImageToNode(img, merged, section);
+        nextImages.push(merged);
+    });
+
+    const nextBranding = {
+        ...state,
+        headerImages: section === 'header' ? nextImages : normalizeBrandingImageList(state.headerImages),
+        footerImages: section === 'footer' ? nextImages : normalizeBrandingImageList(state.footerImages)
+    };
+
+    if (nextBranding.headerImages.length > 0) {
+        const firstHeaderImage = nextBranding.headerImages[0];
+        nextBranding.logoDataUrl = firstHeaderImage.dataUrl;
+        nextBranding.logoAltText = firstHeaderImage.altText;
+        nextBranding.logoDecorative = false;
+        nextBranding.logoFileName = firstHeaderImage.fileName || nextBranding.logoFileName;
+    } else {
+        nextBranding.logoDataUrl = '';
+        nextBranding.logoAltText = '';
+        nextBranding.logoDecorative = false;
+        nextBranding.logoFileName = '';
+    }
+
+    appState.branding = nextBranding;
+}
+
+function buildBrandingPreviewMarkup(branding) {
+    const headerHtml = sanitizeBrandingHtml(branding.headerHtml) || (String(branding.headerText || '').trim() ? `<p>${escapeHtml(branding.headerText)}</p>` : '<p>Header preview</p>');
+    const footerHtml = sanitizeBrandingHtml(branding.footerHtml) || '<p>Footer preview</p>';
+    const margins = branding.pageMargins || { top: 48, right: 48, bottom: 48, left: 48 };
+
+    return `
+        <div class="branding-preview-page" style="--preview-margin-top:${Number(margins.top || 48)}px; --preview-margin-right:${Number(margins.right || 48)}px; --preview-margin-bottom:${Number(margins.bottom || 48)}px; --preview-margin-left:${Number(margins.left || 48)}px;">
+            <div class="branding-preview-page__header" style="color:${escapeHtml(String(branding.primaryColor || '#005a9c'))};">${headerHtml}</div>
+            <div class="branding-preview-page__body">
+                <p>Report content preview area</p>
+                <p>This preview reflects branding margins, rich header/footer content, and images.</p>
+            </div>
+            <div class="branding-preview-page__footer">${footerHtml}</div>
+            ${branding.showPageNumbers !== false ? '<p class="branding-preview-page__number" aria-hidden="true">Page 1</p>' : ''}
+        </div>
+    `;
+}
+
+function refreshBrandingPreview() {
+    const previewHost = document.getElementById('branding-live-preview');
+    if (!(previewHost instanceof HTMLElement)) return;
+    previewHost.innerHTML = buildBrandingPreviewMarkup(getBrandingState());
+}
+
+function canApplyBrandingToActiveWorkspace() {
+    const activeWorkspace = getActiveProjectWorkspace();
+    if (!activeWorkspace) return false;
+
+    const selectedReportId = String(appState.selectedReportId || '').trim();
+    if (!selectedReportId) return true;
+
+    const reportIds = new Set([
+        ...(activeWorkspace.associatedReportIds || []),
+        ...((activeWorkspace.resources && Array.isArray(activeWorkspace.resources.reports)) ? activeWorkspace.resources.reports : [])
+    ]);
+    return reportIds.has(selectedReportId);
+}
+
+function getBrandingImagesForSection(section) {
+    const branding = getBrandingState();
+    return normalizeBrandingImageList(section === 'footer' ? branding.footerImages : branding.headerImages);
+}
+
+function updateBrandingImagesForSection(section, nextImages, announceMessage = '') {
+    const branding = getBrandingState();
+    const normalized = normalizeBrandingImageList(nextImages);
+    const nextBranding = {
+        ...branding,
+        headerImages: section === 'header' ? normalized : normalizeBrandingImageList(branding.headerImages),
+        footerImages: section === 'footer' ? normalized : normalizeBrandingImageList(branding.footerImages)
+    };
+
+    if (nextBranding.headerImages.length > 0) {
+        nextBranding.logoDataUrl = nextBranding.headerImages[0].dataUrl;
+        nextBranding.logoAltText = nextBranding.headerImages[0].altText;
+        nextBranding.logoDecorative = false;
+        nextBranding.logoFileName = nextBranding.headerImages[0].fileName || '';
+    } else {
+        nextBranding.logoDataUrl = '';
+        nextBranding.logoAltText = '';
+        nextBranding.logoDecorative = false;
+        nextBranding.logoFileName = '';
+    }
+
+    appState.branding = nextBranding;
+    saveState();
+    if (announceMessage) announce(announceMessage);
+}
+
+function getBrandingEditor(section) {
+    const id = section === 'footer' ? 'branding-footer-editor' : 'branding-header-editor';
+    const editor = document.getElementById(id);
+    return editor instanceof HTMLElement ? editor : null;
+}
+
+function getBrandingStatusElement() {
+    const status = document.getElementById('branding-image-manager-status');
+    return status instanceof HTMLElement ? status : null;
+}
+
+function setBrandingStatus(message) {
+    const status = getBrandingStatusElement();
+    if (!status) return;
+    status.textContent = message;
+}
+
+function findEditorImageNode(section, imageId) {
+    const editor = getBrandingEditor(section);
+    if (!editor) return null;
+    return editor.querySelector(`img[data-branding-image-id="${CSS.escape(String(imageId || '').trim())}"]`);
+}
+
+function insertBrandingImageAtCursor(section, image) {
+    const editor = getBrandingEditor(section);
+    if (!editor) return false;
+
+    editor.focus();
+    const img = document.createElement('img');
+    applyBrandingImageToNode(img, image, section);
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !editor.contains(selection.anchorNode)) {
+        editor.appendChild(img);
+        return true;
+    }
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(img);
+    range.setStartAfter(img);
+    range.setEndAfter(img);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return true;
+}
+
+function moveBrandingImageNode(section, imageId, direction) {
+    const editor = getBrandingEditor(section);
+    if (!editor) return false;
+    const images = Array.from(editor.querySelectorAll('img[data-branding-image-id]'));
+    const index = images.findIndex((img) => String(img.getAttribute('data-branding-image-id') || '') === String(imageId || ''));
+    if (index < 0) return false;
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= images.length) return false;
+
+    const current = images[index];
+    const reference = images[nextIndex];
+    if (direction < 0) {
+        reference.parentNode?.insertBefore(current, reference);
+    } else {
+        reference.parentNode?.insertBefore(reference, current);
+    }
+    return true;
+}
+
+function renderBrandingImageManagers() {
+    ['header', 'footer'].forEach((section) => {
+        const host = document.getElementById(section === 'header' ? 'branding-header-images-manager' : 'branding-footer-images-manager');
+        if (!(host instanceof HTMLElement)) return;
+
+        const images = getBrandingImagesForSection(section);
+        if (images.length === 0) {
+            host.innerHTML = '<p>No images inserted yet.</p>';
+            return;
+        }
+
+        host.innerHTML = `
+            <h4>${section === 'header' ? 'Header' : 'Footer'} Images</h4>
+            <ul class="branding-image-list" data-branding-section="${section}">
+                ${images.map((image, index) => `
+                    <li class="branding-image-list__item" draggable="true" data-branding-image-id="${escapeHtml(image.id)}" data-branding-section="${section}">
+                        <img src="${escapeHtml(image.dataUrl)}" alt="" class="branding-image-list__thumb" />
+                        <div class="branding-image-list__meta">
+                            <p>${escapeHtml(image.fileName || `Image ${index + 1}`)}</p>
+                            <label>Alternative Text (required)
+                                <input type="text" data-branding-image-alt="${escapeHtml(image.id)}" data-branding-section="${section}" value="${escapeHtml(image.altText)}" required>
+                            </label>
+                            <div class="branding-image-list__row">
+                                <label>Alignment
+                                    <select data-branding-image-alignment="${escapeHtml(image.id)}" data-branding-section="${section}">
+                                        <option value="inline" ${image.alignment === 'inline' ? 'selected' : ''}>Inline</option>
+                                        <option value="left" ${image.alignment === 'left' ? 'selected' : ''}>Left</option>
+                                        <option value="center" ${image.alignment === 'center' ? 'selected' : ''}>Center</option>
+                                        <option value="right" ${image.alignment === 'right' ? 'selected' : ''}>Right</option>
+                                    </select>
+                                </label>
+                                <label>Spacing
+                                    <input type="number" min="0" max="64" step="1" data-branding-image-spacing="${escapeHtml(image.id)}" data-branding-section="${section}" value="${Number(image.spacing || 8)}">
+                                </label>
+                            </div>
+                            <div class="branding-image-list__row">
+                                <label>Max Width
+                                    <input type="number" min="24" max="2000" step="1" data-branding-image-width="${escapeHtml(image.id)}" data-branding-section="${section}" value="${Number(image.maxDisplayWidth || 160)}">
+                                </label>
+                                <label>Max Height
+                                    <input type="number" min="24" max="2000" step="1" data-branding-image-height="${escapeHtml(image.id)}" data-branding-section="${section}" value="${Number(image.maxDisplayHeight || 80)}">
+                                </label>
+                            </div>
+                            <div class="branding-image-list__actions" role="group" aria-label="Image actions">
+                                <button type="button" data-branding-image-move-earlier="${escapeHtml(image.id)}" data-branding-section="${section}" ${index === 0 ? 'disabled' : ''}>Move Earlier</button>
+                                <button type="button" data-branding-image-move-later="${escapeHtml(image.id)}" data-branding-section="${section}" ${index === images.length - 1 ? 'disabled' : ''}>Move Later</button>
+                                <button type="button" data-branding-image-replace="${escapeHtml(image.id)}" data-branding-section="${section}">Replace</button>
+                                <button type="button" data-branding-image-remove="${escapeHtml(image.id)}" data-branding-section="${section}">Remove</button>
+                            </div>
+                        </div>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    });
+}
+
 function attachBrandingRichEditor(editorId, stateKey, fallbackKey = '') {
     const editor = document.getElementById(editorId);
     if (!(editor instanceof HTMLElement)) return;
 
     const persist = () => {
         const sanitized = sanitizeBrandingHtml(editor.innerHTML);
+        editor.innerHTML = sanitized;
         const nextBranding = {
             ...getBrandingState(),
             [stateKey]: sanitized
         };
         if (fallbackKey) nextBranding[fallbackKey] = htmlToPlainText(sanitized);
         appState.branding = nextBranding;
+        syncBrandingImagesFromEditor(editorId);
         saveState();
+        refreshBrandingPreview();
     };
 
     editor.addEventListener('input', persist);
@@ -218,21 +595,29 @@ function attachBrandingRichEditor(editorId, stateKey, fallbackKey = '') {
 function validateBrandingInputs(shouldAnnounce = true) {
     const branding = getBrandingState();
     const errorEl = document.getElementById('branding-logo-alt-error');
-    const altInput = document.getElementById('branding-logo-alt');
 
-    const hasError = branding.enabled && branding.logoDataUrl && !branding.logoDecorative && !branding.logoAltText.trim();
+    const allImages = [
+        ...(Array.isArray(branding.headerImages) ? branding.headerImages : []),
+        ...(Array.isArray(branding.footerImages) ? branding.footerImages : [])
+    ];
+    const missingImageAlt = allImages.find((image) => String(image.dataUrl || '').trim() && !String(image.altText || '').trim());
+    const hasError = Boolean(missingImageAlt);
     if (!hasError) {
         if (errorEl) errorEl.textContent = '';
-        if (altInput) altInput.removeAttribute('aria-invalid');
         return true;
     }
 
-    const msg = 'Logo alternative text is required when logo is not decorative.';
+    const msg = 'Alternative text is required for every branding image.';
     if (errorEl) errorEl.textContent = msg;
-    if (altInput) altInput.setAttribute('aria-invalid', 'true');
     if (shouldAnnounce) {
         announce(msg);
-        if (altInput) altInput.focus();
+        if (missingImageAlt) {
+            const missingInput = document.querySelector(`[data-branding-image-alt="${CSS.escape(String(missingImageAlt.id || ''))}"]`);
+            if (missingInput instanceof HTMLElement) {
+                missingInput.focus();
+                return false;
+            }
+        }
     }
     return false;
 }
@@ -389,6 +774,12 @@ export function executeAddFieldFromCommand() {
 export function executeDoneFromCommand() {
     if (!validateBrandingInputs(true)) return false;
 
+    if (applyWorkspaceBrandingDefault && canApplyBrandingToActiveWorkspace()) {
+        setActiveWorkspaceDefaultBranding(getBrandingState(), {
+            action: 'Updated workspace default branding from Report Builder'
+        });
+    }
+
     if (appState.templateCreateMode) {
         const baseName = (appState.templateName || appState.reportTitle || 'Untitled Template').trim();
         const existing = new Set((appState.userTemplates || []).map((t) => String(t.name || '').toLowerCase()));
@@ -541,10 +932,14 @@ export async function renderBuilder() {
                             <button type="button" data-branding-editor="branding-header-editor" data-branding-command="italic">Italic</button>
                             <button type="button" data-branding-editor="branding-header-editor" data-branding-command="underline">Underline</button>
                             <button type="button" data-branding-editor="branding-header-editor" data-branding-command="insertUnorderedList">Bullets</button>
+                            <button type="button" data-branding-editor="branding-header-editor" data-branding-command="insertOrderedList">Numbering</button>
                             <button type="button" data-branding-editor="branding-header-editor" data-branding-command="createLink">Link</button>
                             <button type="button" data-branding-editor="branding-header-editor" data-branding-command="removeFormat">Clear Format</button>
+                            <button type="button" data-branding-add-image="header">Insert Image</button>
                         </div>
+                        <input id="branding-header-image-file" type="file" accept="image/png,image/jpeg,image/jpg,image/svg+xml" hidden>
                         <div id="branding-header-editor" class="branding-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="branding-header-help">${brandingHeaderHtml}</div>
+                        <div id="branding-header-images-manager" class="branding-image-manager" aria-label="Header image management"></div>
                     </div>
                     <div>
                         <label for="branding-footer-editor">Brand Footer Content</label>
@@ -554,25 +949,39 @@ export async function renderBuilder() {
                             <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="italic">Italic</button>
                             <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="underline">Underline</button>
                             <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="insertUnorderedList">Bullets</button>
+                            <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="insertOrderedList">Numbering</button>
                             <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="createLink">Link</button>
                             <button type="button" data-branding-editor="branding-footer-editor" data-branding-command="removeFormat">Clear Format</button>
+                            <button type="button" data-branding-add-image="footer">Insert Image</button>
                         </div>
+                        <input id="branding-footer-image-file" type="file" accept="image/png,image/jpeg,image/jpg,image/svg+xml" hidden>
                         <div id="branding-footer-editor" class="branding-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-describedby="branding-footer-help">${brandingFooterHtml}</div>
+                        <div id="branding-footer-images-manager" class="branding-image-manager" aria-label="Footer image management"></div>
                     </div>
                     <label>Primary Brand Color: <input type="color" id="branding-primary-color" value="${escapeHtml(branding.primaryColor)}"></label>
-                    <label>Brand Logo: <input type="file" id="branding-logo-file" accept="image/*"></label>
-                    <p id="branding-logo-file-name">${branding.logoFileName ? `Selected logo: ${escapeHtml(branding.logoFileName)}` : 'No logo selected'}</p>
-                    ${branding.logoDataUrl ? '<button id="branding-remove-logo" type="button">Remove Logo</button>' : ''}
+                    <fieldset>
+                        <legend>Preview Page Margins</legend>
+                        <label>Top <input type="number" id="branding-margin-top" min="0" max="200" step="1" value="${Number(branding.pageMargins?.top || 48)}"></label>
+                        <label>Right <input type="number" id="branding-margin-right" min="0" max="200" step="1" value="${Number(branding.pageMargins?.right || 48)}"></label>
+                        <label>Bottom <input type="number" id="branding-margin-bottom" min="0" max="200" step="1" value="${Number(branding.pageMargins?.bottom || 48)}"></label>
+                        <label>Left <input type="number" id="branding-margin-left" min="0" max="200" step="1" value="${Number(branding.pageMargins?.left || 48)}"></label>
+                    </fieldset>
                     <label class="branding-toggle">
-                        <input type="checkbox" id="branding-logo-decorative" ${branding.logoDecorative ? 'checked' : ''} ${branding.logoDataUrl ? '' : 'disabled'}>
-                        Logo is decorative
+                        <input type="checkbox" id="branding-show-page-numbers" ${branding.showPageNumbers !== false ? 'checked' : ''}>
+                        Show page numbers in branding preview
                     </label>
-                    <label>Logo Alternative Text:
-                        <input type="text" id="branding-logo-alt" value="${escapeHtml(branding.logoAltText)}" aria-describedby="branding-logo-alt-help branding-logo-alt-error" ${branding.logoDataUrl && !branding.logoDecorative ? '' : 'disabled'}>
-                    </label>
-                    <p id="branding-logo-alt-help">Use concise text such as Apple logo when the logo conveys brand identity.</p>
                     <p id="branding-logo-alt-error" class="branding-error" role="status" aria-live="polite"></p>
-                    ${branding.logoDataUrl ? `<img class="branding-preview" src="${escapeHtml(branding.logoDataUrl)}" ${branding.logoDecorative ? 'alt=""' : `alt="${escapeHtml(branding.logoAltText || 'Brand logo')}"`} />` : ''}
+                    <p id="branding-image-manager-status" class="open-report-status" role="status" aria-live="polite"></p>
+                    ${canApplyBrandingToActiveWorkspace() ? `
+                        <label class="branding-toggle">
+                            <input type="checkbox" id="branding-apply-workspace-default" ${applyWorkspaceBrandingDefault ? 'checked' : ''}>
+                            Make this the default branding for new reports in this Active Project Workspace.
+                        </label>
+                    ` : ''}
+                    <section class="branding-live-preview" aria-labelledby="branding-live-preview-heading">
+                        <h4 id="branding-live-preview-heading">Branding Preview</h4>
+                        <div id="branding-live-preview">${buildBrandingPreviewMarkup(branding)}</div>
+                    </section>
                 </div>
             </section>
 
@@ -746,78 +1155,309 @@ export async function renderBuilder() {
                 primaryColor: e.target.value
             };
             saveState();
+            refreshBrandingPreview();
         });
     }
 
-    const brandingLogoDecorative = document.getElementById('branding-logo-decorative');
-    if (brandingLogoDecorative) {
-        brandingLogoDecorative.addEventListener('change', (e) => {
+    ['top', 'right', 'bottom', 'left'].forEach((edge) => {
+        const marginInput = document.getElementById(`branding-margin-${edge}`);
+        if (!(marginInput instanceof HTMLInputElement)) return;
+        marginInput.addEventListener('input', () => {
+            const current = getBrandingState();
             appState.branding = {
-                ...getBrandingState(),
-                logoDecorative: e.target.checked
+                ...current,
+                pageMargins: {
+                    ...current.pageMargins,
+                    [edge]: Number(marginInput.value || 0)
+                }
             };
             saveState();
-            renderBuilder();
+            refreshBrandingPreview();
+        });
+    });
+
+    const showPageNumbers = document.getElementById('branding-show-page-numbers');
+    if (showPageNumbers instanceof HTMLInputElement) {
+        showPageNumbers.addEventListener('change', () => {
+            appState.branding = {
+                ...getBrandingState(),
+                showPageNumbers: showPageNumbers.checked
+            };
+            saveState();
+            refreshBrandingPreview();
         });
     }
 
-    const brandingLogoAlt = document.getElementById('branding-logo-alt');
-    if (brandingLogoAlt) {
-        brandingLogoAlt.addEventListener('input', (e) => {
-            appState.branding = {
-                ...getBrandingState(),
-                logoAltText: e.target.value
-            };
-            saveState();
+    const applyWorkspaceDefault = document.getElementById('branding-apply-workspace-default');
+    if (applyWorkspaceDefault instanceof HTMLInputElement) {
+        applyWorkspaceDefault.addEventListener('change', () => {
+            applyWorkspaceBrandingDefault = applyWorkspaceDefault.checked;
+        });
+    }
+
+    const readImageFileAsDataUrl = async (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('read-failed'));
+        reader.readAsDataURL(file);
+    });
+
+    const persistSectionEditor = (section) => {
+        const editorId = section === 'footer' ? 'branding-footer-editor' : 'branding-header-editor';
+        const stateKey = section === 'footer' ? 'footerHtml' : 'headerHtml';
+        const fallbackKey = section === 'header' ? 'headerText' : '';
+        const editor = document.getElementById(editorId);
+        if (!(editor instanceof HTMLElement)) return;
+        const sanitized = sanitizeBrandingHtml(editor.innerHTML);
+        editor.innerHTML = sanitized;
+        appState.branding = {
+            ...getBrandingState(),
+            [stateKey]: sanitized,
+            ...(fallbackKey ? { [fallbackKey]: htmlToPlainText(sanitized) } : {})
+        };
+        syncBrandingImagesFromEditor(editorId);
+        saveState();
+        refreshBrandingPreview();
+    };
+
+    const insertImageFromFile = async (section, file) => {
+        if (!file) return;
+        const isSupported = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'].includes(String(file.type || '').toLowerCase());
+        if (!isSupported) {
+            announce('Only PNG, JPG, and SVG images are supported for branding.');
+            return;
+        }
+
+        try {
+            const dataUrl = await readImageFileAsDataUrl(file);
+            const image = normalizeBrandingImageEntry({
+                id: `branding-image-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                dataUrl,
+                fileName: String(file.name || '').trim(),
+                altText: '',
+                alignment: 'inline',
+                spacing: 8,
+                maxDisplayWidth: 160,
+                maxDisplayHeight: 80
+            });
+
+            if (!insertBrandingImageAtCursor(section, image)) return;
+            persistSectionEditor(section);
+            renderBrandingImageManagers();
+            setBrandingStatus('Image inserted. Add alternative text before saving.');
+            const altInput = document.querySelector(`[data-branding-image-alt="${CSS.escape(image.id)}"]`);
+            if (altInput instanceof HTMLElement) altInput.focus();
+        } catch (error) {
+            announce('Could not read image file.');
+        }
+    };
+
+    ['header', 'footer'].forEach((section) => {
+        const addImageButton = document.querySelector(`[data-branding-add-image="${section}"]`);
+        const fileInput = document.getElementById(section === 'header' ? 'branding-header-image-file' : 'branding-footer-image-file');
+        if (addImageButton instanceof HTMLButtonElement && fileInput instanceof HTMLInputElement) {
+            addImageButton.addEventListener('click', () => {
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', async () => {
+                const file = fileInput.files && fileInput.files[0];
+                if (!file) return;
+                await insertImageFromFile(section, file);
+                fileInput.value = '';
+            });
+        }
+    });
+
+    renderBrandingImageManagers();
+
+    const getImageContext = (target, attr) => {
+        if (!(target instanceof HTMLElement)) return null;
+        const imageId = String(target.getAttribute(attr) || '').trim();
+        const section = String(target.getAttribute('data-branding-section') || 'header').trim();
+        if (!imageId) return null;
+        return { imageId, section };
+    };
+
+    container.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        if (target.matches('[data-branding-image-alt]')) {
+            const context = getImageContext(target, 'data-branding-image-alt');
+            if (!context) return;
+            const images = getBrandingImagesForSection(context.section).map((image) => {
+                if (image.id !== context.imageId) return image;
+                return { ...image, altText: target.value };
+            });
+            updateBrandingImagesForSection(context.section, images);
+            const node = findEditorImageNode(context.section, context.imageId);
+            if (node instanceof HTMLImageElement) {
+                const current = images.find((item) => item.id === context.imageId);
+                if (current) applyBrandingImageToNode(node, current, context.section);
+                persistSectionEditor(context.section);
+            }
             validateBrandingInputs(false);
-        });
-    }
+            return;
+        }
 
-    const brandingLogoFile = document.getElementById('branding-logo-file');
-    if (brandingLogoFile) {
-        brandingLogoFile.addEventListener('change', async (e) => {
-            const selectedFile = e.target.files && e.target.files[0];
-            if (!selectedFile) return;
+        const propertyMap = [
+            ['data-branding-image-spacing', (image, value) => ({ ...image, spacing: Number(value || 0) })],
+            ['data-branding-image-width', (image, value) => ({ ...image, maxDisplayWidth: Number(value || 160) })],
+            ['data-branding-image-height', (image, value) => ({ ...image, maxDisplayHeight: Number(value || 80) })]
+        ];
 
-            try {
-                const dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(String(reader.result || ''));
-                    reader.onerror = () => reject(new Error('read-failed'));
-                    reader.readAsDataURL(selectedFile);
-                });
-
-                appState.branding = {
-                    ...getBrandingState(),
-                    logoDataUrl: dataUrl,
-                    logoFileName: selectedFile.name
-                };
-                saveState();
-                announce('Logo selected. Add alternative text or mark as decorative.');
-                renderBuilder();
-            } catch (error) {
-                announce('Could not read logo file.');
+        propertyMap.forEach(([attr, apply]) => {
+            if (!target.matches(`[${attr}]`)) return;
+            const context = getImageContext(target, attr);
+            if (!context) return;
+            const images = getBrandingImagesForSection(context.section).map((image) => image.id === context.imageId
+                ? apply(image, target.value)
+                : image);
+            updateBrandingImagesForSection(context.section, images);
+            const node = findEditorImageNode(context.section, context.imageId);
+            const current = images.find((item) => item.id === context.imageId);
+            if (node instanceof HTMLImageElement && current) {
+                applyBrandingImageToNode(node, current, context.section);
+                persistSectionEditor(context.section);
             }
         });
-    }
+    });
 
-    const brandingRemoveLogo = document.getElementById('branding-remove-logo');
-    if (brandingRemoveLogo) {
-        brandingRemoveLogo.addEventListener('click', () => {
-            appState.branding = {
-                ...getBrandingState(),
-                logoDataUrl: '',
-                logoFileName: '',
-                logoAltText: '',
-                logoDecorative: false
-            };
-            saveState();
-            announce('Logo removed.');
-            renderBuilder();
-        });
-    }
+    container.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.matches('[data-branding-image-alignment]')) return;
+        const context = getImageContext(target, 'data-branding-image-alignment');
+        if (!context) return;
+        const images = getBrandingImagesForSection(context.section).map((image) => image.id === context.imageId
+            ? { ...image, alignment: target.value }
+            : image);
+        updateBrandingImagesForSection(context.section, images);
+        const node = findEditorImageNode(context.section, context.imageId);
+        const current = images.find((item) => item.id === context.imageId);
+        if (node instanceof HTMLImageElement && current) {
+            applyBrandingImageToNode(node, current, context.section);
+            persistSectionEditor(context.section);
+        }
+    });
+
+    container.addEventListener('click', async (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        if (target.matches('[data-branding-image-remove]')) {
+            const context = getImageContext(target, 'data-branding-image-remove');
+            if (!context) return;
+            const images = getBrandingImagesForSection(context.section).filter((image) => image.id !== context.imageId);
+            updateBrandingImagesForSection(context.section, images, 'Branding image removed.');
+            const node = findEditorImageNode(context.section, context.imageId);
+            node?.remove();
+            persistSectionEditor(context.section);
+            renderBrandingImageManagers();
+            validateBrandingInputs(false);
+            return;
+        }
+
+        if (target.matches('[data-branding-image-move-earlier], [data-branding-image-move-later]')) {
+            const isEarlier = target.matches('[data-branding-image-move-earlier]');
+            const context = getImageContext(target, isEarlier ? 'data-branding-image-move-earlier' : 'data-branding-image-move-later');
+            if (!context) return;
+            const images = getBrandingImagesForSection(context.section);
+            const index = images.findIndex((image) => image.id === context.imageId);
+            if (index < 0) return;
+            const nextIndex = isEarlier ? index - 1 : index + 1;
+            if (nextIndex < 0 || nextIndex >= images.length) return;
+            const reordered = [...images];
+            const [moved] = reordered.splice(index, 1);
+            reordered.splice(nextIndex, 0, moved);
+            updateBrandingImagesForSection(context.section, reordered, `Image moved ${isEarlier ? 'earlier' : 'later'}.`);
+            moveBrandingImageNode(context.section, context.imageId, isEarlier ? -1 : 1);
+            persistSectionEditor(context.section);
+            renderBrandingImageManagers();
+            return;
+        }
+
+        if (target.matches('[data-branding-image-replace]')) {
+            const context = getImageContext(target, 'data-branding-image-replace');
+            if (!context) return;
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'file';
+            hiddenInput.accept = 'image/png,image/jpeg,image/jpg,image/svg+xml';
+            hiddenInput.style.display = 'none';
+            document.body.appendChild(hiddenInput);
+            hiddenInput.click();
+            hiddenInput.addEventListener('change', async () => {
+                const file = hiddenInput.files && hiddenInput.files[0];
+                if (!file) {
+                    document.body.removeChild(hiddenInput);
+                    return;
+                }
+                try {
+                    const dataUrl = await readImageFileAsDataUrl(file);
+                    const images = getBrandingImagesForSection(context.section).map((image) => image.id === context.imageId
+                        ? { ...image, dataUrl, fileName: String(file.name || '').trim() }
+                        : image);
+                    updateBrandingImagesForSection(context.section, images, 'Branding image replaced.');
+                    const node = findEditorImageNode(context.section, context.imageId);
+                    const current = images.find((image) => image.id === context.imageId);
+                    if (node instanceof HTMLImageElement && current) {
+                        applyBrandingImageToNode(node, current, context.section);
+                        persistSectionEditor(context.section);
+                    }
+                    renderBrandingImageManagers();
+                } catch (error) {
+                    announce('Could not replace image.');
+                } finally {
+                    document.body.removeChild(hiddenInput);
+                }
+            }, { once: true });
+        }
+    });
+
+    container.addEventListener('dragstart', (event) => {
+        const item = event.target instanceof HTMLElement ? event.target.closest('.branding-image-list__item[draggable="true"]') : null;
+        if (!(item instanceof HTMLElement)) return;
+        event.dataTransfer?.setData('text/plain', String(item.getAttribute('data-branding-image-id') || ''));
+        event.dataTransfer.effectAllowed = 'move';
+    });
+
+    container.addEventListener('dragover', (event) => {
+        const item = event.target instanceof HTMLElement ? event.target.closest('.branding-image-list__item[draggable="true"]') : null;
+        if (!item) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    });
+
+    container.addEventListener('drop', (event) => {
+        const item = event.target instanceof HTMLElement ? event.target.closest('.branding-image-list__item[draggable="true"]') : null;
+        if (!(item instanceof HTMLElement)) return;
+        event.preventDefault();
+        const sourceId = String(event.dataTransfer?.getData('text/plain') || '').trim();
+        const targetId = String(item.getAttribute('data-branding-image-id') || '').trim();
+        const section = String(item.getAttribute('data-branding-section') || 'header').trim();
+        if (!sourceId || !targetId || sourceId === targetId) return;
+        const images = getBrandingImagesForSection(section);
+        const from = images.findIndex((image) => image.id === sourceId);
+        const to = images.findIndex((image) => image.id === targetId);
+        if (from < 0 || to < 0) return;
+        const reordered = [...images];
+        const [moved] = reordered.splice(from, 1);
+        reordered.splice(to, 0, moved);
+        updateBrandingImagesForSection(section, reordered, 'Branding image moved.');
+
+        const editor = getBrandingEditor(section);
+        if (editor) {
+            const sourceNode = findEditorImageNode(section, sourceId);
+            const targetNode = findEditorImageNode(section, targetId);
+            if (sourceNode && targetNode && sourceNode !== targetNode) {
+                targetNode.parentNode?.insertBefore(sourceNode, targetNode);
+                persistSectionEditor(section);
+            }
+        }
+        renderBrandingImageManagers();
+    });
 
     validateBrandingInputs(false);
+    refreshBrandingPreview();
 
     const reportTypeSelect = document.getElementById('report-type-select');
     if (reportTypeSelect) {

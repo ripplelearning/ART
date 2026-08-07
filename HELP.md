@@ -39,6 +39,21 @@ Continue using:
 
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
+## Report Branding in Report Builder
+Report Builder now supports richer report branding content for headers and footers.
+
+Branding capabilities include:
+
+- rich text formatting in header and footer content
+- multiple header and footer images with required alternative text
+- per-image alignment, spacing, and max size controls
+- live branding preview with configurable margins
+- optional page-number preview
+
+When an Active Project Workspace is open and the current report belongs to that workspace, you can choose to apply the current branding as the default for newly created reports in that workspace.
+
+Workspace branding defaults are workspace-scoped metadata and do not overwrite branding in existing reports unless you manually edit those reports.
+
 ## Plugin Lifecycle
 Plugins move through lifecycle states:
 
