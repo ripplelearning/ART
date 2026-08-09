@@ -76,6 +76,28 @@ Current capabilities include:
 The Plugin Framework does not replace existing import/export or integration workflows.
 It registers metadata and compatibility data after those workflows complete.
 
+## Collaboration Server (Live and Asynchronous)
+ART Version 1.5 includes an optional collaboration server under [collaboration-server](collaboration-server) for:
+
+- live multi-user collaboration sessions
+- asynchronous collaboration using shared snapshot storage (for example a shared drive/folder mounted on the server)
+
+Fastest startup path on Windows:
+
+- Run [start-collaboration-server.ps1](start-collaboration-server.ps1) from the repository root.
+- Or run [start-collaboration-server-and-open-health.ps1](start-collaboration-server-and-open-health.ps1) to launch the server and automatically open the health endpoint in your browser.
+- Stop with [stop-collaboration-server.ps1](stop-collaboration-server.ps1) when finished.
+- Open ART Settings -> Collaboration.
+- Set Live collaboration server URL (default: ws://localhost:8787/art-live).
+- Use Quick Start Live Collaboration.
+
+Asynchronous shared-folder workflow:
+
+1. Start the collaboration server with ART_COLLAB_SHARED_FOLDER configured (or pass -SharedFolder to the launcher script).
+2. User A connects and chooses Publish Async Snapshot.
+3. User B connects and chooses Pull Async Snapshot.
+4. ART applies pulled collaboration metadata and updates sync status.
+
 See:
 
 - [Command Reference](COMMANDS.md)
@@ -85,6 +107,7 @@ See:
 - [User Guide: Plugins and Packages](USER-GUIDE.md)
 - [Plugin Developer Guide](PLUGIN-DEVELOPER-GUIDE.md)
 - [Package Authoring Guide](PACKAGE-AUTHORING-GUIDE.md)
+- [Collaboration Server Guide](collaboration-server/README.md)
 
 ## Repository Documentation
 Use these documents as the primary source of development and contribution standards:

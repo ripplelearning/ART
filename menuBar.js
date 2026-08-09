@@ -1,7 +1,7 @@
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { searchCommands } from './commandSearchEngine.js';
-import { announce } from './state.js';
+import { announce, isCollaborationEnabled } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import { getRedoMenuLabel, getUndoMenuLabel } from './historyFramework.js';
 import { getTopLevelMenuShortcutAction } from './menuShortcuts.js';
@@ -21,7 +21,7 @@ let menubarSessionStartIndex = 0;
 let suppressNextMenuButtonClick = false;
 let menuSearchResultsController = null;
 
-const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Tools', 'Templates', 'Window', 'Help'];
+const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Tools', 'Templates', 'Window', 'Collaboration', 'Help'];
 
 function escapeHtml(value) {
     return String(value || '')
@@ -245,7 +245,11 @@ function getVisibleCommands() {
 }
 
 function getTopLevelMenus() {
-    return sortTopLevelMenus(buildMenuTree(getVisibleCommands()));
+    const roots = sortTopLevelMenus(buildMenuTree(getVisibleCommands()));
+    if (!isCollaborationEnabled()) {
+        return roots.filter((item) => item.label !== 'Collaboration');
+    }
+    return roots;
 }
 
 function getContainer() {
@@ -1102,6 +1106,7 @@ function bindEvents() {
 
     window.addEventListener('art-shortcuts-updated', () => renderMenuBar());
     window.addEventListener('art-visual-accessibility-updated', () => renderMenuBar());
+    window.addEventListener('art-collaboration-updated', () => renderMenuBar());
 
     renderMenuBar();
     return true;

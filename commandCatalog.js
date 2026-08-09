@@ -21,6 +21,7 @@ import {
     hasUnsavedProjectChanges,
     importReportWithConflictStrategy,
     importTemplateWithConflictStrategy,
+    getCollaborationConfig,
     isProgressLogEnabled,
     loadReportById,
     loadTemplate,
@@ -31,6 +32,7 @@ import {
     saveState,
     serializeArtxTemplatePayload,
     templateNameExists,
+    updateCollaborationConfig,
     getActiveWorkspaceView,
 } from './state.js';
 import { removeResourceReferencesFromAllWorkspaces, replaceResourceReferencesAcrossWorkspaces } from './resourceRelationshipFramework.js';
@@ -39,21 +41,37 @@ import { focusMenuBarFromCommand, focusMenuSearchFromCommand, openTopLevelMenuFr
 import { getTopLevelMenuShortcutDescriptor, mergeTopLevelMenuLabels } from './menuShortcuts.js';
 import { openHelpDialog } from './help.js';
 import {
+    applySoloCollaborationPresetFromCommand,
+    applyTeamCollaborationPresetFromCommand,
+    clearCollaborationSessionsFromCommand,
+    connectLiveCollaborationFromCommand,
     closeSettingsDialogFromCommand,
     createSettingsBackupFromCommand,
+    disconnectLiveCollaborationFromCommand,
+    generateCollaborationDiscoverySnapshotFromCommand,
     exportSettingsPluginFrameworkConfigFromCommand,
     importSettingsPluginFrameworkConfigFromCommand,
     openSettingsAnalyticsSectionFromCommand,
+    openSettingsCollaborationSectionFromCommand,
     openSettingsIntegrationsSectionFromCommand,
     openSettingsPasteStandardTableFromCommand,
     openSettingsResetDialogFromCommand,
     openSettingsDialogFromCommand,
     refreshSettingsPluginManagerFromCommand,
+    registerCollaborationPresenceSessionFromCommand,
+    recordCollaborationSyncCheckpointFromCommand,
+    resetCollaborationBaselineFromCommand,
+    resolveOldestCollaborationConflictFromCommand,
     restoreSettingsShortcutsFromCommand,
     startSettingsPluginInstallFromCommand,
     startSettingsImportReportFileFromCommand,
     startSettingsImportStandardFromCommand,
     startSettingsImportTemplateFileFromCommand,
+    queueCollaborationTestConflictFromCommand,
+    quickStartLiveCollaborationFromCommand,
+    publishAsyncCollaborationSnapshotFromCommand,
+    pullAsyncCollaborationSnapshotFromCommand,
+    startLiveCollaborationSessionFromCommand,
     toggleSettingsPrivacyModeFromCommand,
     validateSettingsPluginExtensionsFromCommand
 } from './settings.js';
@@ -324,6 +342,22 @@ function getDefaultMenuLocation(action, category) {
         case 'settingsImportTemplateFile':
         case 'settingsOpenIntegrations':
         case 'settingsCustomizeAnalytics':
+        case 'settingsCustomizeCollaboration':
+        case 'settingsCollaborationApplySoloDefaults':
+        case 'settingsCollaborationApplyTeamDefaults':
+        case 'settingsCollaborationResetBaseline':
+        case 'settingsCollaborationRecordSyncCheckpoint':
+        case 'settingsCollaborationGenerateDiscoverySnapshot':
+        case 'settingsCollaborationQueueTestConflict':
+        case 'settingsCollaborationResolveOldestConflict':
+        case 'settingsCollaborationRegisterPresenceSession':
+        case 'settingsCollaborationClearSessions':
+        case 'settingsCollaborationLiveQuickStart':
+        case 'settingsCollaborationLiveConnect':
+        case 'settingsCollaborationLiveDisconnect':
+        case 'settingsCollaborationLiveStartSession':
+        case 'settingsCollaborationPublishAsyncSnapshot':
+        case 'settingsCollaborationPullAsyncSnapshot':
         case 'settingsPluginInstall':
         case 'settingsPluginValidate':
         case 'settingsPluginRefresh':
@@ -2489,6 +2523,168 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Settings',
         description: 'Open the Analytics section in Settings.',
         handler: () => openSettingsAnalyticsSectionFromCommand()
+    },
+    {
+        action: 'settingsCustomizeCollaboration',
+        id: 'Settings.CustomizeCollaboration',
+        category: 'Settings',
+        description: 'Open the Collaboration section in Settings.',
+        menuLocation: 'Collaboration',
+        handler: () => openSettingsCollaborationSectionFromCommand()
+    },
+    {
+        action: 'toggleCollaboration',
+        id: 'Collaboration.Toggle',
+        category: 'Collaboration',
+        description: 'Enable or disable Collaboration.',
+        menuLocation: 'Collaboration',
+        handler: () => {
+            const collaboration = getCollaborationConfig();
+            updateCollaborationConfig({
+                enabled: !collaboration.enabled,
+                showToolbar: !collaboration.enabled ? true : collaboration.showToolbar
+            }, {
+                action: collaboration.enabled ? 'Disabled collaboration' : 'Enabled collaboration'
+            });
+            return true;
+        }
+    },
+    {
+        action: 'toggleCollaborationToolbar',
+        id: 'Collaboration.ToggleToolbar',
+        category: 'Collaboration',
+        description: 'Show or hide the Collaboration toolbar.',
+        menuLocation: 'Collaboration',
+        handler: () => {
+            const collaboration = getCollaborationConfig();
+            updateCollaborationConfig({
+                showToolbar: !collaboration.showToolbar,
+                enabled: collaboration.showToolbar ? collaboration.enabled : true
+            }, {
+                action: collaboration.showToolbar ? 'Hid collaboration toolbar' : 'Showed collaboration toolbar'
+            });
+            return true;
+        }
+    },
+    {
+        action: 'settingsCollaborationApplySoloDefaults',
+        id: 'Collaboration.ApplySoloDefaults',
+        category: 'Collaboration',
+        description: 'Apply Solo collaboration defaults.',
+        menuLocation: 'Collaboration',
+        handler: () => applySoloCollaborationPresetFromCommand()
+    },
+    {
+        action: 'settingsCollaborationApplyTeamDefaults',
+        id: 'Collaboration.ApplyTeamDefaults',
+        category: 'Collaboration',
+        description: 'Apply Team collaboration defaults.',
+        menuLocation: 'Collaboration',
+        handler: () => applyTeamCollaborationPresetFromCommand()
+    },
+    {
+        action: 'settingsCollaborationResetBaseline',
+        id: 'Collaboration.ResetBaseline',
+        category: 'Collaboration',
+        description: 'Reset collaboration to the closest baseline and clear transient operational data.',
+        menuLocation: 'Collaboration',
+        handler: () => resetCollaborationBaselineFromCommand()
+    },
+    {
+        action: 'settingsCollaborationRecordSyncCheckpoint',
+        id: 'Collaboration.RecordSyncCheckpoint',
+        category: 'Collaboration',
+        description: 'Record a collaboration synchronization checkpoint timestamp.',
+        menuLocation: 'Collaboration',
+        handler: () => recordCollaborationSyncCheckpointFromCommand()
+    },
+    {
+        action: 'settingsCollaborationGenerateDiscoverySnapshot',
+        id: 'Collaboration.GenerateDiscoverySnapshot',
+        category: 'Collaboration',
+        description: 'Generate a collaboration discovery snapshot for the active workspace.',
+        menuLocation: 'Collaboration',
+        handler: () => generateCollaborationDiscoverySnapshotFromCommand()
+    },
+    {
+        action: 'settingsCollaborationQueueTestConflict',
+        id: 'Collaboration.QueueTestConflict',
+        category: 'Collaboration',
+        description: 'Queue a synthetic collaboration conflict for validation.',
+        menuLocation: 'Collaboration',
+        handler: () => queueCollaborationTestConflictFromCommand()
+    },
+    {
+        action: 'settingsCollaborationResolveOldestConflict',
+        id: 'Collaboration.ResolveOldestConflict',
+        category: 'Collaboration',
+        description: 'Resolve the oldest pending collaboration conflict using current strategy.',
+        menuLocation: 'Collaboration',
+        handler: () => resolveOldestCollaborationConflictFromCommand()
+    },
+    {
+        action: 'settingsCollaborationRegisterPresenceSession',
+        id: 'Collaboration.RegisterPresenceSession',
+        category: 'Collaboration',
+        description: 'Register a collaboration presence session for the active workspace.',
+        menuLocation: 'Collaboration',
+        handler: () => registerCollaborationPresenceSessionFromCommand()
+    },
+    {
+        action: 'settingsCollaborationClearSessions',
+        id: 'Collaboration.ClearSessions',
+        category: 'Collaboration',
+        description: 'Clear collaboration presence sessions.',
+        menuLocation: 'Collaboration',
+        handler: () => clearCollaborationSessionsFromCommand()
+    },
+    {
+        action: 'settingsCollaborationLiveQuickStart',
+        id: 'Collaboration.LiveQuickStart',
+        category: 'Collaboration',
+        description: 'Connect to live server and start a live collaboration session in one step.',
+        menuLocation: 'Collaboration',
+        handler: () => quickStartLiveCollaborationFromCommand()
+    },
+    {
+        action: 'settingsCollaborationLiveConnect',
+        id: 'Collaboration.LiveConnect',
+        category: 'Collaboration',
+        description: 'Connect to the configured live collaboration server.',
+        menuLocation: 'Collaboration',
+        handler: () => connectLiveCollaborationFromCommand()
+    },
+    {
+        action: 'settingsCollaborationLiveDisconnect',
+        id: 'Collaboration.LiveDisconnect',
+        category: 'Collaboration',
+        description: 'Disconnect from the live collaboration server.',
+        menuLocation: 'Collaboration',
+        handler: () => disconnectLiveCollaborationFromCommand()
+    },
+    {
+        action: 'settingsCollaborationLiveStartSession',
+        id: 'Collaboration.LiveStartSession',
+        category: 'Collaboration',
+        description: 'Start a live collaboration session for the active workspace.',
+        menuLocation: 'Collaboration',
+        handler: () => startLiveCollaborationSessionFromCommand()
+    },
+    {
+        action: 'settingsCollaborationPublishAsyncSnapshot',
+        id: 'Collaboration.PublishAsyncSnapshot',
+        category: 'Collaboration',
+        description: 'Publish collaboration metadata snapshot for asynchronous shared-folder workflows.',
+        menuLocation: 'Collaboration',
+        handler: () => publishAsyncCollaborationSnapshotFromCommand()
+    },
+    {
+        action: 'settingsCollaborationPullAsyncSnapshot',
+        id: 'Collaboration.PullAsyncSnapshot',
+        category: 'Collaboration',
+        description: 'Pull and apply collaboration metadata snapshot from asynchronous shared storage.',
+        menuLocation: 'Collaboration',
+        handler: () => pullAsyncCollaborationSnapshotFromCommand()
     },
     {
         action: 'settingsPluginInstall',

@@ -52,6 +52,79 @@ If validation fails:
 ## Accessibility Notes
 Plugin and package administration in ART is keyboard-accessible and announced through status regions.
 
+## Collaboration Setup and Usage
+ART collaboration supports both real-time sessions and asynchronous shared-folder synchronization.
+
+### What You Need
+
+- ART with Collaboration enabled in Settings.
+- A running collaboration coordination server.
+- For asynchronous shared-folder workflows: a shared folder configured on the server.
+
+### Start the Collaboration Server (Windows)
+
+Recommended one-command startup:
+
+1. Open PowerShell in the ART repository root.
+2. Run [start-collaboration-server.ps1](start-collaboration-server.ps1).
+3. Optional fast health check: run [start-collaboration-server-and-open-health.ps1](start-collaboration-server-and-open-health.ps1) instead to auto-open `/health` after startup.
+4. When finished, stop the local server with [stop-collaboration-server.ps1](stop-collaboration-server.ps1).
+
+Optional shared-folder mode:
+
+1. Run [start-collaboration-server.ps1](start-collaboration-server.ps1) with `-SharedFolder "\\server\share\art-collab"`.
+2. If your environment needs access control, also provide `-Token "your-token"`.
+
+### Configure Collaboration in ART
+
+1. Open Application Settings.
+2. Open Collaboration.
+3. Turn on Enable Collaboration.
+4. Set Live collaboration server URL (default: ws://localhost:8787/art-live).
+5. Optional: set Live session name and auto-connect preference.
+
+### Fastest Live Workflow (One Click)
+
+1. In Collaboration settings, choose Quick Start Live Collaboration.
+2. ART applies live defaults, connects to server, and starts a live session.
+3. Verify status in Live summary and Collaboration session summary.
+
+### Manual Live Workflow
+
+1. Select Connect Server.
+2. Select Start Live Session.
+3. Continue work with collaboration enabled.
+4. Select Disconnect Server when done.
+
+### Asynchronous Shared-Folder Workflow
+
+Use this when users collaborate at different times:
+
+1. Ensure the collaboration server is configured with shared-folder persistence.
+2. User A connects and chooses Publish Async Snapshot.
+3. User B connects and chooses Pull Async Snapshot.
+4. ART applies pulled collaboration metadata and records sync timing.
+
+### Collaboration Disconnect and Cleanup
+
+When ending collaboration:
+
+1. Select Disconnect Server.
+2. Optionally clear temporary sessions using Clear Collaboration Sessions.
+3. Optionally use Reset to Baseline to return to a standard Solo/Team setup.
+
+### Collaboration Troubleshooting
+
+- If connect fails:
+	- Verify server is running.
+	- Confirm URL and WebSocket path match server configuration.
+	- Confirm token matches server token when required.
+- If pull fails:
+	- Ensure another user published a snapshot first.
+	- Confirm shared-folder mode is enabled on server when using asynchronous workflows.
+- If status remains offline:
+	- Check the Live summary and settings status message for error details.
+
 ## Resource Relationships
 ART Version 1.5 includes a Resource Relationship Framework that keeps track of how workspace resources relate to one another.
 

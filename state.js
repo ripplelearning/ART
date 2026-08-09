@@ -225,6 +225,24 @@ const defaultState = {
         settingsImportTemplateFile: '',
         settingsOpenIntegrations: '',
         settingsCustomizeAnalytics: '',
+        settingsCustomizeCollaboration: '',
+        toggleCollaboration: '',
+        toggleCollaborationToolbar: '',
+        settingsCollaborationApplySoloDefaults: '',
+        settingsCollaborationApplyTeamDefaults: '',
+        settingsCollaborationResetBaseline: '',
+        settingsCollaborationRecordSyncCheckpoint: '',
+        settingsCollaborationGenerateDiscoverySnapshot: '',
+        settingsCollaborationQueueTestConflict: '',
+        settingsCollaborationResolveOldestConflict: '',
+        settingsCollaborationRegisterPresenceSession: '',
+        settingsCollaborationClearSessions: '',
+        settingsCollaborationLiveQuickStart: '',
+        settingsCollaborationLiveConnect: '',
+        settingsCollaborationLiveDisconnect: '',
+        settingsCollaborationLiveStartSession: '',
+        settingsCollaborationPublishAsyncSnapshot: '',
+        settingsCollaborationPullAsyncSnapshot: '',
         settingsPluginInstall: '',
         settingsPluginValidate: '',
         settingsPluginRefresh: '',
@@ -374,6 +392,68 @@ const defaultState = {
             announceScopeChanges: true,
             emphasizeSectionDescriptions: true
         }
+    },
+    collaboration: {
+        enabled: false,
+        showToolbar: false,
+        toolbarPosition: 'top-right',
+        mode: 'independent',
+        providerId: 'local',
+        providerName: 'Local collaboration',
+        providerStatus: 'available',
+        providerCapabilities: {
+            sharedWorkspaces: true,
+            asynchronousCollaboration: true,
+            synchronizedCollaboration: false,
+            realtimeEditing: false,
+            comments: true,
+            sharing: false,
+            permissions: false,
+            versionHistory: false,
+            presence: false,
+            synchronization: false,
+            offline: true
+        },
+        resourceDefaults: {
+            owner: '',
+            visibility: 'private',
+            permissionProfile: 'Private',
+            sharing: [],
+            auditHistory: []
+        },
+        permissions: {
+            profiles: [],
+            assignments: []
+        },
+        sharing: {
+            discoveryScope: 'workspace',
+            allowDirectoryListing: false,
+            requireApproval: true,
+            allowGuestLinks: false,
+            defaultExpiryDays: 30,
+            channels: []
+        },
+        synchronization: {
+            enabled: false,
+            mode: 'manual',
+            conflictStrategy: 'manual-review',
+            autoMergeComments: true,
+            autoMergeMetadata: false,
+            keepVersionHistory: true,
+            maxVersionsPerResource: 20,
+            lastSyncAt: '',
+            pendingConflicts: []
+        },
+        live: {
+            serverUrl: 'ws://localhost:8787/art-live',
+            autoConnect: false,
+            connectionState: 'offline',
+            lastConnectedAt: '',
+            lastError: '',
+            sessionName: 'Live Session'
+        },
+        sessions: [],
+        auditHistory: []
     },
     workspaceView: {
         active: 'dashboard',
@@ -885,6 +965,159 @@ function normalizeAnalyticsConfig(config) {
     };
 }
 
+function normalizeCollaborationCapabilities(capabilities) {
+    const source = capabilities && typeof capabilities === 'object' ? capabilities : {};
+    return {
+        sharedWorkspaces: source.sharedWorkspaces !== false,
+        asynchronousCollaboration: source.asynchronousCollaboration !== false,
+        synchronizedCollaboration: Boolean(source.synchronizedCollaboration),
+        realtimeEditing: Boolean(source.realtimeEditing),
+        comments: Boolean(source.comments),
+        sharing: Boolean(source.sharing),
+        permissions: Boolean(source.permissions),
+        versionHistory: Boolean(source.versionHistory),
+        presence: Boolean(source.presence),
+        synchronization: Boolean(source.synchronization),
+        offline: source.offline !== false
+    };
+}
+
+function normalizeCollaborationConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    const allowedModes = new Set(['independent', 'asynchronous', 'synchronous', 'realtime']);
+    const allowedPositions = new Set(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
+    const allowedVisibility = new Set(['private', 'shared', 'workspace', 'organization', 'public']);
+    const allowedDiscoveryScopes = new Set(['resource', 'workspace', 'organization']);
+    const allowedSyncModes = new Set(['manual', 'scheduled', 'realtime']);
+    const allowedConflictStrategies = new Set(['manual-review', 'latest-write-wins', 'metadata-priority', 'comments-append']);
+
+    return {
+        enabled: Boolean(source.enabled),
+        showToolbar: Boolean(source.showToolbar),
+        toolbarPosition: allowedPositions.has(String(source.toolbarPosition || defaultState.collaboration.toolbarPosition).trim())
+            ? String(source.toolbarPosition || defaultState.collaboration.toolbarPosition).trim()
+            : defaultState.collaboration.toolbarPosition,
+        mode: allowedModes.has(String(source.mode || defaultState.collaboration.mode).trim())
+            ? String(source.mode || defaultState.collaboration.mode).trim()
+            : defaultState.collaboration.mode,
+        providerId: String(source.providerId || defaultState.collaboration.providerId).trim() || defaultState.collaboration.providerId,
+        providerName: String(source.providerName || defaultState.collaboration.providerName).trim() || defaultState.collaboration.providerName,
+        providerStatus: String(source.providerStatus || defaultState.collaboration.providerStatus).trim() || defaultState.collaboration.providerStatus,
+        providerCapabilities: normalizeCollaborationCapabilities(source.providerCapabilities),
+        resourceDefaults: {
+            owner: String(source.resourceDefaults?.owner || '').trim(),
+            visibility: allowedVisibility.has(String(source.resourceDefaults?.visibility || defaultState.collaboration.resourceDefaults.visibility).trim())
+                ? String(source.resourceDefaults?.visibility || defaultState.collaboration.resourceDefaults.visibility).trim()
+                : defaultState.collaboration.resourceDefaults.visibility,
+            permissionProfile: String(source.resourceDefaults?.permissionProfile || defaultState.collaboration.resourceDefaults.permissionProfile).trim() || defaultState.collaboration.resourceDefaults.permissionProfile,
+            sharing: Array.isArray(source.resourceDefaults?.sharing)
+                ? source.resourceDefaults.sharing.map((value) => String(value || '').trim()).filter(Boolean)
+                : [],
+            auditHistory: Array.isArray(source.resourceDefaults?.auditHistory)
+                ? source.resourceDefaults.auditHistory.map((entry) => ({
+                    at: String(entry?.at || ''),
+                    action: String(entry?.action || 'Collaboration event'),
+                    detail: String(entry?.detail || '')
+                }))
+                : []
+        },
+        permissions: {
+            profiles: Array.isArray(source.permissions?.profiles)
+                ? source.permissions.profiles.map((profile) => ({
+                    id: String(profile?.id || '').trim(),
+                    name: String(profile?.name || '').trim(),
+                    permissions: Array.isArray(profile?.permissions) ? profile.permissions.map((item) => String(item || '').trim()).filter(Boolean) : []
+                })).filter((profile) => profile.id || profile.name)
+                : [],
+            assignments: Array.isArray(source.permissions?.assignments)
+                ? source.permissions.assignments.map((assignment) => ({
+                    resourceType: String(assignment?.resourceType || '').trim(),
+                    resourceId: String(assignment?.resourceId || '').trim(),
+                    principalId: String(assignment?.principalId || '').trim(),
+                    principalType: String(assignment?.principalType || 'user').trim(),
+                    visibility: allowedVisibility.has(String(assignment?.visibility || '').trim()) ? String(assignment?.visibility || '').trim() : '',
+                    permissions: Array.isArray(assignment?.permissions) ? assignment.permissions.map((item) => String(item || '').trim()).filter(Boolean) : [],
+                    inheritedFrom: String(assignment?.inheritedFrom || '').trim(),
+                    source: String(assignment?.source || '').trim()
+                })).filter((assignment) => assignment.resourceType || assignment.resourceId || assignment.principalId)
+                : []
+        },
+        sharing: {
+            discoveryScope: allowedDiscoveryScopes.has(String(source.sharing?.discoveryScope || defaultState.collaboration.sharing.discoveryScope).trim())
+                ? String(source.sharing?.discoveryScope || defaultState.collaboration.sharing.discoveryScope).trim()
+                : defaultState.collaboration.sharing.discoveryScope,
+            allowDirectoryListing: Boolean(source.sharing?.allowDirectoryListing),
+            requireApproval: source.sharing?.requireApproval !== false,
+            allowGuestLinks: Boolean(source.sharing?.allowGuestLinks),
+            defaultExpiryDays: Number.isFinite(Number(source.sharing?.defaultExpiryDays))
+                ? Math.max(1, Math.min(3650, Number(source.sharing.defaultExpiryDays)))
+                : defaultState.collaboration.sharing.defaultExpiryDays,
+            channels: Array.isArray(source.sharing?.channels)
+                ? source.sharing.channels.map((channel) => String(channel || '').trim()).filter(Boolean)
+                : []
+        },
+        synchronization: {
+            enabled: Boolean(source.synchronization?.enabled),
+            mode: allowedSyncModes.has(String(source.synchronization?.mode || defaultState.collaboration.synchronization.mode).trim())
+                ? String(source.synchronization?.mode || defaultState.collaboration.synchronization.mode).trim()
+                : defaultState.collaboration.synchronization.mode,
+            conflictStrategy: allowedConflictStrategies.has(String(source.synchronization?.conflictStrategy || defaultState.collaboration.synchronization.conflictStrategy).trim())
+                ? String(source.synchronization?.conflictStrategy || defaultState.collaboration.synchronization.conflictStrategy).trim()
+                : defaultState.collaboration.synchronization.conflictStrategy,
+            autoMergeComments: source.synchronization?.autoMergeComments !== false,
+            autoMergeMetadata: Boolean(source.synchronization?.autoMergeMetadata),
+            keepVersionHistory: source.synchronization?.keepVersionHistory !== false,
+            maxVersionsPerResource: Number.isFinite(Number(source.synchronization?.maxVersionsPerResource))
+                ? Math.max(1, Math.min(500, Number(source.synchronization.maxVersionsPerResource)))
+                : defaultState.collaboration.synchronization.maxVersionsPerResource,
+            lastSyncAt: String(source.synchronization?.lastSyncAt || '').trim(),
+            pendingConflicts: Array.isArray(source.synchronization?.pendingConflicts)
+                ? source.synchronization.pendingConflicts.map((conflict, index) => ({
+                    id: String(conflict?.id || `conflict-${index + 1}`).trim(),
+                    resourceType: String(conflict?.resourceType || '').trim(),
+                    resourceId: String(conflict?.resourceId || '').trim(),
+                    workspaceId: String(conflict?.workspaceId || '').trim(),
+                    summary: String(conflict?.summary || '').trim(),
+                    strategy: String(conflict?.strategy || 'manual-review').trim() || 'manual-review',
+                    status: String(conflict?.status || 'pending').trim() || 'pending',
+                    detectedAt: String(conflict?.detectedAt || '').trim(),
+                    resolvedAt: String(conflict?.resolvedAt || '').trim(),
+                    metadata: conflict?.metadata && typeof conflict.metadata === 'object' ? { ...conflict.metadata } : {}
+                })).filter((conflict) => conflict.id)
+                : []
+        },
+        live: {
+            serverUrl: String(source.live?.serverUrl || defaultState.collaboration.live.serverUrl).trim() || defaultState.collaboration.live.serverUrl,
+            autoConnect: Boolean(source.live?.autoConnect),
+            connectionState: String(source.live?.connectionState || defaultState.collaboration.live.connectionState).trim() || defaultState.collaboration.live.connectionState,
+            lastConnectedAt: String(source.live?.lastConnectedAt || '').trim(),
+            lastError: String(source.live?.lastError || '').trim(),
+            sessionName: String(source.live?.sessionName || defaultState.collaboration.live.sessionName).trim() || defaultState.collaboration.live.sessionName
+        },
+        sessions: Array.isArray(source.sessions)
+            ? source.sessions.map((session, index) => ({
+                id: String(session?.id || `collaboration-session-${index + 1}`).trim(),
+                resourceType: String(session?.resourceType || '').trim(),
+                resourceId: String(session?.resourceId || '').trim(),
+                userId: String(session?.userId || '').trim(),
+                state: String(session?.state || 'inactive').trim(),
+                providerId: String(session?.providerId || '').trim(),
+                connectionState: String(session?.connectionState || 'offline').trim(),
+                startedAt: String(session?.startedAt || ''),
+                lastActivityAt: String(session?.lastActivityAt || ''),
+                metadata: session?.metadata && typeof session.metadata === 'object' ? { ...session.metadata } : {}
+            }))
+            : [],
+        auditHistory: Array.isArray(source.auditHistory)
+            ? source.auditHistory.map((entry) => ({
+                at: String(entry?.at || ''),
+                action: String(entry?.action || 'Collaboration event'),
+                detail: String(entry?.detail || '')
+            }))
+            : []
+    };
+}
+
 function normalizeWorkspaceAsset(asset, index = 0) {
     const source = asset && typeof asset === 'object' ? asset : {};
     const now = new Date().toISOString();
@@ -938,6 +1171,9 @@ function normalizeProjectWorkspace(workspace, index = 0) {
     const extensions = source.extensions && typeof source.extensions === 'object' ? source.extensions : {};
     const integrationMetadata = source.integrationMetadata && typeof source.integrationMetadata === 'object' ? source.integrationMetadata : {};
     const brandingDefaultsSource = source.brandingDefaults || integrationMetadata.brandingDefaults || null;
+    const collaboration = source.collaboration && typeof source.collaboration === 'object'
+        ? normalizeCollaborationConfig(source.collaboration)
+        : normalizeCollaborationConfig(defaultState.collaboration);
 
     return {
         id,
@@ -953,6 +1189,7 @@ function normalizeProjectWorkspace(workspace, index = 0) {
         folderPath: String(source.folderPath || '').trim(),
         projectFileName: String(source.projectFileName || 'Project.artproj').trim() || 'Project.artproj',
         projectVersion: String(source.projectVersion || '2.0').trim() || '2.0',
+        collaboration,
         associatedReportIds: Array.isArray(source.associatedReportIds)
             ? source.associatedReportIds.map((value) => String(value || '').trim()).filter(Boolean)
             : [],
@@ -1021,27 +1258,21 @@ function normalizeProjectWorkspaces(list) {
 
 function normalizeRecentProjectWorkspaces(list) {
     if (!Array.isArray(list)) return [];
-    return list
-        .map((item, index) => {
-            const source = item && typeof item === 'object' ? item : {};
-            const id = String(source.id || source.workspaceId || `recent-workspace-${Date.now()}-${index}`).trim() || `recent-workspace-${Date.now()}-${index}`;
-            return {
-                id,
-                workspaceId: String(source.workspaceId || source.id || '').trim(),
-                name: String(source.name || source.projectName || 'Project Workspace').trim() || 'Project Workspace',
-                folderPath: String(source.folderPath || '').trim(),
-                lastOpenedAt: String(source.lastOpenedAt || new Date().toISOString()),
-                pinned: Boolean(source.pinned)
-            };
-        })
-        .filter((item, index, array) => array.findIndex((candidate) => candidate.id === item.id) === index)
-        .slice(0, 20);
-}
-
-function normalizeSearchScopePreference(value) {
-    const normalized = String(value || '').trim();
-    const allowed = new Set(['auto', 'current-report', 'current-project-workspace', 'entire-workspace', 'prompt']);
-    return allowed.has(normalized) ? normalized : 'auto';
+    return list.map((item, index) => {
+        const source = item && typeof item === 'object' ? item : {};
+        const id = String(source.id || source.workspaceId || `recent-workspace-${index + 1}`).trim() || `recent-workspace-${index + 1}`;
+        return {
+            id,
+            workspaceId: String(source.workspaceId || source.id || '').trim(),
+            name: String(source.name || source.projectName || source.workspaceName || 'Project Workspace').trim() || 'Project Workspace',
+            folderPath: String(source.folderPath || '').trim(),
+            lastOpenedAt: String(source.lastOpenedAt || ''),
+            workspaceName: String(source.workspaceName || source.name || '').trim(),
+            description: String(source.description || '').trim(),
+            projectName: String(source.projectName || source.name || '').trim(),
+            metadata: source.metadata && typeof source.metadata === 'object' ? { ...source.metadata } : {}
+        };
+    });
 }
 
 function normalizeSearchCollection(item, index = 0) {
@@ -1098,6 +1329,15 @@ function normalizeSearchSession(session) {
         highlights: Array.isArray(source.highlights) ? source.highlights.map((item) => ({ ...item })) : [],
         resultCounts: source.resultCounts && typeof source.resultCounts === 'object' ? { ...source.resultCounts } : {}
     };
+}
+
+function normalizeSearchScopePreference(value) {
+    const preference = String(value || 'auto').trim().toLowerCase();
+    const allowedPreferences = new Set(['auto', 'current-project-workspace', 'current-report', 'entire-workspace', 'prompt']);
+    if (allowedPreferences.has(preference)) return preference;
+    if (preference === 'report') return 'current-report';
+    if (preference === 'workspace') return 'entire-workspace';
+    return 'auto';
 }
 
 function normalizeUniversalSearchConfig(config) {
@@ -1448,6 +1688,24 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'settingsImportTemplateFile', label: 'Import Template File from Device', defaultShortcut: defaultState.shortcuts.settingsImportTemplateFile },
     { action: 'settingsOpenIntegrations', label: 'Open Integrations Section', defaultShortcut: defaultState.shortcuts.settingsOpenIntegrations },
     { action: 'settingsCustomizeAnalytics', label: 'Open Analytics Settings Section', defaultShortcut: defaultState.shortcuts.settingsCustomizeAnalytics },
+    { action: 'settingsCustomizeCollaboration', label: 'Open Collaboration Settings Section', defaultShortcut: defaultState.shortcuts.settingsCustomizeCollaboration },
+    { action: 'toggleCollaboration', label: 'Toggle Collaboration', defaultShortcut: defaultState.shortcuts.toggleCollaboration },
+    { action: 'toggleCollaborationToolbar', label: 'Toggle Collaboration Toolbar', defaultShortcut: defaultState.shortcuts.toggleCollaborationToolbar },
+    { action: 'settingsCollaborationApplySoloDefaults', label: 'Apply Collaboration Solo Defaults', defaultShortcut: defaultState.shortcuts.settingsCollaborationApplySoloDefaults },
+    { action: 'settingsCollaborationApplyTeamDefaults', label: 'Apply Collaboration Team Defaults', defaultShortcut: defaultState.shortcuts.settingsCollaborationApplyTeamDefaults },
+    { action: 'settingsCollaborationResetBaseline', label: 'Reset Collaboration Baseline', defaultShortcut: defaultState.shortcuts.settingsCollaborationResetBaseline },
+    { action: 'settingsCollaborationRecordSyncCheckpoint', label: 'Record Collaboration Sync Checkpoint', defaultShortcut: defaultState.shortcuts.settingsCollaborationRecordSyncCheckpoint },
+    { action: 'settingsCollaborationGenerateDiscoverySnapshot', label: 'Generate Collaboration Discovery Snapshot', defaultShortcut: defaultState.shortcuts.settingsCollaborationGenerateDiscoverySnapshot },
+    { action: 'settingsCollaborationQueueTestConflict', label: 'Queue Collaboration Test Conflict', defaultShortcut: defaultState.shortcuts.settingsCollaborationQueueTestConflict },
+    { action: 'settingsCollaborationResolveOldestConflict', label: 'Resolve Oldest Collaboration Conflict', defaultShortcut: defaultState.shortcuts.settingsCollaborationResolveOldestConflict },
+    { action: 'settingsCollaborationRegisterPresenceSession', label: 'Register Collaboration Presence Session', defaultShortcut: defaultState.shortcuts.settingsCollaborationRegisterPresenceSession },
+    { action: 'settingsCollaborationClearSessions', label: 'Clear Collaboration Sessions', defaultShortcut: defaultState.shortcuts.settingsCollaborationClearSessions },
+    { action: 'settingsCollaborationLiveQuickStart', label: 'Quick Start Live Collaboration', defaultShortcut: defaultState.shortcuts.settingsCollaborationLiveQuickStart },
+    { action: 'settingsCollaborationLiveConnect', label: 'Connect Live Collaboration Server', defaultShortcut: defaultState.shortcuts.settingsCollaborationLiveConnect },
+    { action: 'settingsCollaborationLiveDisconnect', label: 'Disconnect Live Collaboration Server', defaultShortcut: defaultState.shortcuts.settingsCollaborationLiveDisconnect },
+    { action: 'settingsCollaborationLiveStartSession', label: 'Start Live Collaboration Session', defaultShortcut: defaultState.shortcuts.settingsCollaborationLiveStartSession },
+    { action: 'settingsCollaborationPublishAsyncSnapshot', label: 'Publish Async Collaboration Snapshot', defaultShortcut: defaultState.shortcuts.settingsCollaborationPublishAsyncSnapshot },
+    { action: 'settingsCollaborationPullAsyncSnapshot', label: 'Pull Async Collaboration Snapshot', defaultShortcut: defaultState.shortcuts.settingsCollaborationPullAsyncSnapshot },
     { action: 'settingsPluginInstall', label: 'Install Plugin Manifest', defaultShortcut: defaultState.shortcuts.settingsPluginInstall },
     { action: 'settingsPluginValidate', label: 'Validate Plugin Extensions', defaultShortcut: defaultState.shortcuts.settingsPluginValidate },
     { action: 'settingsPluginRefresh', label: 'Refresh Plugin Manager', defaultShortcut: defaultState.shortcuts.settingsPluginRefresh },
@@ -1742,6 +2000,24 @@ export function getAssignableActions() {
         { action: 'settingsImportTemplateFile', label: 'Import Template File from Device' },
         { action: 'settingsOpenIntegrations', label: 'Open Integrations Section' },
         { action: 'settingsCustomizeAnalytics', label: 'Open Analytics Settings Section' },
+        { action: 'settingsCustomizeCollaboration', label: 'Open Collaboration Settings Section' },
+        { action: 'toggleCollaboration', label: 'Toggle Collaboration' },
+        { action: 'toggleCollaborationToolbar', label: 'Toggle Collaboration Toolbar' },
+        { action: 'settingsCollaborationApplySoloDefaults', label: 'Apply Collaboration Solo Defaults' },
+        { action: 'settingsCollaborationApplyTeamDefaults', label: 'Apply Collaboration Team Defaults' },
+        { action: 'settingsCollaborationResetBaseline', label: 'Reset Collaboration Baseline' },
+        { action: 'settingsCollaborationRecordSyncCheckpoint', label: 'Record Collaboration Sync Checkpoint' },
+        { action: 'settingsCollaborationGenerateDiscoverySnapshot', label: 'Generate Collaboration Discovery Snapshot' },
+        { action: 'settingsCollaborationQueueTestConflict', label: 'Queue Collaboration Test Conflict' },
+        { action: 'settingsCollaborationResolveOldestConflict', label: 'Resolve Oldest Collaboration Conflict' },
+        { action: 'settingsCollaborationRegisterPresenceSession', label: 'Register Collaboration Presence Session' },
+        { action: 'settingsCollaborationClearSessions', label: 'Clear Collaboration Sessions' },
+        { action: 'settingsCollaborationLiveQuickStart', label: 'Quick Start Live Collaboration' },
+        { action: 'settingsCollaborationLiveConnect', label: 'Connect Live Collaboration Server' },
+        { action: 'settingsCollaborationLiveDisconnect', label: 'Disconnect Live Collaboration Server' },
+        { action: 'settingsCollaborationLiveStartSession', label: 'Start Live Collaboration Session' },
+        { action: 'settingsCollaborationPublishAsyncSnapshot', label: 'Publish Async Collaboration Snapshot' },
+        { action: 'settingsCollaborationPullAsyncSnapshot', label: 'Pull Async Collaboration Snapshot' },
         { action: 'settingsPluginInstall', label: 'Install Plugin Manifest' },
         { action: 'settingsPluginValidate', label: 'Validate Plugin Extensions' },
         { action: 'settingsPluginRefresh', label: 'Refresh Plugin Manager' },
@@ -2067,6 +2343,7 @@ export let appState = {
     security: normalizeSecurityConfig(storedState.security),
     visualAccessibility: normalizeVisualAccessibilityConfig(storedState.visualAccessibility),
     analytics: normalizeAnalyticsConfig(storedState.analytics),
+    collaboration: normalizeCollaborationConfig(storedState.collaboration),
     workspaceView: normalizeWorkspaceViewConfig(storedState.workspaceView),
     userTemplates: Array.isArray(storedState.userTemplates)
         ? storedState.userTemplates.map(normalizeTemplate)
@@ -2099,6 +2376,7 @@ function normalizeStateSnapshot(rawState) {
         security: normalizeSecurityConfig(base.security),
         visualAccessibility: normalizeVisualAccessibilityConfig(base.visualAccessibility),
         analytics: normalizeAnalyticsConfig(base.analytics),
+        collaboration: normalizeCollaborationConfig(base.collaboration),
         workspaceView: normalizeWorkspaceViewConfig(base.workspaceView),
         dashboard: normalizeDashboardConfig(base.dashboard),
         resourceOrganization: normalizeResourceOrganizationConfig(base.resourceOrganization),
@@ -3279,6 +3557,108 @@ export function updateAnalyticsConfig(updates = {}, options = {}) {
     }));
 
     return getAnalyticsConfig();
+}
+
+export function getCollaborationConfig() {
+    return normalizeCollaborationConfig(appState.collaboration);
+}
+
+export function updateCollaborationConfig(updates = {}, options = {}) {
+    const source = updates && typeof updates === 'object' ? updates : {};
+    const next = normalizeCollaborationConfig({
+        ...appState.collaboration,
+        ...source,
+        resourceDefaults: {
+            ...(appState.collaboration?.resourceDefaults || {}),
+            ...(source.resourceDefaults && typeof source.resourceDefaults === 'object' ? source.resourceDefaults : {})
+        },
+        providerCapabilities: {
+            ...(appState.collaboration?.providerCapabilities || {}),
+            ...(source.providerCapabilities && typeof source.providerCapabilities === 'object' ? source.providerCapabilities : {})
+        },
+        permissions: {
+            ...(appState.collaboration?.permissions || {}),
+            ...(source.permissions && typeof source.permissions === 'object' ? source.permissions : {})
+        },
+        sharing: {
+            ...(appState.collaboration?.sharing || {}),
+            ...(source.sharing && typeof source.sharing === 'object' ? source.sharing : {})
+        },
+        synchronization: {
+            ...(appState.collaboration?.synchronization || {}),
+            ...(source.synchronization && typeof source.synchronization === 'object' ? source.synchronization : {})
+        },
+        live: {
+            ...(appState.collaboration?.live || {}),
+            ...(source.live && typeof source.live === 'object' ? source.live : {})
+        }
+    });
+
+    appState.collaboration = next;
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated collaboration settings'), recordHistory: false });
+    }
+
+    window.dispatchEvent(new Event('art-collaboration-updated'));
+
+    return getCollaborationConfig();
+}
+
+export function resetCollaborationConfig(options = {}) {
+    return updateCollaborationConfig(defaultState.collaboration, {
+        ...options,
+        action: String(options.action || 'Reset collaboration settings')
+    });
+}
+
+export function isCollaborationEnabled() {
+    return Boolean(getCollaborationConfig().enabled);
+}
+
+export function canShowCollaborationToolbar() {
+    const collaboration = getCollaborationConfig();
+    return collaboration.enabled && collaboration.showToolbar;
+}
+
+export function setCollaborationToolbarPosition(position, options = {}) {
+    return updateCollaborationConfig({ toolbarPosition: String(position || '').trim() || defaultState.collaboration.toolbarPosition }, options);
+}
+
+export function normalizeCollaborationResourceMetadata(resourceType, metadata = {}) {
+    const source = metadata && typeof metadata === 'object' ? metadata : {};
+    const allowedVisibility = new Set(['private', 'shared', 'workspace', 'organization', 'public']);
+    const permissionProfile = String(source.permissionProfile || '').trim();
+    const visibility = allowedVisibility.has(String(source.visibility || 'private').trim()) ? String(source.visibility || 'private').trim() : 'private';
+
+    return {
+        resourceType: String(resourceType || '').trim(),
+        owner: String(source.owner || '').trim(),
+        visibility,
+        permissionProfile,
+        permissionAssignments: Array.isArray(source.permissionAssignments)
+            ? source.permissionAssignments.map((assignment) => ({
+                principalId: String(assignment?.principalId || '').trim(),
+                principalType: String(assignment?.principalType || 'user').trim(),
+                permissions: Array.isArray(assignment?.permissions) ? assignment.permissions.map((item) => String(item || '').trim()).filter(Boolean) : [],
+                source: String(assignment?.source || '').trim()
+            })).filter((assignment) => assignment.principalId)
+            : [],
+        sharing: Array.isArray(source.sharing) ? source.sharing.map((item) => String(item || '').trim()).filter(Boolean) : [],
+        comments: Array.isArray(source.comments)
+            ? source.comments.map((comment) => ({
+                at: String(comment?.at || '').trim(),
+                author: String(comment?.author || '').trim(),
+                text: String(comment?.text || '').trim()
+            })).filter((comment) => comment.text)
+            : [],
+        auditHistory: Array.isArray(source.auditHistory)
+            ? source.auditHistory.map((entry) => ({
+                at: String(entry?.at || ''),
+                action: String(entry?.action || 'Collaboration event'),
+                detail: String(entry?.detail || '')
+            }))
+            : []
+    };
 }
 
 export function setUniversalSearchScopePreference(scopePreference, options = {}) {
@@ -4595,6 +4975,7 @@ export function getApplicationInfo() {
         })),
         visualAccessibility: getVisualAccessibilityConfig(),
         analytics: getAnalyticsConfig(),
+        collaboration: getCollaborationConfig(),
         workspaceView: getWorkspaceViewConfig()
     };
 }
@@ -4632,6 +5013,7 @@ function createManagedDataSnapshot() {
         importedStandards: appState.importedStandards,
         shortcuts: appState.shortcuts,
         analytics: appState.analytics,
+        collaboration: appState.collaboration,
         dashboard: appState.dashboard,
         workspaceView: appState.workspaceView,
         resourceOrganization: appState.resourceOrganization,

@@ -18,6 +18,7 @@ import {
     removeProjectWorkspaceAsset,
     saveState,
     setActiveProjectWorkspace,
+    getCollaborationConfig,
     updateProjectWorkspaceState,
     upsertProjectWorkspace
 } from './state.js';
@@ -40,6 +41,7 @@ import {
     openSavedViewManagerFromCommand,
     openTagManagerFromCommand
 } from './resourceOrganizationFramework.js';
+import { getCollaborationResourceMetadata, setCollaborationResourceMetadata } from './collaborationFramework.js';
 import {
     getHistoryFrameworkSnapshot,
     getHistoryResourceSummary,
@@ -278,9 +280,51 @@ function ensureWorkspaceDialogs() {
             <button id="btn-workspace-resource-copy-name" type="button">Copy Resource Name</button>
             <button id="btn-workspace-resource-copy-path" type="button">Copy Resource Path</button>
             <button id="btn-workspace-resource-copy-relationships" type="button">Copy Relationship Information</button>
+            <button id="btn-workspace-resource-edit-collaboration" type="button">Edit Collaboration...</button>
+            <button id="btn-workspace-resource-add-comment" type="button">Add Comment...</button>
         </div>
     `;
     document.body.appendChild(resourceDialog);
+
+    const collaborationDialog = document.createElement('div');
+    collaborationDialog.id = 'workspace-resource-collaboration-dialog';
+    collaborationDialog.className = 'workspace-dialog';
+    collaborationDialog.setAttribute('role', 'dialog');
+    collaborationDialog.setAttribute('aria-modal', 'true');
+    collaborationDialog.setAttribute('aria-labelledby', 'workspace-resource-collaboration-heading');
+    collaborationDialog.hidden = true;
+    collaborationDialog.innerHTML = `
+        <div class="workspace-dialog__header">
+            <h3 id="workspace-resource-collaboration-heading">Edit Collaboration</h3>
+            <button id="btn-workspace-resource-collaboration-close" type="button">Close</button>
+        </div>
+        <div id="workspace-resource-collaboration-content" class="workspace-dialog__content"></div>
+        <div class="workspace-dialog__actions" role="group" aria-label="Collaboration edit actions">
+            <button id="btn-workspace-resource-collaboration-save" type="button">Save Collaboration</button>
+            <button id="btn-workspace-resource-collaboration-cancel" type="button">Cancel</button>
+        </div>
+    `;
+    document.body.appendChild(collaborationDialog);
+
+    const commentDialog = document.createElement('div');
+    commentDialog.id = 'workspace-resource-comment-dialog';
+    commentDialog.className = 'workspace-dialog';
+    commentDialog.setAttribute('role', 'dialog');
+    commentDialog.setAttribute('aria-modal', 'true');
+    commentDialog.setAttribute('aria-labelledby', 'workspace-resource-comment-heading');
+    commentDialog.hidden = true;
+    commentDialog.innerHTML = `
+        <div class="workspace-dialog__header">
+            <h3 id="workspace-resource-comment-heading">Add Collaboration Comment</h3>
+            <button id="btn-workspace-resource-comment-close" type="button">Close</button>
+        </div>
+        <div id="workspace-resource-comment-content" class="workspace-dialog__content"></div>
+        <div class="workspace-dialog__actions" role="group" aria-label="Collaboration comment actions">
+            <button id="btn-workspace-resource-comment-save" type="button">Add Comment</button>
+            <button id="btn-workspace-resource-comment-cancel" type="button">Cancel</button>
+        </div>
+    `;
+    document.body.appendChild(commentDialog);
 
     const deletionDialog = document.createElement('div');
     deletionDialog.id = 'workspace-resource-deletion-dialog';
@@ -339,6 +383,134 @@ function closeWorkspaceDialog(dialog, restoreTarget = null) {
     }
 }
 
+function openResourceCommentDialog(resourceDetails, triggerElement = null, onSave = null) {
+    ensureWorkspaceDialogs();
+    const dialog = document.getElementById('workspace-resource-comment-dialog');
+    const content = document.getElementById('workspace-resource-comment-content');
+    const closeButton = document.getElementById('btn-workspace-resource-comment-close');
+    const saveButton = document.getElementById('btn-workspace-resource-comment-save');
+    const cancelButton = document.getElementById('btn-workspace-resource-comment-cancel');
+
+    if (!dialog || !content || !closeButton || !saveButton || !cancelButton || !resourceDetails) {
+        return false;
+    }
+
+    content.innerHTML = `
+        <p><strong>Resource:</strong> ${escapeHtml(resourceDetails.name)}</p>
+        <label for="workspace-resource-comment-author">Comment author</label>
+        <input id="workspace-resource-comment-author" type="text" value="${escapeHtml(appState.auditors || 'User')}">
+        <label for="workspace-resource-comment-text">Comment</label>
+        <textarea id="workspace-resource-comment-text" rows="4" placeholder="Enter a collaboration comment"></textarea>
+        <p class="workspace-explorer__resource-meta">Comments are stored with the resource collaboration metadata.</p>
+    `;
+
+    const authorInput = document.getElementById('workspace-resource-comment-author');
+    const textInput = document.getElementById('workspace-resource-comment-text');
+
+    const closeDialog = () => closeWorkspaceDialog(dialog, triggerElement);
+
+    closeButton.onclick = closeDialog;
+    cancelButton.onclick = closeDialog;
+    saveButton.onclick = () => {
+        const author = normalizeText(authorInput?.value || appState.auditors || 'User') || 'User';
+        const commentText = normalizeText(textInput?.value || '');
+        if (!commentText) return;
+        if (typeof onSave === 'function') {
+            onSave({ author, commentText });
+        }
+        closeDialog();
+    };
+
+    dialog.onkeydown = (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDialog();
+        }
+    };
+
+    openWorkspaceDialog(dialog, authorInput || saveButton);
+    return true;
+}
+
+function openResourceCollaborationDialog(resourceDetails, triggerElement = null, onSave = null) {
+    ensureWorkspaceDialogs();
+    const dialog = document.getElementById('workspace-resource-collaboration-dialog');
+    const content = document.getElementById('workspace-resource-collaboration-content');
+    const closeButton = document.getElementById('btn-workspace-resource-collaboration-close');
+    const saveButton = document.getElementById('btn-workspace-resource-collaboration-save');
+    const cancelButton = document.getElementById('btn-workspace-resource-collaboration-cancel');
+
+    if (!dialog || !content || !closeButton || !saveButton || !cancelButton || !resourceDetails) {
+        return false;
+    }
+
+    const collaboration = resourceDetails.collaboration || {};
+    const currentSharing = Array.isArray(collaboration.sharing) ? collaboration.sharing.join(', ') : '';
+    const currentAssignments = Array.isArray(collaboration.permissionAssignments)
+        ? collaboration.permissionAssignments.map((assignment) => assignment?.principalId || assignment?.resourceId || assignment?.role || '').filter(Boolean).join(', ')
+        : '';
+
+    content.innerHTML = `
+        <p><strong>Resource:</strong> ${escapeHtml(resourceDetails.name)}</p>
+        <label for="workspace-resource-collaboration-owner">Owner</label>
+        <input id="workspace-resource-collaboration-owner" type="text" value="${escapeHtml(collaboration.owner || '')}">
+        <label for="workspace-resource-collaboration-visibility">Visibility</label>
+        <select id="workspace-resource-collaboration-visibility">
+            ${['private', 'shared', 'workspace', 'organization', 'public'].map((option) => `<option value="${option}"${String(collaboration.visibility || 'private') === option ? ' selected' : ''}>${option}</option>`).join('')}
+        </select>
+        <label for="workspace-resource-collaboration-profile">Permission profile</label>
+        <input id="workspace-resource-collaboration-profile" type="text" value="${escapeHtml(collaboration.permissionProfile || '')}">
+        <label for="workspace-resource-collaboration-sharing">Sharing targets</label>
+        <textarea id="workspace-resource-collaboration-sharing" rows="3" placeholder="Comma-separated sharing targets">${escapeHtml(currentSharing)}</textarea>
+        <label for="workspace-resource-collaboration-assignments">Permission assignments</label>
+        <textarea id="workspace-resource-collaboration-assignments" rows="4" placeholder="Comma-separated principals, roles, or targets">${escapeHtml(currentAssignments)}</textarea>
+        <p class="workspace-explorer__resource-meta">Permission assignments are stored with the resource collaboration metadata.</p>
+    `;
+
+    const ownerInput = document.getElementById('workspace-resource-collaboration-owner');
+    const visibilityInput = document.getElementById('workspace-resource-collaboration-visibility');
+    const profileInput = document.getElementById('workspace-resource-collaboration-profile');
+    const sharingInput = document.getElementById('workspace-resource-collaboration-sharing');
+    const assignmentsInput = document.getElementById('workspace-resource-collaboration-assignments');
+
+    const closeDialog = () => closeWorkspaceDialog(dialog, triggerElement);
+
+    closeButton.onclick = closeDialog;
+    cancelButton.onclick = closeDialog;
+    saveButton.onclick = () => {
+        const sharing = normalizeText(sharingInput?.value || '')
+            .split(',')
+            .map((value) => normalizeText(value))
+            .filter(Boolean);
+        const permissionAssignments = normalizeText(assignmentsInput?.value || '')
+            .split(',')
+            .map((value) => normalizeText(value))
+            .filter(Boolean)
+            .map((value) => ({ principalId: value }));
+
+        if (typeof onSave === 'function') {
+            onSave({
+                owner: normalizeText(ownerInput?.value || ''),
+                visibility: normalizeText(visibilityInput?.value || 'private').toLowerCase() || 'private',
+                permissionProfile: normalizeText(profileInput?.value || ''),
+                sharing,
+                permissionAssignments
+            });
+        }
+        closeDialog();
+    };
+
+    dialog.onkeydown = (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDialog();
+        }
+    };
+
+    openWorkspaceDialog(dialog, ownerInput || saveButton);
+    return true;
+}
+
 function updateExplorerStatus(message) {
     const status = document.getElementById('workspace-explorer-status');
     if (status) status.textContent = message;
@@ -379,6 +551,7 @@ function buildProjectWorkspacePayload(workspace, options = {}) {
             projectDescription: workspaceWithOrganization.description,
             projectOwner: workspaceWithOrganization.owner,
             organization: workspaceWithOrganization.organization,
+            collaboration: workspaceWithOrganization.collaboration || getCollaborationConfig(),
             dateCreated: workspaceWithOrganization.createdAt,
             lastModified: new Date().toISOString(),
             projectVersion: workspaceWithOrganization.projectVersion || '2.0',
@@ -386,12 +559,17 @@ function buildProjectWorkspacePayload(workspace, options = {}) {
         },
         workspace: {
             ...workspaceWithOrganization,
+            collaboration: workspaceWithOrganization.collaboration || getCollaborationConfig(),
             lastModifiedAt: new Date().toISOString(),
             statistics,
             health,
             workspaceState: includeWorkspaceState ? workspaceWithOrganization.workspaceState : {},
             resources: {
                 ...workspaceWithOrganization.resources,
+                extensions: {
+                    ...(workspaceWithOrganization.resources?.extensions || {}),
+                    collaboration: getCollaborationResourceMetadata('workspace', workspaceWithOrganization.id, workspaceWithOrganization.id)
+                },
                 reports: includeReports ? workspaceWithOrganization.resources.reports : [],
                 templates: includeTemplates ? workspaceWithOrganization.resources.templates : [],
                 projectAssets: includeAssets ? workspaceWithOrganization.resources.projectAssets : []
@@ -729,6 +907,7 @@ function renderWorkspaceExplorer() {
         const summaryText = hasRelationships
             ? `${item.relationshipCount} relationship${item.relationshipCount === 1 ? '' : 's'}`
             : 'No relationships';
+        const collaborationText = normalizeText(item.collaborationSummary || '');
 
         return `
             <li>
@@ -738,8 +917,9 @@ function renderWorkspaceExplorer() {
                             <button type="button" data-workspace-resource="true" data-resource-type="${escapeHtml(item.type)}" data-resource-id="${escapeHtml(item.id)}">
                                 ${escapeHtml(item.name)}
                             </button>
-                            <span class="workspace-explorer__resource-meta">${escapeHtml(item.subtitle || summaryText)}</span>
+                            <span class="workspace-explorer__resource-meta">${escapeHtml(item.subtitle || summaryText)}${collaborationText ? ` · ${escapeHtml(collaborationText)}` : ''}</span>
                             <span class="workspace-explorer__resource-badge">${escapeHtml(summaryText)}</span>
+                            ${collaborationText ? `<span class="workspace-explorer__resource-badge">${escapeHtml(item.collaboration?.visibility || 'private')}</span>` : ''}
                         </span>
                     </summary>
                     <div class="workspace-explorer__resource-actions" role="group" aria-label="${escapeHtml(item.name)} actions">
@@ -1158,16 +1338,18 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
     const copyNameButton = document.getElementById('btn-workspace-resource-copy-name');
     const copyPathButton = document.getElementById('btn-workspace-resource-copy-path');
     const copyRelationshipsButton = document.getElementById('btn-workspace-resource-copy-relationships');
+    const editCollaborationButton = document.getElementById('btn-workspace-resource-edit-collaboration');
+    const addCommentButton = document.getElementById('btn-workspace-resource-add-comment');
     const active = getActiveWorkspaceSafe();
 
-    if (!dialog || !content || !closeButton || !revealButton || !showRelationshipsButton || !showDependentsButton || !showReferencesButton || !previewDeletionButton || !copyNameButton || !copyPathButton || !copyRelationshipsButton || !active) {
+    if (!dialog || !content || !closeButton || !revealButton || !showRelationshipsButton || !showDependentsButton || !showReferencesButton || !previewDeletionButton || !copyNameButton || !copyPathButton || !copyRelationshipsButton || !editCollaborationButton || !addCommentButton || !active) {
         return false;
     }
 
     const details = getWorkspaceResourceDetails({ resourceType, resourceId }, active);
     if (!details) return false;
 
-    [revealButton, showRelationshipsButton, showDependentsButton, showReferencesButton, previewDeletionButton, copyNameButton, copyPathButton, copyRelationshipsButton]
+    [revealButton, showRelationshipsButton, showDependentsButton, showReferencesButton, previewDeletionButton, copyNameButton, copyPathButton, copyRelationshipsButton, editCollaborationButton, addCommentButton]
         .forEach((button) => {
             button.setAttribute('data-resource-type', details.type);
             button.setAttribute('data-resource-id', details.id);
@@ -1182,6 +1364,7 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
         resourceName: details.name,
         workspaceId: active.id
     });
+    const collaborationSummary = details.collaboration || null;
 
     const relationshipRows = visibleRelationshipCategories.filter((category) => {
         const filterValue = requestedSearch.toLowerCase();
@@ -1201,6 +1384,20 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
             <p><strong>Type:</strong> ${escapeHtml(details.type)}</p>
             <p><strong>Category:</strong> ${escapeHtml(details.category || details.subtitle || 'Resource')}</p>
             <p><strong>Path:</strong> ${escapeHtml(details.path || 'Not available')}</p>
+            <h4>Collaboration</h4>
+            ${collaborationSummary ? `
+                <p><strong>Status:</strong> ${escapeHtml(collaborationSummary.collaborationEnabled ? 'Enabled' : 'Disabled')}</p>
+                <p><strong>Visibility:</strong> ${escapeHtml(collaborationSummary.visibility || 'private')}</p>
+                <p><strong>Owner:</strong> ${escapeHtml(collaborationSummary.owner || 'Unassigned')}</p>
+                <p><strong>Permission Profile:</strong> ${escapeHtml(collaborationSummary.permissionProfile || 'Private')}</p>
+                <p><strong>Permissions:</strong> ${escapeHtml(String((collaborationSummary.permissionAssignments || []).length))}</p>
+                <p><strong>Audit Entries:</strong> ${escapeHtml(String(collaborationSummary.auditCount || 0))}</p>
+                ${collaborationSummary.latestAudit ? `<p><strong>Latest Audit:</strong> ${escapeHtml(collaborationSummary.latestAudit.action || 'Updated collaboration metadata')} ${escapeHtml(collaborationSummary.latestAudit.detail ? `(${collaborationSummary.latestAudit.detail})` : '')}</p>` : ''}
+                <p><strong>Comments:</strong> ${escapeHtml(collaborationSummary.commentsEnabled ? 'Available' : 'Unavailable')}</p>
+                <p><strong>Comment Count:</strong> ${escapeHtml(String(collaborationSummary.commentCount || 0))}</p>
+                ${collaborationSummary.latestComment ? `<p><strong>Latest Comment:</strong> ${escapeHtml(collaborationSummary.latestComment.author || 'User')}: ${escapeHtml(collaborationSummary.latestComment.text || '')}</p>` : ''}
+                <p><strong>Sharing:</strong> ${escapeHtml(collaborationSummary.sharingEnabled ? 'Available' : 'Unavailable')}</p>
+            ` : '<p>No collaboration metadata is available for this resource.</p>'}
             <h4>Impact Analysis</h4>
             <ul>
                 ${details.impact?.categories?.length > 0
@@ -1369,6 +1566,53 @@ function showResourcePropertiesDialog(resourceType, resourceId, triggerElement =
     copyRelationshipsButton.onclick = () => {
         const text = (details.relationships || []).map((category) => `${category.label}: ${(category.resources || []).map((resource) => resource.name).join(', ')}`).join('\n');
         void copyTextToClipboard(text, `Copied relationship information for ${details.name}.`);
+    };
+    editCollaborationButton.onclick = () => {
+        openResourceCollaborationDialog(details, triggerElement, ({ owner, visibility, permissionProfile, sharing, permissionAssignments }) => {
+            const result = setCollaborationResourceMetadata(details.type, details.id, {
+                owner,
+                visibility,
+                permissionProfile,
+                sharing,
+                permissionAssignments
+            }, {
+                workspaceId: active.id,
+                action: 'Updated collaboration access controls'
+            });
+
+            if (!result.ok) {
+                updateExplorerStatus('Unable to update collaboration metadata for this resource.');
+                return;
+            }
+
+            updateExplorerStatus(`Updated collaboration metadata for ${details.name}.`);
+            renderWorkspaceExplorer();
+            showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+                initialTab: normalizeText(options.initialTab || 'overview')
+            });
+        });
+    };
+    addCommentButton.onclick = () => {
+        openResourceCommentDialog(details, triggerElement, ({ author, commentText }) => {
+            const result = setCollaborationResourceMetadata(details.type, details.id, {
+                commentText
+            }, {
+                workspaceId: active.id,
+                author,
+                action: 'Added collaboration comment'
+            });
+
+            if (!result.ok) {
+                updateExplorerStatus('Unable to add a collaboration comment for this resource.');
+                return;
+            }
+
+            updateExplorerStatus(`Added comment to ${details.name}.`);
+            renderWorkspaceExplorer();
+            showResourcePropertiesDialog(resourceType, resourceId, triggerElement, {
+                initialTab: normalizeText(options.initialTab || 'overview')
+            });
+        });
     };
 
     dialog.onkeydown = (event) => {

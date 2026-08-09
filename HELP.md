@@ -33,6 +33,7 @@ Continue using:
 - Import Accessibility Standard
 - Connect Integrations
 - Import Template
+- Collaboration settings and commands
 - Keyboard Shortcut Manager
 - Working View Framework
 - Dashboard Framework
@@ -114,6 +115,9 @@ In Resource Navigator:
 - expand a resource to load its relationship groups
 - activate a related resource to move focus to that resource in Explorer
 - use Show Properties to open the relationship-aware resource properties dialog
+- resource rows surface collaboration visibility and owner information when available
+- resource collaboration edits record audit entries that appear in Resource Properties
+- Resource Properties lets you add a collaboration comment and view the latest comment thread entry
 
 Explorer relationship nodes are virtual. They do not create duplicate resources.
 
@@ -124,9 +128,12 @@ Resource Properties includes:
 
 - Overview
 - Relationships
+- collaboration summary and edit action
 - relationship search within the current dialog
 - impact analysis counts
 - copy commands for name, path, and relationship details
+- collaboration summary, edit action, and audit trail counts
+- collaboration comment action and latest comment details
 
 Project Properties also includes a Relationships tab with workspace-level relationship summary and validation status.
 
@@ -302,6 +309,172 @@ Use Application Settings -> Dashboard Analytics to configure:
 Use the command Open Analytics Settings Section to open this settings section directly.
 
 The command is registered in Keyboard Shortcut Manager and is unassigned by default.
+
+## Collaboration Settings
+Use Application Settings -> Collaboration to configure:
+
+- collaboration enabled state
+- optional collaboration toolbar visibility
+- toolbar position
+- collaboration mode
+- provider identity and status
+
+When Collaboration is enabled and the toolbar is shown, ART displays a Collaboration toolbar on the Dashboard with quick access to the Collaboration settings.
+
+When Collaboration is enabled, a Collaboration menu appears in the menubar before Help.
+
+Collaboration prerequisites:
+
+- Multi-user live collaboration requires a running collaboration server.
+- Asynchronous collaboration via shared-drive/shared-folder workflows requires server-side shared-folder persistence.
+- On Windows, the recommended startup command is the repository launcher script start-collaboration-server.ps1.
+- For a startup + browser health check in one step, use start-collaboration-server-and-open-health.ps1.
+
+Fastest live setup path:
+
+1. Start the collaboration server.
+2. Open Application Settings -> Collaboration.
+3. Set Live collaboration server URL.
+4. Select Quick Start Live Collaboration.
+5. Confirm connected state in Live summary and Session summary.
+
+Manual live connect/disconnect path:
+
+1. Select Connect Server.
+2. Select Start Live Session.
+3. Collaborate.
+4. Select Disconnect Server when done.
+
+Collaboration setting reference:
+
+- Enable Collaboration: master on/off switch for collaboration behavior. Disabling this keeps collaboration metadata in state but turns off collaboration runtime surfaces.
+- Show Collaboration Toolbar: controls whether the dashboard collaboration toolbar is visible when collaboration is enabled.
+- Collaboration mode:
+	- Independent: local-only workflow with no active sync expectation.
+	- Asynchronous: team coordination without strict real-time synchronization.
+	- Synchronous: team coordination with expected sync checkpoints.
+	- Real-time: most aggressive mode, intended for always-on collaboration and frequent updates.
+- Toolbar position: places the collaboration toolbar in the selected screen corner.
+- Provider ID and Provider Name: identifies the active collaboration provider in state and summaries.
+- Provider Status: marks provider health/connection state (available, connected, connecting, degraded, unavailable).
+
+Sharing and discovery options:
+
+- Discovery scope:
+	- Resource: discovery is constrained to explicit resource-level visibility.
+	- Workspace: discovery includes workspace-scoped shareable items.
+	- Organization: discovery favors org/public visibility.
+	- Quick guidance: Resource is best for private/local workflows, Workspace for team-visible collaboration, Organization for broad discoverability policy.
+- Allow discovery directory listing: when enabled, discovery snapshots can include broader resource listings.
+- Require approval before sharing access: marks sharing as approval-gated and surfaces this requirement in discovery snapshot metadata.
+- Allow guest share links: permits guest-style sharing links in sharing policy.
+- Default share expiry (days): sets the default lifetime for newly shared access patterns.
+- Sharing channels: comma-separated default channels for sharing and discovery summaries.
+
+Synchronization and versioning options:
+
+- Enable synchronization: toggles synchronization policy on/off.
+- Sync mode: manual, scheduled, or real-time synchronization policy.
+- Conflict strategy:
+	- Manual Review: conflict is resolved without automatic metadata mutation.
+	- Latest Write Wins: applies incoming metadata and incoming comments.
+	- Metadata Priority: applies incoming metadata fields (without forced comment append).
+	- Append Comments: appends incoming comments while preserving local metadata fields.
+	- Quick guidance: use Manual Review when human verification is required; use Metadata Priority or Append Comments for targeted automatic conflict handling.
+- Auto-merge comments: allows comment merge behavior when strategy permits it.
+- Auto-merge metadata: allows metadata merge behavior when strategy permits it.
+- Keep version history: preserves version history semantics during synchronization updates.
+- Maximum versions per resource: cap used for synchronized version retention policy.
+- Record Sync Checkpoint: stamps the latest sync timestamp in collaboration state.
+
+Live collaboration quick start options:
+
+- Live collaboration server URL: WebSocket endpoint used for real-time multi-user collaboration.
+- Live session name: friendly label used when starting a live session.
+- Live server auth token (optional): token sent during live connection handshake when required by your server.
+- Auto-connect to this live server on startup: attempts to reconnect quickly when collaboration settings are opened and applied.
+- Quick Start Live Collaboration: applies live-friendly defaults, connects to the configured server, and starts a live session in one step.
+- Connect Server / Disconnect Server / Start Live Session: granular controls when you do not want one-click quick start.
+- Publish Async Snapshot / Pull Async Snapshot: share collaboration metadata asynchronously through server-coordinated shared storage (for example a shared drive folder mounted on the collaboration server).
+
+Asynchronous shared-folder workflow:
+
+1. Start the collaboration server with shared-folder persistence enabled.
+2. User A selects Publish Async Snapshot.
+3. User B selects Pull Async Snapshot.
+4. ART applies the pulled snapshot and updates synchronization status.
+
+Operational collaboration actions:
+
+- Generate Discovery Snapshot: creates a current snapshot of discoverable resources under active sharing rules.
+- Queue Test Conflict: inserts a synthetic pending conflict with incoming metadata/comments for validation.
+- Resolve Oldest Conflict: resolves the oldest pending conflict using the selected conflict strategy and records resolution details.
+- Register Presence Session: creates or updates an active collaboration presence session for the active workspace.
+- Clear Collaboration Sessions: clears collaboration session presence records.
+- Reset to Baseline: reapplies the closest preset (Solo or Team) and clears transient operational collaboration data (sessions, pending conflicts, assignment rows, and sync checkpoint timestamp).
+- Quick Start Live Collaboration: connects to the live server and starts a live multi-user session with minimal setup.
+- Publish Async Snapshot: publishes current workspace collaboration metadata to the server's shared synchronization storage.
+- Pull Async Snapshot: requests and applies the latest collaboration metadata snapshot from shared synchronization storage.
+
+Collaboration shutdown and cleanup:
+
+- Disconnect Server to close the current live network connection.
+- Clear Collaboration Sessions to remove transient presence records.
+- Reset to Baseline to restore a clean Solo or Team baseline.
+
+Permission and assignment actions:
+
+- Permission profile name + permissions + Add Permission Profile: creates or updates a named permission profile.
+- Assignment principal/resource type/resource id/permissions + Add Permission Assignment: appends a collaboration permission assignment row used by metadata resolution and summaries.
+
+Status summaries in the Collaboration section:
+
+- Collaboration summary: high-level enabled/provider/mode/toolbar state.
+- Preset summary: indicates whether current settings match Solo defaults, Team defaults, or Custom.
+- Permissions summary: profile count, assignment count, and compact assignment text.
+- Sharing summary: discovery scope, sharing targets, and sharing channels.
+- Session summary: active and connected session counts.
+- Sync summary: sync mode, conflict strategy, capability notes, version-history state, pending conflict count, and last sync checkpoint.
+- Discovery summary: most recent discovery snapshot size.
+- Conflict summary: pending conflict queue size.
+
+Recommended defaults:
+
+- Solo workflow (single auditor, local-first):
+	- Apply Solo Defaults
+	- Collaboration mode: Independent
+	- Sync: disabled/manual
+	- Conflict strategy: Manual Review
+	- Discovery scope: Resource
+	- Directory listing: off
+	- Guest links: off
+	- Default expiry: 30 days
+- Team workflow (shared workspace operations):
+	- Apply Team Defaults
+	- Collaboration mode: Asynchronous
+	- Sync: enabled/scheduled
+	- Conflict strategy: Metadata Priority
+	- Discovery scope: Workspace
+	- Directory listing: on
+	- Guest links: off by default
+	- Default expiry: 14 days
+
+When you apply either preset, the Preset summary updates to Solo or Team. Any meaningful divergence from these baselines is shown as Custom.
+
+Collaboration glossary:
+
+- Discovery snapshot: point-in-time list of resources that are discoverable under current sharing policy.
+- Sharing channel: named route used for sharing policy defaults (for example email or workspace channel).
+- Presence session: active collaboration presence record tied to a user/resource context.
+- Conflict queue: pending synchronization conflicts awaiting resolution.
+- Sync checkpoint: timestamp marker for the latest recorded synchronization event.
+- Conflict resolution detail: recorded note explaining which strategy was applied and whether metadata mutation occurred.
+
+Use the command Open Collaboration Settings Section to open this settings section directly.
+
+The command is registered in Keyboard Shortcut Manager and is unassigned by default.
+Use the commands Toggle Collaboration and Toggle Collaboration Toolbar to change the dashboard collaboration controls without opening Settings.
+Additional collaboration operations are also command-enabled and shortcut-assignable: Apply Collaboration Solo Defaults, Apply Collaboration Team Defaults, Reset Collaboration Baseline, Record Collaboration Sync Checkpoint, Generate Collaboration Discovery Snapshot, Queue Collaboration Test Conflict, Resolve Oldest Collaboration Conflict, Register Collaboration Presence Session, Clear Collaboration Sessions, Quick Start Live Collaboration, Connect Live Collaboration Server, Disconnect Live Collaboration Server, Start Live Collaboration Session, Publish Async Collaboration Snapshot, and Pull Async Collaboration Snapshot.
 - Performing a new undoable action clears the Redo stack.
 - Undo and Redo availability is exposed programmatically and reflected in command enabled state.
 

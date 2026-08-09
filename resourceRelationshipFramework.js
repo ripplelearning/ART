@@ -7,6 +7,7 @@ import {
     getUserTemplates,
     upsertProjectWorkspace
 } from './state.js';
+import { getCollaborationResourceMetadata } from './collaborationFramework.js';
 
 const RELATIONSHIP_TYPE_DEFINITIONS = Object.freeze({
     contains: {
@@ -180,7 +181,8 @@ function buildResourceRecord({ id, type, name, workspaceId = '', subtitle = '', 
         subtitle: normalizeText(subtitle),
         category: normalizeText(category),
         path: normalizeText(path),
-        data
+        data,
+        collaboration: getCollaborationResourceMetadata(type, id, workspaceId)
     };
 }
 

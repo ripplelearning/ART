@@ -25,6 +25,7 @@ import {
     addAuditEntry,
     announce,
     appState,
+    canShowCollaborationToolbar,
     createArtProjectPayload,
     createUserTemplateFromSelection,
     closeCurrentReportSession,
@@ -32,6 +33,7 @@ import {
     computeReportMetrics,
     getAnalyticsConfig,
     getAnalyticsTrendSnapshot,
+    getCollaborationConfig,
     getReportAnalyticsSnapshot,
     getProgressLogMetrics,
     getWorkspaceAnalyticsSnapshot,
@@ -57,6 +59,7 @@ import {
     serializeArtProjectPayload,
     serializeArtxTemplatePayload,
     templateNameExists,
+    updateCollaborationConfig,
     upsertCurrentReport,
     updateProjectDocumentInfo,
     validateArtProjectPayload,
@@ -64,6 +67,7 @@ import {
     validateArtxTemplatePayload,
     validateTemplateJsonPayload
 } from './state.js';
+import { openSettingsCollaborationSectionFromCommand } from './settings.js';
 
 function moveFocusToEditorHeading() {
     const editorHeading = document.getElementById('editor-heading');
@@ -1092,6 +1096,11 @@ export function renderDashboard() {
     const btnSaveProjectAs = document.getElementById('btn-save-project-as');
     const btnImportData = document.getElementById('btn-import-data');
     const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
+    const collaborationToolbar = document.getElementById('collaboration-toolbar');
+    const collaborationToolbarStatus = document.getElementById('collaboration-toolbar-status');
+    const collaborationToolbarDetails = document.getElementById('collaboration-toolbar-details');
+    const btnCollaborationSettings = document.getElementById('btn-collaboration-settings');
+    const btnCollaborationToggle = document.getElementById('btn-collaboration-toggle');
     const builderTab = document.getElementById('tab-builder');
     const editorTab = document.getElementById('tab-editor');
     const viewerTab = document.getElementById('tab-view');
@@ -1197,7 +1206,41 @@ export function renderDashboard() {
         || !reportMetricsList || !reportDeleteDialog || !reportDeleteMessage || !btnReportDeleteConfirm || !btnReportDeleteCancel
         || !importConflictDialog || !importConflictMessage || !btnImportReplace || !btnImportCopy || !btnImportCancel
         || !templateImportConflictDialog || !templateImportConflictDescription || !templateImportOptionReplace || !templateImportConfirm || !templateImportCancel
+        || !collaborationToolbar || !collaborationToolbarStatus || !collaborationToolbarDetails || !btnCollaborationSettings || !btnCollaborationToggle
     ) return;
+
+    const renderCollaborationToolbar = () => {
+        const collaboration = getCollaborationConfig();
+        const visible = Boolean(canShowCollaborationToolbar());
+
+        collaborationToolbar.hidden = !visible;
+        if (!visible) return;
+
+        collaborationToolbarStatus.textContent = collaboration.enabled
+            ? `Collaboration enabled via ${collaboration.providerName || 'Local collaboration'}. Status ${collaboration.providerStatus || 'available'}.`
+            : 'Collaboration is disabled.';
+        collaborationToolbarDetails.textContent = collaboration.enabled
+            ? `Mode ${collaboration.mode || 'independent'}. Toolbar position ${collaboration.toolbarPosition || 'top-right'}.`
+            : 'Enable collaboration in Application Settings to expose shared-state controls here.';
+        btnCollaborationToggle.textContent = collaboration.enabled ? 'Disable Collaboration' : 'Enable Collaboration';
+    };
+
+    btnCollaborationSettings.addEventListener('click', () => {
+        void openSettingsCollaborationSectionFromCommand();
+    });
+
+    btnCollaborationToggle.addEventListener('click', () => {
+        const collaboration = getCollaborationConfig();
+        updateCollaborationConfig({
+            enabled: !collaboration.enabled,
+            showToolbar: !collaboration.enabled ? true : collaboration.showToolbar
+        }, {
+            action: collaboration.enabled ? 'Disabled collaboration' : 'Enabled collaboration'
+        });
+    });
+
+    renderCollaborationToolbar();
+    window.addEventListener('art-collaboration-updated', renderCollaborationToolbar);
 
     const renderNetworkActivityIndicator = () => {
         if (!networkStatus || !networkDetail) return;

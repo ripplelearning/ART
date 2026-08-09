@@ -17,6 +17,20 @@ function normalizeText(value) {
     return String(value || '').trim();
 }
 
+function formatCollaborationSummary(resource) {
+    const collaboration = resource && typeof resource === 'object' ? resource.collaboration : null;
+    if (!collaboration || typeof collaboration !== 'object') return '';
+
+    const parts = [];
+    if (collaboration.collaborationEnabled) parts.push('Collaboration on');
+    if (collaboration.visibility) parts.push(String(collaboration.visibility).trim());
+    if (collaboration.permissionProfile) parts.push(String(collaboration.permissionProfile).trim());
+    if (collaboration.owner) parts.push(`Owner ${String(collaboration.owner).trim()}`);
+    if (Number(collaboration.auditCount || 0) > 0) parts.push(`Audit ${Number(collaboration.auditCount || 0)}`);
+    if (Number(collaboration.commentCount || 0) > 0) parts.push(`Comments ${Number(collaboration.commentCount || 0)}`);
+    return parts.filter(Boolean).join(' • ');
+}
+
 function mapWorkspaceReports(workspace) {
     const reportIds = [
         ...(workspace?.resources?.reports || []),
@@ -65,6 +79,7 @@ function enrichWorkspaceResourceItem(workspace, item) {
         ...item,
         relationshipSummary: summary,
         relationshipCount: summary.reduce((total, category) => total + Number(category.count || 0), 0),
+        collaborationSummary: formatCollaborationSummary(item),
         impactSummary: impact
     };
 }

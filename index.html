@@ -38,6 +38,18 @@
             <button id="btn-help" type="button">Help</button>
         </div>
 
+        <section id="collaboration-toolbar" class="collaboration-toolbar" aria-labelledby="collaboration-toolbar-heading" hidden>
+            <div class="collaboration-toolbar__summary">
+                <h3 id="collaboration-toolbar-heading">Collaboration</h3>
+                <p id="collaboration-toolbar-status" role="status" aria-live="polite" aria-atomic="true">Collaboration is disabled.</p>
+                <p id="collaboration-toolbar-details">Enable collaboration in Application Settings to expose shared-state controls here.</p>
+            </div>
+            <div class="viewer-dialog-actions" role="group" aria-label="Collaboration toolbar actions">
+                <button id="btn-collaboration-settings" type="button">Open Collaboration Settings</button>
+                <button id="btn-collaboration-toggle" type="button">Enable Collaboration</button>
+            </div>
+        </section>
+
         <div id="app-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="app-settings-heading" aria-describedby="app-settings-description" hidden>
             <div class="settings-header">
                 <h3 id="app-settings-heading">Application Settings</h3>
@@ -252,6 +264,171 @@
                     <li><strong>GitHub Issues:</strong> <span id="settings-integration-github-status">Not connected</span></li>
                     <li><strong>Azure DevOps:</strong> <span id="settings-integration-azure-status">Not connected</span></li>
                 </ul>
+            </section>
+
+            <section aria-labelledby="settings-collaboration-heading">
+                <h4 id="settings-collaboration-heading">Collaboration</h4>
+                <p id="settings-collaboration-summary" role="status" aria-live="polite" aria-atomic="true">Collaboration is disabled.</p>
+                <label>
+                    <input id="settings-collaboration-enabled" type="checkbox">
+                    Enable Collaboration
+                </label>
+                <label>
+                    <input id="settings-collaboration-show-toolbar" type="checkbox">
+                    Show Collaboration Toolbar
+                </label>
+                <label for="settings-collaboration-mode">Collaboration mode</label>
+                <select id="settings-collaboration-mode">
+                    <option value="independent">Independent</option>
+                    <option value="asynchronous">Asynchronous</option>
+                    <option value="synchronous">Synchronous</option>
+                    <option value="realtime">Real-time</option>
+                </select>
+                <label for="settings-collaboration-toolbar-position">Toolbar position</label>
+                <select id="settings-collaboration-toolbar-position">
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                </select>
+                <label for="settings-collaboration-provider-id">Provider ID</label>
+                <input id="settings-collaboration-provider-id" type="text" autocomplete="off">
+                <label for="settings-collaboration-provider-name">Provider Name</label>
+                <input id="settings-collaboration-provider-name" type="text" autocomplete="off">
+                <label for="settings-collaboration-provider-status">Provider Status</label>
+                <select id="settings-collaboration-provider-status">
+                    <option value="available">Available</option>
+                    <option value="connected">Connected</option>
+                    <option value="connecting">Connecting</option>
+                    <option value="degraded">Degraded</option>
+                    <option value="unavailable">Unavailable</option>
+                </select>
+                <p id="settings-collaboration-provider-summary">Provider capabilities are normalized in application state and can be surfaced by future providers.</p>
+                <p id="settings-collaboration-preset-summary">Current collaboration preset: Custom.</p>
+                <p id="settings-collaboration-permissions-summary">Permissions are not configured yet.</p>
+                <p id="settings-collaboration-sharing-summary">Sharing is not configured yet.</p>
+                <p id="settings-collaboration-session-summary">No collaboration sessions are active.</p>
+                <p id="settings-collaboration-sync-summary">Synchronization and versioning are configured through the active provider.</p>
+                <label for="settings-collaboration-discovery-scope">Discovery scope</label>
+                <select id="settings-collaboration-discovery-scope">
+                    <option value="resource">Resource</option>
+                    <option value="workspace">Workspace</option>
+                    <option value="organization">Organization</option>
+                </select>
+                <p>Use Resource for private/local workflows, Workspace for team-visible reporting, and Organization for broader discoverability policies.</p>
+                <label>
+                    <input id="settings-collaboration-allow-directory-listing" type="checkbox">
+                    Allow discovery directory listing
+                </label>
+                <label>
+                    <input id="settings-collaboration-require-approval" type="checkbox">
+                    Require approval before sharing access
+                </label>
+                <label>
+                    <input id="settings-collaboration-allow-guest-links" type="checkbox">
+                    Allow guest share links
+                </label>
+                <label for="settings-collaboration-default-expiry-days">Default share expiry (days)</label>
+                <input id="settings-collaboration-default-expiry-days" type="number" min="1" max="3650" step="1">
+                <label for="settings-collaboration-sharing-channels">Sharing channels</label>
+                <input id="settings-collaboration-sharing-channels" type="text" autocomplete="off" placeholder="email, workspace, export-link">
+                <label for="settings-collaboration-sync-mode">Sync mode</label>
+                <select id="settings-collaboration-sync-mode">
+                    <option value="manual">Manual</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="realtime">Real-time</option>
+                </select>
+                <label for="settings-collaboration-conflict-strategy">Conflict strategy</label>
+                <select id="settings-collaboration-conflict-strategy">
+                    <option value="manual-review">Manual Review</option>
+                    <option value="latest-write-wins">Latest Write Wins</option>
+                    <option value="metadata-priority">Metadata Priority</option>
+                    <option value="comments-append">Append Comments</option>
+                </select>
+                <p>Manual Review keeps local data unchanged until you review conflicts. Metadata Priority and Append Comments automate targeted resolution behavior.</p>
+                <label>
+                    <input id="settings-collaboration-sync-enabled" type="checkbox">
+                    Enable synchronization
+                </label>
+                <label>
+                    <input id="settings-collaboration-auto-merge-comments" type="checkbox">
+                    Auto-merge comments
+                </label>
+                <label>
+                    <input id="settings-collaboration-auto-merge-metadata" type="checkbox">
+                    Auto-merge metadata
+                </label>
+                <label>
+                    <input id="settings-collaboration-keep-version-history" type="checkbox">
+                    Keep version history
+                </label>
+                <label for="settings-collaboration-max-versions">Maximum versions per resource</label>
+                <input id="settings-collaboration-max-versions" type="number" min="1" max="500" step="1">
+                <div class="viewer-dialog-actions" role="group" aria-label="Synchronization actions">
+                    <button id="btn-settings-collaboration-sync-now" type="button">Record Sync Checkpoint</button>
+                </div>
+                <div class="viewer-dialog-actions" role="group" aria-label="Collaboration preset actions">
+                    <button id="btn-settings-collaboration-preset-solo" type="button">Apply Solo Defaults</button>
+                    <button id="btn-settings-collaboration-preset-team" type="button">Apply Team Defaults</button>
+                    <button id="btn-settings-collaboration-reset-baseline" type="button">Reset to Baseline</button>
+                </div>
+                <h5>Live Collaboration Quick Start</h5>
+                <p>Enter your collaboration server URL, then use Quick Start to connect and begin a live session in one step.</p>
+                <label for="settings-collaboration-live-server-url">Live collaboration server URL</label>
+                <input id="settings-collaboration-live-server-url" type="url" autocomplete="off" placeholder="ws://localhost:8787/art-live">
+                <label for="settings-collaboration-live-session-name">Live session name</label>
+                <input id="settings-collaboration-live-session-name" type="text" autocomplete="off" placeholder="Sprint Accessibility Review">
+                <label for="settings-collaboration-live-auth-token">Live server auth token (optional)</label>
+                <input id="settings-collaboration-live-auth-token" type="password" autocomplete="off" placeholder="Optional token">
+                <label>
+                    <input id="settings-collaboration-live-auto-connect" type="checkbox">
+                    Auto-connect to this live server on startup
+                </label>
+                <p id="settings-collaboration-live-summary">Live server offline. Configure URL and connect to begin multi-user collaboration.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Live collaboration actions">
+                    <button id="btn-settings-collaboration-live-quickstart" type="button">Quick Start Live Collaboration</button>
+                    <button id="btn-settings-collaboration-live-connect" type="button">Connect Server</button>
+                    <button id="btn-settings-collaboration-live-disconnect" type="button">Disconnect Server</button>
+                    <button id="btn-settings-collaboration-live-start-session" type="button">Start Live Session</button>
+                    <button id="btn-settings-collaboration-live-publish" type="button">Publish Async Snapshot</button>
+                    <button id="btn-settings-collaboration-live-pull" type="button">Pull Async Snapshot</button>
+                </div>
+                <p>Use Publish and Pull snapshot actions to support asynchronous collaboration through shared network storage coordinated by the live server.</p>
+                <p id="settings-collaboration-discovery-summary">Discovery snapshot not generated.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Discovery actions">
+                    <button id="btn-settings-collaboration-discovery-snapshot" type="button">Generate Discovery Snapshot</button>
+                </div>
+                <p id="settings-collaboration-conflict-summary">No collaboration conflicts are queued.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Conflict actions">
+                    <button id="btn-settings-collaboration-conflict-queue" type="button">Queue Test Conflict</button>
+                    <button id="btn-settings-collaboration-conflict-resolve" type="button">Resolve Oldest Conflict</button>
+                </div>
+                <div class="viewer-dialog-actions" role="group" aria-label="Collaboration session actions">
+                    <button id="btn-settings-collaboration-session-start" type="button">Register Presence Session</button>
+                    <button id="btn-settings-collaboration-session-clear" type="button">Clear Collaboration Sessions</button>
+                </div>
+                <label for="settings-collaboration-profile-name">Permission profile name</label>
+                <input id="settings-collaboration-profile-name" type="text" autocomplete="off">
+                <label for="settings-collaboration-profile-permissions">Permission profile permissions</label>
+                <input id="settings-collaboration-profile-permissions" type="text" autocomplete="off" placeholder="view, comment, edit">
+                <div class="viewer-dialog-actions" role="group" aria-label="Permission profile actions">
+                    <button id="btn-settings-collaboration-profile-add" type="button">Add Permission Profile</button>
+                </div>
+                <label for="settings-collaboration-assignment-principal">Assignment principal</label>
+                <input id="settings-collaboration-assignment-principal" type="text" autocomplete="off">
+                <label for="settings-collaboration-assignment-resource-type">Assignment resource type</label>
+                <input id="settings-collaboration-assignment-resource-type" type="text" autocomplete="off" placeholder="workspace, report, template">
+                <label for="settings-collaboration-assignment-resource-id">Assignment resource id</label>
+                <input id="settings-collaboration-assignment-resource-id" type="text" autocomplete="off">
+                <label for="settings-collaboration-assignment-permissions">Assignment permissions</label>
+                <input id="settings-collaboration-assignment-permissions" type="text" autocomplete="off" placeholder="view, comment, edit">
+                <div class="viewer-dialog-actions" role="group" aria-label="Permission assignment actions">
+                    <button id="btn-settings-collaboration-assignment-add" type="button">Add Permission Assignment</button>
+                </div>
+                <ul id="settings-collaboration-provider-list" aria-label="Registered collaboration providers"></ul>
+                <div class="viewer-dialog-actions" role="group" aria-label="Collaboration settings actions">
+                    <button id="btn-settings-collaboration-apply" type="button">Apply Collaboration Settings</button>
+                </div>
             </section>
 
             <section aria-labelledby="settings-about-heading">

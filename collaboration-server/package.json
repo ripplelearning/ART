@@ -1,0 +1,13 @@
+{
+  "name": "art-collaboration-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ART live and asynchronous collaboration coordination server",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

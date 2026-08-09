@@ -113,6 +113,225 @@
                 </ul>
             </section>
 
+            <section aria-labelledby="settings-collaboration-heading">
+                <h4 id="settings-collaboration-heading">Collaboration</h4>
+                <p id="settings-collaboration-summary" role="status" aria-live="polite" aria-atomic="true">Collaboration is disabled.</p>
+                <label>
+                    <input id="settings-collaboration-enabled" type="checkbox">
+                    Enable Collaboration
+                </label>
+                <label>
+                    <input id="settings-collaboration-show-toolbar" type="checkbox">
+                    Show Collaboration Toolbar
+                </label>
+                <label for="settings-collaboration-mode">Collaboration mode</label>
+                <select id="settings-collaboration-mode">
+                    <option value="independent">Independent</option>
+                    <option value="asynchronous">Asynchronous</option>
+                    <option value="synchronous">Synchronous</option>
+                    <option value="realtime">Real-time</option>
+                </select>
+                <label for="settings-collaboration-toolbar-position">Toolbar position</label>
+                <select id="settings-collaboration-toolbar-position">
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                </select>
+                <label for="settings-collaboration-provider-id">Provider ID</label>
+                <input id="settings-collaboration-provider-id" type="text" autocomplete="off">
+                <label for="settings-collaboration-provider-name">Provider Name</label>
+                <input id="settings-collaboration-provider-name" type="text" autocomplete="off">
+                <label for="settings-collaboration-provider-status">Provider Status</label>
+                <select id="settings-collaboration-provider-status">
+                    <option value="available">Available</option>
+                    <option value="connected">Connected</option>
+                    <option value="connecting">Connecting</option>
+                    <option value="degraded">Degraded</option>
+                    <option value="unavailable">Unavailable</option>
+                </select>
+                <p id="settings-collaboration-provider-summary">Provider capabilities are normalized in application state and can be surfaced by future providers.</p>
+                <p id="settings-collaboration-preset-summary">Current collaboration preset: Custom.</p>
+                <p id="settings-collaboration-permissions-summary">Permissions are not configured yet.</p>
+                <p id="settings-collaboration-sharing-summary">Sharing is not configured yet.</p>
+                <p id="settings-collaboration-session-summary">No collaboration sessions are active.</p>
+                <p id="settings-collaboration-sync-summary">Synchronization and versioning are configured through the active provider.</p>
+                <label for="settings-collaboration-discovery-scope">Discovery scope</label>
+                <select id="settings-collaboration-discovery-scope">
+                    <option value="resource">Resource</option>
+                    <option value="workspace">Workspace</option>
+                    <option value="organization">Organization</option>
+                </select>
+                <p>Use Resource for private/local workflows, Workspace for team-visible reporting, and Organization for broader discoverability policies.</p>
+                <label>
+                    <input id="settings-collaboration-allow-directory-listing" type="checkbox">
+                    Allow discovery directory listing
+                </label>
+                <label>
+                    <input id="settings-collaboration-require-approval" type="checkbox">
+                    Require approval before sharing access
+                </label>
+                <label>
+                    <input id="settings-collaboration-allow-guest-links" type="checkbox">
+                    Allow guest share links
+                </label>
+                <label for="settings-collaboration-default-expiry-days">Default share expiry (days)</label>
+                <input id="settings-collaboration-default-expiry-days" type="number" min="1" max="3650" step="1">
+                <label for="settings-collaboration-sharing-channels">Sharing channels</label>
+                <input id="settings-collaboration-sharing-channels" type="text" autocomplete="off" placeholder="email, workspace, export-link">
+                <label for="settings-collaboration-sync-mode">Sync mode</label>
+                <select id="settings-collaboration-sync-mode">
+                    <option value="manual">Manual</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="realtime">Real-time</option>
+                </select>
+                <label for="settings-collaboration-conflict-strategy">Conflict strategy</label>
+                <select id="settings-collaboration-conflict-strategy">
+                    <option value="manual-review">Manual Review</option>
+                    <option value="latest-write-wins">Latest Write Wins</option>
+                    <option value="metadata-priority">Metadata Priority</option>
+                    <option value="comments-append">Append Comments</option>
+                </select>
+                <p>Manual Review keeps local data unchanged until you review conflicts. Metadata Priority and Append Comments automate targeted resolution behavior.</p>
+                <label>
+                    <input id="settings-collaboration-sync-enabled" type="checkbox">
+                    Enable synchronization
+                </label>
+                <label>
+                    <input id="settings-collaboration-auto-merge-comments" type="checkbox">
+                    Auto-merge comments
+                </label>
+                <label>
+                    <input id="settings-collaboration-auto-merge-metadata" type="checkbox">
+                    Auto-merge metadata
+                </label>
+                <label>
+                    <input id="settings-collaboration-keep-version-history" type="checkbox">
+                    Keep version history
+                </label>
+                <label for="settings-collaboration-max-versions">Maximum versions per resource</label>
+                <input id="settings-collaboration-max-versions" type="number" min="1" max="500" step="1">
+                <div class="viewer-dialog-actions" role="group" aria-label="Synchronization actions">
+                    <button id="btn-settings-collaboration-sync-now" type="button">Record Sync Checkpoint</button>
+                </div>
+                <div class="viewer-dialog-actions" role="group" aria-label="Collaboration preset actions">
+                    <button id="btn-settings-collaboration-preset-solo" type="button">Apply Solo Defaults</button>
+                    <button id="btn-settings-collaboration-preset-team" type="button">Apply Team Defaults</button>
+                    <button id="btn-settings-collaboration-reset-baseline" type="button">Reset to Baseline</button>
+                </div>
+                <h5>Live Collaboration Quick Start</h5>
+                <p>Enter your collaboration server URL, then use Quick Start to connect and begin a live session in one step.</p>
+                <label for="settings-collaboration-live-server-url">Live collaboration server URL</label>
+                <input id="settings-collaboration-live-server-url" type="url" autocomplete="off" placeholder="ws://localhost:8787/art-live">
+                <label for="settings-collaboration-live-session-name">Live session name</label>
+                <input id="settings-collaboration-live-session-name" type="text" autocomplete="off" placeholder="Sprint Accessibility Review">
+                <label for="settings-collaboration-live-auth-token">Live server auth token (optional)</label>
+                <input id="settings-collaboration-live-auth-token" type="password" autocomplete="off" placeholder="Optional token">
+                <label>
+                    <input id="settings-collaboration-live-auto-connect" type="checkbox">
+                    Auto-connect to this live server on startup
+                </label>
+                <p id="settings-collaboration-live-summary">Live server offline. Configure URL and connect to begin multi-user collaboration.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Live collaboration actions">
+                    <button id="btn-settings-collaboration-live-quickstart" type="button">Quick Start Live Collaboration</button>
+                    <button id="btn-settings-collaboration-live-connect" type="button">Connect Server</button>
+                    <button id="btn-settings-collaboration-live-disconnect" type="button">Disconnect Server</button>
+                    <button id="btn-settings-collaboration-live-start-session" type="button">Start Live Session</button>
+                    <button id="btn-settings-collaboration-live-publish" type="button">Publish Async Snapshot</button>
+                    <button id="btn-settings-collaboration-live-pull" type="button">Pull Async Snapshot</button>
+                </div>
+                <p>Use Publish and Pull snapshot actions to support asynchronous collaboration through shared network storage coordinated by the live server.</p>
+                <p id="settings-collaboration-discovery-summary">Discovery snapshot not generated.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Discovery actions">
+                    <button id="btn-settings-collaboration-discovery-snapshot" type="button">Generate Discovery Snapshot</button>
+                </div>
+                <p id="settings-collaboration-conflict-summary">No collaboration conflicts are queued.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Conflict actions">
+                    <button id="btn-settings-collaboration-conflict-queue" type="button">Queue Test Conflict</button>
+                    <button id="btn-settings-collaboration-conflict-resolve" type="button">Resolve Oldest Conflict</button>
+                </div>
+                <div class="viewer-dialog-actions" role="group" aria-label="Collaboration session actions">
+                    <button id="btn-settings-collaboration-session-start" type="button">Register Presence Session</button>
+                    <button id="btn-settings-collaboration-session-clear" type="button">Clear Collaboration Sessions</button>
+                </div>
+                <p>When Collaboration is enabled, ART also shows a Collaboration menu in the menubar before Help.</p>
+                <p>To run multi-user collaboration, start the collaboration server first (Windows recommended launcher: start-collaboration-server.ps1).</p>
+                <p>For a quick startup confirmation, use start-collaboration-server-and-open-health.ps1 to open the /health endpoint automatically after launch.</p>
+                <p>The Collaboration settings section also lets you create permission profiles and resource assignments directly from Settings.</p>
+                <p>Discovery scope, sharing channel defaults, approval requirements, and sync conflict strategy are configurable here. Use Record Sync Checkpoint to stamp the latest sync time.</p>
+                <p>Generate Discovery Snapshot reviews discoverable resources, Queue Test Conflict simulates pending sync conflicts, and Resolve Oldest Conflict processes the next conflict with the selected strategy.</p>
+                <p>Conflict strategies now apply behavior during resolution: latest-write-wins and metadata-priority apply incoming metadata, while comments-append appends incoming comments.</p>
+                <p>Reset to Baseline reapplies the closest preset and clears transient operational collaboration data such as pending conflicts, presence sessions, and sync checkpoint timestamps.</p>
+                <p>For multi-user live collaboration, use Live Collaboration Quick Start: provide a server URL and activate Quick Start to connect and begin a session with minimal setup.</p>
+                <p>Manual live path: Connect Server, Start Live Session, collaborate, then Disconnect Server when finished.</p>
+                <p>For asynchronous shared-folder collaboration, use Publish Async Snapshot from one user and Pull Async Snapshot from another user connected to the same collaboration server with shared storage configured.</p>
+                <p>Asynchronous sequence: start server with shared-folder persistence, publish from user A, then pull from user B.</p>
+                <h5>Collaboration Settings Reference</h5>
+                <ul>
+                    <li><strong>Enable Collaboration:</strong> turns collaboration runtime behavior on or off.</li>
+                    <li><strong>Show Collaboration Toolbar:</strong> displays or hides the dashboard collaboration toolbar when collaboration is enabled.</li>
+                    <li><strong>Collaboration mode:</strong> Independent is local-first, Asynchronous is team coordination without strict real-time sync, Synchronous expects checkpointed sync, and Real-time targets continuous updates.</li>
+                    <li><strong>Toolbar position:</strong> places the collaboration toolbar in the selected corner.</li>
+                    <li><strong>Provider ID, Name, and Status:</strong> identify the active provider and its health state.</li>
+                    <li><strong>Discovery scope:</strong> controls whether discovery is evaluated at resource, workspace, or organization visibility levels.</li>
+                    <li><strong>Allow discovery directory listing:</strong> permits broader listing in discovery snapshots.</li>
+                    <li><strong>Require approval before sharing access:</strong> marks sharing as approval-gated.</li>
+                    <li><strong>Allow guest share links:</strong> enables guest-link style sharing policy.</li>
+                    <li><strong>Default share expiry (days):</strong> default duration for new shared access patterns.</li>
+                    <li><strong>Sharing channels:</strong> comma-separated channel defaults used by sharing and discovery summaries.</li>
+                    <li><strong>Enable synchronization and Sync mode:</strong> control whether sync runs and whether it is manual, scheduled, or real-time.</li>
+                    <li><strong>Conflict strategy:</strong> Manual Review performs no automatic merge, Latest Write Wins applies incoming metadata/comments, Metadata Priority applies incoming metadata fields, and Append Comments appends incoming comments.</li>
+                    <li><strong>Auto-merge comments and Auto-merge metadata:</strong> toggle automatic merge behavior when strategy allows it.</li>
+                    <li><strong>Keep version history and Maximum versions per resource:</strong> control synchronized version retention behavior.</li>
+                    <li><strong>Record Sync Checkpoint:</strong> stores the latest sync timestamp in collaboration state.</li>
+                    <li><strong>Reset to Baseline:</strong> reapplies Solo or Team baseline defaults and clears transient operational collaboration data.</li>
+                    <li><strong>Live collaboration server URL and Quick Start actions:</strong> connect to a collaboration server and start a live multi-user session in as few steps as possible.</li>
+                    <li><strong>Publish Async Snapshot and Pull Async Snapshot:</strong> exchange collaboration metadata asynchronously through shared network storage managed by the server.</li>
+                    <li><strong>Generate Discovery Snapshot:</strong> creates a point-in-time list of discoverable resources under current policy.</li>
+                    <li><strong>Queue Test Conflict:</strong> adds a synthetic pending conflict with incoming metadata/comments.</li>
+                    <li><strong>Resolve Oldest Conflict:</strong> resolves the oldest pending conflict using the selected strategy and records resolution details.</li>
+                    <li><strong>Register Presence Session and Clear Collaboration Sessions:</strong> manage active collaboration presence records.</li>
+                    <li><strong>Permission profile controls:</strong> create or update named permission profiles.</li>
+                    <li><strong>Permission assignment controls:</strong> add principal/resource permission assignments.</li>
+                </ul>
+                <h5>Recommended Defaults</h5>
+                <ul>
+                    <li><strong>Solo workflow:</strong> use Apply Solo Defaults for independent mode, manual sync behavior, resource-level discovery, and conservative sharing defaults.</li>
+                    <li><strong>Team workflow:</strong> use Apply Team Defaults for asynchronous mode, scheduled sync, workspace-level discovery, and team-oriented permission profiles.</li>
+                </ul>
+                <p>The preset summary line shows Solo or Team when current settings match those defaults. If settings diverge, it shows Custom.</p>
+                <h5>Collaboration Glossary</h5>
+                <ul>
+                    <li><strong>Discovery snapshot:</strong> point-in-time list of resources discoverable under current sharing policy.</li>
+                    <li><strong>Presence session:</strong> active collaboration presence record tied to user/resource context.</li>
+                    <li><strong>Conflict queue:</strong> list of pending synchronization conflicts waiting for resolution.</li>
+                    <li><strong>Sync checkpoint:</strong> saved timestamp for the most recent recorded synchronization event.</li>
+                    <li><strong>Conflict resolution detail:</strong> recorded strategy outcome showing if automatic metadata mutation was applied.</li>
+                </ul>
+                <label for="settings-collaboration-profile-name">Permission profile name</label>
+                <input id="settings-collaboration-profile-name" type="text" autocomplete="off">
+                <label for="settings-collaboration-profile-permissions">Permission profile permissions</label>
+                <input id="settings-collaboration-profile-permissions" type="text" autocomplete="off" placeholder="view, comment, edit">
+                <div class="viewer-dialog-actions" role="group" aria-label="Permission profile actions">
+                    <button id="btn-settings-collaboration-profile-add" type="button">Add Permission Profile</button>
+                </div>
+                <label for="settings-collaboration-assignment-principal">Assignment principal</label>
+                <input id="settings-collaboration-assignment-principal" type="text" autocomplete="off">
+                <label for="settings-collaboration-assignment-resource-type">Assignment resource type</label>
+                <input id="settings-collaboration-assignment-resource-type" type="text" autocomplete="off" placeholder="workspace, report, template">
+                <label for="settings-collaboration-assignment-resource-id">Assignment resource id</label>
+                <input id="settings-collaboration-assignment-resource-id" type="text" autocomplete="off">
+                <label for="settings-collaboration-assignment-permissions">Assignment permissions</label>
+                <input id="settings-collaboration-assignment-permissions" type="text" autocomplete="off" placeholder="view, comment, edit">
+                <div class="viewer-dialog-actions" role="group" aria-label="Permission assignment actions">
+                    <button id="btn-settings-collaboration-assignment-add" type="button">Add Permission Assignment</button>
+                </div>
+                <ul id="settings-collaboration-provider-list" aria-label="Registered collaboration providers"></ul>
+                <div class="viewer-dialog-actions" role="group" aria-label="Collaboration settings actions">
+                    <button id="btn-settings-collaboration-apply" type="button">Apply Collaboration Settings</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-about-heading">
                 <h4 id="settings-about-heading">About ART</h4>
                 <dl id="settings-about-list"></dl>

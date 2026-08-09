@@ -24,6 +24,7 @@ const REQUIRED_TOP_LEVEL_MENU_LABELS = Object.freeze([
     'Report',
     'Tools',
     'Templates',
+    'Collaboration',
     'Help'
 ]);
 

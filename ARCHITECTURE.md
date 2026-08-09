@@ -12,6 +12,8 @@ ART Version 1.5 now also introduces a Plugin Framework that provides centralized
 ART Version 1.5 now also introduces a Resource Relationship Framework that centralizes relationship registration, derivation, validation, navigation, and impact analysis across workspace resources.
 ART Version 1.5 now also introduces a Resource Organization Framework that centralizes non-destructive tags, collections, saved views, favorites, and metadata portability for workspace resources.
 ART Version 1.5 now also introduces a History, Undo/Redo, and Resource Versioning Framework that centralizes change tracking, transaction grouping, undo/redo, version history, restore, and comparison operations.
+ART Version 1.5 now also introduces a Collaboration Framework that centralizes provider capability mapping, collaboration metadata, session tracking, conflict handling, discovery snapshots, and live/asynchronous synchronization commands.
+ART Version 1.5 now also introduces an optional Collaboration Server coordination layer for multi-user live sessions and asynchronous shared-folder synchronization.
 
 ## Core Layers
 
@@ -85,6 +87,21 @@ ART Version 1.5 now also introduces a History, Undo/Redo, and Resource Versionin
 - Registers extension capabilities through approved extension points rather than direct framework modification.
 - Tracks non-executable packages registered after existing ART workflows complete.
 - Exposes diagnostics and validation through the Settings-based Plugin & Package Manager.
+
+### Collaboration Framework
+- Centralizes collaboration provider registration and provider capability normalization.
+- Persists collaboration state and policies (mode, sharing, synchronization, live connection settings, sessions, and conflict queue) in the shared state layer.
+- Provides presence and live session lifecycle APIs.
+- Provides conflict queueing and strategy-based conflict resolution.
+- Provides discovery snapshot generation and resource-level collaboration metadata updates.
+- Provides live server connect/disconnect/session APIs and asynchronous snapshot publish/pull APIs.
+
+### Collaboration Server Layer (Optional)
+- Hosts WebSocket collaboration coordination for live session signaling and synchronization actions.
+- Supports optional token-gated handshake validation for controlled access.
+- Stores and serves asynchronous collaboration snapshots for cross-user pull workflows.
+- Supports optional shared-folder persistence for snapshots so asynchronous collaboration can use shared network storage.
+- Exposes health and snapshot HTTP endpoints for diagnostics and automation.
 
 ### Resource Relationship Framework
 - Uses the existing workspace relationship state as the authoritative persisted relationship store.
@@ -178,6 +195,7 @@ Standard workspace folders:
 - Plugin extension points include history providers, version providers, comparison providers, transaction participants, recovery handlers, and history event subscribers.
 - Plugin extension points include organization metadata providers and validators (tag providers, collection providers, saved view providers, organization validators).
 - Package extension points include accessibility standards, templates, keyboard profiles, working view presets, saved searches, dashboard layouts, organization metadata, history metadata, and future package categories.
+- Collaboration provider extension points support additional live-capability providers and provider-specific metadata/synchronization contracts.
 
 ## UI Integration
 
@@ -185,6 +203,7 @@ Standard workspace folders:
 - Builder actions resolve through commands.
 - Editor actions resolve through commands.
 - Settings actions resolve through commands.
+- Collaboration quick-start and asynchronous publish/pull operations resolve through commands.
 - Lookup actions resolve through commands.
 - Keyboard shortcuts resolve through commands.
 - The Command Palette resolves through the same centralized command framework.
@@ -234,6 +253,8 @@ Standard workspace folders:
 - Universal search provider registry, query parsing, session state, and Search Everywhere dialog: [universalSearchFramework.js](universalSearchFramework.js)
 - Shared search results rendering and keyboard interaction controller: [searchResultsFramework.js](searchResultsFramework.js)
 - Plugin lifecycle, extension-point registry, package registration, and extension diagnostics: [pluginFramework.js](pluginFramework.js)
+- Collaboration providers, sessions, conflicts, discovery, live connect/disconnect, and async snapshot publish/pull: [collaborationFramework.js](collaborationFramework.js)
+- Optional network coordination server for live and asynchronous collaboration: [collaboration-server/server.js](collaboration-server/server.js)
 - Resource relationship derivation, relationship queries, deletion analysis, search indexing, diagnostics, and plugin relationship extensions: [resourceRelationshipFramework.js](resourceRelationshipFramework.js)
 - Resource organization metadata services, command workflows, explorer helpers, saved-view bridge APIs, and metadata portability: [resourceOrganizationFramework.js](resourceOrganizationFramework.js)
 - History services, undo/redo stacks, transactions, recovery, version history, and compare/restore dialogs: [historyFramework.js](historyFramework.js)

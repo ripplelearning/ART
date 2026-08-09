@@ -1,6 +1,7 @@
 import {
     addImportedAccessibilityStandard,
     announce,
+    appState,
     clearImportedAccessibilityStandards,
     canPerformExternalCommunication,
     createArtBackupPayload,
@@ -10,6 +11,8 @@ import {
     getAnalyticsConfig,
     getApplicationInfo,
     getAssignableActions,
+    getCollaborationConfig,
+    getActiveProjectWorkspace,
     getIntegrationStatusMap,
     getImportedAccessibilityStandards,
     getWorkspaceViewConfig,
@@ -34,6 +37,7 @@ import {
     serializeAccessibilityStandardsJsonPayload,
     undoState,
     updateImportedAccessibilityStandard,
+    updateCollaborationConfig,
     updateWorkspaceViewConfig,
     updateSecurityConfig,
     updateAnalyticsConfig,
@@ -44,6 +48,22 @@ import {
     validateTemplateJsonPayload,
     validateAccessibilityStandardPayload
 } from './state.js';
+import {
+    clearCollaborationSessions,
+    connectCollaborationLiveServer,
+    createCollaborationDiscoverySnapshot,
+    disconnectCollaborationLiveServer,
+    getCollaborationConflictSummary,
+    getCollaborationLiveConnectionSnapshot,
+    getCollaborationProviders,
+    getCollaborationSessionSummary,
+    publishCollaborationWorkspaceSnapshot,
+    queueCollaborationConflict,
+    requestCollaborationWorkspaceSnapshot,
+    resolveCollaborationConflict,
+    startLiveCollaborationSession,
+    upsertCollaborationSession
+} from './collaborationFramework.js';
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import {
@@ -82,6 +102,7 @@ let openSettingsResetDialog = null;
 let pendingVisualAccessibilitySnapshot = null;
 let pendingVisualAccessibilityDirty = false;
 let isRefreshingSettingsView = false;
+let liveAutoConnectAttempted = false;
 
 async function executeSettingsAction(action, context = {}) {
     const command = commandRegistry.findCommands({ action })[0] || null;
@@ -780,6 +801,94 @@ function getAnalyticsControls() {
     };
 }
 
+function getCollaborationControls() {
+    return {
+        enabled: document.getElementById('settings-collaboration-enabled'),
+        showToolbar: document.getElementById('settings-collaboration-show-toolbar'),
+        mode: document.getElementById('settings-collaboration-mode'),
+        toolbarPosition: document.getElementById('settings-collaboration-toolbar-position'),
+        providerId: document.getElementById('settings-collaboration-provider-id'),
+        providerName: document.getElementById('settings-collaboration-provider-name'),
+        providerStatus: document.getElementById('settings-collaboration-provider-status'),
+        applyButton: document.getElementById('btn-settings-collaboration-apply'),
+        summary: document.getElementById('settings-collaboration-summary'),
+        providerList: document.getElementById('settings-collaboration-provider-list'),
+        presetSummary: document.getElementById('settings-collaboration-preset-summary'),
+        permissionsSummary: document.getElementById('settings-collaboration-permissions-summary'),
+        sharingSummary: document.getElementById('settings-collaboration-sharing-summary'),
+        sessionSummary: document.getElementById('settings-collaboration-session-summary'),
+        syncSummary: document.getElementById('settings-collaboration-sync-summary'),
+        discoveryScope: document.getElementById('settings-collaboration-discovery-scope'),
+        allowDirectoryListing: document.getElementById('settings-collaboration-allow-directory-listing'),
+        requireApproval: document.getElementById('settings-collaboration-require-approval'),
+        allowGuestLinks: document.getElementById('settings-collaboration-allow-guest-links'),
+        defaultExpiryDays: document.getElementById('settings-collaboration-default-expiry-days'),
+        sharingChannels: document.getElementById('settings-collaboration-sharing-channels'),
+        syncEnabled: document.getElementById('settings-collaboration-sync-enabled'),
+        syncMode: document.getElementById('settings-collaboration-sync-mode'),
+        conflictStrategy: document.getElementById('settings-collaboration-conflict-strategy'),
+        autoMergeComments: document.getElementById('settings-collaboration-auto-merge-comments'),
+        autoMergeMetadata: document.getElementById('settings-collaboration-auto-merge-metadata'),
+        keepVersionHistory: document.getElementById('settings-collaboration-keep-version-history'),
+        maxVersions: document.getElementById('settings-collaboration-max-versions'),
+        syncNowButton: document.getElementById('btn-settings-collaboration-sync-now'),
+        presetSoloButton: document.getElementById('btn-settings-collaboration-preset-solo'),
+        presetTeamButton: document.getElementById('btn-settings-collaboration-preset-team'),
+        resetBaselineButton: document.getElementById('btn-settings-collaboration-reset-baseline'),
+        discoverySummary: document.getElementById('settings-collaboration-discovery-summary'),
+        discoverySnapshotButton: document.getElementById('btn-settings-collaboration-discovery-snapshot'),
+        conflictSummary: document.getElementById('settings-collaboration-conflict-summary'),
+        queueConflictButton: document.getElementById('btn-settings-collaboration-conflict-queue'),
+        resolveConflictButton: document.getElementById('btn-settings-collaboration-conflict-resolve'),
+        liveServerUrl: document.getElementById('settings-collaboration-live-server-url'),
+        liveSessionName: document.getElementById('settings-collaboration-live-session-name'),
+        liveAutoConnect: document.getElementById('settings-collaboration-live-auto-connect'),
+        liveAuthToken: document.getElementById('settings-collaboration-live-auth-token'),
+        liveSummary: document.getElementById('settings-collaboration-live-summary'),
+        liveQuickStartButton: document.getElementById('btn-settings-collaboration-live-quickstart'),
+        liveConnectButton: document.getElementById('btn-settings-collaboration-live-connect'),
+        liveDisconnectButton: document.getElementById('btn-settings-collaboration-live-disconnect'),
+        liveStartSessionButton: document.getElementById('btn-settings-collaboration-live-start-session'),
+        livePublishButton: document.getElementById('btn-settings-collaboration-live-publish'),
+        livePullButton: document.getElementById('btn-settings-collaboration-live-pull'),
+        startSessionButton: document.getElementById('btn-settings-collaboration-session-start'),
+        clearSessionsButton: document.getElementById('btn-settings-collaboration-session-clear'),
+        profileName: document.getElementById('settings-collaboration-profile-name'),
+        profilePermissions: document.getElementById('settings-collaboration-profile-permissions'),
+        addProfileButton: document.getElementById('btn-settings-collaboration-profile-add'),
+        assignmentPrincipal: document.getElementById('settings-collaboration-assignment-principal'),
+        assignmentResourceType: document.getElementById('settings-collaboration-assignment-resource-type'),
+        assignmentResourceId: document.getElementById('settings-collaboration-assignment-resource-id'),
+        assignmentPermissions: document.getElementById('settings-collaboration-assignment-permissions'),
+        addAssignmentButton: document.getElementById('btn-settings-collaboration-assignment-add')
+    };
+}
+
+function getCollaborationPresetLabel(config = getCollaborationConfig()) {
+    const source = config && typeof config === 'object' ? config : {};
+    const isSoloPreset = source.mode === 'independent'
+        && source.sharing?.discoveryScope === 'resource'
+        && source.synchronization?.enabled === false
+        && source.synchronization?.mode === 'manual'
+        && source.synchronization?.conflictStrategy === 'manual-review';
+    const isTeamPreset = source.mode === 'asynchronous'
+        && source.sharing?.discoveryScope === 'workspace'
+        && source.synchronization?.enabled === true
+        && source.synchronization?.mode === 'scheduled'
+        && source.synchronization?.conflictStrategy === 'metadata-priority';
+
+    return isSoloPreset ? 'Solo' : isTeamPreset ? 'Team' : 'Custom';
+}
+
+function getCollaborationBaselinePreset(config = getCollaborationConfig()) {
+    const presetLabel = getCollaborationPresetLabel(config);
+    if (presetLabel === 'Team') return 'team';
+    if (presetLabel === 'Solo') return 'solo';
+
+    const mode = String(config?.mode || 'independent').toLowerCase();
+    return mode === 'asynchronous' || mode === 'synchronous' || mode === 'realtime' ? 'team' : 'solo';
+}
+
 function renderAnalyticsSettings() {
     const controls = getAnalyticsControls();
     if (!controls.defaultScope || !controls.applyButton) return;
@@ -839,6 +948,578 @@ function applyAnalyticsSettings() {
 
     writeStatus('Dashboard analytics settings applied.');
     renderAnalyticsSettings();
+    return true;
+}
+
+function renderCollaborationSettings() {
+    const controls = getCollaborationControls();
+    if (!controls.enabled || !controls.applyButton) return;
+
+    const config = getCollaborationConfig();
+    const providers = getCollaborationProviders();
+    const sessionSummary = getCollaborationSessionSummary();
+    const conflictSummary = getCollaborationConflictSummary();
+    const liveSnapshot = getCollaborationLiveConnectionSnapshot();
+    const discoverySnapshot = createCollaborationDiscoverySnapshot({ workspaceId: appState.activeWorkspaceId, emitEvent: false });
+    const sharingTargets = Array.isArray(config.resourceDefaults?.sharing) ? config.resourceDefaults.sharing : [];
+    const permissionProfiles = Array.isArray(config.permissions?.profiles) ? config.permissions.profiles : [];
+    const permissionAssignments = Array.isArray(config.permissions?.assignments) ? config.permissions.assignments : [];
+    const profileSummary = permissionProfiles.length > 0
+        ? permissionProfiles.map((profile) => `${profile.name || profile.id}: ${(profile.permissions || []).join(', ') || 'no permissions'}`).join(' | ')
+        : 'No permission profiles are configured yet.';
+    const assignmentSummary = permissionAssignments.length > 0
+        ? permissionAssignments.map((assignment) => `${assignment.principalId || 'Unassigned'}${assignment.resourceType ? ` @ ${assignment.resourceType}` : ''}${assignment.resourceId ? `/${assignment.resourceId}` : ''}: ${(assignment.permissions || []).join(', ') || 'no permissions'}`).join(' | ')
+        : 'No permission assignments are configured yet.';
+
+    const presetLabel = getCollaborationPresetLabel(config);
+
+    controls.enabled.checked = Boolean(config.enabled);
+    controls.showToolbar.checked = Boolean(config.showToolbar);
+    controls.mode.value = String(config.mode || 'independent');
+    controls.toolbarPosition.value = String(config.toolbarPosition || 'top-right');
+    controls.providerId.value = String(config.providerId || 'local');
+    controls.providerName.value = String(config.providerName || 'Local collaboration');
+    controls.providerStatus.value = String(config.providerStatus || 'available');
+    if (controls.discoveryScope) controls.discoveryScope.value = String(config.sharing?.discoveryScope || 'workspace');
+    if (controls.allowDirectoryListing) controls.allowDirectoryListing.checked = Boolean(config.sharing?.allowDirectoryListing);
+    if (controls.requireApproval) controls.requireApproval.checked = config.sharing?.requireApproval !== false;
+    if (controls.allowGuestLinks) controls.allowGuestLinks.checked = Boolean(config.sharing?.allowGuestLinks);
+    if (controls.defaultExpiryDays) controls.defaultExpiryDays.value = String(config.sharing?.defaultExpiryDays || 30);
+    if (controls.sharingChannels) controls.sharingChannels.value = Array.isArray(config.sharing?.channels) ? config.sharing.channels.join(', ') : '';
+    if (controls.syncEnabled) controls.syncEnabled.checked = Boolean(config.synchronization?.enabled);
+    if (controls.syncMode) controls.syncMode.value = String(config.synchronization?.mode || 'manual');
+    if (controls.conflictStrategy) controls.conflictStrategy.value = String(config.synchronization?.conflictStrategy || 'manual-review');
+    if (controls.autoMergeComments) controls.autoMergeComments.checked = config.synchronization?.autoMergeComments !== false;
+    if (controls.autoMergeMetadata) controls.autoMergeMetadata.checked = Boolean(config.synchronization?.autoMergeMetadata);
+    if (controls.keepVersionHistory) controls.keepVersionHistory.checked = config.synchronization?.keepVersionHistory !== false;
+    if (controls.maxVersions) controls.maxVersions.value = String(config.synchronization?.maxVersionsPerResource || 20);
+    if (controls.liveServerUrl) controls.liveServerUrl.value = String(config.live?.serverUrl || liveSnapshot.serverUrl || 'ws://localhost:8787/art-live');
+    if (controls.liveSessionName) controls.liveSessionName.value = String(config.live?.sessionName || 'Live Session');
+    if (controls.liveAutoConnect) controls.liveAutoConnect.checked = Boolean(config.live?.autoConnect);
+
+    if (controls.summary) {
+        controls.summary.textContent = config.enabled
+            ? `Collaboration enabled via ${controls.providerName.value}. Mode ${controls.mode.value}. Toolbar ${controls.showToolbar.checked ? 'visible' : 'hidden'}.`
+            : 'Collaboration is disabled.';
+    }
+    if (controls.presetSummary) {
+        controls.presetSummary.textContent = `Current collaboration preset: ${presetLabel}.`;
+    }
+    if (controls.permissionsSummary) {
+        controls.permissionsSummary.textContent = `Permission profiles ${permissionProfiles.length}. Assignments ${permissionAssignments.length}. ${profileSummary}`;
+    }
+    if (controls.sharingSummary) {
+        const discoveryScope = String(config.sharing?.discoveryScope || 'workspace');
+        const channels = Array.isArray(config.sharing?.channels) ? config.sharing.channels : [];
+        controls.sharingSummary.textContent = sharingTargets.length > 0 || channels.length > 0
+            ? `Discovery ${discoveryScope}. Sharing targets: ${sharingTargets.join(', ') || 'none'}. Channels: ${channels.join(', ') || 'none'}.`
+            : 'Sharing is not configured yet.';
+    }
+    if (controls.sessionSummary) {
+        controls.sessionSummary.textContent = sessionSummary.totalCount > 0
+            ? `${sessionSummary.activeCount} active collaboration session${sessionSummary.activeCount === 1 ? '' : 's'} and ${sessionSummary.connectedCount} connected.`
+            : 'No collaboration sessions are active.';
+    }
+    if (controls.syncSummary) {
+        controls.syncSummary.textContent = `Mode ${config.mode}. Sync ${config.synchronization?.enabled ? 'enabled' : 'disabled'} (${config.synchronization?.mode || 'manual'}). Conflict strategy ${config.synchronization?.conflictStrategy || 'manual-review'}. Pending conflicts ${conflictSummary.pendingCount}. Presence ${config.providerCapabilities?.presence ? 'supported' : 'not supported'}. Synchronization capability ${config.providerCapabilities?.synchronization ? 'supported' : 'not supported'}. Version history ${config.synchronization?.keepVersionHistory !== false ? 'enabled' : 'disabled'}. Last sync ${config.synchronization?.lastSyncAt || 'not recorded'}.`;
+    }
+    if (controls.discoverySummary) {
+        controls.discoverySummary.textContent = discoverySnapshot.totalEntries > 0
+            ? `Discovery snapshot contains ${discoverySnapshot.totalEntries} resource${discoverySnapshot.totalEntries === 1 ? '' : 's'} for ${discoverySnapshot.workspaceName || 'workspace'} (${discoverySnapshot.discoveryScope}).`
+            : 'Discovery snapshot not generated.';
+    }
+    if (controls.conflictSummary) {
+        controls.conflictSummary.textContent = conflictSummary.pendingCount > 0
+            ? `${conflictSummary.pendingCount} pending collaboration conflict${conflictSummary.pendingCount === 1 ? '' : 's'}.`
+            : 'No collaboration conflicts are queued.';
+    }
+    if (controls.liveSummary) {
+        const connectionState = String(config.live?.connectionState || liveSnapshot.connectionState || 'offline');
+        const serverUrl = String(config.live?.serverUrl || liveSnapshot.serverUrl || 'ws://localhost:8787/art-live');
+        const lastConnectedAt = String(config.live?.lastConnectedAt || liveSnapshot.lastConnectedAt || 'not connected');
+        const lastError = String(config.live?.lastError || liveSnapshot.lastError || 'none');
+        controls.liveSummary.textContent = `Live server ${connectionState}. URL ${serverUrl}. Last connected ${lastConnectedAt}. Last error ${lastError}.`;
+    }
+    if (controls.profilePermissions && !controls.profilePermissions.value) {
+        controls.profilePermissions.value = 'view, comment, edit';
+    }
+    if (controls.assignmentPermissions && !controls.assignmentPermissions.value) {
+        controls.assignmentPermissions.value = 'view';
+    }
+    if (controls.permissionsSummary && permissionAssignments.length > 0) {
+        controls.permissionsSummary.textContent = `${controls.permissionsSummary.textContent} ${assignmentSummary}`;
+    }
+
+    if (controls.providerList) {
+        controls.providerList.innerHTML = providers.length === 0
+            ? '<li>No collaboration providers registered.</li>'
+            : providers.map((provider) => `<li><strong>${provider.name}</strong> <span>(${provider.status})</span></li>`).join('');
+    }
+}
+
+function applyCollaborationSettings() {
+    const controls = getCollaborationControls();
+    if (!controls.enabled || !controls.applyButton) return false;
+
+    updateCollaborationConfig({
+        enabled: Boolean(controls.enabled.checked),
+        showToolbar: Boolean(controls.showToolbar.checked),
+        mode: controls.mode.value || 'independent',
+        toolbarPosition: controls.toolbarPosition.value || 'top-right',
+        providerId: String(controls.providerId.value || '').trim() || 'local',
+        providerName: String(controls.providerName.value || '').trim() || 'Local collaboration',
+        providerStatus: controls.providerStatus.value || 'available',
+        sharing: {
+            discoveryScope: controls.discoveryScope?.value || 'workspace',
+            allowDirectoryListing: Boolean(controls.allowDirectoryListing?.checked),
+            requireApproval: controls.requireApproval?.checked !== false,
+            allowGuestLinks: Boolean(controls.allowGuestLinks?.checked),
+            defaultExpiryDays: Number.isFinite(Number(controls.defaultExpiryDays?.value)) ? Number(controls.defaultExpiryDays.value) : 30,
+            channels: String(controls.sharingChannels?.value || '')
+                .split(',')
+                .map((value) => String(value || '').trim())
+                .filter(Boolean)
+        },
+        synchronization: {
+            enabled: Boolean(controls.syncEnabled?.checked),
+            mode: controls.syncMode?.value || 'manual',
+            conflictStrategy: controls.conflictStrategy?.value || 'manual-review',
+            autoMergeComments: controls.autoMergeComments?.checked !== false,
+            autoMergeMetadata: Boolean(controls.autoMergeMetadata?.checked),
+            keepVersionHistory: controls.keepVersionHistory?.checked !== false,
+            maxVersionsPerResource: Number.isFinite(Number(controls.maxVersions?.value)) ? Number(controls.maxVersions.value) : 20
+        },
+        live: {
+            serverUrl: String(controls.liveServerUrl?.value || '').trim() || 'ws://localhost:8787/art-live',
+            autoConnect: Boolean(controls.liveAutoConnect?.checked),
+            sessionName: String(controls.liveSessionName?.value || '').trim() || 'Live Session'
+        }
+    }, {
+        action: 'Updated collaboration settings',
+        persist: true
+    });
+
+    writeStatus('Collaboration settings applied.');
+    renderCollaborationSettings();
+    return true;
+}
+
+function registerPresenceSessionFromSettings() {
+    const config = getCollaborationConfig();
+    const activeWorkspace = getActiveProjectWorkspace();
+    const session = upsertCollaborationSession({
+        id: `presence-${activeWorkspace?.id || 'workspace'}-${config.providerId || 'local'}`,
+        resourceType: 'workspace',
+        resourceId: activeWorkspace?.id || 'workspace',
+        userId: appState.auditors || 'User',
+        state: 'active',
+        providerId: config.providerId,
+        connectionState: config.enabled ? 'connected' : 'offline',
+        metadata: {
+            workspaceName: activeWorkspace?.name || 'Active Workspace',
+            visibility: config.resourceDefaults?.visibility || 'private'
+        }
+    }, {
+        action: 'Registered collaboration presence session',
+        state: 'active',
+        connectionState: config.enabled ? 'connected' : 'offline',
+        metadata: {
+            source: 'settings'
+        }
+    });
+
+    writeStatus(`Registered collaboration presence session ${session.id}.`);
+    renderCollaborationSettings();
+    return session;
+}
+
+function clearPresenceSessionsFromSettings() {
+    clearCollaborationSessions({ action: 'Cleared collaboration sessions from settings' });
+    writeStatus('Cleared collaboration sessions.');
+    renderCollaborationSettings();
+    return true;
+}
+
+function recordSyncCheckpointFromSettings() {
+    const config = getCollaborationConfig();
+    updateCollaborationConfig({
+        synchronization: {
+            ...config.synchronization,
+            lastSyncAt: new Date().toISOString()
+        }
+    }, {
+        action: 'Recorded collaboration sync checkpoint',
+        persist: true
+    });
+
+    writeStatus('Recorded collaboration sync checkpoint.');
+    renderCollaborationSettings();
+    return true;
+}
+
+function applyCollaborationPresetFromSettings(preset = 'solo') {
+    const kind = String(preset || 'solo').trim().toLowerCase();
+    const isTeam = kind === 'team';
+    const config = getCollaborationConfig();
+
+    updateCollaborationConfig({
+        enabled: true,
+        showToolbar: true,
+        mode: isTeam ? 'asynchronous' : 'independent',
+        toolbarPosition: 'top-right',
+        sharing: {
+            discoveryScope: isTeam ? 'workspace' : 'resource',
+            allowDirectoryListing: isTeam,
+            requireApproval: true,
+            allowGuestLinks: false,
+            defaultExpiryDays: isTeam ? 14 : 30,
+            channels: isTeam ? ['workspace', 'email'] : ['local']
+        },
+        synchronization: {
+            ...config.synchronization,
+            enabled: isTeam,
+            mode: isTeam ? 'scheduled' : 'manual',
+            conflictStrategy: isTeam ? 'metadata-priority' : 'manual-review',
+            autoMergeComments: true,
+            autoMergeMetadata: isTeam,
+            keepVersionHistory: true,
+            maxVersionsPerResource: isTeam ? 60 : 20
+        },
+        permissions: {
+            ...config.permissions,
+            profiles: isTeam
+                ? [
+                    { id: 'Owner', name: 'Owner', permissions: ['view', 'comment', 'edit', 'share', 'resolve'] },
+                    { id: 'Reviewer', name: 'Reviewer', permissions: ['view', 'comment', 'resolve'] },
+                    { id: 'Contributor', name: 'Contributor', permissions: ['view', 'comment', 'edit'] }
+                ]
+                : [
+                    { id: 'Private', name: 'Private', permissions: ['view', 'edit'] }
+                ]
+        }
+    }, {
+        action: isTeam ? 'Applied team collaboration defaults' : 'Applied solo collaboration defaults',
+        persist: true
+    });
+
+    writeStatus(isTeam ? 'Applied team collaboration defaults.' : 'Applied solo collaboration defaults.');
+    renderCollaborationSettings();
+    return true;
+}
+
+function resetCollaborationBaselineFromSettings() {
+    const config = getCollaborationConfig();
+    const baselinePreset = getCollaborationBaselinePreset(config);
+    const isTeam = baselinePreset === 'team';
+
+    applyCollaborationPresetFromSettings(baselinePreset);
+
+    const refreshed = getCollaborationConfig();
+    updateCollaborationConfig({
+        sessions: [],
+        auditHistory: [],
+        resourceDefaults: {
+            ...refreshed.resourceDefaults,
+            sharing: [],
+            auditHistory: []
+        },
+        permissions: {
+            ...refreshed.permissions,
+            assignments: []
+        },
+        synchronization: {
+            ...refreshed.synchronization,
+            enabled: isTeam,
+            mode: isTeam ? 'scheduled' : 'manual',
+            conflictStrategy: isTeam ? 'metadata-priority' : 'manual-review',
+            pendingConflicts: [],
+            lastSyncAt: ''
+        }
+    }, {
+        action: 'Reset collaboration baseline operational data',
+        persist: true
+    });
+
+    writeStatus(`Reset collaboration to ${isTeam ? 'team' : 'solo'} baseline and cleared sessions, conflicts, assignments, and sync checkpoint.`);
+    renderCollaborationSettings();
+    return true;
+}
+
+async function connectLiveCollaborationServerFromSettings(options = {}) {
+    const controls = getCollaborationControls();
+    const serverUrl = String(options.serverUrl || controls.liveServerUrl?.value || getCollaborationConfig().live?.serverUrl || 'ws://localhost:8787/art-live').trim() || 'ws://localhost:8787/art-live';
+    const authToken = String(options.authToken || controls.liveAuthToken?.value || '').trim();
+
+    const result = await connectCollaborationLiveServer({
+        serverUrl,
+        authToken
+    });
+
+    if (!result.ok) {
+        writeStatus(`Unable to connect to live collaboration server (${result.reason || 'unknown'}).`);
+        renderCollaborationSettings();
+        return result;
+    }
+
+    if (controls.liveAuthToken) {
+        controls.liveAuthToken.value = '';
+    }
+    writeStatus(`Connected to live collaboration server at ${serverUrl}.`);
+    renderCollaborationSettings();
+    return result;
+}
+
+function disconnectLiveCollaborationServerFromSettings() {
+    const result = disconnectCollaborationLiveServer({ action: 'Disconnected live collaboration server from settings' });
+    writeStatus('Disconnected from live collaboration server.');
+    renderCollaborationSettings();
+    return result;
+}
+
+function startLiveCollaborationSessionFromSettings() {
+    const controls = getCollaborationControls();
+    const sessionName = String(controls.liveSessionName?.value || getCollaborationConfig().live?.sessionName || 'Live Session').trim() || 'Live Session';
+    const result = startLiveCollaborationSession({
+        sessionName,
+        workspaceId: appState.activeWorkspaceId
+    });
+    if (!result.ok) {
+        writeStatus('Connect to a live collaboration server before starting a live session.');
+        renderCollaborationSettings();
+        return false;
+    }
+    writeStatus(`Started live collaboration session ${result.session.id}.`);
+    renderCollaborationSettings();
+    return true;
+}
+
+function publishAsyncCollaborationSnapshotFromSettings() {
+    const result = publishCollaborationWorkspaceSnapshot({
+        workspaceId: appState.activeWorkspaceId,
+        persistence: 'shared-folder'
+    });
+    if (!result.ok) {
+        writeStatus('Connect to a live collaboration server before publishing an async snapshot.');
+        renderCollaborationSettings();
+        return false;
+    }
+    writeStatus(`Published collaboration snapshot for workspace ${result.workspaceId} to shared synchronization storage.`);
+    renderCollaborationSettings();
+    return true;
+}
+
+async function pullAsyncCollaborationSnapshotFromSettings() {
+    const result = await requestCollaborationWorkspaceSnapshot({
+        workspaceId: appState.activeWorkspaceId,
+        apply: true,
+        timeoutMs: 10000
+    });
+    if (!result.ok) {
+        writeStatus(`Unable to pull collaboration snapshot (${result.reason || 'unknown'}).`);
+        renderCollaborationSettings();
+        return false;
+    }
+    writeStatus(`Pulled and applied collaboration snapshot for workspace ${result.workspaceId}.`);
+    renderCollaborationSettings();
+    return true;
+}
+
+async function quickStartLiveCollaborationFromSettings() {
+    const controls = getCollaborationControls();
+    const current = getCollaborationConfig();
+    const serverUrl = String(controls.liveServerUrl?.value || current.live?.serverUrl || 'ws://localhost:8787/art-live').trim() || 'ws://localhost:8787/art-live';
+    const sessionName = String(controls.liveSessionName?.value || current.live?.sessionName || 'Live Session').trim() || 'Live Session';
+
+    updateCollaborationConfig({
+        enabled: true,
+        showToolbar: true,
+        mode: 'realtime',
+        providerId: 'live-server',
+        providerName: 'Live collaboration server',
+        sharing: {
+            ...(current.sharing || {}),
+            discoveryScope: 'workspace',
+            allowDirectoryListing: true,
+            requireApproval: true
+        },
+        synchronization: {
+            ...(current.synchronization || {}),
+            enabled: true,
+            mode: 'realtime',
+            conflictStrategy: 'latest-write-wins',
+            autoMergeComments: true,
+            autoMergeMetadata: true,
+            keepVersionHistory: true
+        },
+        live: {
+            ...(current.live || {}),
+            serverUrl,
+            sessionName,
+            autoConnect: true
+        }
+    }, {
+        action: 'Prepared live collaboration quick start',
+        persist: true
+    });
+
+    const connectResult = await connectLiveCollaborationServerFromSettings({ serverUrl });
+    if (!connectResult.ok) return false;
+    return startLiveCollaborationSessionFromSettings();
+}
+
+function maybeAutoConnectLiveCollaboration() {
+    if (liveAutoConnectAttempted) return;
+    liveAutoConnectAttempted = true;
+
+    const config = getCollaborationConfig();
+    const shouldAutoConnect = Boolean(config.live?.autoConnect)
+        && Boolean(config.enabled)
+        && String(config.providerId || '') === 'live-server'
+        && String(config.live?.connectionState || 'offline') !== 'connected';
+
+    if (!shouldAutoConnect) return;
+
+    void connectLiveCollaborationServerFromSettings({
+        serverUrl: config.live?.serverUrl
+    });
+}
+
+function generateDiscoverySnapshotFromSettings() {
+    const snapshot = createCollaborationDiscoverySnapshot({ workspaceId: appState.activeWorkspaceId });
+    writeStatus(`Generated discovery snapshot with ${snapshot.totalEntries} resource${snapshot.totalEntries === 1 ? '' : 's'}.`);
+    renderCollaborationSettings();
+    return snapshot;
+}
+
+function queueTestConflictFromSettings() {
+    const workspaceId = String(appState.activeWorkspaceId || 'workspace').trim() || 'workspace';
+    const conflict = queueCollaborationConflict({
+        resourceType: 'workspace',
+        resourceId: workspaceId,
+        workspaceId,
+        summary: 'Synthetic conflict queued from Collaboration settings test action.',
+        metadata: {
+            incomingMetadata: {
+                owner: 'Remote teammate',
+                visibility: 'workspace',
+                permissionProfile: 'Reviewer',
+                sharing: ['workspace-channel'],
+                permissionAssignments: [{ principalId: 'remote-user', principalType: 'user', permissions: ['view', 'comment'], source: 'remote' }]
+            },
+            incomingComments: [{ author: 'Remote teammate', text: 'Incoming collaborative review note.' }]
+        }
+    }, {
+        action: 'Queued test collaboration conflict from settings'
+    });
+    writeStatus(`Queued collaboration conflict ${conflict.id}.`);
+    renderCollaborationSettings();
+    return conflict;
+}
+
+function resolveOldestConflictFromSettings() {
+    const summary = getCollaborationConflictSummary();
+    const oldest = summary.oldestPending;
+    if (!oldest) {
+        writeStatus('No pending collaboration conflicts to resolve.');
+        return false;
+    }
+
+    const result = resolveCollaborationConflict(oldest.id, {
+        strategy: getCollaborationConfig().synchronization?.conflictStrategy || 'manual-review',
+        action: 'Resolved oldest collaboration conflict from settings'
+    });
+    if (!result.ok) {
+        writeStatus('Unable to resolve the selected collaboration conflict.');
+        return false;
+    }
+
+    const mutationText = result.mutation?.applied ? ` Applied ${result.mutation.reason}.` : ` No automatic metadata merge (${result.mutation?.reason || 'manual-review'}).`;
+    writeStatus(`Resolved collaboration conflict ${oldest.id}.${mutationText}`);
+    renderCollaborationSettings();
+    return true;
+}
+
+function addPermissionProfileFromSettings() {
+    const controls = getCollaborationControls();
+    const profileName = String(controls.profileName?.value || '').trim();
+    const profilePermissions = String(controls.profilePermissions?.value || '')
+        .split(',')
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+
+    if (!profileName) {
+        writeStatus('Permission profile name is required.');
+        return false;
+    }
+
+    const config = getCollaborationConfig();
+    const profiles = Array.isArray(config.permissions?.profiles) ? [...config.permissions.profiles] : [];
+    const existingIndex = profiles.findIndex((profile) => String(profile.id || profile.name || '').trim().toLowerCase() === profileName.toLowerCase());
+    const profile = {
+        id: profileName,
+        name: profileName,
+        permissions: profilePermissions
+    };
+
+    if (existingIndex >= 0) {
+        profiles[existingIndex] = profile;
+    } else {
+        profiles.push(profile);
+    }
+
+    updateCollaborationConfig({
+        permissions: {
+            ...config.permissions,
+            profiles
+        }
+    }, {
+        action: 'Updated collaboration permission profiles',
+        persist: true
+    });
+
+    writeStatus(`Saved permission profile ${profileName}.`);
+    renderCollaborationSettings();
+    return true;
+}
+
+function addPermissionAssignmentFromSettings() {
+    const controls = getCollaborationControls();
+    const principalId = String(controls.assignmentPrincipal?.value || '').trim();
+    const resourceType = String(controls.assignmentResourceType?.value || '').trim();
+    const resourceId = String(controls.assignmentResourceId?.value || '').trim();
+    const permissions = String(controls.assignmentPermissions?.value || '')
+        .split(',')
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+
+    if (!principalId) {
+        writeStatus('Assignment principal is required.');
+        return false;
+    }
+
+    const config = getCollaborationConfig();
+    const assignments = Array.isArray(config.permissions?.assignments) ? [...config.permissions.assignments] : [];
+    assignments.push({
+        principalId,
+        principalType: 'user',
+        resourceType,
+        resourceId,
+        permissions,
+        source: 'settings'
+    });
+
+    updateCollaborationConfig({
+        permissions: {
+            ...config.permissions,
+            assignments
+        }
+    }, {
+        action: 'Updated collaboration permission assignments',
+        persist: true
+    });
+
+    writeStatus(`Saved permission assignment for ${principalId}.`);
+    renderCollaborationSettings();
     return true;
 }
 
@@ -948,6 +1629,7 @@ function refreshSettingsView() {
         renderShortcuts();
         renderImportedStandards();
         renderIntegrationSettings();
+        renderCollaborationSettings();
         renderVisualAccessibilitySettings();
         renderAnalyticsSettings();
         renderWorkspaceViewSettings();
@@ -1435,6 +2117,70 @@ export function openSettingsAnalyticsSectionFromCommand() {
 
 export function openSettingsIntegrationsSectionFromCommand() {
     return focusSettingsSectionByHeadingId('settings-integrations-heading');
+}
+
+export function openSettingsCollaborationSectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-collaboration-heading');
+}
+
+export function applySoloCollaborationPresetFromCommand() {
+    return applyCollaborationPresetFromSettings('solo');
+}
+
+export function applyTeamCollaborationPresetFromCommand() {
+    return applyCollaborationPresetFromSettings('team');
+}
+
+export function resetCollaborationBaselineFromCommand() {
+    return resetCollaborationBaselineFromSettings();
+}
+
+export function recordCollaborationSyncCheckpointFromCommand() {
+    return recordSyncCheckpointFromSettings();
+}
+
+export function generateCollaborationDiscoverySnapshotFromCommand() {
+    return generateDiscoverySnapshotFromSettings();
+}
+
+export function queueCollaborationTestConflictFromCommand() {
+    return queueTestConflictFromSettings();
+}
+
+export function resolveOldestCollaborationConflictFromCommand() {
+    return resolveOldestConflictFromSettings();
+}
+
+export function registerCollaborationPresenceSessionFromCommand() {
+    return registerPresenceSessionFromSettings();
+}
+
+export function clearCollaborationSessionsFromCommand() {
+    return clearPresenceSessionsFromSettings();
+}
+
+export async function quickStartLiveCollaborationFromCommand() {
+    return quickStartLiveCollaborationFromSettings();
+}
+
+export async function connectLiveCollaborationFromCommand() {
+    return connectLiveCollaborationServerFromSettings();
+}
+
+export function disconnectLiveCollaborationFromCommand() {
+    return disconnectLiveCollaborationServerFromSettings();
+}
+
+export function startLiveCollaborationSessionFromCommand() {
+    return startLiveCollaborationSessionFromSettings();
+}
+
+export function publishAsyncCollaborationSnapshotFromCommand() {
+    return publishAsyncCollaborationSnapshotFromSettings();
+}
+
+export async function pullAsyncCollaborationSnapshotFromCommand() {
+    return pullAsyncCollaborationSnapshotFromSettings();
 }
 
 export function closeSettingsDialogFromCommand() {
@@ -2079,6 +2825,65 @@ function bindAnalyticsSettings() {
     });
 }
 
+function bindCollaborationSettings() {
+    const controls = getCollaborationControls();
+    if (!controls.applyButton) return;
+    controls.applyButton.addEventListener('click', () => {
+        applyCollaborationSettings();
+    });
+    controls.startSessionButton?.addEventListener('click', () => {
+        registerPresenceSessionFromSettings();
+    });
+    controls.clearSessionsButton?.addEventListener('click', () => {
+        clearPresenceSessionsFromSettings();
+    });
+    controls.syncNowButton?.addEventListener('click', () => {
+        recordSyncCheckpointFromSettings();
+    });
+    controls.presetSoloButton?.addEventListener('click', () => {
+        applyCollaborationPresetFromSettings('solo');
+    });
+    controls.presetTeamButton?.addEventListener('click', () => {
+        applyCollaborationPresetFromSettings('team');
+    });
+    controls.resetBaselineButton?.addEventListener('click', () => {
+        resetCollaborationBaselineFromSettings();
+    });
+    controls.liveQuickStartButton?.addEventListener('click', async () => {
+        await quickStartLiveCollaborationFromSettings();
+    });
+    controls.liveConnectButton?.addEventListener('click', async () => {
+        await connectLiveCollaborationServerFromSettings();
+    });
+    controls.liveDisconnectButton?.addEventListener('click', () => {
+        disconnectLiveCollaborationServerFromSettings();
+    });
+    controls.liveStartSessionButton?.addEventListener('click', () => {
+        startLiveCollaborationSessionFromSettings();
+    });
+    controls.livePublishButton?.addEventListener('click', () => {
+        publishAsyncCollaborationSnapshotFromSettings();
+    });
+    controls.livePullButton?.addEventListener('click', async () => {
+        await pullAsyncCollaborationSnapshotFromSettings();
+    });
+    controls.discoverySnapshotButton?.addEventListener('click', () => {
+        generateDiscoverySnapshotFromSettings();
+    });
+    controls.queueConflictButton?.addEventListener('click', () => {
+        queueTestConflictFromSettings();
+    });
+    controls.resolveConflictButton?.addEventListener('click', () => {
+        resolveOldestConflictFromSettings();
+    });
+    controls.addProfileButton?.addEventListener('click', () => {
+        addPermissionProfileFromSettings();
+    });
+    controls.addAssignmentButton?.addEventListener('click', () => {
+        addPermissionAssignmentFromSettings();
+    });
+}
+
 function bindStandardExport() {
     const exportButton = document.getElementById('btn-settings-export-standards');
     if (!exportButton) return;
@@ -2227,6 +3032,7 @@ export function initSettings() {
     bindShortcutCapture();
     bindVisualAccessibilitySettings();
     bindAnalyticsSettings();
+    bindCollaborationSettings();
     bindWorkspaceViewSettings();
     bindStandardImport();
     bindStandardExport();
@@ -2242,8 +3048,12 @@ export function initSettings() {
     window.addEventListener('art-accessibility-standards-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-security-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-analytics-settings-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-collaboration-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-collaboration-framework-event', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-workspace-view-settings-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-plugin-framework-event', refreshSettingsViewIfDialogOpen);
+
+    maybeAutoConnectLiveCollaboration();
 
     isInitialized = true;
 }
