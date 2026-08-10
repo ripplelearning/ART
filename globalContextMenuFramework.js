@@ -434,12 +434,27 @@ function getApplicationContextFromFocus(anchorElement = document.activeElement) 
         return { ...base, kind: 'project-workspace', contextLabel: 'Project Workspace' };
     }
 
+    const recentMenuItem = focused?.closest?.('#menu-bar [data-recent-kind]');
+    if (recentMenuItem) {
+        const recentKind = normalizeText(recentMenuItem.getAttribute('data-recent-kind'));
+        return {
+            ...base,
+            kind: 'menu-bar',
+            contextLabel: recentKind === 'project' ? 'Recent Project Workspace' : 'Recent Report',
+            recentKind,
+            recentReportId: normalizeText(recentMenuItem.getAttribute('data-report-id')),
+            recentWorkspaceId: normalizeText(recentMenuItem.getAttribute('data-workspace-id'))
+        };
+    }
+
     if (focused?.closest?.('#dashboard')) return { ...base, kind: 'dashboard', contextLabel: 'Dashboard' };
     if (focused?.closest?.('#lookup-tool')) return { ...base, kind: 'lookup-tool', contextLabel: 'Accessibility Lookup Tool' };
     if (focused?.closest?.('#help-dialog')) return { ...base, kind: 'help', contextLabel: 'Help' };
     if (focused?.closest?.('#app-settings-dialog')) return { ...base, kind: 'settings', contextLabel: 'Application Settings' };
     if (focused?.closest?.('#search-everywhere-dialog')) return { ...base, kind: 'search-results', contextLabel: 'Search Results' };
     if (focused?.closest?.('#command-palette-dialog')) return { ...base, kind: 'command-palette', contextLabel: 'Command Palette' };
+    if (focused?.closest?.('#menu-bar')) return { ...base, kind: 'menu-bar', contextLabel: 'Menu Bar' };
+
     if (focused?.closest?.('#menu-bar')) return { ...base, kind: 'menu-bar', contextLabel: 'Menu Bar' };
 
     switch (selectedTabId) {
@@ -598,6 +613,29 @@ function isLookupAction(action) {
 
 function isDashboardAction(action) {
     return action === 'configureDashboard' || action === 'searchDashboard';
+}
+
+function isRecentReportContextAction(action) {
+    return isReportAuthoringAction(action)
+        || isReportReviewAction(action)
+        || isReportNavigationAction(action)
+        || action === 'openProgressLog'
+        || action === 'openSettings'
+        || action === 'openHelp'
+        || action === 'searchCommands';
+}
+
+function isRecentProjectContextAction(action) {
+    return isWorkspaceAction(action)
+        || action === 'showDashboard'
+        || action === 'showExplorer'
+        || action === 'toggleWorkspaceView'
+        || action === 'newReport'
+        || action === 'newTemplate'
+        || action === 'importData'
+        || action === 'searchCommands'
+        || action === 'openSettings'
+        || action === 'openHelp';
 }
 
 function isWorkspaceAction(action) {
@@ -1841,8 +1879,20 @@ function registerDefaultProviders() {
         supportedContexts: contexts,
         supportedCommandGroups: roots,
         priority,
-        commandFilter: (command) => {
+        commandFilter: (command, context) => {
             const locationRoot = splitLocation(getCommandTreeLocation(command))[0] || command.category || 'Application';
+            if (context?.recentKind === 'report') {
+                return isRecentReportContextAction(command.action)
+                    || roots.includes(locationRoot)
+                    || roots.includes(command.category);
+            }
+
+            if (context?.recentKind === 'project') {
+                return isRecentProjectContextAction(command.action)
+                    || roots.includes(locationRoot)
+                    || roots.includes(command.category);
+            }
+
             return roots.length === 0 || roots.includes(locationRoot) || roots.includes(command.category);
         },
         getMetadata: () => ({ subtitle: description })
@@ -1860,7 +1910,7 @@ function registerDefaultProviders() {
     createProvider('search-results-context-provider', 'Search Results Context Provider', ['search-results'], contextRoots.get('search-results') || [], 'Search result navigation and search session commands.');
     createProvider('settings-context-provider', 'Settings Context Provider', ['settings'], contextRoots.get('settings') || [], 'Settings and maintenance commands.');
     createProvider('welcome-context-provider', 'Welcome Screen Context Provider', ['welcome'], contextRoots.get('welcome') || [], 'Workspace launch and application commands.');
-    createProvider('menu-bar-context-provider', 'Menu Bar Context Provider', ['menu-bar'], contextRoots.get('menu-bar') || [], 'Menu bar and application command navigation.');
+    createProvider('menu-bar-context-provider', 'Menu Bar Context Provider', ['menu-bar'], contextRoots.get('menu-bar') || [], 'Menu bar and application command navigation.', 100);
     createProvider('command-palette-context-provider', 'Command Palette Context Provider', ['command-palette'], contextRoots.get('command-palette') || [], 'Command palette and command execution commands.');
 }
 

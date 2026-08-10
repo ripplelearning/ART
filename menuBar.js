@@ -1,7 +1,7 @@
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { searchCommands } from './commandSearchEngine.js';
-import { announce, isCollaborationEnabled } from './state.js';
+import { announce, getBuiltInTemplates, getRecentProjectWorkspaces, getRecentReports, getUserTemplates, isCollaborationEnabled } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import { getRedoMenuLabel, getUndoMenuLabel } from './historyFramework.js';
 import { getTopLevelMenuShortcutAction } from './menuShortcuts.js';
@@ -22,6 +22,58 @@ let suppressNextMenuButtonClick = false;
 let menuSearchResultsController = null;
 
 const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Presentation', 'Tools', 'Templates', 'Window', 'Collaboration', 'Help'];
+const MENU_CHILD_ORDER = new Map([
+    ['File', new Map([
+        ['New', 0],
+        ['Open', 1],
+        ['Save', 2],
+        ['Import', 3],
+        ['Export', 4],
+        ['Project Workspace', 5],
+        ['Recent Reports/Projects', 6],
+        ['Close', 99]
+    ])],
+    ['File>New', new Map([
+        ['Report', 0],
+        ['Template', 1],
+        ['Project Workspace', 2],
+        ['Working View', 3]
+    ])],
+    ['File>Open', new Map([
+        ['Report', 0],
+        ['Project Workspace', 1],
+        ['Working View', 2],
+        ['Template', 3]
+    ])],
+    ['File>Save', new Map([
+        ['Report', 0],
+        ['Project Workspace', 1],
+        ['Working View', 2]
+    ])],
+    ['File>Close', new Map([
+        ['Project Workspace', 0],
+        ['Working View', 1],
+        ['Report', 2]
+    ])],
+    ['File>New>Report', new Map([
+        ['Blank Report', 0],
+        ['New Report From Template', 1]
+    ])]
+]);
+const MENU_COMMAND_ORDER = new Map([
+    ['Edit', new Map([
+        ['editSelectAll', 0],
+        ['editCut', 1],
+        ['editCopy', 2],
+        ['editPaste', 3],
+        ['undo', 10],
+        ['redo', 11]
+    ])],
+    ['File>New>Report', new Map([
+        ['newReport', 0],
+        ['newReportFromTemplate', 1]
+    ])]
+]);
 
 function escapeHtml(value) {
     return String(value || '')
@@ -34,6 +86,102 @@ function escapeHtml(value) {
 
 function normalizeText(value) {
     return String(value || '').trim();
+}
+
+function getMenuItemLabel(command, parentPath = '') {
+    switch (command.action) {
+        case 'newReport': return 'Blank Report';
+        case 'newReportFromTemplate': return 'New Report From Template';
+        case 'newProjectWorkspace': return 'New Project Workspace';
+        case 'newTemplate': return 'New Template';
+        case 'newWorkingView': return 'New Working View';
+        case 'openProject': return 'Open ART Project...';
+        case 'openReport': return 'Open Report...';
+        case 'openProjectWorkspace': return 'Open Project Workspace...';
+        case 'openWorkingView': return 'Open Working View...';
+        case 'saveProject': return 'Save Report';
+        case 'saveProjectAs': return 'Save Report As...';
+        case 'saveProjectWorkspace': return 'Save Project Workspace';
+        case 'saveProjectWorkspaceAs': return 'Save Project Workspace As...';
+        case 'saveWorkingView': return 'Save Working View';
+        case 'editCut': return 'Cut';
+        case 'editCopy': return 'Copy';
+        case 'editPaste': return 'Paste';
+        case 'editSelectAll': return 'Select All';
+        default:
+            if (parentPath === 'File>New>Report' && command.action === 'newReportFromTemplate') return 'New Report From Template';
+            return command.displayName;
+    }
+}
+
+function getTemplateGroups() {
+    return [
+        { label: 'Built-in templates', templates: getBuiltInTemplates() },
+        { label: 'User, imported, and shared templates', templates: getUserTemplates() }
+    ].filter((group) => Array.isArray(group.templates) && group.templates.length > 0);
+}
+
+function getRecentMenuGroups() {
+    const recentReports = getRecentReports();
+    const recentProjectWorkspaces = getRecentProjectWorkspaces();
+
+    return [
+        {
+            label: 'Recent Reports',
+            kind: 'report',
+            items: recentReports.map((report) => ({
+                id: report.id,
+                label: report.name,
+                reportId: report.id,
+                commandId: 'Report.View'
+            }))
+        },
+        {
+            label: 'Recent Project Workspaces',
+            kind: 'project',
+            items: recentProjectWorkspaces.map((workspace) => ({
+                id: workspace.id || workspace.workspaceId,
+                label: workspace.name,
+                workspaceId: workspace.workspaceId || workspace.id,
+                commandId: 'Workspace.OpenRecent'
+            }))
+        }
+    ].filter((group) => Array.isArray(group.items) && group.items.length > 0);
+}
+
+function renderRecentMenuItem(group, depth, itemIndex, parentPath, entry) {
+    return `
+        <button
+            type="button"
+            role="menuitem"
+            class="app-menu-bar__menu-item"
+            data-menu-item="true"
+            data-menu-depth="${depth}"
+            data-item-index="${itemIndex}"
+            data-parent-path="${escapeHtml(parentPath)}"
+            data-command-id="${escapeHtml(entry.commandId)}"
+            data-recent-kind="${escapeHtml(group.kind)}"
+            ${entry.reportId ? `data-report-id="${escapeHtml(entry.reportId)}"` : ''}
+            ${entry.workspaceId ? `data-workspace-id="${escapeHtml(entry.workspaceId)}"` : ''}
+            aria-disabled="false"
+            tabindex="-1"
+        >
+            <span>${escapeHtml(entry.label)}</span>
+            <span class="app-menu-bar__shortcut" aria-hidden="true">›</span>
+        </button>
+    `;
+}
+
+function getMenuChildSortOrder(parentPath, label) {
+    const orderMap = MENU_CHILD_ORDER.get(parentPath);
+    if (orderMap && orderMap.has(label)) return orderMap.get(label);
+    return 1000;
+}
+
+function getMenuCommandSortOrder(parentPath, action) {
+    const orderMap = MENU_COMMAND_ORDER.get(parentPath);
+    if (orderMap && orderMap.has(action)) return orderMap.get(action);
+    return 1000;
 }
 
 function getMenuLocation(command) {
@@ -107,26 +255,30 @@ function getMenuLocation(command) {
         case 'copyFailures':
         case 'copyFixes':
         case 'copyLink': return 'Edit>Copy';
-        case 'newReport':
-        case 'newReportFromTemplate':
-        case 'openProject':
-        case 'saveProject':
-        case 'saveProjectAs':
-        case 'importData':
-        case 'openReport': return 'File';
-        case 'newProjectWorkspace':
+        case 'newReport': return 'File>New>Report';
+        case 'newReportFromTemplate': return 'File>New>Report>New Report From Template';
+        case 'newWorkingView': return 'File>New>Working View';
+        case 'newProjectWorkspace': return 'File>New>Project Workspace';
+        case 'newTemplate': return 'File>New>Template';
+        case 'openProject': return 'File>Open>Project';
+        case 'openReport':
+        case 'importData': return 'File>Open>Report';
         case 'openProjectWorkspace':
-        case 'openRecentProjectWorkspace':
+        case 'openRecentProjectWorkspace': return 'File>Open>Project Workspace';
+        case 'openWorkingView': return 'File>Open>Working View';
+        case 'saveProject':
+        case 'saveProjectAs': return 'File>Save>Report';
         case 'saveProjectWorkspace':
         case 'saveProjectWorkspaceAs':
         case 'renameProjectWorkspace':
         case 'duplicateProjectWorkspace':
         case 'importProjectWorkspace':
         case 'exportProjectWorkspace':
-        case 'deleteProjectWorkspace': return 'File>Project Workspace';
-        case 'closeProjectWorkspace':
-        case 'closeWorkingView':
-        case 'closeReport': return 'File>Close';
+        case 'deleteProjectWorkspace': return 'File>Save>Project Workspace';
+        case 'saveWorkingView': return 'File>Save>Working View';
+        case 'closeProjectWorkspace': return 'File>Close>Project Workspace';
+        case 'closeWorkingView': return 'File>Close>Working View';
+        case 'closeReport': return 'File>Close>Report';
         case 'openProjectProperties':
         case 'openProjectStatistics':
         case 'openWorkspaceSettings': return 'View>Project Workspace';
@@ -288,7 +440,8 @@ function getLastOpenPath() {
 }
 
 function getCurrentOpenNode(roots) {
-    return getNodeByPath(getLastOpenPath(), roots);
+    const rootPath = openPath[0] || '';
+    return getNodeByPath(rootPath, roots);
 }
 
 function rememberFocusBeforeMenubar(force = false) {
@@ -335,14 +488,14 @@ function renderTopLevelButtons(roots) {
     }).join('');
 }
 
-function renderCommandItem(command, depth, itemIndex, parentPath) {
+function renderCommandItem(command, depth, itemIndex, parentPath, labelOverride = '') {
     const shortcut = command.keyboardShortcut || 'Unassigned';
-    const displayName = command.action === 'undo'
+    const displayName = labelOverride || (command.action === 'undo'
         ? getUndoMenuLabel()
         : command.action === 'redo'
             ? getRedoMenuLabel()
-            : command.displayName;
-    return `
+            : getMenuItemLabel(command, parentPath));
+        return `
         <button
             type="button"
             role="menuitem"
@@ -356,6 +509,29 @@ function renderCommandItem(command, depth, itemIndex, parentPath) {
             tabindex="-1"
         >
             <span>${escapeHtml(displayName)}</span>
+            <span class="app-menu-bar__shortcut">${escapeHtml(shortcut)}</span>
+        </button>
+    `;
+}
+
+function renderTemplateMenuItem(command, depth, itemIndex, parentPath, template, groupLabel) {
+    const shortcut = command.keyboardShortcut || 'Unassigned';
+    const label = groupLabel ? `${template.name}` : template.name;
+    return `
+        <button
+            type="button"
+            role="menuitem"
+            class="app-menu-bar__menu-item"
+            data-menu-item="true"
+            data-menu-depth="${depth}"
+            data-item-index="${itemIndex}"
+            data-parent-path="${escapeHtml(parentPath)}"
+            data-command-id="${escapeHtml(command.id)}"
+            data-template-id="${escapeHtml(template.id)}"
+            aria-disabled="false"
+            tabindex="-1"
+        >
+            <span>${escapeHtml(label)}</span>
             <span class="app-menu-bar__shortcut">${escapeHtml(shortcut)}</span>
         </button>
     `;
@@ -383,18 +559,173 @@ function renderSubmenuTrigger(childNode, depth, itemIndex, parentPath) {
     `;
 }
 
+function getMenuItemContext(element) {
+    if (!(element instanceof HTMLElement)) return {};
+    const templateId = normalizeText(element.getAttribute('data-template-id'));
+    const reportId = normalizeText(element.getAttribute('data-report-id'));
+    const workspaceId = normalizeText(element.getAttribute('data-workspace-id'));
+    const recentKind = normalizeText(element.getAttribute('data-recent-kind'));
+    return {
+        ...(templateId ? { templateId } : {}),
+        ...(reportId ? { reportId } : {}),
+        ...(workspaceId ? { workspaceId } : {}),
+        ...(recentKind ? { recentKind } : {})
+    };
+}
+
 function renderMenuNode(node, depth = 0) {
     const items = [];
     let itemIndex = 0;
+    let recentSubmenuInserted = false;
 
-    node.commands.forEach((command) => {
+    const appendRecentSubmenu = () => {
+        const recentPath = 'File>Recent Reports/Projects';
+        const isExpanded = getIsNodeOpen(recentPath);
+        items.push(`
+            <button
+                type="button"
+                role="menuitem"
+                class="app-menu-bar__menu-item app-menu-bar__menu-item--submenu"
+                data-menu-item="true"
+                data-menu-depth="${depth}"
+                data-item-index="${itemIndex}"
+                data-parent-path="${escapeHtml(node.path)}"
+                data-submenu-path="${escapeHtml(recentPath)}"
+                aria-haspopup="true"
+                aria-expanded="${String(isExpanded)}"
+                tabindex="-1"
+            >
+                <span>Recent Reports/Projects</span>
+                <span class="app-menu-bar__shortcut" aria-hidden="true">›</span>
+            </button>
+        `);
+        itemIndex += 1;
+        recentSubmenuInserted = true;
+
+        if (isExpanded) {
+            const groups = getRecentMenuGroups();
+            const recentMarkup = groups.length
+                ? groups.map((group) => `
+                    <div class="app-menu-bar__submenu-group" role="group" aria-label="${escapeHtml(group.label)}">
+                        ${group.items.map((entry, recentIndex) => renderRecentMenuItem(group, depth + 1, recentIndex, recentPath, entry)).join('')}
+                    </div>
+                `).join('')
+                : `
+                    <button
+                        type="button"
+                        role="menuitem"
+                        class="app-menu-bar__menu-item is-disabled"
+                        data-menu-item="true"
+                        data-menu-depth="${depth + 1}"
+                        data-item-index="0"
+                        data-parent-path="${escapeHtml(recentPath)}"
+                        aria-disabled="true"
+                        tabindex="-1"
+                    >
+                        <span>No recent reports or projects available.</span>
+                    </button>
+                `;
+
+            items.push(`
+                <div class="app-menu-bar__submenu-panel" data-submenu-panel="${escapeHtml(recentPath)}" role="menu" aria-label="Recent Reports/Projects">
+                    ${recentMarkup}
+                </div>
+            `);
+        }
+    };
+
+    if (node.path === 'File>New>Report>New Report From Template') {
+        const command = node.commands[0] || null;
+        const templateEntries = getTemplateGroups().flatMap((group) => (
+            group.templates.map((template) => ({ template, groupLabel: group.label }))
+        ));
+
+        if (command) {
+            const templateItems = templateEntries.length
+                ? templateEntries.map((entry, templateIndex) => renderTemplateMenuItem(command, depth, templateIndex, node.path, entry.template, entry.groupLabel)).join('')
+                : `
+                    <button type="button" role="menuitem" class="app-menu-bar__menu-item is-disabled" aria-disabled="true" tabindex="-1">
+                        <span>No templates available</span>
+                    </button>
+                `;
+
+            return `
+                <div class="app-menu-bar__menu-level" role="menu" aria-label="${escapeHtml(node.label)}" data-menu-level="${depth}" data-menu-path="${escapeHtml(node.path)}">
+                    ${templateItems}
+                </div>
+            `;
+        }
+    }
+
+    const commands = [...node.commands].sort((left, right) => {
+        const leftOrder = getMenuCommandSortOrder(node.path, left.action);
+        const rightOrder = getMenuCommandSortOrder(node.path, right.action);
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return getMenuItemLabel(left, node.path).localeCompare(getMenuItemLabel(right, node.path), undefined, { sensitivity: 'base' });
+    });
+
+    commands.forEach((command) => {
         items.push(renderCommandItem(command, depth, itemIndex, node.path));
         itemIndex += 1;
     });
 
     node.children
-        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+        .sort((a, b) => {
+            const leftOrder = getMenuChildSortOrder(node.path, a.label);
+            const rightOrder = getMenuChildSortOrder(node.path, b.label);
+            if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+            return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
+        })
         .forEach((child) => {
+            if (node.path === 'File' && child.label === 'Close' && !recentSubmenuInserted) {
+                appendRecentSubmenu();
+            }
+
+            if (child.path === 'File>New>Report>New Report From Template') {
+                const isExpanded = getIsNodeOpen(child.path);
+                const command = child.commands[0] || null;
+                items.push(`
+                    <button
+                        type="button"
+                        role="menuitem"
+                        class="app-menu-bar__menu-item app-menu-bar__menu-item--submenu"
+                        data-menu-item="true"
+                        data-menu-depth="${depth}"
+                        data-item-index="${itemIndex}"
+                        data-parent-path="${escapeHtml(node.path)}"
+                        data-submenu-path="${escapeHtml(child.path)}"
+                        aria-haspopup="true"
+                        aria-expanded="${String(isExpanded)}"
+                        tabindex="-1"
+                    >
+                        <span>${escapeHtml(child.label)}</span>
+                        <span class="app-menu-bar__shortcut" aria-hidden="true">›</span>
+                    </button>
+                `);
+                itemIndex += 1;
+
+                if (isExpanded && command) {
+                    const templateEntries = getTemplateGroups().flatMap((group) => (
+                        group.templates.map((template) => ({ template, groupLabel: group.label }))
+                    ));
+                    const templateItems = templateEntries.length
+                        ? templateEntries.map((entry, templateIndex) => renderTemplateMenuItem(command, depth + 1, itemIndex + templateIndex, child.path, entry.template, entry.groupLabel)).join('')
+                        : `
+                            <button type="button" role="menuitem" class="app-menu-bar__menu-item is-disabled" aria-disabled="true" tabindex="-1">
+                                <span>No templates available</span>
+                            </button>
+                        `;
+
+                    items.push(`
+                        <div class="app-menu-bar__submenu-panel" data-submenu-panel="${escapeHtml(child.path)}" role="menu" aria-label="${escapeHtml(child.label)}">
+                            ${templateItems}
+                        </div>
+                    `);
+                    itemIndex += Math.max(1, templateEntries.length);
+                }
+                return;
+            }
+
             items.push(renderSubmenuTrigger(child, depth, itemIndex, node.path));
             itemIndex += 1;
             if (getIsNodeOpen(child.path)) {
@@ -405,6 +736,10 @@ function renderMenuNode(node, depth = 0) {
                 `);
             }
         });
+
+    if (node.path === 'File' && !recentSubmenuInserted) {
+        appendRecentSubmenu();
+    }
 
     return `
         <div class="app-menu-bar__menu-level" role="menu" aria-label="${escapeHtml(node.label)}" data-menu-level="${depth}" data-menu-path="${escapeHtml(node.path)}">
@@ -492,7 +827,7 @@ function renderMenuBar() {
     panel.hidden = !openPanelHtml;
 }
 
-function executeCommand(command) {
+function executeCommand(command, context = {}) {
     if (!command) return;
     if (!command.canExecute) {
         announce('Command unavailable.');
@@ -504,7 +839,8 @@ function executeCommand(command) {
         source: 'menu-bar',
         invocation: 'menu-bar',
         triggerElement: document.activeElement,
-        activeElement: document.activeElement
+        activeElement: document.activeElement,
+        ...context
     }).then((result) => {
         if (result?.ok) {
             announce(`Executed ${command.displayName}.`);
@@ -614,10 +950,14 @@ function closeSubmenuAndFocusParent(submenuPath) {
     openPath = openPath.filter((path) => !(path === submenuPath || path.startsWith(`${submenuPath}>`)));
     renderMenuBar();
 
+    const fallbackIndex = menuFocusIndexByPath.get(parentPath) || 0;
     const focusParentTrigger = () => {
         const trigger = document.querySelector(`[data-submenu-path="${CSS.escape(submenuPath)}"]`);
         if (trigger instanceof HTMLElement) {
             trigger.focus();
+            return true;
+        }
+        if (focusMenuItemByPath(parentPath, fallbackIndex)) {
             return true;
         }
         return false;
@@ -773,7 +1113,18 @@ function handleMenuButtonKeydown(event, activeElement) {
 
     if (event.key === 'Escape') {
         event.preventDefault();
-        exitMenubarInteractionToMenuButton();
+        exitMenubarSession();
+        return true;
+    }
+
+    if (event.key === 'Tab') {
+        event.preventDefault();
+        const currentLabel = normalizeText(activeElement.getAttribute('data-menu-label') || activeElement.textContent || '');
+        if (currentLabel.toLowerCase() === 'help') {
+            exitMenubarSession();
+        } else {
+            focusMenuSearch(true);
+        }
         return true;
     }
 
@@ -824,7 +1175,7 @@ function handleMenuItemKeydown(event, activeElement) {
             executeCommand({
                 ...command,
                 ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
-            });
+            }, getMenuItemContext(activeElement));
         }
         return true;
     }
@@ -849,8 +1200,13 @@ function handleMenuItemKeydown(event, activeElement) {
             return true;
         }
 
-        closeAllMenus(false);
-        openTopLevelMenuByIndex(menubarFocusIndex - 1, 'first');
+        const currentRootButton = document.querySelector(`[data-menu-button="true"][data-menu-path="${CSS.escape(currentPath)}"]`);
+        if (currentRootButton instanceof HTMLElement) {
+            currentRootButton.focus();
+            return true;
+        }
+
+        focusTopLevelButton(menubarFocusIndex);
         return true;
     }
 
@@ -859,7 +1215,18 @@ function handleMenuItemKeydown(event, activeElement) {
         if (currentPath.includes('>')) {
             closeSubmenuAndFocusParent(currentPath);
         } else {
-            exitMenubarInteractionToMenuButton();
+            exitMenubarSession();
+        }
+        return true;
+    }
+
+    if (event.key === 'Tab') {
+        event.preventDefault();
+        const currentLabel = normalizeText(currentPath.split('>').shift() || '');
+        if (currentLabel.toLowerCase() === 'help') {
+            exitMenubarSession();
+        } else {
+            focusMenuSearch(true);
         }
         return true;
     }
@@ -1049,7 +1416,7 @@ function handlePanelClick(event) {
     executeCommand({
         ...command,
         ...commandExecutionService.getCommandExecutionState(command.id, { source: 'menu-bar' })
-    });
+    }, getMenuItemContext(target));
 }
 
 function handleSearchInput() {

@@ -368,32 +368,41 @@ function getDefaultMenuLocation(action, category) {
         case 'settingsCreateBackup':
         case 'settingsResetApp':
         case 'settingsCloseReport': return 'Edit>Application Settings';
+        case 'editCut':
+        case 'editCopy':
+        case 'editPaste':
+        case 'editSelectAll': return 'Edit';
         case 'copyEntry':
         case 'copyName':
         case 'copyDescription':
         case 'copyFailures':
         case 'copyFixes':
         case 'copyLink': return 'Edit>Copy';
-        case 'newReport':
-        case 'newReportFromTemplate':
-        case 'openProject':
+        case 'newReport': return 'File>New>Report';
+        case 'newReportFromTemplate': return 'File>New>Report>New Report From Template';
+        case 'newWorkingView': return 'File>New>Working View';
+        case 'newProjectWorkspace': return 'File>New>Project Workspace';
+        case 'newTemplate': return 'File>New>Template';
+        case 'openProject': return 'File>Open>Project';
+        case 'openReport':
+        case 'importData': return 'File>Open>Report';
         case 'saveProject':
-        case 'saveProjectAs':
-        case 'importData':
-        case 'openReport': return 'File';
-        case 'newProjectWorkspace':
+        case 'saveProjectAs': return 'File>Save>Report';
         case 'openProjectWorkspace':
         case 'openRecentProjectWorkspace':
+            return 'File>Open>Project Workspace';
+        case 'openWorkingView': return 'File>Open>Working View';
         case 'saveProjectWorkspace':
         case 'saveProjectWorkspaceAs':
         case 'renameProjectWorkspace':
         case 'duplicateProjectWorkspace':
         case 'importProjectWorkspace':
         case 'exportProjectWorkspace':
-        case 'deleteProjectWorkspace': return 'File>Project Workspace';
-        case 'closeProjectWorkspace':
-        case 'closeWorkingView':
-        case 'closeReport': return 'File>Close';
+        case 'deleteProjectWorkspace': return 'File>Save>Project Workspace';
+        case 'saveWorkingView': return 'File>Save>Working View';
+        case 'closeProjectWorkspace': return 'File>Close>Project Workspace';
+        case 'closeWorkingView': return 'File>Close>Working View';
+        case 'closeReport': return 'File>Close>Report';
         case 'openProjectProperties':
         case 'openProjectStatistics':
         case 'openWorkspaceSettings': return 'View>Project Workspace';
@@ -672,14 +681,15 @@ async function runReportStatisticsWorkflow(context = {}) {
     return false;
 }
 
-function runNewReportFromTemplateWorkflow() {
-    const firstTemplate = getFirstTemplateOption();
+function runNewReportFromTemplateWorkflow(context = {}) {
+    const selectedTemplateId = String(context.templateId || '').trim();
+    const firstTemplate = selectedTemplateId ? getTemplateById(selectedTemplateId) : getFirstTemplateOption();
     const templateSelect = document.getElementById('template-selection');
     if (templateSelect && firstTemplate) {
-        templateSelect.value = firstTemplate.value;
+        templateSelect.value = firstTemplate.id || firstTemplate.value;
         templateSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    return runUseTemplateWorkflow({ templateId: firstTemplate?.value || '' });
+    return runUseTemplateWorkflow({ templateId: firstTemplate?.id || firstTemplate?.value || '' });
 }
 
 function getSelectedReportId(context = {}) {
@@ -1708,6 +1718,13 @@ const BASE_COMMAND_DEFINITIONS = [
         handler: (context) => runOpenWorkingViewWorkflow(context)
     },
     {
+        action: 'newWorkingView',
+        id: 'ReportViews.NewWorkingView',
+        category: 'Report',
+        description: 'Create a new Working View for the active report. This reuses the existing Working View workflow.',
+        handler: (context) => runOpenWorkingViewWorkflow(context)
+    },
+    {
         action: 'exitWorkingView',
         id: 'ReportViews.ExitWorkingView',
         category: 'Report',
@@ -2109,7 +2126,7 @@ const BASE_COMMAND_DEFINITIONS = [
         id: 'Workspace.OpenRecent',
         category: 'Workspace',
         description: 'Open the most recent Project Workspace from local state.',
-        handler: () => openRecentProjectWorkspaceFromCommand()
+        handler: (context) => openRecentProjectWorkspaceFromCommand(context)
     },
     {
         action: 'continueWorking',
@@ -2875,14 +2892,14 @@ const BASE_COMMAND_DEFINITIONS = [
     {
         action: 'editSelectAll',
         id: 'Tools.EditSelectAll',
-        category: 'Tools',
+        category: 'Edit',
         description: 'Select all content in the current editable region when available.',
         handler: (context) => selectAllContent(context)
     },
     {
         action: 'editCopy',
         id: 'Tools.EditCopy',
-        category: 'Tools',
+        category: 'Edit',
         description: 'Copy the current selection when available.',
         enabled: (context) => hasSelectedText(context) || hasEditableSelection(getEditableTargetFromContext(context)),
         handler: () => executeClipboardCommand('copy')
@@ -2890,7 +2907,7 @@ const BASE_COMMAND_DEFINITIONS = [
     {
         action: 'editCut',
         id: 'Tools.EditCut',
-        category: 'Tools',
+        category: 'Edit',
         description: 'Cut the current editable selection when available.',
         enabled: (context) => hasEditableSelection(getEditableTargetFromContext(context)),
         handler: () => executeClipboardCommand('cut')
@@ -2898,7 +2915,7 @@ const BASE_COMMAND_DEFINITIONS = [
     {
         action: 'editPaste',
         id: 'Tools.EditPaste',
-        category: 'Tools',
+        category: 'Edit',
         description: 'Paste clipboard content into the current editable target when available.',
         enabled: (context) => Boolean(getEditableTargetFromContext(context)),
         handler: () => executeClipboardCommand('paste')

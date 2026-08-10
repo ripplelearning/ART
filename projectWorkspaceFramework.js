@@ -2421,8 +2421,29 @@ export async function openProjectWorkspaceFromCommand(triggerElement = null) {
     return opened;
 }
 
-export function openRecentProjectWorkspaceFromCommand() {
+export function openRecentProjectWorkspaceFromCommand(context = {}) {
     captureFocusBeforeWorkspaceActivation();
+    const targetWorkspaceId = String(context?.workspaceId || context?.recentWorkspaceId || '').trim();
+    if (targetWorkspaceId) {
+        const workspaces = getProjectWorkspaces();
+        const workspace = workspaces.find((item) => item.id === targetWorkspaceId) || null;
+        if (!workspace) {
+            updateExplorerStatus('The selected recent Project Workspace is no longer available.');
+            return false;
+        }
+
+        const activated = setActiveProjectWorkspace(workspace.id, {
+            action: `Opened recent project workspace ${workspace.name}`,
+            persist: true
+        });
+        if (!activated) return false;
+
+        restoreWorkspaceRuntimeState(workspace);
+        renderWorkspaceExplorer();
+        updateExplorerStatus(`Opened recent Project Workspace ${workspace.name}.`);
+        return true;
+    }
+
     return openMostRecentWorkspace();
 }
 

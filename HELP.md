@@ -284,6 +284,14 @@ History commands are available through existing command routing:
 
 These commands are available in Edit > History, Command Palette, and Menu Bar command search.
 
+The Menu Bar now groups the most common file and editing actions into nested submenus for easier discovery:
+
+- File > New includes Report, Template, Project Workspace, and Working View entries.
+- File > Recent Reports/Projects shows the most recently used reports and Project Workspaces.
+- File > Open includes Open ART Project and report-opening actions.
+- File > Open, Save, and Close organize the matching report, workspace, and Working View commands.
+- Edit contains clipboard actions such as Cut, Copy, Paste, and Select All.
+
 ## Undo and Redo Behavior
 - Undo and Redo operate on centralized transactions.
 
