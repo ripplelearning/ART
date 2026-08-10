@@ -1587,7 +1587,7 @@ export function renderDashboard() {
     });
 
     btnConfigureDashboard?.addEventListener('click', () => {
-        void executeDashboardAction('configureDashboard');
+        openConfigureDashboardDialogFromCommand();
     });
 
     continueWorkingButton.addEventListener('click', () => {

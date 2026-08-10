@@ -84,6 +84,7 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - `validateReport`
 - `reportStatistics`
 - `openWorkingView`
+- `newWorkingView`
 - `exitWorkingView`
 - `applyWorkingView`
 - `saveWorkingView`

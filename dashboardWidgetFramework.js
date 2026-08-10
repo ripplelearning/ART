@@ -998,6 +998,7 @@ export function openConfigureDashboardDialogFromCommand() {
 
     populateDialog();
     dialog.hidden = false;
+    dialog.removeAttribute('aria-hidden');
     const first = getFocusableElements(dialog)[0];
     first?.focus();
     announce('Configure Dashboard dialog opened.');
@@ -1010,7 +1011,13 @@ export function closeConfigureDashboardDialog() {
     configDialogState.isOpen = false;
     configDialogState.dialog.hidden = true;
     configDialogState = null;
-    if (opener) opener.focus();
+    if (opener instanceof HTMLElement) {
+        try {
+            opener.focus();
+        } catch (error) {
+            // Ignore focus restoration failures when the trigger is no longer available.
+        }
+    }
     announce('Configure Dashboard dialog closed.');
 }
 
