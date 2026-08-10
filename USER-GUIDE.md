@@ -125,6 +125,52 @@ When ending collaboration:
 - If status remains offline:
 	- Check the Live summary and settings status message for error details.
 
+## Publishing Presentation
+ART now includes reusable visual presentation resources for publishing output.
+
+Presentation resources include:
+
+- Report Layouts
+- Report Themes
+- Report Branding
+- Publishing Profiles
+
+Use Report Builder -> Publishing Presentation to:
+
+1. Choose a reusable Layout, Theme, and Branding resource.
+2. Adjust section order and visibility.
+3. Configure cover page, table of contents, and page numbering behavior.
+4. Review accessibility validation for contrast, links, and required alternative text.
+5. Preview the current report in screen, print, PDF, Word, or HTML contexts.
+
+Key behaviors:
+
+- Layouts control published section structure only. They do not replace Report Templates.
+- Themes control styling only. They do not change report semantics.
+- Branding controls organization identity, header/footer content, images, links, and required alternative text.
+- Hiding a published section does not delete underlying report data.
+- Reports can keep report-level overrides while still reusing shared presentation resources.
+
+Reusable resource management:
+
+1. Open a Layout, Theme, or Branding panel.
+2. Choose an existing reusable resource or edit the current report override.
+3. Save to a personal, workspace, or shared scope when you want reuse.
+4. Duplicate built-in resources before renaming or deleting them.
+
+Branding accessibility requirements:
+
+- Every non-decorative header/footer image requires alternative text.
+- Decorative images must be marked explicitly.
+- Alternative text is preserved in preview and supported export formats.
+- Link styling remains visually distinct and is not color-only.
+
+Workspace default branding:
+
+- Authorized users can enable: `Make this the default branding for new reports in this Project Workspace.`
+- This affects only new reports created in that Project Workspace.
+- Existing reports keep their current Branding selection unless you change them manually.
+
 ## Resource Relationships
 ART Version 1.5 includes a Resource Relationship Framework that keeps track of how workspace resources relate to one another.
 

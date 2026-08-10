@@ -109,6 +109,21 @@ See:
 - [Package Authoring Guide](PACKAGE-AUTHORING-GUIDE.md)
 - [Collaboration Server Guide](collaboration-server/README.md)
 
+## Publishing Presentation Framework
+ART Version 1.5 now includes a reusable Publishing Presentation Framework for report output.
+
+Current capabilities include:
+
+- reusable Report Layouts for section order, visibility, cover pages, table of contents, headers, footers, and page numbering
+- reusable Themes for accessible colors, typography, spacing, links, and table styling
+- reusable Branding resources for logos, rich header/footer content, links, images, and required alternative text
+- Publishing Profiles that combine Layout, Theme, Branding, and preview/output preferences
+- validation for layout compatibility, required image alternative text, contrast, focus visibility, and link distinguishability
+- preview modes for screen, print, Word, PDF, and HTML publishing contexts
+- command-driven access through the Presentation menu and command search surfaces
+
+Presentation configuration remains separate from the underlying report findings and field data.
+
 ## Repository Documentation
 Use these documents as the primary source of development and contribution standards:
 

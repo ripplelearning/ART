@@ -113,6 +113,16 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - `setTableReportView`
 - `toggleReportViewMode`
 
+### Presentation
+- `openPresentationDesigner`
+- `presentationApplyDetailedAuditLayout`
+- `presentationApplyExecutiveLayout`
+- `presentationApplyDefaultTheme`
+- `presentationApplyHighContrastTheme`
+- `presentationApplyDefaultBranding`
+- `presentationCyclePreviewMode`
+- `presentationValidate`
+
 ### Template
 - `newTemplate`
 - `useTemplate`
@@ -192,6 +202,7 @@ ART 2.0 uses application commands as the shared execution layer for user actions
 - Global Context Menus are generated from the same Application Command Framework and context providers, rather than hard-coded menu lists.
 - Context menu items show the current shortcut assignment when one exists.
 - Search Everywhere and scope-specific search commands run through the Universal Search Framework provider registry.
+- Publishing Presentation commands open the reusable layout, theme, branding, and preview designer in Report Builder and are also available from the Presentation menu.
 - Search result surfaces use a shared Search Results Framework for consistent keyboard behavior and status announcements.
 - Menu Bar focus uses F10, with Alt+/ as an alternate shortcut in the web application.
 - Menu Bar Command Search uses Alt+Q.

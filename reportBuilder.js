@@ -4,6 +4,28 @@ import { commandRegistry } from './commandRegistry.js';
 import { announce, appState, createUserTemplate, getActiveProjectWorkspace, getBuiltInTemplates, getUserTemplates, setActiveWorkspaceDefaultBranding, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { formatWcagCriterionDisplay, getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { restoreFocus } from './focusManagement.js';
+import {
+    applyPresentationPublishingProfile,
+    buildPresentationPreviewModel,
+    clearPresentationPublishingProfile,
+    deletePresentationResource,
+    duplicatePresentationResource,
+    getPresentationResourceLibrary,
+    getPresentationResourceUsage,
+    getPresentationScopeOptions,
+    getPresentationSelections,
+    getPresentationUiState,
+    getPresentationValidation,
+    getResolvedReportPresentation,
+    renamePresentationResource,
+    saveBrandingAsWorkspaceDefault,
+    savePresentationResource,
+    setPresentationBrandingFromLegacyState,
+    updatePresentationOverride,
+    updatePresentationPreviewMode,
+    updatePresentationSelection,
+    updatePresentationUiSection
+} from './reportPresentationFramework.js';
 
 let pendingFocus = null;
 let pendingDelete = null;
@@ -399,6 +421,96 @@ function refreshBrandingPreview() {
     previewHost.innerHTML = buildBrandingPreviewMarkup(getBrandingState());
 }
 
+function renderPresentationResourceOptions(resources, selectedId) {
+    return resources.map((resource) => {
+        const scopeLabel = resource.scope === 'application'
+            ? 'Application'
+            : resource.scope === 'workspace'
+                ? 'Workspace'
+                : resource.scope === 'shared'
+                    ? 'Shared'
+                    : 'Personal';
+        return `<option value="${escapeHtml(resource.id)}" ${resource.id === selectedId ? 'selected' : ''}>${escapeHtml(resource.name)} (${scopeLabel}${resource.readOnly ? ', read-only' : ''})</option>`;
+    }).join('');
+}
+
+function buildPresentationValidationMarkup(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return '<p>No presentation validation issues were detected.</p>';
+    }
+
+    return `
+        <ul class="presentation-validation-list">
+            ${messages.map((message) => `<li class="presentation-validation-list__item presentation-validation-list__item--${escapeHtml(message.severity || 'info')}"><strong>${escapeHtml((message.severity || 'info').toUpperCase())}:</strong> ${escapeHtml(message.target || 'Presentation')} - ${escapeHtml(message.message || '')}${Number.isFinite(Number(message.ratio)) ? ` (Contrast: ${escapeHtml(Number(message.ratio).toFixed(2))}:1)` : ''}</li>`).join('')}
+        </ul>
+    `;
+}
+
+function buildLayoutSectionEditor(layout) {
+    return `
+        <div class="presentation-layout-sections" role="list" aria-label="Report layout sections">
+            ${layout.sections.map((section, index) => `
+                <div class="presentation-layout-section" role="listitem">
+                    <label>
+                        <input type="checkbox" data-presentation-layout-section-enabled="${escapeHtml(section.id)}" ${section.enabled ? 'checked' : ''}>
+                        ${escapeHtml(section.id === 'workspace-report-summary' ? 'Workspace/Report Summary' : section.id.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()))}
+                    </label>
+                    <div class="presentation-layout-section__actions" role="group" aria-label="${escapeHtml(section.id)} order actions">
+                        <button type="button" data-presentation-layout-move-earlier="${escapeHtml(section.id)}" ${index === 0 ? 'disabled' : ''}>Move Earlier</button>
+                        <button type="button" data-presentation-layout-move-later="${escapeHtml(section.id)}" ${index === layout.sections.length - 1 ? 'disabled' : ''}>Move Later</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function buildPresentationPreviewMarkup() {
+    const preview = buildPresentationPreviewModel();
+    const cssVariables = Object.entries(preview.cssVariables || {})
+        .map(([key, value]) => `${key}:${value}`)
+        .join('; ');
+
+    return `
+        <section class="presentation-preview-page" aria-label="Publishing preview" data-preview-mode="${escapeHtml(preview.previewMode)}" style="${escapeHtml(cssVariables)}">
+            <header class="presentation-preview-page__masthead">
+                <p class="presentation-preview-page__mode">${escapeHtml(preview.previewMode.toUpperCase())} preview</p>
+                <h4>${escapeHtml(preview.title)}</h4>
+                ${preview.organization ? `<p>${escapeHtml(preview.organization)}</p>` : ''}
+                ${preview.projectName ? `<p>${escapeHtml(preview.projectName)}</p>` : ''}
+            </header>
+            <div class="presentation-preview-page__body">
+                ${preview.visibleSections.map((section) => `
+                    <section class="presentation-preview-page__section" aria-labelledby="preview-section-${escapeHtml(section.id)}">
+                        <h5 id="preview-section-${escapeHtml(section.id)}">${escapeHtml(section.label)}</h5>
+                        <p>${section.available ? 'Included in preview and export order.' : 'Configured, but current report data does not fully support this section.'}</p>
+                    </section>
+                `).join('')}
+                <section class="presentation-preview-page__section" aria-labelledby="preview-severity-heading">
+                    <h5 id="preview-severity-heading">Severity and Status Presentation</h5>
+                    <ul class="presentation-preview-page__legend">
+                        <li><span class="presentation-chip presentation-chip--critical">Critical</span> Text label remains visible.</li>
+                        <li><span class="presentation-chip presentation-chip--failed">Failed</span> Status is not color-only.</li>
+                    </ul>
+                </section>
+            </div>
+        </section>
+    `;
+}
+
+function buildPresentationSummary(resolvedPresentation, validationMessages) {
+    const issueCount = Array.isArray(validationMessages) ? validationMessages.length : 0;
+    return `Profile ${resolvedPresentation.publishingProfile?.name || 'Custom'}. Layout ${resolvedPresentation.layout.name}. Theme ${resolvedPresentation.theme.name}. Branding ${resolvedPresentation.branding.name || 'Current Report Branding'}. ${issueCount === 0 ? 'No validation issues.' : `${issueCount} validation issue${issueCount === 1 ? '' : 's'} detected.`}`;
+}
+
+function cloneCurrentLayoutDraft(resolvedPresentation) {
+    return JSON.parse(JSON.stringify(appState.presentation?.reportPresentation?.layoutOverride || resolvedPresentation.layout));
+}
+
+function cloneCurrentThemeDraft(resolvedPresentation) {
+    return JSON.parse(JSON.stringify(appState.presentation?.reportPresentation?.themeOverride || resolvedPresentation.theme));
+}
+
 function canApplyBrandingToActiveWorkspace() {
     const activeWorkspace = getActiveProjectWorkspace();
     if (!activeWorkspace) return false;
@@ -441,6 +553,7 @@ function updateBrandingImagesForSection(section, nextImages, announceMessage = '
 
     appState.branding = nextBranding;
     saveState();
+    setPresentationBrandingFromLegacyState();
     if (announceMessage) announce(announceMessage);
 }
 
@@ -582,6 +695,7 @@ function attachBrandingRichEditor(editorId, stateKey, fallbackKey = '') {
         appState.branding = nextBranding;
         syncBrandingImagesFromEditor(editorId);
         saveState();
+        setPresentationBrandingFromLegacyState();
         refreshBrandingPreview();
     };
 
@@ -775,9 +889,7 @@ export function executeDoneFromCommand() {
     if (!validateBrandingInputs(true)) return false;
 
     if (applyWorkspaceBrandingDefault && canApplyBrandingToActiveWorkspace()) {
-        setActiveWorkspaceDefaultBranding(getBrandingState(), {
-            action: 'Updated workspace default branding from Report Builder'
-        });
+        saveBrandingAsWorkspaceDefault();
     }
 
     if (appState.templateCreateMode) {
@@ -879,6 +991,15 @@ export async function renderBuilder() {
     const progressItemNames = getProgressItemNames();
     const progressStatusOptions = getProgressStatuses();
     const showProgressLogConfig = appState.reportType === 'Audit Log' && appState.progressLogEnabled;
+    const presentationLibrary = getPresentationResourceLibrary();
+    const presentationSelections = getPresentationSelections();
+    const presentationUi = getPresentationUiState();
+    const resolvedPresentation = getResolvedReportPresentation();
+    const presentationValidation = getPresentationValidation();
+    const activePublishingProfileId = String(presentationSelections.publishingProfileId || '').trim();
+    const activeLayoutDraft = cloneCurrentLayoutDraft(resolvedPresentation);
+    const activeThemeDraft = cloneCurrentThemeDraft(resolvedPresentation);
+    const presentationScopeOptions = getPresentationScopeOptions();
 
     container.innerHTML = `
         <section id="builder-view" aria-labelledby="builder-heading">
@@ -916,8 +1037,151 @@ export async function renderBuilder() {
                 </div>
             </div>
 
+            <section class="presentation-config" aria-labelledby="presentation-config-heading">
+                <h3 id="presentation-config-heading">Publishing Presentation</h3>
+                <p id="presentation-summary" role="status" aria-live="polite">${escapeHtml(buildPresentationSummary(resolvedPresentation, presentationValidation))}</p>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.advanced ? 'open' : ''}>
+                    <summary id="presentation-advanced-summary">Advanced</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-advanced-summary">
+                        <label for="presentation-profile-select">Publishing Profile</label>
+                        <select id="presentation-profile-select">
+                            <option value="">Custom (no profile)</option>
+                            ${renderPresentationResourceOptions(presentationLibrary.publishingProfiles, activePublishingProfileId)}
+                        </select>
+                        <label for="presentation-preview-mode">Preview Output Context</label>
+                        <select id="presentation-preview-mode">
+                            ${['screen', 'print', 'pdf', 'word', 'html'].map((mode) => `<option value="${mode}" ${resolvedPresentation.previewMode === mode ? 'selected' : ''}>${escapeHtml(mode.toUpperCase())}</option>`).join('')}
+                        </select>
+                        <label class="branding-toggle">
+                            <input type="checkbox" id="presentation-allow-overrides" ${appState.presentation?.reportPresentation?.allowOverrides !== false ? 'checked' : ''}>
+                            Allow report-level presentation overrides when permissions permit.
+                        </label>
+                    </div>
+                </details>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.layout ? 'open' : ''}>
+                    <summary id="presentation-layout-summary">Layout</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-layout-summary">
+                        <label for="presentation-layout-select">Reusable Report Layout</label>
+                        <select id="presentation-layout-select">
+                            ${renderPresentationResourceOptions(presentationLibrary.layouts, resolvedPresentation.layout.id)}
+                        </select>
+                        <label for="presentation-layout-name">Layout Resource Name</label>
+                        <input id="presentation-layout-name" type="text" value="${escapeHtml(activeLayoutDraft.name || resolvedPresentation.layout.name)}">
+                        <label for="presentation-layout-scope">Layout Scope</label>
+                        <select id="presentation-layout-scope">
+                            ${presentationScopeOptions.map((scope) => `<option value="${scope}" ${activeLayoutDraft.scope === scope ? 'selected' : ''}>${escapeHtml(scope)}</option>`).join('')}
+                        </select>
+                        <label for="presentation-layout-finding-style">Finding Presentation</label>
+                        <select id="presentation-layout-finding-style">
+                            ${['grouped-cards', 'summary-list', 'tabular', 'narrative', 'remediation-queue'].map((value) => `<option value="${value}" ${activeLayoutDraft.findingPresentation === value ? 'selected' : ''}>${escapeHtml(value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()))}</option>`).join('')}
+                        </select>
+                        ${buildLayoutSectionEditor(activeLayoutDraft)}
+                        <div class="branding-image-list__actions" role="group" aria-label="Layout resource actions">
+                            <button id="btn-presentation-layout-save" type="button">Save Layout</button>
+                            <button id="btn-presentation-layout-duplicate" type="button">Duplicate Layout</button>
+                            <button id="btn-presentation-layout-rename" type="button">Rename Layout</button>
+                            <button id="btn-presentation-layout-delete" type="button">Delete Layout</button>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.theme ? 'open' : ''}>
+                    <summary id="presentation-theme-summary">Theme</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-theme-summary">
+                        <label for="presentation-theme-select">Reusable Report Theme</label>
+                        <select id="presentation-theme-select">
+                            ${renderPresentationResourceOptions(presentationLibrary.themes, resolvedPresentation.theme.id)}
+                        </select>
+                        <label for="presentation-theme-name">Theme Resource Name</label>
+                        <input id="presentation-theme-name" type="text" value="${escapeHtml(activeThemeDraft.name || resolvedPresentation.theme.name)}">
+                        <label for="presentation-theme-scope">Theme Scope</label>
+                        <select id="presentation-theme-scope">
+                            ${presentationScopeOptions.map((scope) => `<option value="${scope}" ${activeThemeDraft.scope === scope ? 'selected' : ''}>${escapeHtml(scope)}</option>`).join('')}
+                        </select>
+                        <div class="presentation-theme-grid">
+                            <label>Primary Color <input id="presentation-theme-primary" type="color" value="${escapeHtml(activeThemeDraft.colors.primary)}"></label>
+                            <label>Background Color <input id="presentation-theme-background" type="color" value="${escapeHtml(activeThemeDraft.colors.background)}"></label>
+                            <label>Text Color <input id="presentation-theme-text" type="color" value="${escapeHtml(activeThemeDraft.colors.text)}"></label>
+                            <label>Heading Color <input id="presentation-theme-heading" type="color" value="${escapeHtml(activeThemeDraft.colors.heading)}"></label>
+                            <label>Link Color <input id="presentation-theme-link" type="color" value="${escapeHtml(activeThemeDraft.colors.link)}"></label>
+                            <label>Focus Indicator Color <input id="presentation-theme-focus" type="color" value="${escapeHtml(activeThemeDraft.colors.focusIndicator)}"></label>
+                            <label>Font Family <input id="presentation-theme-font-family" type="text" value="${escapeHtml(activeThemeDraft.typography.fontFamily)}"></label>
+                            <label>Heading Font Family <input id="presentation-theme-heading-font-family" type="text" value="${escapeHtml(activeThemeDraft.typography.headingFontFamily)}"></label>
+                            <label>Base Font Size <input id="presentation-theme-font-size" type="number" min="12" max="24" step="1" value="${Number(activeThemeDraft.typography.fontSize || 16)}"></label>
+                            <label>Line Height <input id="presentation-theme-line-height" type="number" min="1.2" max="2.4" step="0.05" value="${Number(activeThemeDraft.typography.lineHeight || 1.6)}"></label>
+                        </div>
+                        <label class="branding-toggle">
+                            <input id="presentation-theme-link-underline" type="checkbox" ${activeThemeDraft.links.underline ? 'checked' : ''}>
+                            Underline links so they are not identified by color alone.
+                        </label>
+                        <div class="branding-image-list__actions" role="group" aria-label="Theme resource actions">
+                            <button id="btn-presentation-theme-save" type="button">Save Theme</button>
+                            <button id="btn-presentation-theme-duplicate" type="button">Duplicate Theme</button>
+                            <button id="btn-presentation-theme-rename" type="button">Rename Theme</button>
+                            <button id="btn-presentation-theme-delete" type="button">Delete Theme</button>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.coverPage ? 'open' : ''}>
+                    <summary id="presentation-cover-summary">Cover Page</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-cover-summary">
+                        <label class="branding-toggle"><input type="checkbox" id="presentation-cover-enabled" ${activeLayoutDraft.coverPage?.enabled ? 'checked' : ''}> Include a cover page in published output.</label>
+                        <label class="branding-toggle"><input type="checkbox" id="presentation-cover-logo" ${activeLayoutDraft.coverPage?.includeLogo !== false ? 'checked' : ''}> Include branding logo on the cover page.</label>
+                        <label class="branding-toggle"><input type="checkbox" id="presentation-cover-author" ${activeLayoutDraft.coverPage?.includeAuthor !== false ? 'checked' : ''}> Include author information on the cover page.</label>
+                    </div>
+                </details>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.tableOfContents ? 'open' : ''}>
+                    <summary id="presentation-toc-summary">Table of Contents</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-toc-summary">
+                        <label class="branding-toggle"><input type="checkbox" id="presentation-toc-enabled" ${activeLayoutDraft.tableOfContents?.enabled ? 'checked' : ''}> Include a Table of Contents that matches actual published headings.</label>
+                    </div>
+                </details>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.pageNumbering ? 'open' : ''}>
+                    <summary id="presentation-page-summary">Page Numbering</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-page-summary">
+                        <label class="branding-toggle"><input type="checkbox" id="presentation-page-numbering-enabled" ${activeLayoutDraft.pageNumbering?.enabled !== false ? 'checked' : ''}> Enable native page numbering where supported.</label>
+                        <label for="presentation-page-numbering-position">Page Number Position</label>
+                        <select id="presentation-page-numbering-position">
+                            ${['footer-left', 'footer-center', 'footer-right'].map((value) => `<option value="${value}" ${activeLayoutDraft.pageNumbering?.position === value ? 'selected' : ''}>${escapeHtml(value.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()))}</option>`).join('')}
+                        </select>
+                    </div>
+                </details>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.accessibility ? 'open' : ''}>
+                    <summary id="presentation-accessibility-summary">Accessibility</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-accessibility-summary">
+                        <p>Theme contrast, link differentiation, heading readability, focus visibility, layout compatibility, and branding alternative text are validated here.</p>
+                        ${buildPresentationValidationMarkup(presentationValidation)}
+                    </div>
+                </details>
+
+                <details class="presentation-config__panel" ${presentationUi.expandedSections.advanced ? 'open' : ''}>
+                    <summary id="presentation-preview-summary">Preview</summary>
+                    <div class="presentation-config__body" aria-labelledby="presentation-preview-summary">
+                        <div id="presentation-preview-host">${buildPresentationPreviewMarkup()}</div>
+                    </div>
+                </details>
+            </section>
+
             <section class="branding-config" aria-labelledby="branding-config-heading">
-                <h3 id="branding-config-heading">Report Branding</h3>
+                <h3 id="branding-config-heading">Report Branding Override</h3>
+                <p>Branding remains a reusable resource. Changes here act as the current report override unless you save them for reuse.</p>
+                <label for="presentation-branding-select">Reusable Branding</label>
+                <select id="presentation-branding-select">
+                    <option value="">Current Report Branding Override</option>
+                    ${renderPresentationResourceOptions(presentationLibrary.brandings, presentationSelections.brandingId)}
+                </select>
+                <label for="presentation-branding-name">Branding Resource Name</label>
+                <input id="presentation-branding-name" type="text" value="${escapeHtml(resolvedPresentation.branding.name || 'Current Report Branding Override')}">
+                <label for="presentation-branding-scope">Branding Scope</label>
+                <select id="presentation-branding-scope">
+                    ${presentationScopeOptions.map((scope) => `<option value="${scope}" ${resolvedPresentation.branding.scope === scope ? 'selected' : ''}>${escapeHtml(scope)}</option>`).join('')}
+                </select>
                 <label class="branding-toggle">
                     <input type="checkbox" id="branding-enabled" ${branding.enabled ? 'checked' : ''}>
                     Enable branding
@@ -975,9 +1239,15 @@ export async function renderBuilder() {
                     ${canApplyBrandingToActiveWorkspace() ? `
                         <label class="branding-toggle">
                             <input type="checkbox" id="branding-apply-workspace-default" ${applyWorkspaceBrandingDefault ? 'checked' : ''}>
-                            Make this the default branding for new reports in this Active Project Workspace.
+                            Make this the default branding for new reports in this Project Workspace.
                         </label>
                     ` : ''}
+                    <div class="branding-image-list__actions" role="group" aria-label="Branding resource actions">
+                        <button id="btn-presentation-branding-save" type="button">Save Branding</button>
+                        <button id="btn-presentation-branding-duplicate" type="button">Duplicate Branding</button>
+                        <button id="btn-presentation-branding-rename" type="button">Rename Branding</button>
+                        <button id="btn-presentation-branding-delete" type="button">Delete Branding</button>
+                    </div>
                     <section class="branding-live-preview" aria-labelledby="branding-live-preview-heading">
                         <h4 id="branding-live-preview-heading">Branding Preview</h4>
                         <div id="branding-live-preview">${buildBrandingPreviewMarkup(branding)}</div>
@@ -1119,6 +1389,348 @@ export async function renderBuilder() {
         });
     }
 
+    const refreshPresentationRegion = () => {
+        const summary = document.getElementById('presentation-summary');
+        if (summary) {
+            const nextResolved = getResolvedReportPresentation();
+            const nextValidation = getPresentationValidation();
+            summary.textContent = buildPresentationSummary(nextResolved, nextValidation);
+        }
+        const previewHost = document.getElementById('presentation-preview-host');
+        if (previewHost) previewHost.innerHTML = buildPresentationPreviewMarkup();
+    };
+
+    const commitLayoutDraft = (mutate) => {
+        const draft = cloneCurrentLayoutDraft(getResolvedReportPresentation());
+        mutate(draft);
+        updatePresentationOverride('layout', draft, { action: 'Updated report layout override' });
+        renderBuilder();
+    };
+
+    const commitThemeDraft = (mutate) => {
+        const draft = cloneCurrentThemeDraft(getResolvedReportPresentation());
+        mutate(draft);
+        updatePresentationOverride('theme', draft, { action: 'Updated report theme override' });
+        renderBuilder();
+    };
+
+    container.querySelectorAll('.presentation-config__panel').forEach((panel) => {
+        panel.addEventListener('toggle', () => {
+            const summaryId = panel.querySelector('summary')?.id || '';
+            const sectionKey = summaryId
+                .replace('presentation-', '')
+                .replace('-summary', '')
+                .replace('toc', 'tableOfContents')
+                .replace('page', 'pageNumbering')
+                .replace('cover', 'coverPage')
+                .replace('preview', 'advanced');
+            updatePresentationUiSection(sectionKey, panel.open, { action: `Updated presentation section ${sectionKey}` });
+        });
+    });
+
+    const presentationProfileSelect = document.getElementById('presentation-profile-select');
+    if (presentationProfileSelect) {
+        presentationProfileSelect.addEventListener('change', () => {
+            const profileId = String(presentationProfileSelect.value || '').trim();
+            if (profileId) {
+                applyPresentationPublishingProfile(profileId);
+            } else {
+                clearPresentationPublishingProfile();
+            }
+            renderBuilder();
+        });
+    }
+
+    const presentationPreviewMode = document.getElementById('presentation-preview-mode');
+    if (presentationPreviewMode) {
+        presentationPreviewMode.addEventListener('change', () => {
+            updatePresentationPreviewMode(presentationPreviewMode.value);
+            refreshPresentationRegion();
+        });
+    }
+
+    const presentationAllowOverrides = document.getElementById('presentation-allow-overrides');
+    if (presentationAllowOverrides instanceof HTMLInputElement) {
+        presentationAllowOverrides.addEventListener('change', () => {
+            appState.presentation.reportPresentation.allowOverrides = presentationAllowOverrides.checked;
+            saveState({ action: 'Updated presentation override permission' });
+            refreshPresentationRegion();
+        });
+    }
+
+    const presentationLayoutSelect = document.getElementById('presentation-layout-select');
+    if (presentationLayoutSelect) {
+        presentationLayoutSelect.addEventListener('change', () => {
+            updatePresentationSelection({ layoutId: presentationLayoutSelect.value, publishingProfileId: '' }, { action: 'Selected reusable report layout' });
+            renderBuilder();
+        });
+    }
+
+    const presentationLayoutFindingStyle = document.getElementById('presentation-layout-finding-style');
+    if (presentationLayoutFindingStyle) {
+        presentationLayoutFindingStyle.addEventListener('change', () => {
+            commitLayoutDraft((draft) => {
+                draft.name = String(document.getElementById('presentation-layout-name')?.value || draft.name || 'Custom Layout').trim() || 'Custom Layout';
+                draft.scope = String(document.getElementById('presentation-layout-scope')?.value || draft.scope || 'personal').trim() || 'personal';
+                draft.findingPresentation = presentationLayoutFindingStyle.value;
+            });
+        });
+    }
+
+    const presentationThemeSelect = document.getElementById('presentation-theme-select');
+    if (presentationThemeSelect) {
+        presentationThemeSelect.addEventListener('change', () => {
+            updatePresentationSelection({ themeId: presentationThemeSelect.value, publishingProfileId: '' }, { action: 'Selected reusable report theme' });
+            renderBuilder();
+        });
+    }
+
+    [
+        ['presentation-theme-primary', 'primary'],
+        ['presentation-theme-background', 'background'],
+        ['presentation-theme-text', 'text'],
+        ['presentation-theme-heading', 'heading'],
+        ['presentation-theme-link', 'link'],
+        ['presentation-theme-focus', 'focusIndicator']
+    ].forEach(([id, key]) => {
+        const input = document.getElementById(id);
+        if (!(input instanceof HTMLInputElement)) return;
+        input.addEventListener('input', () => {
+            commitThemeDraft((draft) => {
+                draft.name = String(document.getElementById('presentation-theme-name')?.value || draft.name || 'Custom Theme').trim() || 'Custom Theme';
+                draft.scope = String(document.getElementById('presentation-theme-scope')?.value || draft.scope || 'personal').trim() || 'personal';
+                draft.colors[key] = input.value;
+            });
+        });
+    });
+
+    [
+        ['presentation-theme-font-family', 'fontFamily'],
+        ['presentation-theme-heading-font-family', 'headingFontFamily'],
+        ['presentation-theme-font-size', 'fontSize'],
+        ['presentation-theme-line-height', 'lineHeight']
+    ].forEach(([id, key]) => {
+        const input = document.getElementById(id);
+        if (!(input instanceof HTMLInputElement)) return;
+        input.addEventListener('input', () => {
+            commitThemeDraft((draft) => {
+                draft.name = String(document.getElementById('presentation-theme-name')?.value || draft.name || 'Custom Theme').trim() || 'Custom Theme';
+                draft.scope = String(document.getElementById('presentation-theme-scope')?.value || draft.scope || 'personal').trim() || 'personal';
+                draft.typography[key] = input.type === 'number' ? Number(input.value || 0) : input.value;
+            });
+        });
+    });
+
+    const presentationThemeUnderline = document.getElementById('presentation-theme-link-underline');
+    if (presentationThemeUnderline instanceof HTMLInputElement) {
+        presentationThemeUnderline.addEventListener('change', () => {
+            commitThemeDraft((draft) => {
+                draft.links.underline = presentationThemeUnderline.checked;
+            });
+        });
+    }
+
+    const presentationBrandingSelect = document.getElementById('presentation-branding-select');
+    if (presentationBrandingSelect) {
+        presentationBrandingSelect.addEventListener('change', () => {
+            updatePresentationSelection({ brandingId: presentationBrandingSelect.value, publishingProfileId: '' }, { action: 'Selected reusable report branding' });
+            renderBuilder();
+        });
+    }
+
+    const saveResourceFromInputs = (type) => {
+        if (type === 'layout') {
+            const name = String(document.getElementById('presentation-layout-name')?.value || '').trim();
+            const scope = String(document.getElementById('presentation-layout-scope')?.value || 'personal').trim() || 'personal';
+            const draft = cloneCurrentLayoutDraft(getResolvedReportPresentation());
+            draft.name = name || draft.name || 'Custom Layout';
+            draft.scope = scope;
+            return savePresentationResource('layout', draft, { action: `Saved reusable layout ${draft.name}` });
+        }
+        if (type === 'theme') {
+            const name = String(document.getElementById('presentation-theme-name')?.value || '').trim();
+            const scope = String(document.getElementById('presentation-theme-scope')?.value || 'personal').trim() || 'personal';
+            const draft = cloneCurrentThemeDraft(getResolvedReportPresentation());
+            draft.name = name || draft.name || 'Custom Theme';
+            draft.scope = scope;
+            return savePresentationResource('theme', draft, { action: `Saved reusable theme ${draft.name}` });
+        }
+        const name = String(document.getElementById('presentation-branding-name')?.value || '').trim();
+        const scope = String(document.getElementById('presentation-branding-scope')?.value || 'personal').trim() || 'personal';
+        const draft = {
+            ...getResolvedReportPresentation().branding,
+            name: name || getResolvedReportPresentation().branding.name || 'Custom Branding',
+            scope,
+            enabled: getBrandingState().enabled,
+            headerText: getBrandingState().headerText,
+            headerHtml: getBrandingState().headerHtml,
+            footerHtml: getBrandingState().footerHtml,
+            headerImages: getBrandingState().headerImages,
+            footerImages: getBrandingState().footerImages,
+            primaryColor: getBrandingState().primaryColor,
+            pageMargins: getBrandingState().pageMargins,
+            showPageNumbers: getBrandingState().showPageNumbers
+        };
+        return savePresentationResource('branding', draft, { action: `Saved reusable branding ${draft.name}` });
+    };
+
+    [
+        ['btn-presentation-layout-save', 'layout'],
+        ['btn-presentation-theme-save', 'theme'],
+        ['btn-presentation-branding-save', 'branding']
+    ].forEach(([id, type]) => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        button.addEventListener('click', () => {
+            const saved = saveResourceFromInputs(type);
+            if (!saved) return;
+            if (type === 'layout') updatePresentationSelection({ layoutId: saved.id, publishingProfileId: '' });
+            if (type === 'theme') updatePresentationSelection({ themeId: saved.id, publishingProfileId: '' });
+            if (type === 'branding') updatePresentationSelection({ brandingId: saved.id, publishingProfileId: '' });
+            renderBuilder();
+        });
+    });
+
+    [
+        ['btn-presentation-layout-duplicate', 'layout', resolvedPresentation.layout.id],
+        ['btn-presentation-theme-duplicate', 'theme', resolvedPresentation.theme.id],
+        ['btn-presentation-branding-duplicate', 'branding', resolvedPresentation.branding.id]
+    ].forEach(([id, type, resourceId]) => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        button.addEventListener('click', () => {
+            const duplicated = duplicatePresentationResource(type, resourceId);
+            if (!duplicated) return;
+            if (type === 'layout') updatePresentationSelection({ layoutId: duplicated.id, publishingProfileId: '' });
+            if (type === 'theme') updatePresentationSelection({ themeId: duplicated.id, publishingProfileId: '' });
+            if (type === 'branding') updatePresentationSelection({ brandingId: duplicated.id, publishingProfileId: '' });
+            renderBuilder();
+        });
+    });
+
+    [
+        ['btn-presentation-layout-rename', 'layout', resolvedPresentation.layout.id, 'presentation-layout-name'],
+        ['btn-presentation-theme-rename', 'theme', resolvedPresentation.theme.id, 'presentation-theme-name'],
+        ['btn-presentation-branding-rename', 'branding', resolvedPresentation.branding.id, 'presentation-branding-name']
+    ].forEach(([id, type, resourceId, inputId]) => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        button.addEventListener('click', () => {
+            const resource = getPresentationResourceLibrary()[type === 'branding' ? 'brandings' : `${type}s`].find((item) => item.id === resourceId);
+            if (!resource || resource.readOnly) {
+                announce('Built-in presentation resources cannot be renamed. Save a personal or workspace copy first.');
+                return;
+            }
+            const renamed = renamePresentationResource(type, resourceId, String(document.getElementById(inputId)?.value || '').trim());
+            if (!renamed) return;
+            renderBuilder();
+        });
+    });
+
+    [
+        ['btn-presentation-layout-delete', 'layout', resolvedPresentation.layout.id],
+        ['btn-presentation-theme-delete', 'theme', resolvedPresentation.theme.id],
+        ['btn-presentation-branding-delete', 'branding', resolvedPresentation.branding.id]
+    ].forEach(([id, type, resourceId]) => {
+        const button = document.getElementById(id);
+        if (!button) return;
+        button.addEventListener('click', () => {
+            const usage = getPresentationResourceUsage(type, resourceId);
+            if (usage.length > 0) {
+                announce(`Cannot delete this ${type}. It is still referenced by ${usage.length} resource${usage.length === 1 ? '' : 's'}.`);
+                return;
+            }
+            const result = deletePresentationResource(type, resourceId);
+            if (!result?.ok) return;
+            if (type === 'layout') updatePresentationSelection({ layoutId: 'layout-detailed-accessibility-audit', publishingProfileId: '' });
+            if (type === 'theme') updatePresentationSelection({ themeId: 'theme-art-accessible-default', publishingProfileId: '' });
+            if (type === 'branding') updatePresentationSelection({ brandingId: '', publishingProfileId: '' });
+            renderBuilder();
+        });
+    });
+
+    container.querySelectorAll('[data-presentation-layout-section-enabled]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+            const sectionId = checkbox.getAttribute('data-presentation-layout-section-enabled');
+            if (!sectionId) return;
+            commitLayoutDraft((draft) => {
+                draft.sections = draft.sections.map((section) => section.id === sectionId
+                    ? { ...section, enabled: checkbox.checked }
+                    : section);
+            });
+        });
+    });
+
+    container.querySelectorAll('[data-presentation-layout-move-earlier], [data-presentation-layout-move-later]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const sectionId = button.getAttribute('data-presentation-layout-move-earlier') || button.getAttribute('data-presentation-layout-move-later');
+            const direction = button.hasAttribute('data-presentation-layout-move-earlier') ? -1 : 1;
+            if (!sectionId) return;
+            commitLayoutDraft((draft) => {
+                const index = draft.sections.findIndex((section) => section.id === sectionId);
+                const nextIndex = index + direction;
+                if (index < 0 || nextIndex < 0 || nextIndex >= draft.sections.length) return;
+                const reordered = [...draft.sections];
+                const [moved] = reordered.splice(index, 1);
+                reordered.splice(nextIndex, 0, moved);
+                draft.sections = reordered;
+            });
+        });
+    });
+
+    [
+        ['presentation-cover-enabled', 'enabled'],
+        ['presentation-cover-logo', 'includeLogo'],
+        ['presentation-cover-author', 'includeAuthor']
+    ].forEach(([id, key]) => {
+        const input = document.getElementById(id);
+        if (!(input instanceof HTMLInputElement)) return;
+        input.addEventListener('change', () => {
+            commitLayoutDraft((draft) => {
+                draft.coverPage = {
+                    ...draft.coverPage,
+                    [key]: input.checked
+                };
+            });
+        });
+    });
+
+    const presentationTocEnabled = document.getElementById('presentation-toc-enabled');
+    if (presentationTocEnabled instanceof HTMLInputElement) {
+        presentationTocEnabled.addEventListener('change', () => {
+            commitLayoutDraft((draft) => {
+                draft.tableOfContents = {
+                    ...draft.tableOfContents,
+                    enabled: presentationTocEnabled.checked
+                };
+            });
+        });
+    }
+
+    const presentationPageNumberingEnabled = document.getElementById('presentation-page-numbering-enabled');
+    if (presentationPageNumberingEnabled instanceof HTMLInputElement) {
+        presentationPageNumberingEnabled.addEventListener('change', () => {
+            commitLayoutDraft((draft) => {
+                draft.pageNumbering = {
+                    ...draft.pageNumbering,
+                    enabled: presentationPageNumberingEnabled.checked
+                };
+            });
+        });
+    }
+
+    const presentationPageNumberingPosition = document.getElementById('presentation-page-numbering-position');
+    if (presentationPageNumberingPosition) {
+        presentationPageNumberingPosition.addEventListener('change', () => {
+            commitLayoutDraft((draft) => {
+                draft.pageNumbering = {
+                    ...draft.pageNumbering,
+                    position: presentationPageNumberingPosition.value
+                };
+            });
+        });
+    }
+
     const brandingEnabled = document.getElementById('branding-enabled');
     if (brandingEnabled) {
         brandingEnabled.addEventListener('change', (e) => {
@@ -1127,6 +1739,7 @@ export async function renderBuilder() {
                 enabled: e.target.checked
             };
             saveState();
+            setPresentationBrandingFromLegacyState();
             renderBuilder();
         });
     }
@@ -1155,6 +1768,7 @@ export async function renderBuilder() {
                 primaryColor: e.target.value
             };
             saveState();
+            setPresentationBrandingFromLegacyState();
             refreshBrandingPreview();
         });
     }
@@ -1172,6 +1786,7 @@ export async function renderBuilder() {
                 }
             };
             saveState();
+            setPresentationBrandingFromLegacyState();
             refreshBrandingPreview();
         });
     });
@@ -1184,6 +1799,7 @@ export async function renderBuilder() {
                 showPageNumbers: showPageNumbers.checked
             };
             saveState();
+            setPresentationBrandingFromLegacyState();
             refreshBrandingPreview();
         });
     }
@@ -1217,6 +1833,7 @@ export async function renderBuilder() {
         };
         syncBrandingImagesFromEditor(editorId);
         saveState();
+        setPresentationBrandingFromLegacyState();
         refreshBrandingPreview();
     };
 

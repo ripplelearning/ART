@@ -8,6 +8,7 @@ import {
     upsertProjectWorkspace
 } from './state.js';
 import { getCollaborationResourceMetadata } from './collaborationFramework.js';
+import { getPresentationResourceLibrary } from './reportPresentationFramework.js';
 
 const RELATIONSHIP_TYPE_DEFINITIONS = Object.freeze({
     contains: {
@@ -269,6 +270,27 @@ export function getWorkspaceResourceCatalog(workspaceOrId = null) {
             data: template
         }));
     });
+
+    const presentationLibrary = getPresentationResourceLibrary();
+    const pushPresentationResource = (resource, type, category, subtitle) => {
+        if (!resource) return;
+        const scope = normalizeText(resource.scope).toLowerCase();
+        if (scope === 'personal') return;
+        push(buildResourceRecord({
+            id: resource.id,
+            type,
+            name: resource.name,
+            workspaceId: workspace.id,
+            subtitle,
+            category,
+            data: resource
+        }));
+    };
+
+    (presentationLibrary.layouts || []).forEach((resource) => pushPresentationResource(resource, 'report-layout', 'Report Layouts', 'Reusable Report Layout'));
+    (presentationLibrary.themes || []).forEach((resource) => pushPresentationResource(resource, 'report-theme', 'Report Themes', 'Reusable Report Theme'));
+    (presentationLibrary.brandings || []).forEach((resource) => pushPresentationResource(resource, 'report-branding', 'Report Branding', 'Reusable Report Branding'));
+    (presentationLibrary.publishingProfiles || []).forEach((resource) => pushPresentationResource(resource, 'publishing-profile', 'Publishing Profiles', 'Publishing Profile'));
 
     (workspace.resources?.projectAssets || []).forEach((asset) => {
         push(buildResourceRecord({

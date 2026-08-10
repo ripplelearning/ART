@@ -40,20 +40,26 @@ Continue using:
 
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
-## Report Branding in Report Builder
-Report Builder now supports richer report branding content for headers and footers.
+## Publishing Presentation in Report Builder
+Report Builder now includes a Publishing Presentation designer for reusable Report Layouts, Themes, Branding resources, and Publishing Profiles.
 
-Branding capabilities include:
+Publishing Presentation capabilities include:
 
-- rich text formatting in header and footer content
-- multiple header and footer images with required alternative text
-- per-image alignment, spacing, and max size controls
-- live branding preview with configurable margins
-- optional page-number preview
+- reusable Report Layout resources with section order, visibility, cover page, table of contents, and page numbering controls
+- reusable Report Themes with color, typography, spacing, table, and link styling controls
+- reusable Branding resources with rich header/footer content, multiple images, decorative-image flags, and required alternative text
+- accessible validation for contrast, link differentiation, layout compatibility, missing dependencies, and required alternative text
+- preview modes for screen, print, PDF, Word, and HTML publishing contexts
+- reusable resource scopes for personal, workspace, shared, and application-provided presentation assets
+- command-driven Presentation menu integration
 
-When an Active Project Workspace is open and the current report belongs to that workspace, you can choose to apply the current branding as the default for newly created reports in that workspace.
+Presentation resources remain separate from the underlying report findings and field data. Reports use references and optional overrides rather than duplicating reusable presentation resources.
 
-Workspace branding defaults are workspace-scoped metadata and do not overwrite branding in existing reports unless you manually edit those reports.
+When a Project Workspace is open and the current report belongs to that workspace, you can choose:
+
+`☐ Make this the default branding for new reports in this Project Workspace.`
+
+Workspace branding defaults are workspace-scoped metadata and do not overwrite branding in existing reports unless you manually edit those reports or explicitly apply a different Branding resource.
 
 ## Plugin Lifecycle
 Plugins move through lifecycle states:

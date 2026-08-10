@@ -202,6 +202,14 @@ const defaultState = {
         resetLookup: 'Alt+Shift+D',
         closeReport: 'Alt+Shift+C',
         configureReport: '',
+        openPresentationDesigner: '',
+        presentationApplyDetailedAuditLayout: '',
+        presentationApplyExecutiveLayout: '',
+        presentationApplyDefaultTheme: '',
+        presentationApplyHighContrastTheme: '',
+        presentationApplyDefaultBranding: '',
+        presentationCyclePreviewMode: '',
+        presentationValidate: '',
         renameReport: '',
         replaceReport: '',
         editReport: '',
@@ -280,6 +288,45 @@ const defaultState = {
         logoAltText: "",
         logoDecorative: false,
         logoFileName: ""
+    },
+    presentation: {
+        resourceLibrary: {
+            layouts: [],
+            themes: [],
+            brandings: [],
+            publishingProfiles: []
+        },
+        selection: {
+            layoutId: 'layout-detailed-accessibility-audit',
+            themeId: 'theme-art-accessible-default',
+            brandingId: '',
+            publishingProfileId: ''
+        },
+        reportPresentation: {
+            allowOverrides: true,
+            layoutOverride: null,
+            themeOverride: null,
+            brandingOverride: null
+        },
+        preview: {
+            mode: 'screen',
+            lastValidatedAt: '',
+            validationMessages: []
+        },
+        ui: {
+            expandedSections: {
+                layout: false,
+                theme: false,
+                branding: false,
+                header: false,
+                footer: false,
+                coverPage: false,
+                tableOfContents: false,
+                pageNumbering: false,
+                accessibility: false,
+                advanced: false
+            }
+        }
     },
     integrations: {
         jira: {
@@ -551,7 +598,8 @@ const reportDefaults = {
     progressLogAppendixEnabled: defaultState.progressLogAppendixEnabled,
     progressItems: defaultState.progressItems,
     fields: defaultState.fields,
-    branding: defaultState.branding
+    branding: defaultState.branding,
+    presentation: defaultState.presentation
 };
 
 const DEFAULT_PROGRESS_ITEM_TYPES = ['Page', 'Screen', 'Component', 'Flow', 'Document'];
@@ -1201,6 +1249,10 @@ function normalizeProjectWorkspace(workspace, index = 0) {
             templates: Array.isArray(resources.templates) ? resources.templates.map((value) => String(value || '').trim()).filter(Boolean) : [],
             auditLogs: Array.isArray(resources.auditLogs) ? resources.auditLogs.map((value) => String(value || '').trim()).filter(Boolean) : [],
             progressLogs: Array.isArray(resources.progressLogs) ? resources.progressLogs.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            reportLayouts: Array.isArray(resources.reportLayouts) ? resources.reportLayouts.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            reportThemes: Array.isArray(resources.reportThemes) ? resources.reportThemes.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            reportBranding: Array.isArray(resources.reportBranding) ? resources.reportBranding.map((value) => String(value || '').trim()).filter(Boolean) : [],
+            publishingProfiles: Array.isArray(resources.publishingProfiles) ? resources.publishingProfiles.map((value) => String(value || '').trim()).filter(Boolean) : [],
             projectAssets: Array.isArray(resources.projectAssets) ? resources.projectAssets.map((item, itemIndex) => normalizeWorkspaceAsset(item, itemIndex)) : [],
             attachments: Array.isArray(resources.attachments) ? resources.attachments.map((item, itemIndex) => normalizeWorkspaceAsset(item, itemIndex)) : [],
             exports: Array.isArray(resources.exports) ? resources.exports.map((item) => String(item || '').trim()).filter(Boolean) : [],
@@ -1211,6 +1263,19 @@ function normalizeProjectWorkspace(workspace, index = 0) {
             ? source.relationships.map((item, relationshipIndex) => normalizeWorkspaceRelationship(item, relationshipIndex))
             : [],
         tags: Array.isArray(source.tags) ? source.tags.map((item) => String(item || '').trim()).filter(Boolean) : [],
+        presentationDefaults: source.presentationDefaults && typeof source.presentationDefaults === 'object'
+            ? {
+                layoutId: String(source.presentationDefaults.layoutId || '').trim(),
+                themeId: String(source.presentationDefaults.themeId || '').trim(),
+                brandingId: String(source.presentationDefaults.brandingId || '').trim(),
+                publishingProfileId: String(source.presentationDefaults.publishingProfileId || '').trim()
+            }
+            : {
+                layoutId: '',
+                themeId: '',
+                brandingId: '',
+                publishingProfileId: ''
+            },
         brandingDefaults: brandingDefaultsSource ? normalizeBranding(brandingDefaultsSource) : null,
         integrationMetadata: {
             ...integrationMetadata,
@@ -2324,6 +2389,48 @@ export let appState = {
     ...storedState,
     standard: normalizeStandardValue(storedState.standard),
     branding: normalizeBranding(storedState.branding),
+    presentation: storedState.presentation && typeof storedState.presentation === 'object'
+        ? {
+            ...defaultState.presentation,
+            ...storedState.presentation,
+            resourceLibrary: {
+                ...defaultState.presentation.resourceLibrary,
+                ...(storedState.presentation.resourceLibrary && typeof storedState.presentation.resourceLibrary === 'object'
+                    ? storedState.presentation.resourceLibrary
+                    : {})
+            },
+            selection: {
+                ...defaultState.presentation.selection,
+                ...(storedState.presentation.selection && typeof storedState.presentation.selection === 'object'
+                    ? storedState.presentation.selection
+                    : {})
+            },
+            reportPresentation: {
+                ...defaultState.presentation.reportPresentation,
+                ...(storedState.presentation.reportPresentation && typeof storedState.presentation.reportPresentation === 'object'
+                    ? storedState.presentation.reportPresentation
+                    : {})
+            },
+            preview: {
+                ...defaultState.presentation.preview,
+                ...(storedState.presentation.preview && typeof storedState.presentation.preview === 'object'
+                    ? storedState.presentation.preview
+                    : {})
+            },
+            ui: {
+                ...defaultState.presentation.ui,
+                ...(storedState.presentation.ui && typeof storedState.presentation.ui === 'object'
+                    ? storedState.presentation.ui
+                    : {}),
+                expandedSections: {
+                    ...defaultState.presentation.ui.expandedSections,
+                    ...(storedState.presentation.ui?.expandedSections && typeof storedState.presentation.ui.expandedSections === 'object'
+                        ? storedState.presentation.ui.expandedSections
+                        : {})
+                }
+            }
+        }
+        : defaultState.presentation,
     progressLogEnabled: normalizeProgressLogEnabled(storedState.progressLogEnabled, storedState.reportType),
     progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(storedState.progressLogAppendixEnabled, storedState.reportType),
     progressItems: normalizeProgressItems(storedState.progressItems),
@@ -2367,6 +2474,48 @@ function normalizeStateSnapshot(rawState) {
     return {
         ...base,
         branding: normalizeBranding(base.branding),
+        presentation: base.presentation && typeof base.presentation === 'object'
+            ? {
+                ...defaultState.presentation,
+                ...base.presentation,
+                resourceLibrary: {
+                    ...defaultState.presentation.resourceLibrary,
+                    ...(base.presentation.resourceLibrary && typeof base.presentation.resourceLibrary === 'object'
+                        ? base.presentation.resourceLibrary
+                        : {})
+                },
+                selection: {
+                    ...defaultState.presentation.selection,
+                    ...(base.presentation.selection && typeof base.presentation.selection === 'object'
+                        ? base.presentation.selection
+                        : {})
+                },
+                reportPresentation: {
+                    ...defaultState.presentation.reportPresentation,
+                    ...(base.presentation.reportPresentation && typeof base.presentation.reportPresentation === 'object'
+                        ? base.presentation.reportPresentation
+                        : {})
+                },
+                preview: {
+                    ...defaultState.presentation.preview,
+                    ...(base.presentation.preview && typeof base.presentation.preview === 'object'
+                        ? base.presentation.preview
+                        : {})
+                },
+                ui: {
+                    ...defaultState.presentation.ui,
+                    ...(base.presentation.ui && typeof base.presentation.ui === 'object'
+                        ? base.presentation.ui
+                        : {}),
+                    expandedSections: {
+                        ...defaultState.presentation.ui.expandedSections,
+                        ...(base.presentation.ui?.expandedSections && typeof base.presentation.ui.expandedSections === 'object'
+                            ? base.presentation.ui.expandedSections
+                            : {})
+                    }
+                }
+            }
+            : defaultState.presentation,
         standard: normalizeStandardValue(base.standard),
         shortcuts: normalizeShortcuts(base.shortcuts),
         integrations: normalizeIntegrationsConfig(base.integrations),
@@ -2729,6 +2878,9 @@ function captureCurrentReportData() {
         progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
         progressItems: normalizeProgressItems(appState.progressItems),
         branding: normalizeBranding(appState.branding),
+        presentation: appState.presentation && typeof appState.presentation === 'object'
+            ? JSON.parse(JSON.stringify(appState.presentation))
+            : JSON.parse(JSON.stringify(defaultState.presentation)),
         fields: appState.fields.map((field) => normalizeField(field)),
         editorFieldValues: normalizeEditorFieldValues(appState.editorFieldValues),
         auditEntries: normalizeAuditEntries(appState.auditEntries, appState.fields, appState.editorFieldValues),
@@ -2744,6 +2896,48 @@ function applyReportData(data) {
         ...reportDefaults,
         ...(data || {}),
         branding: normalizeBranding(data?.branding),
+        presentation: data?.presentation && typeof data.presentation === 'object'
+            ? {
+                ...defaultState.presentation,
+                ...data.presentation,
+                resourceLibrary: {
+                    ...defaultState.presentation.resourceLibrary,
+                    ...(data.presentation.resourceLibrary && typeof data.presentation.resourceLibrary === 'object'
+                        ? data.presentation.resourceLibrary
+                        : {})
+                },
+                selection: {
+                    ...defaultState.presentation.selection,
+                    ...(data.presentation.selection && typeof data.presentation.selection === 'object'
+                        ? data.presentation.selection
+                        : {})
+                },
+                reportPresentation: {
+                    ...defaultState.presentation.reportPresentation,
+                    ...(data.presentation.reportPresentation && typeof data.presentation.reportPresentation === 'object'
+                        ? data.presentation.reportPresentation
+                        : {})
+                },
+                preview: {
+                    ...defaultState.presentation.preview,
+                    ...(data.presentation.preview && typeof data.presentation.preview === 'object'
+                        ? data.presentation.preview
+                        : {})
+                },
+                ui: {
+                    ...defaultState.presentation.ui,
+                    ...(data.presentation.ui && typeof data.presentation.ui === 'object'
+                        ? data.presentation.ui
+                        : {}),
+                    expandedSections: {
+                        ...defaultState.presentation.ui.expandedSections,
+                        ...(data.presentation.ui?.expandedSections && typeof data.presentation.ui.expandedSections === 'object'
+                            ? data.presentation.ui.expandedSections
+                            : {})
+                    }
+                }
+            }
+            : JSON.parse(JSON.stringify(defaultState.presentation)),
         progressLogEnabled: normalizeProgressLogEnabled(data?.progressLogEnabled, reportType),
         progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(data?.progressLogAppendixEnabled, reportType),
         progressItems: normalizeProgressItems(data?.progressItems),

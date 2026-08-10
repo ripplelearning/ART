@@ -97,6 +97,7 @@ import { openProgressLogDialog } from './progressLog.js';
 import { requestViewerExportDialog, requestViewerPrintPreview, renderViewer } from './reportViewer.js';
 import { executeLookupCopyActionFromCommand, resetLookupFromCommand } from './lookupTool.js';
 import { executeAddFieldFromCommand, executeDoneFromCommand, renderBuilder } from './reportBuilder.js';
+import { getPresentationValidation, updatePresentationPreviewMode, updatePresentationSelection, updatePresentationUiSection } from './reportPresentationFramework.js';
 import {
     openConfigureDashboardFromCommand,
     openDashboardProjectFromCommand,
@@ -467,6 +468,14 @@ function getDefaultMenuLocation(action, category) {
         case 'attachFile':
         case 'validateReport':
         case 'reportStatistics': return 'Report';
+        case 'openPresentationDesigner':
+        case 'presentationApplyDetailedAuditLayout':
+        case 'presentationApplyExecutiveLayout':
+        case 'presentationApplyDefaultTheme':
+        case 'presentationApplyHighContrastTheme':
+        case 'presentationApplyDefaultBranding':
+        case 'presentationCyclePreviewMode':
+        case 'presentationValidate': return 'Presentation';
         case 'newTemplate':
         case 'useTemplate':
         case 'openTemplate':
@@ -697,6 +706,55 @@ function runNewReportWorkflow() {
     appState.editorReadOnly = false;
     saveState();
     return activateTabCommand('tab-builder', 'builder-heading', 'Report Builder');
+}
+
+function focusBuilderElementAfterRender(elementId) {
+    window.setTimeout(() => {
+        const element = document.getElementById(elementId);
+        if (element && typeof element.focus === 'function') {
+            if (!element.hasAttribute('tabindex')) element.setAttribute('tabindex', '-1');
+            element.focus();
+        }
+    }, 0);
+}
+
+function openPresentationDesignerWorkflow(section = 'layout', focusId = 'presentation-config-heading') {
+    updatePresentationUiSection(section, true, { action: `Opened presentation ${section} section` });
+    const opened = activateTabCommand('tab-builder', 'builder-heading', 'Report Builder');
+    renderBuilder();
+    focusBuilderElementAfterRender(focusId);
+    return opened;
+}
+
+function applyPresentationLayoutWorkflow(layoutId) {
+    updatePresentationSelection({ layoutId, publishingProfileId: '' }, { action: 'Applied report presentation layout from command' });
+    return openPresentationDesignerWorkflow('layout', 'presentation-layout-select');
+}
+
+function applyPresentationThemeWorkflow(themeId) {
+    updatePresentationSelection({ themeId, publishingProfileId: '' }, { action: 'Applied report presentation theme from command' });
+    return openPresentationDesignerWorkflow('theme', 'presentation-theme-select');
+}
+
+function applyPresentationBrandingWorkflow(brandingId) {
+    updatePresentationSelection({ brandingId, publishingProfileId: '' }, { action: 'Applied report presentation branding from command' });
+    return openPresentationDesignerWorkflow('branding', 'presentation-branding-select');
+}
+
+function cyclePresentationPreviewModeWorkflow() {
+    const modes = ['screen', 'print', 'pdf', 'word', 'html'];
+    const current = String(appState.presentation?.preview?.mode || 'screen').trim() || 'screen';
+    const index = Math.max(0, modes.indexOf(current));
+    const next = modes[(index + 1) % modes.length];
+    updatePresentationPreviewMode(next, { action: `Updated presentation preview mode to ${next}` });
+    announce(`Presentation preview mode ${next}.`);
+    return openPresentationDesignerWorkflow('advanced', 'presentation-preview-mode');
+}
+
+function validatePresentationWorkflow() {
+    const messages = getPresentationValidation();
+    announce(messages.length === 0 ? 'Presentation validation passed.' : `Presentation validation found ${messages.length} issue${messages.length === 1 ? '' : 's'}.`);
+    return openPresentationDesignerWorkflow('accessibility', 'presentation-accessibility-summary');
 }
 
 function runShowDashboardWorkflow() {
@@ -1938,6 +1996,70 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Report',
         description: 'Complete Builder setup and move to the Editor.',
         handler: () => runDoneWorkflow()
+    },
+    {
+        action: 'openPresentationDesigner',
+        id: 'Presentation.OpenDesigner',
+        category: 'Presentation',
+        menuLocation: 'Presentation',
+        description: 'Open the Publishing Presentation designer in Report Builder.',
+        handler: () => openPresentationDesignerWorkflow('layout', 'presentation-config-heading')
+    },
+    {
+        action: 'presentationApplyDetailedAuditLayout',
+        id: 'Presentation.ApplyDetailedAuditLayout',
+        category: 'Presentation',
+        menuLocation: 'Presentation>Layouts',
+        description: 'Apply the Detailed Accessibility Audit report layout.',
+        handler: () => applyPresentationLayoutWorkflow('layout-detailed-accessibility-audit')
+    },
+    {
+        action: 'presentationApplyExecutiveLayout',
+        id: 'Presentation.ApplyExecutiveLayout',
+        category: 'Presentation',
+        menuLocation: 'Presentation>Layouts',
+        description: 'Apply the Executive Accessibility Report layout.',
+        handler: () => applyPresentationLayoutWorkflow('layout-executive-accessibility-report')
+    },
+    {
+        action: 'presentationApplyDefaultTheme',
+        id: 'Presentation.ApplyDefaultTheme',
+        category: 'Presentation',
+        menuLocation: 'Presentation>Themes',
+        description: 'Apply the ART Accessible Default report theme.',
+        handler: () => applyPresentationThemeWorkflow('theme-art-accessible-default')
+    },
+    {
+        action: 'presentationApplyHighContrastTheme',
+        id: 'Presentation.ApplyHighContrastTheme',
+        category: 'Presentation',
+        menuLocation: 'Presentation>Themes',
+        description: 'Apply the High Contrast Professional report theme.',
+        handler: () => applyPresentationThemeWorkflow('theme-high-contrast-professional')
+    },
+    {
+        action: 'presentationApplyDefaultBranding',
+        id: 'Presentation.ApplyDefaultBranding',
+        category: 'Presentation',
+        menuLocation: 'Presentation>Branding',
+        description: 'Apply the default ART branding resource.',
+        handler: () => applyPresentationBrandingWorkflow('branding-art-default')
+    },
+    {
+        action: 'presentationCyclePreviewMode',
+        id: 'Presentation.CyclePreviewMode',
+        category: 'Presentation',
+        menuLocation: 'Presentation>Preview',
+        description: 'Cycle the publishing preview between screen, print, PDF, Word, and HTML contexts.',
+        handler: () => cyclePresentationPreviewModeWorkflow()
+    },
+    {
+        action: 'presentationValidate',
+        id: 'Presentation.Validate',
+        category: 'Presentation',
+        menuLocation: 'Presentation>Accessibility',
+        description: 'Validate the current presentation configuration for accessibility and compatibility.',
+        handler: () => validatePresentationWorkflow()
     },
     {
         action: 'addEntry',

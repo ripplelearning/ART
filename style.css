@@ -1859,3 +1859,188 @@ a:focus-visible,
 .shortcut-tooltip:focus-visible::after {
     opacity: 1;
 }
+
+.presentation-config,
+.viewer-presentation-document {
+    margin-top: 20px;
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 16px;
+    background: #f8fafc;
+}
+
+.presentation-config__panel {
+    margin-top: 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.presentation-config__panel summary {
+    cursor: pointer;
+    font-weight: 700;
+    padding: 12px 14px;
+}
+
+.presentation-config__body {
+    display: grid;
+    gap: 12px;
+    padding: 0 14px 14px;
+}
+
+.presentation-layout-sections,
+.presentation-theme-grid,
+.presentation-validation-list,
+.presentation-preview-page__legend {
+    display: grid;
+    gap: 10px;
+}
+
+.presentation-layout-section {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    border: 1px solid #dbe2ea;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #f8fafc;
+}
+
+.presentation-layout-section__actions,
+.branding-image-list__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.presentation-theme-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.presentation-validation-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.presentation-validation-list__item {
+    border-left: 6px solid #64748b;
+    padding: 10px 12px;
+    background: #ffffff;
+}
+
+.presentation-validation-list__item--error {
+    border-left-color: #991b1b;
+}
+
+.presentation-validation-list__item--warning {
+    border-left-color: #b45309;
+}
+
+.presentation-preview-page,
+.viewer-presentation-document {
+    color: var(--report-theme-text, #111111);
+    background: var(--report-theme-background, #ffffff);
+    font-family: var(--report-font-family, Georgia, serif);
+    font-size: var(--report-font-size, 16px);
+    line-height: var(--report-line-height, 1.6);
+    letter-spacing: var(--report-letter-spacing, 0);
+}
+
+.presentation-preview-page {
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.presentation-preview-page__masthead,
+.viewer-presentation-cover,
+.viewer-branding {
+    margin-bottom: var(--report-section-gap, 24px);
+}
+
+.presentation-preview-page__mode,
+.viewer-brand-page-number {
+    color: var(--report-theme-muted, #475569);
+    font-size: 0.9em;
+}
+
+.presentation-preview-page__section,
+.viewer-presentation-validation {
+    border: 1px solid var(--report-theme-border, #475569);
+    border-radius: 12px;
+    padding: var(--report-card-padding, 16px);
+    margin-top: 12px;
+    background: var(--report-theme-surface, #f8fafc);
+}
+
+.presentation-preview-page__section h5,
+.viewer-presentation-document h2,
+.viewer-presentation-document h3,
+.viewer-presentation-document h4,
+.viewer-presentation-document h5 {
+    color: var(--report-theme-heading, #0f172a);
+    font-family: var(--report-heading-font-family, Arial, sans-serif);
+}
+
+.presentation-chip {
+    display: inline-block;
+    min-width: 84px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.presentation-chip--critical {
+    color: #7f1d1d;
+    background: #fee2e2;
+}
+
+.presentation-chip--failed {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.viewer-presentation-document {
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.viewer-presentation-document a {
+    color: var(--report-theme-link, #0b5cab);
+    text-decoration: underline;
+}
+
+.viewer-presentation-document table,
+.viewer-presentation-document .viewer-layout-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.viewer-presentation-document th,
+.viewer-presentation-document td {
+    border: 1px solid var(--report-theme-border, #475569);
+    padding: var(--report-table-cell-padding, 10px);
+}
+
+.viewer-presentation-document th {
+    background: var(--report-theme-table-header-bg, #dbeafe);
+    color: var(--report-theme-table-header-text, #111111);
+}
+
+@media (max-width: 900px) {
+    .presentation-layout-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .presentation-config__body,
+    .presentation-theme-grid {
+        grid-template-columns: 1fr;
+    }
+}

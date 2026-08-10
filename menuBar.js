@@ -21,7 +21,7 @@ let menubarSessionStartIndex = 0;
 let suppressNextMenuButtonClick = false;
 let menuSearchResultsController = null;
 
-const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Tools', 'Templates', 'Window', 'Collaboration', 'Help'];
+const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Presentation', 'Tools', 'Templates', 'Window', 'Collaboration', 'Help'];
 
 function escapeHtml(value) {
     return String(value || '')

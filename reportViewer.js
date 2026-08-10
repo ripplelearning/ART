@@ -3,6 +3,7 @@ import { formatWcagCriterionDisplay, isWcagCriterionFieldType } from './wcagCata
 import { openProgressLogDialog } from './progressLog.js';
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
+import { buildPresentationCssVariables, getResolvedReportPresentation } from './reportPresentationFramework.js';
 
 let openExportDialogOnRender = false;
 let openPrintPreviewOnRender = false;
@@ -569,104 +570,278 @@ function renderProgressAppendixHtmlSection() {
     `;
 }
 
-function buildTextSummary() {
+function getPresentationContext() {
+    return getResolvedReportPresentation();
+}
+
+function getRecommendationEntries() {
+    const recommendationIndexes = (appState.fields || [])
+        .map((field, index) => ({ field, index }))
+        .filter(({ field }) => /recommend|remediation|fix/i.test(String(field?.label || '')));
+
+    if (recommendationIndexes.length === 0) return [];
+
+    return recommendationIndexes.map(({ field, index }) => {
+        const entry = getResolvedFieldEntries(false).find((item) => item.index === index);
+        return entry
+            ? {
+                label: String(field.label || `Field ${index + 1}`),
+                text: String(entry.exportText || entry.displayText || '').trim()
+            }
+            : null;
+    }).filter((item) => item && item.text);
+}
+
+function getReferenceEntries() {
+    const entries = [];
+    if (/^https?:/i.test(String(appState.scopeUrl || '').trim())) {
+        entries.push({ label: 'Scope URL', text: String(appState.scopeUrl).trim(), url: String(appState.scopeUrl).trim() });
+    }
+
+    getResolvedFieldEntries(false).forEach((entry) => {
+        if (!entry.url) return;
+        entries.push({
+            label: entry.label,
+            text: entry.displayText,
+            url: entry.url
+        });
+    });
+
+    return entries;
+}
+
+function getEvidenceEntries() {
+    const evidence = [];
+    getResolvedFieldEntries(false).forEach((entry) => {
+        if (!Array.isArray(entry.attachments) || entry.attachments.length === 0) return;
+        entry.attachments.forEach((attachment) => {
+            evidence.push({
+                label: entry.label,
+                text: attachment.name,
+                exportPath: attachment.exportPath
+            });
+        });
+    });
+    return evidence;
+}
+
+function getAnalyticsRowsForPresentation() {
+    const metrics = getCurrentReportMetrics();
+    return [
+        ['Total Audit Entries', String(metrics.totalAuditEntries || 0)],
+        ['Total Issues', String(metrics.totalIssues || 0)],
+        ['Issues by Severity', String(metrics.issuesBySeverity || 'None')],
+        ['Unique Pages Tested', String(metrics.pagesTested || 0)],
+        ['WCAG Success Criteria Referenced', String(metrics.wcagCriteria || 0)]
+    ];
+}
+
+function buildPresentationSectionModels() {
+    const presentation = getPresentationContext();
     const metadataRows = getMetadataRows();
-    const brandingText = getBrandingTextLines().join('\n');
+    const recommendationEntries = getRecommendationEntries();
+    const referenceEntries = getReferenceEntries();
+    const evidenceEntries = getEvidenceEntries();
+    const analyticsRows = getAnalyticsRowsForPresentation();
+    const tocSections = presentation.visibleSections
+        .filter((section) => !['cover-page', 'table-of-contents'].includes(section.id))
+        .map((section) => section.label);
+    const models = [];
 
-    const brandingSection = brandingText ? `${brandingText}\n\n` : '';
-    const metadataText = metadataRows.map(([label, value]) => `${label}: ${value}`).join('\n');
-    const fieldsText = appState.reportType === 'Audit Log'
-        ? getAuditEntryGroups(false).map((group) => {
-            const content = group.entries.map((entry) => {
-                if (entry.type === 'attachment') return `${entry.label}: ${renderAttachmentExportText(entry)}`;
-                if (entry.url) return `${entry.label}: ${entry.displayText} (${entry.url})`;
-                return `${entry.label}: ${entry.exportText}`;
-            }).join('\n');
-            return `${group.title}\n${content}`;
-        }).join('\n\n')
-        : getResolvedFieldEntries(false).map((entry) => {
-            if (entry.type === 'attachment') {
-                return `${entry.label}: ${renderAttachmentExportText(entry)}`;
-            }
-            if (entry.url) {
-                return `${entry.label}: ${entry.displayText} (${entry.url})`;
-            }
-            return `${entry.label}: ${entry.exportText}`;
-        }).join('\n');
+    const pushModel = (model) => {
+        if (!model) return;
+        models.push(model);
+    };
 
-    const appendix = buildProgressAppendixText();
-    return `${brandingSection}${metadataText}\n\nFields\n${fieldsText}${appendix ? `\n\n${appendix}` : ''}`.trim();
+    presentation.visibleSections.forEach((section) => {
+        const title = section.label;
+        switch (section.id) {
+            case 'cover-page': {
+                const lines = [appState.reportTitle || 'Untitled Report'];
+                if (appState.orgClient) lines.push(appState.orgClient);
+                if (appState.projectName) lines.push(appState.projectName);
+                if (appState.auditDateEnd || appState.auditDateStart) lines.push(`Report Date: ${appState.auditDateEnd || appState.auditDateStart}`);
+                if (appState.auditors) lines.push(`Author: ${appState.auditors}`);
+                if (appState.testingInstructions) lines.push(`Description: ${appState.testingInstructions}`);
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: lines,
+                    markdown: `# ${appState.reportTitle || 'Untitled Report'}\n\n${lines.slice(1).map((line) => `- ${line}`).join('\n')}`,
+                    html: `<section class="viewer-presentation-cover" aria-labelledby="viewer-cover-heading"><h1 id="viewer-cover-heading">${escapeHtml(appState.reportTitle || 'Untitled Report')}</h1>${lines.slice(1).map((line) => `<p>${escapeHtml(line)}</p>`).join('')}</section>`,
+                    paragraphs: [{ style: 'Title', text: appState.reportTitle || 'Untitled Report' }, ...lines.slice(1).map((line) => ({ style: 'Normal', text: line }))]
+                });
+                break;
+            }
+            case 'table-of-contents': {
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: tocSections,
+                    markdown: `## ${title}\n${tocSections.map((line) => `- ${line}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-toc-heading"><h2 id="viewer-toc-heading">${escapeHtml(title)}</h2><ol>${tocSections.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ol></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...tocSections.map((line) => ({ style: 'Normal', text: line }))]
+                });
+                break;
+            }
+            case 'executive-summary': {
+                const entries = getVisibleFieldEntries().slice(0, 5);
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: entries.map((entry) => `${entry.label}: ${entry.value}`),
+                    markdown: `## ${title}\n${entries.map((entry) => `- **${entry.label}:** ${entry.value}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-executive-summary-heading"><h2 id="viewer-executive-summary-heading">${escapeHtml(title)}</h2><ul>${entries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.value) : escapeHtml(entry.value)}</li>`).join('')}</ul></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...entries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.value}` }))]
+                });
+                break;
+            }
+            case 'workspace-report-summary': {
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: metadataRows.map(([label, value]) => `${label}: ${value}`),
+                    markdown: `## ${title}\n${metadataRows.map(([label, value]) => `- **${label}:** ${value}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-report-summary-heading"><h2 id="viewer-report-summary-heading">${escapeHtml(title)}</h2><dl class="viewer-metadata-list">${metadataRows.map(([label, value]) => `<div class="viewer-metadata-item"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...metadataRows.map(([label, value]) => ({ style: 'Normal', text: `${label}: ${value}` }))]
+                });
+                break;
+            }
+            case 'analytics': {
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: analyticsRows.map(([label, value]) => `${label}: ${value}`),
+                    markdown: `## ${title}\n${analyticsRows.map(([label, value]) => `- **${label}:** ${value}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-analytics-heading"><h2 id="viewer-analytics-heading">${escapeHtml(title)}</h2><ul>${analyticsRows.map(([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`).join('')}</ul></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...analyticsRows.map(([label, value]) => ({ style: 'Normal', text: `${label}: ${value}` }))]
+                });
+                break;
+            }
+            case 'findings': {
+                const html = appState.reportLayout === 'Template'
+                    ? renderTemplateLayoutFields()
+                    : renderNonTemplateLayout();
+                const textLines = appState.reportType === 'Audit Log'
+                    ? getAuditEntryGroups(false).flatMap((group) => {
+                        const lines = [group.title];
+                        group.entries.forEach((entry) => {
+                            if (entry.type === 'attachment') {
+                                lines.push(`${entry.label}: ${renderAttachmentExportText(entry)}`);
+                            } else if (entry.url) {
+                                lines.push(`${entry.label}: ${entry.displayText} (${entry.url})`);
+                            } else {
+                                lines.push(`${entry.label}: ${entry.exportText}`);
+                            }
+                        });
+                        return lines;
+                    })
+                    : getResolvedFieldEntries(false).map((entry) => {
+                        if (entry.type === 'attachment') return `${entry.label}: ${renderAttachmentExportText(entry)}`;
+                        if (entry.url) return `${entry.label}: ${entry.displayText} (${entry.url})`;
+                        return `${entry.label}: ${entry.exportText}`;
+                    });
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines,
+                    markdown: `## ${title}\n${textLines.map((line) => `- ${line}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-findings-heading"><h2 id="viewer-findings-heading">${escapeHtml(title)}</h2>${html}</section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...textLines.map((line) => ({ style: 'Normal', text: line }))]
+                });
+                break;
+            }
+            case 'recommendations': {
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: recommendationEntries.map((entry) => `${entry.label}: ${entry.text}`),
+                    markdown: `## ${title}\n${recommendationEntries.map((entry) => `- **${entry.label}:** ${entry.text}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-recommendations-heading"><h2 id="viewer-recommendations-heading">${escapeHtml(title)}</h2><ul>${recommendationEntries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.text)}</li>`).join('')}</ul></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...recommendationEntries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.text}` }))]
+                });
+                break;
+            }
+            case 'appendices': {
+                const appendixText = buildProgressAppendixText();
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: appendixText ? appendixText.split(/\r\n|\r|\n/).filter(Boolean) : [],
+                    markdown: buildProgressAppendixMarkdown(),
+                    html: renderProgressAppendixHtmlSection(),
+                    paragraphs: appendixText ? appendixText.split(/\r\n|\r|\n/).filter(Boolean).map((line, index) => ({ style: index === 0 ? 'Heading1' : 'Normal', text: line })) : []
+                });
+                break;
+            }
+            case 'references': {
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: referenceEntries.map((entry) => `${entry.label}: ${entry.text}`),
+                    markdown: `## ${title}\n${referenceEntries.map((entry) => `- [${entry.label}](${entry.url})`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-references-heading"><h2 id="viewer-references-heading">${escapeHtml(title)}</h2><ul>${referenceEntries.map((entry) => `<li><a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.label)}</a></li>`).join('')}</ul></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...referenceEntries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.text}`, url: entry.url }))]
+                });
+                break;
+            }
+            case 'evidence': {
+                pushModel({
+                    id: section.id,
+                    title,
+                    textLines: evidenceEntries.map((entry) => `${entry.label}: ${entry.text}`),
+                    markdown: `## ${title}\n${evidenceEntries.map((entry) => `- **${entry.label}:** ${entry.text}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-evidence-heading"><h2 id="viewer-evidence-heading">${escapeHtml(title)}</h2><ul>${evidenceEntries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.text)}</li>`).join('')}</ul></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...evidenceEntries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.text}` }))]
+                });
+                break;
+            }
+            default:
+                break;
+        }
+    });
+
+    return models.filter((model) => Array.isArray(model.textLines) ? model.textLines.length > 0 || ['cover-page', 'table-of-contents'].includes(model.id) : Boolean(model.html));
+}
+
+function buildPresentationStyleAttribute() {
+    const resolved = getPresentationContext();
+    const cssVariables = buildPresentationCssVariables(resolved.theme, resolved.branding);
+    return Object.entries(cssVariables).map(([key, value]) => `${key}:${value}`).join('; ');
+}
+
+function renderPresentationDocumentHtml() {
+    const presentation = getPresentationContext();
+    const sections = buildPresentationSectionModels();
+    const brandingBlock = renderBrandingBlock();
+    const validationMessages = presentation.validationMessages || [];
+
+    return `
+        <section class="viewer-presentation-document" aria-label="Published report preview" data-preview-mode="${escapeHtml(presentation.previewMode)}" style="${escapeHtml(buildPresentationStyleAttribute())}">
+            ${brandingBlock}
+            ${validationMessages.length > 0 ? `<section class="viewer-presentation-validation" aria-labelledby="viewer-presentation-validation-heading"><h3 id="viewer-presentation-validation-heading">Presentation Validation</h3><ul>${validationMessages.map((message) => `<li><strong>${escapeHtml((message.severity || 'info').toUpperCase())}:</strong> ${escapeHtml(message.message || '')}</li>`).join('')}</ul></section>` : ''}
+            ${sections.map((section) => section.html).join('')}
+        </section>
+    `;
+}
+
+function buildTextSummary() {
+    return buildPresentationSectionModels()
+        .map((section) => `${section.title}\n${(section.textLines || []).join('\n')}`.trim())
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
 }
 
 function buildMarkdownSummary() {
-    const metadataRows = getMetadataRows();
-    const brandingLines = getBrandingTextLines();
-
-    const brandingMd = brandingLines.length > 0
-        ? `## Branding\n${brandingLines.map((line) => `- ${line}`).join('\n')}\n\n`
-        : '';
-    const metadataMd = metadataRows.map(([label, value]) => `- **${label}:** ${String(value)}`).join('\n');
-    const fieldsMd = appState.reportType === 'Audit Log'
-        ? getAuditEntryGroups(false).map((group) => `### ${group.title}\n${group.entries.map((entry) => {
-            if (entry.type === 'attachment') return `- **${entry.label}:** ${renderAttachmentExportMarkdown(entry)}`;
-            if (entry.url) return `- **${entry.label}:** [${entry.displayText}](${entry.url})`;
-            return `- **${entry.label}:** ${entry.exportText}`;
-        }).join('\n')}`).join('\n\n')
-        : getResolvedFieldEntries(false).map((entry) => {
-            if (entry.type === 'attachment') {
-                return `- **${entry.label}:** ${renderAttachmentExportMarkdown(entry)}`;
-            }
-            if (entry.url) {
-                return `- **${entry.label}:** [${entry.displayText}](${entry.url})`;
-            }
-            return `- **${entry.label}:** ${entry.exportText}`;
-        }).join('\n');
-
-    const appendix = buildProgressAppendixMarkdown();
-    return `# ${appState.reportTitle || 'Report'}\n\n${brandingMd}## Metadata\n${metadataMd}\n\n## Fields\n${fieldsMd}${appendix ? `\n\n${appendix}` : ''}`;
+    return buildPresentationSectionModels()
+        .map((section) => section.markdown)
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
 }
 
 function buildHtmlSummary() {
-    const metadataRows = getMetadataRows();
-    const branding = getBrandingState();
-    const headerHtml = sanitizeBrandingHtml(branding.headerHtml) || (branding.headerText.trim() ? `<p>${escapeHtml(branding.headerText.trim())}</p>` : '');
-    const footerHtml = sanitizeBrandingHtml(branding.footerHtml);
-    const headerImagesMarkup = renderBrandingImageCollection(branding.headerImages);
-    const footerImagesMarkup = renderBrandingImageCollection(branding.footerImages);
-
-    const metadataItems = metadataRows
-        .map(([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`)
-        .join('');
-    const fieldItems = appState.reportType === 'Audit Log'
-        ? getAuditEntryGroups(false).map((group) => `<li><strong>${escapeHtml(group.title)}</strong><ul>${group.entries.map((entry) => {
-            if (entry.type === 'attachment') {
-                return `<li><strong>${escapeHtml(entry.label)}:</strong> ${renderAttachmentExportHtml(entry)}</li>`;
-            }
-            if (entry.url) {
-                return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(normalizeAccessibilityLinkText(entry.rawValue, entry.displayText))}</a></li>`;
-            }
-            return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
-        }).join('')}</ul></li>`).join('')
-        : getResolvedFieldEntries(false)
-            .map((entry) => {
-                if (entry.type === 'attachment') {
-                    return `<li><strong>${escapeHtml(entry.label)}:</strong> ${renderAttachmentExportHtml(entry)}</li>`;
-                }
-                if (entry.url) {
-                    return `<li><strong>${escapeHtml(entry.label)}:</strong> <a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(normalizeAccessibilityLinkText(entry.rawValue, entry.displayText))}</a></li>`;
-                }
-                return `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.exportText)}</li>`;
-            })
-            .join('');
-    const brandingBlock = branding.enabled ? `
-    <section aria-label="Branding">
-        <h2>Branding</h2>
-        ${headerImagesMarkup ? `<div class="export-branding-images export-branding-images--header">${headerImagesMarkup}</div>` : ''}
-        ${headerHtml ? `<div>${headerHtml}</div>` : ''}
-        ${footerImagesMarkup ? `<div class="export-branding-images export-branding-images--footer">${footerImagesMarkup}</div>` : ''}
-        ${footerHtml ? `<div>${footerHtml}</div>` : ''}
-    </section>` : '';
-
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -674,13 +849,7 @@ function buildHtmlSummary() {
   <title>${escapeHtml(appState.reportTitle || 'Report')}</title>
 </head>
 <body>
-  <h1>${escapeHtml(appState.reportTitle || 'Report')}</h1>
-    ${brandingBlock}
-  <h2>Metadata</h2>
-  <ul>${metadataItems}</ul>
-    <h2>Fields</h2>
-    <ul>${fieldItems}</ul>
-    ${renderProgressAppendixHtmlSection()}
+    ${renderPresentationDocumentHtml()}
 </body>
 </html>`;
 }
@@ -692,36 +861,8 @@ function buildRtfSummary() {
         .replace(/}/g, '\\}')
         .replace(/\r\n|\r|\n/g, '\\line ');
 
-    const title = escapeRtf(appState.reportTitle || 'Report');
-    const branding = getBrandingTextLines().map((line) => escapeRtf(line)).join('\\line ');
-    const brandingBlock = branding ? `Branding\\line ${branding}\\line\\line ` : '';
-    const metadata = getMetadataRows().map(([label, value]) => `${escapeRtf(label)}: ${escapeRtf(value)}`).join('\\line ');
-    const fields = appState.reportType === 'Audit Log'
-        ? getAuditEntryGroups(false).map((group) => {
-            const fieldText = group.entries.map((entry) => {
-                if (entry.type === 'attachment') {
-                    return `${escapeRtf(entry.label)}: ${renderAttachmentExportRtf(entry, escapeRtf)}`;
-                }
-                if (entry.url) {
-                    return `${escapeRtf(entry.label)}: {\\field{\\*\\fldinst HYPERLINK "${escapeRtf(entry.url)}"}{\\fldrslt ${escapeRtf(entry.displayText)}}}`;
-                }
-                return `${escapeRtf(entry.label)}: ${escapeRtf(entry.exportText)}`;
-            }).join('\\line ');
-            return `${escapeRtf(group.title)}\\line ${fieldText}`;
-        }).join('\\line \\line ')
-        : getResolvedFieldEntries(false).map((entry) => {
-            if (entry.type === 'attachment') {
-                return `${escapeRtf(entry.label)}: ${renderAttachmentExportRtf(entry, escapeRtf)}`;
-            }
-            if (entry.url) {
-                return `${escapeRtf(entry.label)}: {\\field{\\*\\fldinst HYPERLINK "${escapeRtf(entry.url)}"}{\\fldrslt ${escapeRtf(entry.displayText)}}}`;
-            }
-            return `${escapeRtf(entry.label)}: ${escapeRtf(entry.exportText)}`;
-        }).join('\\line ');
-
-    const appendix = buildProgressAppendixText();
-    const appendixBlock = appendix ? `\\line\\line ${escapeRtf(appendix)}` : '';
-    return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\f0\\fs22\\b ${title}\\b0\\line\\line ${brandingBlock}Metadata\\line ${metadata}\\line\\line Fields\\line ${fields}${appendixBlock}}`;
+    const text = escapeRtf(buildTextSummary());
+    return `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\f0\\fs22 ${text}}`;
 }
 
 function buildXlsxBlob() {
@@ -839,112 +980,17 @@ function buildDocxDocumentXml() {
         return `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(safeLabel)}: </w:t></w:r><w:fldSimple w:instr="HYPERLINK &quot;${escapeXml(safeUrl)}&quot;"><w:r><w:rPr><w:u w:val="single"/><w:color w:val="0563C1"/></w:rPr><w:t xml:space="preserve">${escapeXml(safeText)}</w:t></w:r></w:fldSimple></w:p>`;
     };
 
-    const metadataRows = getMetadataRows();
-    const brandingLines = getBrandingTextLines();
-    const metadataTableRows = metadataRows.map(([label, value]) => `
-        <w:tr>
-            <w:tc>
-                <w:tcPr><w:tcW w:w="4200" w:type="dxa"/></w:tcPr>
-                <w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${escapeXml(label)}</w:t></w:r></w:p>
-            </w:tc>
-            <w:tc>
-                <w:tcPr><w:tcW w:w="7800" w:type="dxa"/></w:tcPr>
-                <w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(value)}</w:t></w:r></w:p>
-            </w:tc>
-        </w:tr>
-    `).join('');
-
-    const metadataTable = metadataRows.length > 0
-        ? `
-        <w:tbl>
-            <w:tblPr>
-                <w:tblW w:w="0" w:type="auto"/>
-                <w:tblBorders>
-                    <w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-                    <w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-                    <w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-                    <w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-                    <w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-                    <w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-                </w:tblBorders>
-            </w:tblPr>
-            <w:tblGrid>
-                <w:gridCol w:w="4200"/>
-                <w:gridCol w:w="7800"/>
-            </w:tblGrid>
-            ${metadataTableRows}
-        </w:tbl>
-    `
-        : makeParagraph('No metadata is currently set for this report.', 'Normal');
-
     const paragraphs = [];
-    paragraphs.push(makeParagraph(appState.reportTitle || 'Report', 'Title'));
-    paragraphs.push(makeParagraph('', 'Normal'));
-    if (brandingLines.length > 0) {
-        paragraphs.push(makeParagraph('Branding', 'Heading1'));
-        brandingLines.forEach((line) => paragraphs.push(makeParagraph(line, 'Normal')));
-        paragraphs.push(makeParagraph('', 'Normal'));
-    }
-    paragraphs.push(makeParagraph('Metadata', 'Heading1'));
-    paragraphs.push(metadataTable);
-    paragraphs.push(makeParagraph('', 'Normal'));
-    paragraphs.push(makeParagraph('Fields', 'Heading1'));
-    if (appState.reportType === 'Audit Log') {
-        getAuditEntryGroups(false).forEach((group) => {
-            paragraphs.push(makeParagraph(group.title, 'Heading2'));
-            group.entries.forEach((entry) => {
-                if (entry.type === 'attachment') {
-                    if ((entry.attachments || []).length === 0) {
-                        paragraphs.push(makeParagraph(`${entry.label}: No files attached`, 'Normal'));
-                        return;
-                    }
-                    entry.attachments.forEach((attachment) => {
-                        paragraphs.push(makeHyperlinkParagraph(entry.label, attachment.name, attachment.exportPath, 'Normal'));
-                    });
-                    return;
-                }
-                if (entry.url) {
-                    paragraphs.push(makeHyperlinkParagraph(entry.label, entry.displayText, entry.url, 'Normal'));
-                } else {
-                    paragraphs.push(makeParagraph(`${entry.label}: ${entry.exportText || 'No value entered'}`, 'Normal'));
-                }
-            });
-        });
-    } else {
-        getResolvedFieldEntries(false).forEach((entry) => {
-            if (entry.type === 'attachment') {
-                paragraphs.push(makeParagraph(entry.label, 'Heading2'));
-                if ((entry.attachments || []).length === 0) {
-                    paragraphs.push(makeParagraph('No files attached', 'Normal'));
-                    return;
-                }
-                entry.attachments.forEach((attachment) => {
-                    paragraphs.push(makeHyperlinkParagraph('Attachment', attachment.name, attachment.exportPath, 'Normal'));
-                });
+    buildPresentationSectionModels().forEach((section) => {
+        (section.paragraphs || []).forEach((paragraph) => {
+            if (paragraph.url) {
+                paragraphs.push(makeHyperlinkParagraph(paragraph.text.split(':')[0] || section.title, paragraph.text.split(':').slice(1).join(':').trim() || paragraph.text, paragraph.url, paragraph.style || 'Normal'));
                 return;
             }
-            if (entry.url) {
-                paragraphs.push(makeHyperlinkParagraph(entry.label, entry.displayText, entry.url, 'Normal'));
-            } else {
-                paragraphs.push(makeParagraph(entry.label, 'Heading2'));
-                paragraphs.push(makeParagraph(entry.exportText || 'No value entered', 'Normal'));
-            }
+            paragraphs.push(makeParagraph(paragraph.text, paragraph.style || 'Normal'));
         });
-    }
-
-    const progressItems = getProgressAppendixItems();
-    if (progressItems.length > 0) {
         paragraphs.push(makeParagraph('', 'Normal'));
-        paragraphs.push(makeParagraph('Progress Log Appendix', 'Heading1'));
-        if (String(appState.testingInstructions || '').trim()) {
-            paragraphs.push(makeParagraph(`Testing Instructions: ${appState.testingInstructions}`, 'Normal'));
-        }
-        progressItems.forEach((item) => {
-            const name = String(item.name || 'Untitled Evaluation Item').trim() || 'Untitled Evaluation Item';
-            const location = String(item.location || '').trim();
-            paragraphs.push(makeParagraph(location ? `${name}: ${location}` : name, 'Normal'));
-        });
-    }
+    });
 
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" mc:Ignorable="w14 wp14">
@@ -1648,16 +1694,7 @@ export function renderViewer() {
         <section id="viewer-view" aria-labelledby="viewer-heading">
             <h2 id="viewer-heading" tabindex="-1">${escapeHtml(reportHeading)}</h2>
 
-            <section aria-labelledby="viewer-metadata-heading">
-                <h3 id="viewer-metadata-heading">Report Metadata</h3>
-                ${renderMetadata()}
-            </section>
-
-            ${renderBrandingBlock()}
-
-            ${renderReportBody()}
-
-            ${renderProgressAppendixViewer()}
+            ${renderPresentationDocumentHtml()}
 
             <div class="viewer-actions" role="group" aria-label="Report viewer actions">
                 <button id="btn-open-working-view" type="button">Open Working View</button>

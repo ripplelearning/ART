@@ -39,6 +39,14 @@ ART Version 1.5 now also introduces an optional Collaboration Server coordinatio
 - Supports live preview from Application Settings.
 - Provides a foundation for future named appearance profiles.
 
+### Report Presentation Framework
+- Centralizes reusable publishing presentation resources for Report Layouts, Themes, Branding, and Publishing Profiles.
+- Keeps presentation configuration separate from underlying report findings and field content.
+- Resolves selected reusable resources together with report-level overrides for preview and export workflows.
+- Validates layout compatibility, presentation dependencies, contrast, required image alternative text, and non-color-only link/status presentation.
+- Exposes preview output contexts for screen, print, Word, PDF, and HTML publishing workflows.
+- Integrates with shared state, command registration, workspace resource catalogs, and collaboration permissions instead of creating a separate permission model.
+
 ### Command Palette
 - Reads command metadata from the Command Registry.
 - Reads current shortcut assignments from the Keyboard Shortcut Manager.
@@ -204,6 +212,7 @@ Standard workspace folders:
 - Editor actions resolve through commands.
 - Settings actions resolve through commands.
 - Collaboration quick-start and asynchronous publish/pull operations resolve through commands.
+- Publishing Presentation designer, Layout/Theme/Branding apply commands, and validation actions resolve through commands.
 - Lookup actions resolve through commands.
 - Keyboard shortcuts resolve through commands.
 - The Command Palette resolves through the same centralized command framework.

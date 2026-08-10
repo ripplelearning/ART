@@ -16,6 +16,7 @@ import { initializeCollaborationFramework } from './collaborationFramework.js';
 import { initExplorerFramework } from './explorerFramework.js';
 import { initReportViewsFramework } from './reportViewsFramework.js';
 import { initPluginFramework } from './pluginFramework.js';
+import { initializeReportPresentationFramework } from './reportPresentationFramework.js';
 import { initializeResourceRelationshipFramework } from './resourceRelationshipFramework.js';
 import { initializeResourceOrganizationFramework } from './resourceOrganizationFramework.js';
 import { initializeHistoryFramework } from './historyFramework.js';
@@ -203,7 +204,8 @@ function initializeApp() {
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());
     runStartupStage('initGlobalContextMenuFramework', () => initGlobalContextMenuFramework());
-        runStartupStage('Collaboration Framework', () => initializeCollaborationFramework());
+    runStartupStage('Collaboration Framework', () => initializeCollaborationFramework());
+    runStartupStage('initializeReportPresentationFramework', () => initializeReportPresentationFramework());
     
     // 2. Initialize side-panel tools
     runStartupStage('initLookupTool', () => initLookupTool());
