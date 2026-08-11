@@ -980,7 +980,6 @@ function closeAllMenus(restoreToMenubar = true) {
     if (restoreToMenubar) {
         window.setTimeout(() => {
             focusTopLevelButton(menubarFocusIndex);
-            setStatus('Menu bar focused.');
         }, 0);
     }
 }
@@ -1010,7 +1009,21 @@ function exitMenubarInteractionToMenuButton() {
         const nextIndex = Math.max(0, Math.min(startIndex, buttons.length - 1));
         menubarFocusIndex = nextIndex;
         restoreFocus(buttons[nextIndex], { retries: 1 });
-        setStatus('Menu bar focused.');
+    }, 0);
+}
+
+function endMenubarSessionOnCurrentButton() {
+    const currentIndex = menubarFocusIndex;
+    closeAllMenus(false);
+    clearMenubarSession();
+
+    window.setTimeout(() => {
+        const buttons = getTopLevelButtons();
+        if (!buttons.length) return;
+
+        const nextIndex = Math.max(0, Math.min(currentIndex, buttons.length - 1));
+        menubarFocusIndex = nextIndex;
+        restoreFocus(buttons[nextIndex], { retries: 1 });
     }, 0);
 }
 
@@ -1113,7 +1126,7 @@ function handleMenuButtonKeydown(event, activeElement) {
 
     if (event.key === 'Escape') {
         event.preventDefault();
-        exitMenubarSession();
+        endMenubarSessionOnCurrentButton();
         return true;
     }
 
@@ -1215,7 +1228,7 @@ function handleMenuItemKeydown(event, activeElement) {
         if (currentPath.includes('>')) {
             closeSubmenuAndFocusParent(currentPath);
         } else {
-            exitMenubarSession();
+            closeAllMenus(true);
         }
         return true;
     }
@@ -1323,8 +1336,6 @@ function focusMenuBar() {
     closeAllMenus(false);
     renderMenuBar();
     focusTopLevelButton(menubarFocusIndex);
-    setStatus('Menu bar focused.');
-    announce('Menu bar focused.');
 }
 
 function focusMenuSearch(selectText = true) {
@@ -1430,8 +1441,8 @@ function bindEvents() {
 
     container.innerHTML = `
         <div class="app-menu-bar__row">
-            <nav aria-label="Application menus">
-                <div id="menu-bar-menubar" class="app-menu-bar__menubar" role="menubar" aria-label="Application menus"></div>
+            <nav aria-label="Menu bar">
+                <div id="menu-bar-menubar" class="app-menu-bar__menubar" role="menubar" aria-label="Menu bar"></div>
             </nav>
             <div class="app-menu-bar__search">
                 <label class="sr-only" for="menu-bar-search">Menu Bar Command Search</label>
