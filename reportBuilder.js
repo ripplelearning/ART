@@ -1366,9 +1366,12 @@ export async function renderBuilder() {
     };
 
     if (toggleConfigButton) {
-        toggleConfigButton.onclick = toggleFieldConfiguration;
+        toggleConfigButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            toggleFieldConfiguration();
+        });
         toggleConfigButton.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== 'NumpadEnter') return;
+            if (event.key !== 'Enter' && event.key !== 'NumpadEnter' && event.key !== ' ') return;
             event.preventDefault();
             toggleFieldConfiguration();
         });
