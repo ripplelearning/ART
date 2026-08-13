@@ -39,7 +39,7 @@ const defaultState = {
     testingInstructions: "",
     reportType: "",
     reportLayout: "",
-    fieldsExpanded: false,
+    fieldsExpanded: true,
     templateOption: "",
     templateName: "",
     templateDescription: "",
@@ -5503,7 +5503,7 @@ export function clearReportEverythingInSession() {
     appState.editorFieldValues = {};
     appState.auditEntries = [];
     appState.activeAuditEntryIndex = 0;
-    appState.fieldsExpanded = false;
+    appState.fieldsExpanded = defaultState.fieldsExpanded;
     appState.branding = normalizeBranding(defaultState.branding);
     appState.editingIndex = -1;
 

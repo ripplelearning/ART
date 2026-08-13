@@ -33,6 +33,7 @@ let applyWorkspaceBrandingDefault = false;
 let publishingPresentationExpanded = false;
 let reportBrandingExpanded = false;
 let lastFieldConfigurationActivationAt = 0;
+let hasAppliedFieldsExpandedDefault = false;
 
 function requestBuilderFocus(action, index = null, itemId = '') {
     pendingFocus = { index, action, itemId };
@@ -964,6 +965,14 @@ export function executeDoneFromCommand() {
 
 export async function renderBuilder() {
     const container = document.getElementById('main-inner');
+    if (!hasAppliedFieldsExpandedDefault) {
+        if (!appState.fieldsExpanded) {
+            appState.fieldsExpanded = true;
+            saveState({ action: 'Expanded field configuration by default', recordHistory: false });
+        }
+        hasAppliedFieldsExpandedDefault = true;
+    }
+
     const activeElementBeforeRender = document.activeElement;
     const preserveFocusId = !pendingFocus
         && activeElementBeforeRender
