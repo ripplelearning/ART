@@ -30,6 +30,8 @@ import {
 let pendingFocus = null;
 let pendingDelete = null;
 let applyWorkspaceBrandingDefault = false;
+let publishingPresentationExpanded = false;
+let reportBrandingExpanded = false;
 
 function requestBuilderFocus(action, index = null, itemId = '') {
     pendingFocus = { index, action, itemId };
@@ -1037,8 +1039,9 @@ export async function renderBuilder() {
                 </div>
             </div>
 
-            <section class="presentation-config" aria-labelledby="presentation-config-heading">
-                <h3 id="presentation-config-heading">Publishing Presentation</h3>
+            <details id="presentation-config-region" class="presentation-config" ${publishingPresentationExpanded ? 'open' : ''}>
+                <summary id="presentation-config-summary">Publishing Presentation</summary>
+                <div id="presentation-config-content" aria-labelledby="presentation-config-summary">
                 <p id="presentation-summary" role="status" aria-live="polite">${escapeHtml(buildPresentationSummary(resolvedPresentation, presentationValidation))}</p>
 
                 <details class="presentation-config__panel" ${presentationUi.expandedSections.advanced ? 'open' : ''}>
@@ -1166,10 +1169,18 @@ export async function renderBuilder() {
                         <div id="presentation-preview-host">${buildPresentationPreviewMarkup()}</div>
                     </div>
                 </details>
-            </section>
+                </div>
+            </details>
 
-            <section class="branding-config" aria-labelledby="branding-config-heading">
-                <h3 id="branding-config-heading">Report Branding Override</h3>
+            <section class="branding-config" aria-labelledby="branding-config-toggle-label">
+                <label id="branding-config-toggle-label" class="branding-toggle">
+                    <input type="checkbox" id="branding-enabled" ${branding.enabled ? 'checked' : ''}>
+                    Include Report Branding
+                </label>
+            <details id="branding-config-region" class="branding-config" ${reportBrandingExpanded ? 'open' : ''} ${branding.enabled ? '' : 'hidden'}>
+                <summary id="branding-config-summary">Report Branding Options</summary>
+                <div id="branding-config-content" aria-labelledby="branding-config-summary">
+                <h3 id="branding-config-heading" class="sr-only">Report Branding Options</h3>
                 <p>Branding remains a reusable resource. Changes here act as the current report override unless you save them for reuse.</p>
                 <label for="presentation-branding-select">Reusable Branding</label>
                 <select id="presentation-branding-select">
@@ -1182,10 +1193,6 @@ export async function renderBuilder() {
                 <select id="presentation-branding-scope">
                     ${presentationScopeOptions.map((scope) => `<option value="${scope}" ${resolvedPresentation.branding.scope === scope ? 'selected' : ''}>${escapeHtml(scope)}</option>`).join('')}
                 </select>
-                <label class="branding-toggle">
-                    <input type="checkbox" id="branding-enabled" ${branding.enabled ? 'checked' : ''}>
-                    Enable branding
-                </label>
 
                 <div id="branding-controls" ${branding.enabled ? '' : 'hidden'}>
                     <div>
@@ -1253,6 +1260,8 @@ export async function renderBuilder() {
                         <div id="branding-live-preview">${buildBrandingPreviewMarkup(branding)}</div>
                     </section>
                 </div>
+                </div>
+            </details>
             </section>
 
             ${showTemplateSection ? `
@@ -1350,12 +1359,33 @@ export async function renderBuilder() {
 
     // --- Listeners ---
     const toggleConfigButton = document.getElementById('btn-toggle-config');
+    const toggleFieldConfiguration = () => {
+        appState.fieldsExpanded = !appState.fieldsExpanded;
+        saveState();
+        renderBuilder();
+    };
+
     if (toggleConfigButton) {
-        toggleConfigButton.onclick = () => {
-            appState.fieldsExpanded = !appState.fieldsExpanded;
-            saveState();
-            renderBuilder();
-        };
+        toggleConfigButton.onclick = toggleFieldConfiguration;
+        toggleConfigButton.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== 'NumpadEnter') return;
+            event.preventDefault();
+            toggleFieldConfiguration();
+        });
+    }
+
+    const presentationConfigRegion = document.getElementById('presentation-config-region');
+    if (presentationConfigRegion instanceof HTMLDetailsElement) {
+        presentationConfigRegion.addEventListener('toggle', () => {
+            publishingPresentationExpanded = presentationConfigRegion.open;
+        });
+    }
+
+    const brandingConfigRegion = document.getElementById('branding-config-region');
+    if (brandingConfigRegion instanceof HTMLDetailsElement) {
+        brandingConfigRegion.addEventListener('toggle', () => {
+            reportBrandingExpanded = brandingConfigRegion.open;
+        });
     }
 
     const metadataFields = [
