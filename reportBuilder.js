@@ -32,6 +32,7 @@ let pendingDelete = null;
 let applyWorkspaceBrandingDefault = false;
 let publishingPresentationExpanded = false;
 let reportBrandingExpanded = false;
+let lastFieldConfigurationActivationAt = 0;
 
 function requestBuilderFocus(action, index = null, itemId = '') {
     pendingFocus = { index, action, itemId };
@@ -1365,15 +1366,23 @@ export async function renderBuilder() {
         renderBuilder();
     };
 
+    const activateFieldConfigurationToggle = () => {
+        const now = Date.now();
+        if (now - lastFieldConfigurationActivationAt < 200) return;
+        lastFieldConfigurationActivationAt = now;
+        toggleFieldConfiguration();
+    };
+
     if (toggleConfigButton) {
         toggleConfigButton.addEventListener('click', (event) => {
             event.preventDefault();
-            toggleFieldConfiguration();
+            activateFieldConfigurationToggle();
         });
         toggleConfigButton.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter' && event.key !== 'NumpadEnter' && event.key !== ' ') return;
             event.preventDefault();
-            toggleFieldConfiguration();
+            event.stopPropagation();
+            activateFieldConfigurationToggle();
         });
     }
 
