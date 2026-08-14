@@ -9,6 +9,7 @@ import {
     getOrganizationScopeOptions,
     getOrganizationSummaries,
     getOrganizationMetricSnapshots,
+    clearOrganizationMetricSnapshots,
     recordOrganizationMetricSnapshot,
     resolveDateRange
 } from './organizationMetricsFramework.js';
@@ -650,6 +651,7 @@ function ensureDialog() {
                 <select id="organization-saved-view-select"><option value="">Choose a saved view</option></select>
                 <button id="btn-organization-load-view" type="button">Load View</button>
                 <button id="btn-organization-record-snapshot" type="button">Record Snapshot</button>
+                <button id="btn-organization-clear-snapshots" type="button">Clear Snapshots</button>
                 <button id="btn-organization-export" type="button">Export JSON</button>
                 <button id="btn-organization-export-csv" type="button">Export CSV</button>
             </div>
@@ -671,6 +673,11 @@ function ensureDialog() {
             const snapshot = recordOrganizationMetricSnapshot(buildOrganizationMetricsScope(dialog));
             renderDialog();
             announce(`Metric snapshot recorded at ${new Date(snapshot.recordedAt).toLocaleString()}.`);
+        });
+        dialog.querySelector('#btn-organization-clear-snapshots')?.addEventListener('click', () => {
+            clearOrganizationMetricSnapshots();
+            renderDialog();
+            announce('Organization metric snapshots cleared. Reports were not changed.');
         });
 
         dialog.querySelector('#btn-organization-save-view')?.addEventListener('click', () => {
@@ -801,6 +808,17 @@ export function recordOrganizationStatisticsSnapshotFromCommand(context = {}) {
     const snapshot = recordOrganizationMetricSnapshot(buildOrganizationMetricsScope(state.dialog));
     renderDialog();
     announce(`Metric snapshot recorded at ${new Date(snapshot.recordedAt).toLocaleString()}.`);
+    return true;
+}
+
+export function clearOrganizationStatisticsSnapshotsFromCommand(context = {}) {
+    const state = ensureDialog();
+    if (!state) return false;
+    if (context.triggerElement) state.lastTrigger = context.triggerElement;
+    state.dialog.hidden = false;
+    clearOrganizationMetricSnapshots();
+    renderDialog();
+    announce('Organization metric snapshots cleared. Reports were not changed.');
     return true;
 }
 

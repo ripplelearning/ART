@@ -200,6 +200,7 @@ function getMenuLocation(command) {
         case 'exportOrganizationStatistics': return 'Organization>Statistics';
         case 'exportOrganizationStatisticsCsv': return 'Organization>Statistics';
         case 'recordOrganizationStatisticsSnapshot': return 'Organization>Statistics';
+        case 'clearOrganizationStatisticsSnapshots': return 'Organization>Statistics';
         case 'openOrganizationDataQuality': return 'Organization>Statistics';
         case 'toggleOrganizationDashboardSection': return 'Organization';
         case 'navigateBack': return 'View>Navigation';

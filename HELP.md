@@ -359,6 +359,8 @@ Organization Statistics views can be saved and loaded without modifying report d
 
 Use Record Snapshot when you want to preserve the current scope for later comparison. Snapshots are explicit, local records and appear in the Trends tab for the same organization and filters. ART does not create snapshots automatically, and snapshots do not rewrite report history.
 
+Use Clear Snapshots to remove the locally recorded metric snapshots. This affects only historical Organization Statistics snapshots; report data and report history are not changed.
+
 Organization Statistics describe the reports available to you and are not a complete picture of an organization's accessibility programme when reports or metadata are missing. Fewer findings does not automatically mean better accessibility, because it can also mean less testing. Organization Statistics are derived from reports and never modify them.
 
 ## Metadata Portability and Integrity
