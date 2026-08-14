@@ -329,6 +329,15 @@ Application Settings includes a Find a setting box that filters the settings sec
 
 The Keyboard Shortcut Manager provides a Change button and a Reset button for every command. Reset returns a single command to its default shortcut without affecting your other customizations, and Restore Default Shortcuts resets them all.
 
+## Search Analytics and Provider Health
+Application Settings includes a Search Analytics section showing how many searches you ran, how many returned no results, how many results you opened, and the average search time. A Search Provider Health table lists each provider with its status, number of searches, average time, and error count.
+
+A failing provider is reported as Degraded or Failing and never prevents the rest of search from working.
+
+All analytics are presented as text and accessible data tables rather than charts. Search analytics are personal and stored only on this device, no query text is recorded, and nothing is transmitted or shared.
+
+Use the checkbox to stop collecting analytics and Clear Search Analytics to remove stored totals. Clearing analytics does not affect reports, saved searches, favorites, bookmarks, or history.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

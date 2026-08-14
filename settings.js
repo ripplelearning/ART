@@ -16,6 +16,9 @@ import {
     getNavigationHistory,
     updateNavigationHistory,
     clearNavigationHistoryEntries,
+    getSearchAnalytics,
+    setSearchAnalyticsEnabled,
+    clearSearchAnalytics,
     getApplicationInfo,
     getAssignableActions,
     getCollaborationConfig,
@@ -333,6 +336,85 @@ function closeSubDialog(restoreFocus = true) {
 }
 
 // Filters top-level settings sections by heading and visible text so options stay discoverable.
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatMilliseconds(value) {
+    const ms = Number(value) || 0;
+    return ms >= 1000 ? `${(ms / 1000).toFixed(2)} seconds` : `${ms.toFixed(1)} ms`;
+}
+
+function renderSearchAnalytics() {
+    const summary = document.getElementById('settings-search-analytics-summary');
+    const body = document.getElementById('settings-search-analytics-body');
+    const providerBody = document.getElementById('settings-search-provider-body');
+    const enabledCheckbox = document.getElementById('settings-search-analytics-enabled');
+    if (!body || !providerBody) return;
+
+    const analytics = getSearchAnalytics();
+    if (enabledCheckbox) enabledCheckbox.checked = analytics.enabled !== false;
+
+    const successRate = analytics.totalSearches > 0
+        ? Math.round(((analytics.totalSearches - analytics.noResultSearches) / analytics.totalSearches) * 100)
+        : 0;
+    const averageDuration = analytics.totalSearches > 0 ? analytics.totalDurationMs / analytics.totalSearches : 0;
+
+    if (summary) {
+        summary.textContent = analytics.enabled === false
+            ? 'Search analytics collection is off. Existing totals are kept until you clear them.'
+            : analytics.totalSearches === 0
+                ? 'No searches recorded yet. Search analytics are stored only on this device.'
+                : `${analytics.totalSearches} searches recorded on this device. ${successRate}% returned at least one result, and ${analytics.resultSelections} ${analytics.resultSelections === 1 ? 'result was' : 'results were'} opened.`;
+    }
+
+    const rows = [
+        ['Searches recorded', String(analytics.totalSearches)],
+        ['Searches with results', String(analytics.totalSearches - analytics.noResultSearches)],
+        ['Searches with no results', String(analytics.noResultSearches)],
+        ['Searches that returned a result', `${successRate}%`],
+        ['Results opened', String(analytics.resultSelections)],
+        ['Average search time', formatMilliseconds(averageDuration)]
+    ];
+    body.innerHTML = rows.map(([label, value]) => `<tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
+
+    const providerRows = Object.entries(analytics.providerStats || {})
+        .sort((left, right) => left[0].localeCompare(right[0]))
+        .map(([providerId, stats]) => {
+            const average = stats.runs > 0 ? stats.totalDurationMs / stats.runs : 0;
+            const errorRate = stats.runs > 0 ? stats.errors / stats.runs : 0;
+            const status = stats.errors === 0 ? 'Available' : errorRate >= 0.5 ? 'Failing' : 'Degraded';
+            return `<tr><th scope="row">${escapeHtml(providerId)}</th><td>${escapeHtml(status)}</td><td>${stats.runs}</td><td>${escapeHtml(formatMilliseconds(average))}</td><td>${stats.errors}</td></tr>`;
+        });
+
+    providerBody.innerHTML = providerRows.length > 0
+        ? providerRows.join('')
+        : '<tr><td colspan="5">No provider activity recorded yet.</td></tr>';
+}
+
+function bindSearchAnalyticsSettings() {
+    const applyButton = document.getElementById('btn-settings-search-analytics-apply');
+    const clearButton = document.getElementById('btn-settings-search-analytics-clear');
+    const enabledCheckbox = document.getElementById('settings-search-analytics-enabled');
+
+    applyButton?.addEventListener('click', () => {
+        setSearchAnalyticsEnabled(Boolean(enabledCheckbox?.checked));
+        writeStatus('Search analytics setting applied.');
+        renderSearchAnalytics();
+    });
+
+    clearButton?.addEventListener('click', () => {
+        clearSearchAnalytics();
+        writeStatus('Search analytics cleared.');
+        renderSearchAnalytics();
+    });
+}
+
 function bindSettingsSearch() {
     const input = document.getElementById('settings-search-filter');
     const status = document.getElementById('settings-search-filter-status');
@@ -1697,6 +1779,7 @@ function refreshSettingsView() {
         renderVisualAccessibilitySettings();
         renderAnalyticsSettings();
         renderSearchSettings();
+        renderSearchAnalytics();
         renderWorkspaceViewSettings();
         renderPluginManager();
         renderAbout();
@@ -3192,6 +3275,7 @@ export function initSettings() {
 
     bindShortcutCapture();
     bindSettingsSearch();
+    bindSearchAnalyticsSettings();
     bindVisualAccessibilitySettings();
     bindAnalyticsSettings();
     bindCollaborationSettings();

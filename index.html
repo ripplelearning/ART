@@ -284,6 +284,34 @@
                 </div>
             </section>
 
+            <section aria-labelledby="settings-search-analytics-heading">
+                <h4 id="settings-search-analytics-heading">Search Analytics</h4>
+                <p id="settings-search-analytics-summary" role="status" aria-live="polite" aria-atomic="true">Search analytics are stored only on this device.</p>
+
+                <label><input id="settings-search-analytics-enabled" type="checkbox"> Collect search analytics on this device</label>
+
+                <details id="settings-search-analytics-details">
+                    <summary>Search analytics details</summary>
+                    <table id="settings-search-analytics-table" aria-describedby="settings-search-analytics-summary">
+                        <caption class="sr-only">Personal search usage totals</caption>
+                        <thead><tr><th scope="col">Measure</th><th scope="col">Value</th></tr></thead>
+                        <tbody id="settings-search-analytics-body"></tbody>
+                    </table>
+
+                    <h5 id="settings-search-provider-health-heading">Search Provider Health</h5>
+                    <table id="settings-search-provider-table" aria-describedby="settings-search-provider-health-heading">
+                        <caption class="sr-only">Search provider performance and errors</caption>
+                        <thead><tr><th scope="col">Provider</th><th scope="col">Status</th><th scope="col">Searches</th><th scope="col">Average time</th><th scope="col">Errors</th></tr></thead>
+                        <tbody id="settings-search-provider-body"></tbody>
+                    </table>
+                </details>
+
+                <div class="viewer-dialog-actions" role="group" aria-label="Search analytics actions">
+                    <button id="btn-settings-search-analytics-apply" type="button">Apply Analytics Setting</button>
+                    <button id="btn-settings-search-analytics-clear" type="button">Clear Search Analytics</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-integrations-heading">
                 <h4 id="settings-integrations-heading">Integrations</h4>
                 <p id="settings-local-files-help">ART uses local and network-accessible file workflows for import, export, and project operations.</p>

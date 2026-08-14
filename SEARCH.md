@@ -209,6 +209,26 @@ State persists under `appState.navigationHistory`:
 
 Related commands: `navigateBack` (Alt+[), `navigateForward` (Alt+]), `openNavigationHistory`, `clearNavigationHistory`. Clearing navigation history does not affect favorites, bookmarks, recent items, or saved searches.
 
+## Search Analytics and Provider Health
+
+`runUniversalSearch` times each provider and records aggregate counters through `recordSearchAnalyticsRun()`. Selections are recorded by `recordSearchResultSelection()` when a result successfully navigates.
+
+State persists under `appState.universalSearch.analytics`:
+
+- `enabled`
+- `totalSearches`, `noResultSearches`, `resultSelections`, `totalDurationMs`
+- `providerStats[providerId]` with `runs`, `errors`, `totalDurationMs`, `resultCount`, `lastSuccessAt`, `lastErrorAt`, `lastErrorMessage`
+
+Characteristics:
+
+- Aggregate only. Query text is never stored in analytics.
+- Local and personal. Nothing is transmitted and nothing is shared.
+- Run counters use `persist: false` so typing does not write to storage on every keystroke; totals persist when a result is selected or a setting changes.
+- A provider throwing an error is isolated: the error becomes a disabled result, the failure is counted, and other providers still return results.
+- Provider status is derived from the error rate: `Available`, `Degraded`, or `Failing`.
+
+Settings exposes this as text plus accessible data tables, with no charts, along with a collection toggle and Clear Search Analytics.
+
 ## Settings
 
 Application Settings includes a `Search` section with:

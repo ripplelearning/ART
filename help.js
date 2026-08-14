@@ -231,6 +231,18 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-search-analytics',
+            title: 'Search Analytics and Provider Health',
+            content: `
+                <p>ART can record aggregate information about your own searching so you can see how well search is working for you.</p>
+                <p>Application Settings includes a <strong>Search Analytics</strong> section showing how many searches you ran, how many returned no results, how many results you opened, and the average search time.</p>
+                <p>A <strong>Search Provider Health</strong> table lists each search provider with its status, number of searches, average time, and error count. A provider that fails is reported as Degraded or Failing, and a failing provider never prevents the rest of search from working.</p>
+                <p>All analytics are presented as text and accessible data tables. There are no charts to interpret visually, and every figure is available to screen readers.</p>
+                <p>Search analytics are personal and stored only on this device. No query text is recorded, nothing is transmitted anywhere, and nothing is shared with collaborators.</p>
+                <p>Use the checkbox to stop collecting analytics, and <strong>Clear Search Analytics</strong> to remove the stored totals. Clearing analytics does not affect your reports, saved searches, favorites, bookmarks, or history.</p>
+            `
+        },
+        {
             id: 'help-menu-bar',
             title: 'Menu Bar and Command Search',
             content: `

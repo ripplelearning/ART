@@ -588,6 +588,15 @@ const defaultState = {
             providerStatuses: {},
             isIndexing: false,
             indexedItemCount: 0
+        },
+        analytics: {
+            enabled: true,
+            totalSearches: 0,
+            noResultSearches: 0,
+            resultSelections: 0,
+            totalDurationMs: 0,
+            providerStats: {},
+            lastUpdatedAt: ''
         }
     },
     navigationHistory: {
@@ -1473,6 +1482,37 @@ function normalizeRecentItem(item, index) {
     };
 }
 
+function normalizeSearchAnalytics(analytics) {
+    const source = analytics && typeof analytics === 'object' ? analytics : {};
+    const providerStats = source.providerStats && typeof source.providerStats === 'object' ? source.providerStats : {};
+    const normalizedProviders = {};
+
+    Object.entries(providerStats).forEach(([providerId, stats]) => {
+        const id = String(providerId || '').trim();
+        if (!id) return;
+        const entry = stats && typeof stats === 'object' ? stats : {};
+        normalizedProviders[id] = {
+            runs: Math.max(0, Number(entry.runs) || 0),
+            errors: Math.max(0, Number(entry.errors) || 0),
+            totalDurationMs: Math.max(0, Number(entry.totalDurationMs) || 0),
+            resultCount: Math.max(0, Number(entry.resultCount) || 0),
+            lastSuccessAt: String(entry.lastSuccessAt || ''),
+            lastErrorAt: String(entry.lastErrorAt || ''),
+            lastErrorMessage: String(entry.lastErrorMessage || '')
+        };
+    });
+
+    return {
+        enabled: source.enabled !== false,
+        totalSearches: Math.max(0, Number(source.totalSearches) || 0),
+        noResultSearches: Math.max(0, Number(source.noResultSearches) || 0),
+        resultSelections: Math.max(0, Number(source.resultSelections) || 0),
+        totalDurationMs: Math.max(0, Number(source.totalDurationMs) || 0),
+        providerStats: normalizedProviders,
+        lastUpdatedAt: String(source.lastUpdatedAt || '')
+    };
+}
+
 function normalizeUniversalSearchConfig(config) {
     const source = config && typeof config === 'object' ? config : {};
     return {
@@ -1505,6 +1545,7 @@ function normalizeUniversalSearchConfig(config) {
             ? source.providers.map((item) => String(item || '').trim()).filter(Boolean)
             : [],
         activeSession: normalizeSearchSession(source.activeSession),
+        analytics: normalizeSearchAnalytics(source.analytics),
         indexStatus: {
             lastIndexedAt: String(source.indexStatus?.lastIndexedAt || ''),
             providerStatuses: source.indexStatus?.providerStatuses && typeof source.indexStatus.providerStatuses === 'object'
@@ -3800,6 +3841,100 @@ export function clearNavigationHistoryEntries(options = {}) {
         ...options,
         action: String(options.action || 'Cleared navigation history'),
         eventType: 'navigation-history-cleared'
+    });
+}
+
+export function getSearchAnalytics() {
+    return getUniversalSearchConfig().analytics;
+}
+
+// Search analytics are personal, local, and aggregate only. No query text is stored.
+export function recordSearchAnalyticsRun(entry = {}, options = {}) {
+    const analytics = getSearchAnalytics();
+    if (analytics.enabled === false) return false;
+
+    const providerStats = { ...analytics.providerStats };
+    (Array.isArray(entry.providerRuns) ? entry.providerRuns : []).forEach((run) => {
+        const id = String(run?.providerId || '').trim();
+        if (!id) return;
+        const existing = providerStats[id] || {
+            runs: 0, errors: 0, totalDurationMs: 0, resultCount: 0,
+            lastSuccessAt: '', lastErrorAt: '', lastErrorMessage: ''
+        };
+        const failed = Boolean(run.error);
+        providerStats[id] = {
+            runs: existing.runs + 1,
+            errors: existing.errors + (failed ? 1 : 0),
+            totalDurationMs: existing.totalDurationMs + Math.max(0, Number(run.durationMs) || 0),
+            resultCount: existing.resultCount + Math.max(0, Number(run.resultCount) || 0),
+            lastSuccessAt: failed ? existing.lastSuccessAt : new Date().toISOString(),
+            lastErrorAt: failed ? new Date().toISOString() : existing.lastErrorAt,
+            lastErrorMessage: failed ? String(run.error).slice(0, 200) : existing.lastErrorMessage
+        };
+    });
+
+    const next = {
+        ...analytics,
+        totalSearches: analytics.totalSearches + 1,
+        noResultSearches: analytics.noResultSearches + (Number(entry.resultCount) === 0 ? 1 : 0),
+        totalDurationMs: analytics.totalDurationMs + Math.max(0, Number(entry.durationMs) || 0),
+        providerStats,
+        lastUpdatedAt: new Date().toISOString()
+    };
+
+    return updateUniversalSearchConfig({ analytics: next }, {
+        ...options,
+        persist: options.persist === true,
+        action: 'Recorded search analytics',
+        eventType: 'search-analytics-updated'
+    });
+}
+
+export function recordSearchResultSelection(options = {}) {
+    const analytics = getSearchAnalytics();
+    if (analytics.enabled === false) return false;
+
+    return updateUniversalSearchConfig({
+        analytics: {
+            ...analytics,
+            resultSelections: analytics.resultSelections + 1,
+            lastUpdatedAt: new Date().toISOString()
+        }
+    }, {
+        ...options,
+        persist: true,
+        action: 'Recorded search result selection',
+        eventType: 'search-analytics-updated'
+    });
+}
+
+export function setSearchAnalyticsEnabled(enabled, options = {}) {
+    const analytics = getSearchAnalytics();
+    return updateUniversalSearchConfig({ analytics: { ...analytics, enabled: Boolean(enabled) } }, {
+        ...options,
+        persist: true,
+        action: 'Updated search analytics setting',
+        eventType: 'search-analytics-updated'
+    });
+}
+
+export function clearSearchAnalytics(options = {}) {
+    const analytics = getSearchAnalytics();
+    return updateUniversalSearchConfig({
+        analytics: {
+            enabled: analytics.enabled,
+            totalSearches: 0,
+            noResultSearches: 0,
+            resultSelections: 0,
+            totalDurationMs: 0,
+            providerStats: {},
+            lastUpdatedAt: ''
+        }
+    }, {
+        ...options,
+        persist: true,
+        action: 'Cleared search analytics',
+        eventType: 'search-analytics-cleared'
     });
 }
 

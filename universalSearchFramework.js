@@ -14,7 +14,9 @@ import {
     recordUniversalSearchHistory,
     saveUniversalSearch,
     setActiveUniversalSearchSession,
-    clearUniversalSearchHistory
+    clearUniversalSearchHistory,
+    recordSearchAnalyticsRun,
+    recordSearchResultSelection
 } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import { executeOrganizationSearchResult, searchOrganizationMetadata } from './resourceOrganizationFramework.js';
@@ -1007,15 +1009,31 @@ export function runUniversalSearch(query = '', options = {}) {
         .filter(Boolean);
 
     const aggregate = [];
+    const providerRuns = [];
+    const searchStartedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
     providers.forEach((provider) => {
+        const providerStartedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
         try {
             const items = provider.search({ queryModel, context, options });
             const normalizedItems = Array.isArray(items)
                 ? items.map((item) => normalizeResult(item, provider, queryModel))
                 : [];
             aggregate.push(...normalizedItems);
+            providerRuns.push({
+                providerId: provider.id,
+                durationMs: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - providerStartedAt,
+                resultCount: normalizedItems.length,
+                error: ''
+            });
         } catch (error) {
+            providerRuns.push({
+                providerId: provider.id,
+                durationMs: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - providerStartedAt,
+                resultCount: 0,
+                error: String(error?.message || 'Unknown provider error')
+            });
+            // A failing provider must not break search for the others.
             aggregate.push({
                 id: `${provider.id}:error`,
                 providerId: provider.id,
@@ -1076,6 +1094,15 @@ export function runUniversalSearch(query = '', options = {}) {
     });
 
     if (queryModel.hasQuery) {
+        recordSearchAnalyticsRun({
+            resultCount: limited.length,
+            durationMs: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - searchStartedAt,
+            providerRuns
+        }, {
+            // Counters persist on selection or when the user leaves search, keeping typing cheap.
+            persist: false
+        });
+
         recordUniversalSearchHistory({
             id: createId('search-history'),
             query: queryModel.raw,
@@ -1578,6 +1605,7 @@ export function executeUniversalSearchResult(result) {
 
     // Broadcast rather than importing the history service, which would create an import cycle.
     if (navigated && item && typeof item === 'object') {
+        recordSearchResultSelection();
         window.dispatchEvent(new CustomEvent('art-navigation-performed', {
             detail: {
                 payload: item,
