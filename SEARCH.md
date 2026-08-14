@@ -169,6 +169,22 @@ Quick Open modes: `quick-open`, `recent`, `favorites`, `bookmarks`. Favorites re
 
 Related commands: `addToFavorites`, `removeFromFavorites`, `openFavorites`, `addBookmark`, `openBookmarks`, `clearBookmarks`. All are registered with no default shortcut.
 
+## Filtering, Sorting, and Structured Queries
+
+`runUniversalSearch(query, options)` accepts:
+
+- `filters.types` — result types to include (OR within the field)
+- `filters.providerIds` — providers to include
+- `sortBy` — `relevance` (default), `name-asc`, `name-desc`, or `type`
+
+It returns `availableCategories`, `totalBeforeFilters`, `filters`, and `sortBy` alongside the results, so a surface can render accurate filter options and report how many results were filtered out.
+
+Structured field terms are parsed out of the query before free-text matching. Supported fields come from `getStructuredQueryFields()`: `type`, `level`, `standard`, `provider`, `status`, `severity`. Values may be quoted. Multiple values for one field are OR; different fields are AND.
+
+The Search Everywhere dialog exposes these through a collapsed `Filters and sorting` disclosure containing result-type checkboxes with counts, a sort select, an active filter summary, and Clear Filters. Clearing filters preserves the query, scope, and sort order.
+
+Saved searches persist `query`, `scope`, `filters`, and `sortBy`, and `applySavedSearchToDialog()` restores all four.
+
 ## Navigation History and Breadcrumbs
 
 `navigationHistoryFramework.js` provides one centralized history service for the application.

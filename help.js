@@ -207,6 +207,30 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-advanced-search',
+            title: 'Advanced Search, Filters, and Sorting',
+            content: `
+                <p>Search Everywhere includes a <strong>Filters and sorting</strong> section. It stays collapsed until you need it, so the search box remains uncluttered.</p>
+                <p>The <strong>Result type</strong> checkboxes list only the types present in your current results, with a count for each. Selecting more than one type shows results matching any of them.</p>
+                <p>Use <strong>Sort results by</strong> to order results by relevance, name, or result type. Relevance is the default and keeps exact matches first.</p>
+                <p>Active filters are summarized in text, so you never have to inspect each checkbox to understand what is applied. The result status also reports how many results were filtered out.</p>
+                <p>Use <strong>Clear Filters</strong> to remove filters while keeping your query, scope, and sort order. Changing filters or sorting never moves focus and never resets your search.</p>
+                <h4>Structured search terms</h4>
+                <p>You can narrow a search by typing field terms directly. Supported fields are <strong>type</strong>, <strong>level</strong>, <strong>standard</strong>, <strong>provider</strong>, <strong>status</strong>, and <strong>severity</strong>.</p>
+                <p>Examples:</p>
+                <ul>
+                    <li><strong>type:criterion contrast</strong> finds Success Criteria about contrast.</li>
+                    <li><strong>level:AA keyboard</strong> finds Level AA criteria about keyboard access.</li>
+                    <li><strong>type:report audit</strong> finds reports with audit in the name.</li>
+                </ul>
+                <p>Field terms are optional. You never need to learn this syntax to search normally, and the same narrowing is available through the filter checkboxes.</p>
+                <p>Search also supports quoted phrases, wildcards using * and ?, and include or exclude terms using + and -.</p>
+                <h4>Saved searches</h4>
+                <p><strong>Save Search</strong> stores your query together with its scope, filters, and sort order. Opening a saved search restores all of them, so it behaves the same way every time.</p>
+                <p>Saved searches are personal and stored on this device. They are also searchable, so you can find one from Search Everywhere using the Saved Searches scope.</p>
+            `
+        },
+        {
             id: 'help-menu-bar',
             title: 'Menu Bar and Command Search',
             content: `

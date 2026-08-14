@@ -59,10 +59,25 @@ function wildcardToRegExp(pattern) {
     return new RegExp(`^${escaped}$`, 'i');
 }
 
+const STRUCTURED_QUERY_FIELDS = new Set(['type', 'level', 'standard', 'provider', 'status', 'severity']);
+
 function parseSearchQuery(rawQuery) {
     const query = normalizeText(rawQuery);
     const quoted = [];
-    const stripped = query.replace(/"([^"]+)"/g, (_, phrase) => {
+    const fields = {};
+
+    // Field terms such as type:report are extracted before free-text parsing.
+    const withoutFields = query.replace(/(\w+):("([^"]+)"|[^\s]+)/g, (match, key, rawValue, quotedValue) => {
+        const field = normalizeSearchText(key);
+        if (!STRUCTURED_QUERY_FIELDS.has(field)) return match;
+        const value = normalizeSearchText(quotedValue || rawValue);
+        if (!value) return ' ';
+        if (!Array.isArray(fields[field])) fields[field] = [];
+        fields[field].push(value);
+        return ' ';
+    });
+
+    const stripped = withoutFields.replace(/"([^"]+)"/g, (_, phrase) => {
         quoted.push(normalizeSearchText(phrase));
         return ' ';
     });
@@ -88,15 +103,22 @@ function parseSearchQuery(rawQuery) {
         optional.push(normalizeSearchText(term));
     }
 
+    const freeText = [...include, ...exclude, ...optional, ...quoted].length > 0;
+
     return {
         raw: query,
-        normalized: normalizeSearchText(query),
+        normalized: normalizeSearchText(stripped) || normalizeSearchText(query),
         include,
         exclude,
         optional,
         phrases: quoted,
-        hasQuery: Boolean(query)
+        fields,
+        hasQuery: freeText || Object.keys(fields).length > 0
     };
+}
+
+export function getStructuredQueryFields() {
+    return [...STRUCTURED_QUERY_FIELDS];
 }
 
 function matchesQueryText(text, queryModel) {
@@ -908,6 +930,59 @@ function dedupeResults(results) {
     });
 }
 
+function matchesStructuredFields(result, queryModel) {
+    const fields = queryModel?.fields || {};
+    const entries = Object.entries(fields);
+    if (entries.length === 0) return true;
+
+    return entries.every(([field, values]) => {
+        if (!Array.isArray(values) || values.length === 0) return true;
+        const haystack = normalizeSearchText(
+            field === 'type' ? result.type
+                : field === 'provider' ? `${result.providerId} ${result.providerName}`
+                    : `${result.subtitle} ${result.description} ${result.title}`
+        );
+        // Multiple values for the same field are treated as OR.
+        return values.some((value) => haystack.includes(value));
+    });
+}
+
+function applyResultFilters(results, filters = {}) {
+    const types = Array.isArray(filters.types) ? filters.types.filter(Boolean) : [];
+    const providers = Array.isArray(filters.providerIds) ? filters.providerIds.filter(Boolean) : [];
+
+    return results.filter((result) => {
+        if (types.length > 0 && !types.includes(result.type)) return false;
+        if (providers.length > 0 && !providers.includes(result.providerId)) return false;
+        return true;
+    });
+}
+
+function sortResults(results, sortBy) {
+    const sorted = [...results];
+    const byTitle = (left, right) => left.title.localeCompare(right.title, undefined, { sensitivity: 'base' });
+
+    switch (normalizeText(sortBy)) {
+        case 'name-asc':
+            return sorted.sort(byTitle);
+        case 'name-desc':
+            return sorted.sort((left, right) => byTitle(right, left));
+        case 'type':
+            return sorted.sort((left, right) => {
+                const typeSort = left.type.localeCompare(right.type, undefined, { sensitivity: 'base' });
+                return typeSort !== 0 ? typeSort : byTitle(left, right);
+            });
+        case 'relevance':
+        default:
+            return sorted.sort((left, right) => {
+                if (left.score !== right.score) return left.score - right.score;
+                const providerSort = left.providerName.localeCompare(right.providerName, undefined, { sensitivity: 'base' });
+                if (providerSort !== 0) return providerSort;
+                return byTitle(left, right);
+            });
+    }
+}
+
 export function runUniversalSearch(query = '', options = {}) {
     initializeUniversalSearchFramework();
 
@@ -951,17 +1026,24 @@ export function runUniversalSearch(query = '', options = {}) {
         }
     });
 
-    const filtered = dedupeResults(aggregate)
-        .sort((left, right) => {
-            if (left.score !== right.score) return left.score - right.score;
-            const providerSort = left.providerName.localeCompare(right.providerName, undefined, { sensitivity: 'base' });
-            if (providerSort !== 0) return providerSort;
-            return left.title.localeCompare(right.title, undefined, { sensitivity: 'base' });
-        });
+    const sortBy = normalizeText(options.sortBy) || 'relevance';
+    const filters = options.filters && typeof options.filters === 'object' ? options.filters : {};
+
+    const matched = dedupeResults(aggregate)
+        .filter((result) => result.type === 'error' || matchesStructuredFields(result, queryModel));
+    const filtered = sortResults(applyResultFilters(matched, filters), sortBy);
 
     const limited = Number.isFinite(Number(options.limit))
         ? filtered.slice(0, Math.max(1, Number(options.limit)))
         : filtered;
+
+    const availableCategories = [...matched.reduce((acc, item) => {
+        if (item.type === 'error') return acc;
+        const existing = acc.get(item.type) || { type: item.type, label: item.providerName, count: 0 };
+        existing.count += 1;
+        acc.set(item.type, existing);
+        return acc;
+    }, new Map()).values()].sort((left, right) => left.type.localeCompare(right.type));
 
     const groupedCounts = limited.reduce((acc, item) => {
         acc[item.providerId] = Number(acc[item.providerId] || 0) + 1;
@@ -972,8 +1054,8 @@ export function runUniversalSearch(query = '', options = {}) {
         id: createId('search-session'),
         query: queryModel.raw,
         scope: context.scope,
-        filters: {},
-        sortBy: 'relevance',
+        filters,
+        sortBy,
         sortDirection: 'desc',
         results: limited,
         selectedResultIndex: limited.length > 0 ? 0 : -1,
@@ -1008,6 +1090,10 @@ export function runUniversalSearch(query = '', options = {}) {
         providerIds,
         resultCounts: groupedCounts,
         totalResults: limited.length,
+        totalBeforeFilters: matched.length,
+        availableCategories,
+        filters,
+        sortBy,
         results: limited,
         session
     };
@@ -1036,7 +1122,25 @@ function ensureSearchDialogElements() {
             <label for="search-everywhere-input">Search</label>
             <input id="search-everywhere-input" type="search" autocomplete="off" spellcheck="false" aria-controls="search-everywhere-results" aria-describedby="search-everywhere-status" />
             <p id="search-everywhere-status" role="status" aria-live="polite" aria-atomic="true"></p>
-            <p class="command-palette-helper">Structured filters: tag:critical, collection:"Client Deliverables", view:"Executive Summary".</p>
+            <details id="search-everywhere-filters" class="search-filters">
+                <summary id="search-everywhere-filters-summary">Filters and sorting</summary>
+                <div class="search-filters__content">
+                    <fieldset id="search-everywhere-type-filters">
+                        <legend>Result type</legend>
+                        <div id="search-everywhere-type-options" class="search-filters__options"></div>
+                    </fieldset>
+                    <label for="search-everywhere-sort">Sort results by</label>
+                    <select id="search-everywhere-sort">
+                        <option value="relevance">Relevance</option>
+                        <option value="name-asc">Name, A to Z</option>
+                        <option value="name-desc">Name, Z to A</option>
+                        <option value="type">Result type</option>
+                    </select>
+                    <p id="search-everywhere-active-filters" role="status" aria-live="polite" aria-atomic="true"></p>
+                    <button id="btn-search-everywhere-clear-filters" type="button">Clear Filters</button>
+                </div>
+            </details>
+            <p class="command-palette-helper">Structured filters: tag:critical, collection:"Client Deliverables", view:"Executive Summary", type:report, level:AA.</p>
             <div id="search-everywhere-results" role="listbox" aria-label="Universal search results"></div>
             <button id="btn-search-everywhere-broaden" type="button" hidden>Search all ART content instead</button>
             <div class="viewer-dialog-actions" role="group" aria-label="Universal search actions">
@@ -1052,6 +1156,10 @@ function ensureSearchDialogElements() {
     const input = document.getElementById('search-everywhere-input');
     const scopeSelect = document.getElementById('search-everywhere-scope');
     const broadenButton = document.getElementById('btn-search-everywhere-broaden');
+    const sortSelect = document.getElementById('search-everywhere-sort');
+    const typeOptions = document.getElementById('search-everywhere-type-options');
+    const activeFilters = document.getElementById('search-everywhere-active-filters');
+    const clearFiltersButton = document.getElementById('btn-search-everywhere-clear-filters');
     const status = document.getElementById('search-everywhere-status');
     const results = document.getElementById('search-everywhere-results');
     const saveButton = document.getElementById('btn-search-everywhere-save');
@@ -1091,6 +1199,12 @@ function ensureSearchDialogElements() {
         input,
         scopeSelect,
         broadenButton,
+        sortSelect,
+        typeOptions,
+        activeFilters,
+        clearFiltersButton,
+        filters: { types: [] },
+        sortBy: 'relevance',
         status,
         results,
         saveButton,
@@ -1128,6 +1242,31 @@ function ensureSearchDialogElements() {
             dialogState.input?.focus();
         });
 
+        sortSelect?.addEventListener('change', () => {
+            if (!dialogState) return;
+            dialogState.sortBy = normalizeText(sortSelect.value) || 'relevance';
+            runSearchEverywhereQuery();
+        });
+
+        typeOptions?.addEventListener('change', (event) => {
+            const checkbox = event.target;
+            if (!(checkbox instanceof HTMLInputElement) || checkbox.type !== 'checkbox') return;
+            if (!dialogState) return;
+            const selected = [...typeOptions.querySelectorAll('input[type="checkbox"]:checked')]
+                .map((input) => input.value);
+            dialogState.filters = { ...dialogState.filters, types: selected };
+            runSearchEverywhereQuery();
+        });
+
+        clearFiltersButton?.addEventListener('click', () => {
+            if (!dialogState) return;
+            // Clearing filters keeps the query, scope, and sort order the user chose.
+            dialogState.filters = { types: [] };
+            runSearchEverywhereQuery();
+            dialogState.input?.focus();
+            announce('Filters cleared.');
+        });
+
         input.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
@@ -1156,7 +1295,9 @@ function ensureSearchDialogElements() {
                 id: createId('saved-search'),
                 name,
                 query,
-                scope: 'workspace'
+                scope: dialogState?.scope || 'workspace',
+                filters: dialogState?.filters || {},
+                sortBy: dialogState?.sortBy || 'relevance'
             });
             announce(`Saved search ${name}.`);
         });
@@ -1173,8 +1314,7 @@ function ensureSearchDialogElements() {
             const index = Number(choice) - 1;
             if (!Number.isFinite(index) || index < 0 || index >= searches.length) return;
             const selected = searches[index];
-            input.value = selected.query;
-            input.dispatchEvent(new Event('input'));
+            applySavedSearchToDialog(selected);
             announce(`Loaded saved search ${selected.name}.`);
         });
 
@@ -1207,6 +1347,60 @@ function syncSearchScopeOptions() {
     state.scopeSelect.value = state.scope;
 }
 
+function applySavedSearchToDialog(savedSearch) {
+    const state = dialogState;
+    if (!state || !savedSearch) return false;
+
+    state.scope = normalizeText(savedSearch.scope) || state.scope;
+    state.sortBy = normalizeText(savedSearch.sortBy) || 'relevance';
+    const savedTypes = Array.isArray(savedSearch.filters?.types) ? savedSearch.filters.types : [];
+    state.filters = { types: [...savedTypes] };
+
+    syncSearchScopeOptions();
+    state.input.value = normalizeText(savedSearch.query);
+    runSearchEverywhereQuery();
+    return true;
+}
+
+function formatResultTypeLabel(type) {
+    return normalizeText(type)
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function renderTypeFilterOptions(categories) {
+    const state = dialogState;
+    if (!state?.typeOptions) return;
+
+    const selected = new Set(Array.isArray(state.filters?.types) ? state.filters.types : []);
+    const list = Array.isArray(categories) ? categories : [];
+    // Keep any selected type visible even when the current query returns none of it.
+    selected.forEach((type) => {
+        if (!list.some((item) => item.type === type)) list.push({ type, label: formatResultTypeLabel(type), count: 0 });
+    });
+
+    const markup = list.map((item) => {
+        const id = `search-filter-type-${item.type}`;
+        return `<label for="${escapeHtml(id)}"><input type="checkbox" id="${escapeHtml(id)}" value="${escapeHtml(item.type)}"${selected.has(item.type) ? ' checked' : ''}> ${escapeHtml(formatResultTypeLabel(item.type))} (${Number(item.count || 0)})</label>`;
+    }).join('');
+
+    if (state.typeOptions.dataset.signature !== markup) {
+        state.typeOptions.innerHTML = markup || '<p>No result types available for this search.</p>';
+        state.typeOptions.dataset.signature = markup;
+    }
+
+    if (state.activeFilters) {
+        const active = [...selected];
+        state.activeFilters.textContent = active.length > 0
+            ? `${active.length} filter${active.length === 1 ? '' : 's'} applied: ${active.map(formatResultTypeLabel).join(', ')}.`
+            : 'No filters applied.';
+    }
+
+    if (state.sortSelect instanceof HTMLSelectElement && state.sortSelect.value !== state.sortBy) {
+        state.sortSelect.value = state.sortBy;
+    }
+}
+
 function runSearchEverywhereQuery() {
     const state = dialogState;
     if (!state) return null;
@@ -1218,15 +1412,19 @@ function runSearchEverywhereQuery() {
         output = runUniversalSearch(state.input.value, {
             source: 'search-everywhere-dialog',
             scope,
+            filters: state.filters,
+            sortBy: state.sortBy,
             limit: 60
         });
     } catch (error) {
-        // Preserve the user's query and scope so the search can be retried.
+        // Preserve the user's query, scope, filters, and sort so the search can be retried.
         if (state.status) {
-            state.status.textContent = `Search could not be completed in ${getUniversalSearchScopeLabel(scope)}. Your search text was kept so you can try again.`;
+            state.status.textContent = `Search could not be completed in ${getUniversalSearchScopeLabel(scope)}. Your search text and filters were kept so you can try again.`;
         }
         return null;
     }
+
+    renderTypeFilterOptions(output.availableCategories);
 
     state.controller.setResults(output.results.map((item) => ({
         id: item.id,
@@ -1243,13 +1441,20 @@ function runSearchEverywhereQuery() {
     if (state.broadenButton) state.broadenButton.hidden = !canBroaden;
 
     if (state.status) {
+        const filtersApplied = Array.isArray(state.filters?.types) && state.filters.types.length > 0;
+        const filteredNote = filtersApplied ? ` Filtered from ${output.totalBeforeFilters}.` : '';
+
         if (output.totalResults === 0) {
-            state.status.textContent = canBroaden
-                ? `No results found in ${scopeLabel}. Use Search all ART content instead to broaden this search.`
-                : `No results found in ${scopeLabel}.`;
+            if (filtersApplied) {
+                state.status.textContent = `No results in ${scopeLabel} with the current filters. Use Clear Filters to widen the results.`;
+            } else {
+                state.status.textContent = canBroaden
+                    ? `No results found in ${scopeLabel}. Use Search all ART content instead to broaden this search.`
+                    : `No results found in ${scopeLabel}.`;
+            }
         } else {
             const categories = summarizeResultCategories(output.results);
-            state.status.textContent = `${output.totalResults} result${output.totalResults === 1 ? '' : 's'} in ${scopeLabel}. ${categories}`.trim();
+            state.status.textContent = `${output.totalResults} result${output.totalResults === 1 ? '' : 's'} in ${scopeLabel}.${filteredNote} ${categories}`.trim();
         }
     }
 
@@ -1455,6 +1660,7 @@ function performResultNavigation(result) {
         const saved = item.raw.savedSearch;
         const trigger = dialogState?.lastTrigger || null;
         openSearchEverywhereDialog(trigger, normalizeText(saved.query), normalizeText(saved.scope) || 'auto');
+        applySavedSearchToDialog(saved);
         announce(`Loaded saved search ${saved.name || saved.query}.`);
         return true;
     }

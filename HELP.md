@@ -308,6 +308,17 @@ Clear Navigation History removes stored locations only. It never deletes reports
 
 Navigation history is personal and stored on this device. Application Settings controls whether navigation history and breadcrumbs are enabled and how many locations are kept.
 
+## Advanced Search, Filters, and Sorting
+Search Everywhere includes a collapsed Filters and sorting section. Result type checkboxes list only the types present in the current results with a count for each, and selecting several types shows results matching any of them.
+
+Sort results by relevance, name, or result type. Relevance is the default and keeps exact matches first. Active filters are summarized in text, and the result status reports how many results were filtered out.
+
+Clear Filters removes filters while keeping the query, scope, and sort order. Changing filters or sorting never moves focus.
+
+Structured field terms can be typed directly. Supported fields are type, level, standard, provider, status, and severity, for example type:criterion contrast or level:AA keyboard. Field terms are optional and the same narrowing is available through the filter checkboxes. Search also supports quoted phrases, wildcards using * and ?, and include or exclude terms using + and -.
+
+Save Search stores the query together with its scope, filters, and sort order, and opening a saved search restores all of them. Saved searches are personal, stored on this device, and searchable from the Saved Searches scope.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 
