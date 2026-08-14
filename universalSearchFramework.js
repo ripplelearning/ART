@@ -18,6 +18,8 @@ import {
 } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import { executeOrganizationSearchResult, searchOrganizationMetadata } from './resourceOrganizationFramework.js';
+import { getPresentationResourceLibrary } from './reportPresentationFramework.js';
+import { getWcagCatalogSync } from './wcagCatalog.js';
 
 const providerRegistry = new Map();
 let initialized = false;
@@ -303,6 +305,7 @@ function buildTemplateProviderResults(queryModel) {
 function buildStandardsProviderResults(queryModel) {
     const standards = getImportedAccessibilityStandards();
     const results = [];
+    const seenCriteria = new Set();
 
     standards.forEach((standard) => {
         const standardName = String(standard.displayName || standard.internalId || 'Imported Standard');
@@ -318,22 +321,42 @@ function buildStandardsProviderResults(queryModel) {
                 standard
             });
         }
+    });
 
-        (Array.isArray(standard.criteria) ? standard.criteria : []).forEach((criterion) => {
-            const criterionText = `${criterion.number || ''} ${criterion.title || ''} ${criterion.desc || ''} ${standardName}`;
-            if (!matchesQueryText(criterionText, queryModel)) return;
+    let catalog = [];
+    try {
+        catalog = getWcagCatalogSync();
+    } catch (error) {
+        catalog = [];
+    }
 
-            results.push({
-                id: `criterion:${standard.id}:${criterion.identifier || criterion.number || createId('criterion')}`,
-                providerId: 'accessibility-standards',
-                type: 'criterion',
-                title: `${criterion.number || ''} ${criterion.title || ''}`.trim() || standardName,
-                subtitle: `${standardName}${criterion.level ? ` | Level ${criterion.level}` : ''}`,
-                description: String(criterion.desc || '').slice(0, 180),
-                score: scoreTextMatch(criterionText, queryModel),
-                standard,
-                criterion
-            });
+    catalog.forEach((criterion) => {
+        const number = normalizeText(criterion?.number);
+        const title = normalizeText(criterion?.title);
+        const standardName = normalizeText(criterion?.standard) || 'Accessibility Standard';
+        const level = normalizeText(criterion?.level);
+        const identifier = normalizeText(criterion?.identifier) || `${standardName}-${number || title}`;
+        if (seenCriteria.has(identifier)) return;
+
+        const criterionText = `${number} ${title} ${normalizeText(criterion?.desc)} ${standardName} ${level ? `level ${level}` : ''}`;
+        if (!matchesQueryText(criterionText, queryModel)) return;
+        seenCriteria.add(identifier);
+
+        let score = scoreTextMatch(`${number} ${title}`, queryModel);
+        // Structured identifiers are strong signals, so a criterion number match outranks prose matches.
+        if (number && normalizeSearchText(number) === queryModel.normalized) score -= 1.5;
+        else if (number && queryModel.normalized && normalizeSearchText(number).startsWith(queryModel.normalized)) score -= 0.6;
+
+        results.push({
+            id: `criterion:${identifier}`,
+            providerId: 'accessibility-standards',
+            type: 'criterion',
+            title: `${number} ${title}`.trim() || standardName,
+            subtitle: `${standardName}${level ? ` | Level ${level}` : ''}`,
+            description: String(criterion?.desc || '').slice(0, 180),
+            score,
+            standard: standardName,
+            criterion
         });
     });
 
@@ -468,6 +491,123 @@ function buildDashboardProviderResults(queryModel) {
         }));
 }
 
+function getActiveReportContext() {
+    const activeReport = getActiveReportFromState();
+    return {
+        reportName: normalizeText(appState.reportTitle) || normalizeText(activeReport?.name) || 'Current Report',
+        fields: Array.isArray(appState.fields) ? appState.fields : [],
+        entries: Array.isArray(appState.auditEntries) ? appState.auditEntries : []
+    };
+}
+
+function buildReportContentProviderResults(queryModel) {
+    const { reportName, fields, entries } = getActiveReportContext();
+    const results = [];
+
+    fields.forEach((field, fieldIndex) => {
+        const label = normalizeText(field?.label);
+        if (!label) return;
+        const fieldType = normalizeText(field?.type) || 'text';
+        const text = `${label} ${fieldType} report field ${reportName}`;
+        if (!matchesQueryText(text, queryModel)) return;
+
+        results.push({
+            id: `report-field:${fieldIndex}`,
+            providerId: 'report-content',
+            type: 'report-field',
+            title: label,
+            subtitle: `Report Field | ${reportName}`,
+            description: `Field type: ${fieldType}`,
+            score: scoreTextMatch(`${label} ${fieldType}`, queryModel),
+            fieldIndex,
+            field
+        });
+    });
+
+    entries.forEach((entry, entryIndex) => {
+        fields.forEach((field, fieldIndex) => {
+            const value = normalizeText(entry?.fieldValues?.[fieldIndex]);
+            if (!value) return;
+            const label = normalizeText(field?.label) || `Field ${fieldIndex + 1}`;
+            const text = `${value} ${label} ${reportName}`;
+            if (!matchesQueryText(text, queryModel)) return;
+
+            results.push({
+                id: `finding:${entryIndex}:${fieldIndex}`,
+                providerId: 'report-content',
+                type: 'finding',
+                title: value.length > 120 ? `${value.slice(0, 117)}...` : value,
+                subtitle: `Finding ${entryIndex + 1} | ${label}`,
+                description: reportName,
+                score: scoreTextMatch(text, queryModel) + 0.05,
+                entryIndex,
+                fieldIndex,
+                fieldLabel: label
+            });
+        });
+    });
+
+    return results;
+}
+
+function buildPresentationProviderResults(queryModel) {
+    let library = null;
+    try {
+        library = getPresentationResourceLibrary();
+    } catch (error) {
+        return [];
+    }
+
+    const groups = [
+        ['layout', 'Report Layout', library?.layouts],
+        ['theme', 'Report Theme', library?.themes],
+        ['branding', 'Report Branding', library?.brandings],
+        ['publishing-profile', 'Publishing Profile', library?.publishingProfiles]
+    ];
+
+    const results = [];
+    groups.forEach(([resourceType, label, items]) => {
+        (Array.isArray(items) ? items : []).forEach((item) => {
+            const name = normalizeText(item?.name);
+            if (!name) return;
+            const text = `${name} ${normalizeText(item?.description)} ${label} ${normalizeText(item?.scope)}`;
+            if (!matchesQueryText(text, queryModel)) return;
+
+            results.push({
+                id: `presentation:${resourceType}:${normalizeText(item?.id) || name}`,
+                providerId: 'presentation-resources',
+                type: `presentation-${resourceType}`,
+                title: name,
+                subtitle: `${label}${item?.scope ? ` | ${item.scope}` : ''}`,
+                description: normalizeText(item?.description),
+                score: scoreTextMatch(`${name} ${label}`, queryModel),
+                resourceType,
+                resource: item
+            });
+        });
+    });
+
+    return results;
+}
+
+function buildSavedSearchProviderResults(queryModel) {
+    const config = getUniversalSearchConfig();
+    const searches = Array.isArray(config.savedSearches) ? config.savedSearches : [];
+
+    return searches
+        .filter((search) => matchesQueryText(`${search.name || ''} ${search.query || ''} saved search`, queryModel))
+        .map((search) => ({
+            id: `saved-search:${search.id}`,
+            providerId: 'saved-searches',
+            type: 'saved-search',
+            title: normalizeText(search.name) || normalizeText(search.query),
+            subtitle: `Saved Search${search.scope ? ` | ${String(search.scope).replace(/-/g, ' ')}` : ''}`,
+            description: normalizeText(search.query),
+            score: scoreTextMatch(`${search.name || ''} ${search.query || ''}`, queryModel),
+            savedSearch: search
+        }));
+}
+
 function registerBuiltInProviders() {
     if (providerRegistry.size > 0) return;
 
@@ -580,6 +720,42 @@ function registerBuiltInProviders() {
     });
 
     registerUniversalSearchProvider({
+        id: 'report-content',
+        name: 'Report Fields and Findings',
+        priority: 15,
+        capabilities: {
+            scopes: ['workspace', 'current-report', 'report-content', 'findings'],
+            itemTypes: ['report-field', 'finding'],
+            advertisedFields: ['label', 'type', 'value', 'reportName']
+        },
+        search: ({ queryModel }) => buildReportContentProviderResults(queryModel)
+    });
+
+    registerUniversalSearchProvider({
+        id: 'presentation-resources',
+        name: 'Layouts, Themes, Branding, and Publishing Profiles',
+        priority: 45,
+        capabilities: {
+            scopes: ['workspace', 'presentation', 'layouts', 'themes', 'branding', 'publishing-profiles'],
+            itemTypes: ['presentation-layout', 'presentation-theme', 'presentation-branding', 'presentation-publishing-profile'],
+            advertisedFields: ['name', 'description', 'scope']
+        },
+        search: ({ queryModel }) => buildPresentationProviderResults(queryModel)
+    });
+
+    registerUniversalSearchProvider({
+        id: 'saved-searches',
+        name: 'Saved Searches',
+        priority: 85,
+        capabilities: {
+            scopes: ['workspace', 'saved-searches'],
+            itemTypes: ['saved-search'],
+            advertisedFields: ['name', 'query', 'scope']
+        },
+        search: ({ queryModel }) => buildSavedSearchProviderResults(queryModel)
+    });
+
+    registerUniversalSearchProvider({
         id: 'help-topics',
         name: 'Help Topics',
         priority: 80,
@@ -620,8 +796,19 @@ function resolveProviderIdsForScope(scope) {
         case 'project-assets': return ['project-assets'];
         case 'help': return ['help-topics'];
         case 'dashboard': return ['dashboard-widgets'];
-        case 'current-project-workspace': return ['project-workspaces', 'project-assets', 'reports'];
-        case 'current-report': return ['reports'];
+        case 'report-content':
+        case 'findings': return ['report-content'];
+        case 'presentation':
+        case 'layouts':
+        case 'themes':
+        case 'branding':
+        case 'publishing-profiles': return ['presentation-resources'];
+        case 'saved-searches': return ['saved-searches'];
+        case 'plugins':
+        case 'packages':
+        case 'extensions': return ['plugins-packages'];
+        case 'current-project-workspace': return ['project-workspaces', 'project-assets', 'reports', 'resource-organization', 'resource-relationships'];
+        case 'current-report': return ['report-content', 'reports'];
         case 'workspace':
         case 'global':
         default:
@@ -647,7 +834,48 @@ function resolveScope(scope, context = {}) {
     if (preference === 'entire-workspace') return 'workspace';
     if (preference === 'prompt') return 'workspace';
 
+    // Location-aware default: narrow to the user's current working context when one exists.
+    if (hasSearchableReportContext()) return 'current-report';
+    if (getActiveProjectWorkspace()) return 'current-project-workspace';
     return 'workspace';
+}
+
+function hasSearchableReportContext() {
+    const { fields, entries } = getActiveReportContext();
+    if (getActiveReportFromState()) return true;
+    if (fields.length > 0) return true;
+    return entries.some((entry) => Object.values(entry?.fieldValues || {}).some((value) => normalizeText(value)));
+}
+
+export function getUniversalSearchScopeOptions() {
+    const options = [{ value: 'workspace', label: 'All ART Content' }];
+
+    if (hasSearchableReportContext()) {
+        options.unshift({ value: 'current-report', label: 'Current Report' });
+    }
+    if (getActiveProjectWorkspace()) {
+        const workspaceIndex = options.findIndex((option) => option.value === 'workspace');
+        options.splice(Math.max(0, workspaceIndex), 0, { value: 'current-project-workspace', label: 'Current Project Workspace' });
+    }
+
+    options.push(
+        { value: 'commands', label: 'Commands' },
+        { value: 'reports', label: 'Reports' },
+        { value: 'standards', label: 'Accessibility Standards' },
+        { value: 'help', label: 'Help and User Guide' },
+        { value: 'presentation', label: 'Layouts, Themes, and Branding' },
+        { value: 'plugins', label: 'Plugins and Packages' },
+        { value: 'saved-searches', label: 'Saved Searches' }
+    );
+
+    return options;
+}
+
+export function getUniversalSearchScopeLabel(scope) {
+    const normalized = normalizeText(scope) || 'workspace';
+    const match = getUniversalSearchScopeOptions().find((option) => option.value === normalized);
+    if (match) return match.label;
+    return normalized.replace(/-/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function normalizeResult(result, provider, queryModel) {
@@ -802,12 +1030,15 @@ function ensureSearchDialogElements() {
                 <button id="btn-search-everywhere-close" type="button">Close</button>
                 <h2 id="search-everywhere-heading">Search Everywhere</h2>
             </div>
-            <p id="search-everywhere-description">Search commands, reports, templates, workspaces, help topics, and accessibility standards.</p>
+            <p id="search-everywhere-description">Search commands, reports, report fields and findings, templates, workspaces, help topics, and accessibility standards.</p>
+            <label for="search-everywhere-scope">Search scope</label>
+            <select id="search-everywhere-scope" aria-describedby="search-everywhere-status"></select>
             <label for="search-everywhere-input">Search</label>
             <input id="search-everywhere-input" type="search" autocomplete="off" spellcheck="false" aria-controls="search-everywhere-results" aria-describedby="search-everywhere-status" />
             <p id="search-everywhere-status" role="status" aria-live="polite" aria-atomic="true"></p>
             <p class="command-palette-helper">Structured filters: tag:critical, collection:"Client Deliverables", view:"Executive Summary".</p>
             <div id="search-everywhere-results" role="listbox" aria-label="Universal search results"></div>
+            <button id="btn-search-everywhere-broaden" type="button" hidden>Search all ART content instead</button>
             <div class="viewer-dialog-actions" role="group" aria-label="Universal search actions">
                 <button id="btn-search-everywhere-save" type="button">Save Search</button>
                 <button id="btn-search-everywhere-saved" type="button">Saved Searches</button>
@@ -819,6 +1050,8 @@ function ensureSearchDialogElements() {
 
     const closeButton = document.getElementById('btn-search-everywhere-close');
     const input = document.getElementById('search-everywhere-input');
+    const scopeSelect = document.getElementById('search-everywhere-scope');
+    const broadenButton = document.getElementById('btn-search-everywhere-broaden');
     const status = document.getElementById('search-everywhere-status');
     const results = document.getElementById('search-everywhere-results');
     const saveButton = document.getElementById('btn-search-everywhere-save');
@@ -843,6 +1076,8 @@ function ensureSearchDialogElements() {
         emptyClass: 'command-palette-empty',
         emptyMessage: 'No matching search results found.',
         onActivate: (result) => {
+            // Close before navigating so the destination receives focus instead of the dialog.
+            closeSearchEverywhereDialog(false);
             executeUniversalSearchResult(result);
         },
         onSelectionChange: () => {
@@ -854,6 +1089,8 @@ function ensureSearchDialogElements() {
         dialog,
         closeButton,
         input,
+        scopeSelect,
+        broadenButton,
         status,
         results,
         saveButton,
@@ -870,24 +1107,25 @@ function ensureSearchDialogElements() {
         closeButton?.addEventListener('click', () => closeSearchEverywhereDialog(true));
 
         input.addEventListener('input', () => {
-            const output = runUniversalSearch(input.value, {
-                source: 'search-everywhere-dialog',
-                scope: dialogState?.scope || 'workspace',
-                limit: 60
-            });
-            controller.setResults(output.results.map((item) => ({
-                id: item.id,
-                title: item.title,
-                subtitle: `${item.providerName}${item.subtitle ? ` | ${item.subtitle}` : ''}`,
-                description: item.description,
-                disabled: item.disabled,
-                result: item
-            })));
-            input.setAttribute('aria-activedescendant', controller.getActiveOptionId() || '');
-            const scopeLabel = String(dialogState?.scope || 'workspace').replace(/-/g, ' ');
-            if (dialogState?.status) {
-                dialogState.status.textContent = `${output.totalResults} result${output.totalResults === 1 ? '' : 's'} in ${scopeLabel}.`;
+            runSearchEverywhereQuery();
+        });
+
+        scopeSelect?.addEventListener('change', () => {
+            if (!dialogState) return;
+            dialogState.scope = normalizeText(scopeSelect.value) || 'workspace';
+            announce(`Search scope: ${getUniversalSearchScopeLabel(dialogState.scope)}.`);
+            runSearchEverywhereQuery();
+        });
+
+        broadenButton?.addEventListener('click', () => {
+            if (!dialogState) return;
+            dialogState.scope = 'workspace';
+            if (dialogState.scopeSelect instanceof HTMLSelectElement) {
+                dialogState.scopeSelect.value = 'workspace';
             }
+            announce(`Search scope: ${getUniversalSearchScopeLabel('workspace')}.`);
+            runSearchEverywhereQuery();
+            dialogState.input?.focus();
         });
 
         input.addEventListener('keydown', (event) => {
@@ -949,8 +1187,89 @@ function ensureSearchDialogElements() {
     return dialogState;
 }
 
+function syncSearchScopeOptions() {
+    const state = dialogState;
+    if (!state || !(state.scopeSelect instanceof HTMLSelectElement)) return;
+
+    const options = getUniversalSearchScopeOptions();
+    const desired = normalizeText(state.scope) || 'workspace';
+    const markup = options
+        .map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+        .join('');
+
+    if (state.scopeSelect.dataset.optionSignature !== markup) {
+        state.scopeSelect.innerHTML = markup;
+        state.scopeSelect.dataset.optionSignature = markup;
+    }
+
+    const available = options.some((option) => option.value === desired);
+    state.scope = available ? desired : 'workspace';
+    state.scopeSelect.value = state.scope;
+}
+
+function runSearchEverywhereQuery() {
+    const state = dialogState;
+    if (!state) return null;
+
+    const scope = normalizeText(state.scope) || 'workspace';
+    let output = null;
+
+    try {
+        output = runUniversalSearch(state.input.value, {
+            source: 'search-everywhere-dialog',
+            scope,
+            limit: 60
+        });
+    } catch (error) {
+        // Preserve the user's query and scope so the search can be retried.
+        if (state.status) {
+            state.status.textContent = `Search could not be completed in ${getUniversalSearchScopeLabel(scope)}. Your search text was kept so you can try again.`;
+        }
+        return null;
+    }
+
+    state.controller.setResults(output.results.map((item) => ({
+        id: item.id,
+        title: item.title,
+        subtitle: `${item.providerName}${item.subtitle ? ` | ${item.subtitle}` : ''}`,
+        description: item.description,
+        disabled: item.disabled,
+        result: item
+    })));
+    state.input.setAttribute('aria-activedescendant', state.controller.getActiveOptionId() || '');
+
+    const scopeLabel = getUniversalSearchScopeLabel(output.scope);
+    const canBroaden = output.totalResults === 0 && output.scope !== 'workspace';
+    if (state.broadenButton) state.broadenButton.hidden = !canBroaden;
+
+    if (state.status) {
+        if (output.totalResults === 0) {
+            state.status.textContent = canBroaden
+                ? `No results found in ${scopeLabel}. Use Search all ART content instead to broaden this search.`
+                : `No results found in ${scopeLabel}.`;
+        } else {
+            const categories = summarizeResultCategories(output.results);
+            state.status.textContent = `${output.totalResults} result${output.totalResults === 1 ? '' : 's'} in ${scopeLabel}. ${categories}`.trim();
+        }
+    }
+
+    return output;
+}
+
+function summarizeResultCategories(results) {
+    const counts = new Map();
+    (Array.isArray(results) ? results : []).forEach((item) => {
+        const key = normalizeText(item.providerName) || 'Other';
+        counts.set(key, Number(counts.get(key) || 0) + 1);
+    });
+    if (counts.size === 0) return '';
+    return [...counts.entries()]
+        .map(([name, count]) => `${name}: ${count}`)
+        .join(', ');
+}
+
 function focusSearchDialogInput() {
-    const state = ensureSearchDialogElements();
+    const state = dialogState;
     if (!state) return false;
     window.setTimeout(() => {
         state.input.focus();
@@ -959,19 +1278,20 @@ function focusSearchDialogInput() {
     return true;
 }
 
-export function openSearchEverywhereDialog(trigger = null, prefillQuery = '', scope = 'workspace') {
+export function openSearchEverywhereDialog(trigger = null, prefillQuery = '', scope = 'auto') {
     initializeUniversalSearchFramework();
     const state = ensureSearchDialogElements();
     if (!state) return false;
 
     if (trigger) state.lastTrigger = trigger;
-    state.scope = normalizeText(scope || 'workspace') || 'workspace';
+    state.scope = resolveScope(scope);
+    syncSearchScopeOptions();
 
     state.dialog.hidden = false;
     state.input.value = normalizeText(prefillQuery);
-    state.input.dispatchEvent(new Event('input'));
+    runSearchEverywhereQuery();
     focusSearchDialogInput();
-    announce('Search Everywhere opened.');
+    announce(`Search Everywhere opened. Search scope: ${getUniversalSearchScopeLabel(state.scope)}.`);
     return true;
 }
 
@@ -1020,6 +1340,28 @@ export function moveUniversalSearchSelection(delta = 1) {
     return updated;
 }
 
+function activateTabById(tabId) {
+    const tab = document.getElementById(tabId);
+    if (!(tab instanceof HTMLElement)) return false;
+    if (tab.getAttribute('aria-selected') !== 'true') tab.click();
+    return true;
+}
+
+// Search navigation must land on the exact target, so retry while the destination view renders.
+function focusWhenAvailable(resolveTarget, attempt = 0) {
+    const target = typeof resolveTarget === 'function' ? resolveTarget() : null;
+    if (target instanceof HTMLElement) {
+        if (!target.hasAttribute('tabindex') && !/^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) {
+            target.setAttribute('tabindex', '-1');
+        }
+        target.scrollIntoView({ block: 'center' });
+        target.focus();
+        return;
+    }
+    if (attempt >= 40) return;
+    window.setTimeout(() => focusWhenAvailable(resolveTarget, attempt + 1), 25);
+}
+
 export function executeUniversalSearchResult(result) {
     const item = result?.result || result;
     if (!item || typeof item !== 'object') return false;
@@ -1039,6 +1381,85 @@ export function executeUniversalSearchResult(result) {
             select.dispatchEvent(new Event('change', { bubbles: true }));
             return true;
         }
+    }
+
+    if (item.type === 'report-field') {
+        const fieldIndex = Number(item.raw?.fieldIndex);
+        if (!Number.isInteger(fieldIndex)) return false;
+        activateTabById('tab-builder');
+        focusWhenAvailable(() => document.getElementById(`btn-edit-${fieldIndex}`));
+        announce(`Opened Report Builder field ${item.title}.`);
+        return true;
+    }
+
+    if (item.type === 'finding') {
+        const entryIndex = Number(item.raw?.entryIndex);
+        const fieldIndex = Number(item.raw?.fieldIndex);
+        if (!Number.isInteger(entryIndex) || !Number.isInteger(fieldIndex)) return false;
+        activateTabById('tab-editor');
+        focusWhenAvailable(() => document.getElementById(`editor-field-${entryIndex}-${fieldIndex}`)
+            || document.querySelector(`[data-entry-index="${entryIndex}"][data-field-index="${fieldIndex}"]`));
+        announce(`Opened Report Editor finding ${entryIndex + 1}, ${item.raw?.fieldLabel || 'field'}.`);
+        return true;
+    }
+
+    if (item.type === 'template' && item.raw?.template?.id) {
+        const select = document.getElementById('template-selection');
+        if (select instanceof HTMLSelectElement) {
+            select.value = item.raw.template.id;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            select.focus();
+            return true;
+        }
+        return false;
+    }
+
+    if (item.type === 'criterion') {
+        const criterionNumber = normalizeText(item.raw?.criterion?.number);
+        const lookupInput = document.getElementById('s');
+        if (!(lookupInput instanceof HTMLInputElement)) return false;
+        lookupInput.value = criterionNumber || item.title;
+        lookupInput.dispatchEvent(new Event('input', { bubbles: true }));
+        lookupInput.focus();
+        announce(`Accessibility Lookup Tool filtered to ${item.title}.`);
+        return true;
+    }
+
+    if (item.type === 'shortcut' && item.raw?.shortcut?.action) {
+        const action = item.raw.shortcut.action;
+        document.getElementById('btn-app-settings')?.click();
+        focusWhenAvailable(() => document.querySelector(`#settings-shortcuts-body [data-shortcut-action="${action}"]`));
+        return true;
+    }
+
+    if (item.type === 'saved-search' && item.raw?.savedSearch) {
+        const saved = item.raw.savedSearch;
+        const trigger = dialogState?.lastTrigger || null;
+        openSearchEverywhereDialog(trigger, normalizeText(saved.query), normalizeText(saved.scope) || 'auto');
+        announce(`Loaded saved search ${saved.name || saved.query}.`);
+        return true;
+    }
+
+    if (String(item.type).startsWith('presentation-')) {
+        activateTabById('tab-builder');
+        focusWhenAvailable(() => document.getElementById('presentation-config-region')
+            || document.getElementById('builder-heading'));
+        announce(`Opened Report Builder presentation options for ${item.title}.`);
+        return true;
+    }
+
+    if (item.type === 'dashboard-widget' && item.raw?.widgetId) {
+        const widgetId = item.raw.widgetId;
+        focusWhenAvailable(() => document.querySelector(`[data-widget-id="${widgetId}"]`));
+        return true;
+    }
+
+    if (item.type === 'asset' && item.raw?.asset?.id) {
+        return revealWorkspaceResourceFromCommand('project-asset', item.raw.asset.id, {
+            workspaceId: item.raw.workspace?.id,
+            select: true,
+            focus: true
+        });
     }
 
     if (item.type === 'help-topic') {

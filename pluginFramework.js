@@ -1156,6 +1156,64 @@ export function getPluginFrameworkDiagnostics() {
     return [...runtime.diagnostics];
 }
 
+// Registered here rather than in the search framework so plugin state stays owned by this module.
+function registerPluginSearchProvider() {
+    const matches = (text, queryModel) => {
+        const haystack = String(text || '').toLowerCase();
+        const terms = [
+            ...(Array.isArray(queryModel?.include) ? queryModel.include : []),
+            ...(Array.isArray(queryModel?.optional) ? queryModel.optional : [])
+        ].map((term) => String(term || '').toLowerCase()).filter(Boolean);
+
+        if (!queryModel?.hasQuery) return true;
+        if (terms.length === 0) return true;
+        return terms.some((term) => haystack.includes(term.replace(/[*?]/g, '')));
+    };
+
+    registerUniversalSearchProvider({
+        id: 'plugins-packages',
+        name: 'Plugins and Packages',
+        priority: 95,
+        capabilities: {
+            scopes: ['workspace', 'plugins', 'packages', 'extensions'],
+            itemTypes: ['plugin', 'package'],
+            advertisedFields: ['displayName', 'description', 'version', 'packageType', 'status']
+        },
+        search: ({ queryModel }) => {
+            const snapshot = getPluginFrameworkSnapshot();
+            const results = [];
+
+            (snapshot.plugins || []).forEach((plugin) => {
+                const text = `${plugin.displayName || ''} ${plugin.description || ''} ${plugin.pluginId} plugin`;
+                if (!matches(text, queryModel)) return;
+                results.push({
+                    id: `plugin:${plugin.pluginId}`,
+                    type: 'plugin',
+                    title: plugin.displayName || plugin.pluginId,
+                    subtitle: `Plugin | ${plugin.enabled ? 'Enabled' : 'Disabled'}${plugin.version ? ` | v${plugin.version}` : ''}`,
+                    description: plugin.description || '',
+                    pluginId: plugin.pluginId
+                });
+            });
+
+            (snapshot.packages || []).forEach((pkg) => {
+                const text = `${pkg.displayName || ''} ${pkg.packageType || ''} ${pkg.packageId} package`;
+                if (!matches(text, queryModel)) return;
+                results.push({
+                    id: `package:${pkg.packageId}`,
+                    type: 'package',
+                    title: pkg.displayName || pkg.packageId,
+                    subtitle: `Package | ${pkg.packageType || 'package'}${pkg.version ? ` | v${pkg.version}` : ''}`,
+                    description: pkg.enabled ? 'Enabled package' : 'Disabled package',
+                    packageId: pkg.packageId
+                });
+            });
+
+            return results;
+        }
+    });
+}
+
 export function initPluginFramework() {
     if (initialized) return true;
 
@@ -1167,6 +1225,7 @@ export function initPluginFramework() {
     loadEnabledPluginsInDependencyOrder();
 
     syncBuiltInPackagesFromState();
+    registerPluginSearchProvider();
 
     emitPluginEvent('Plugin Framework Ready', {
         pluginCount: runtime.pluginsById.size,

@@ -248,6 +248,27 @@
                 </div>
             </section>
 
+            <section aria-labelledby="settings-search-heading">
+                <h4 id="settings-search-heading">Search</h4>
+                <p id="settings-search-summary" role="status" aria-live="polite" aria-atomic="true">Configure the default search scope and search history.</p>
+
+                <label for="settings-search-default-scope">Default Search Scope</label>
+                <select id="settings-search-default-scope" aria-describedby="settings-search-default-scope-help">
+                    <option value="auto">Auto (match your current location)</option>
+                    <option value="current-report">Current Report</option>
+                    <option value="current-project-workspace">Current Project Workspace</option>
+                    <option value="entire-workspace">All ART Content</option>
+                </select>
+                <p id="settings-search-default-scope-help">Auto searches the current report or Project Workspace when one is open, and all ART content otherwise. You can change the scope at any time in Search Everywhere.</p>
+
+                <label><input id="settings-search-history-enabled" type="checkbox"> Save search history on this device</label>
+
+                <div class="viewer-dialog-actions" role="group" aria-label="Search settings actions">
+                    <button id="btn-settings-search-apply" type="button">Apply Search Settings</button>
+                    <button id="btn-settings-search-clear-history" type="button">Clear Search History</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-integrations-heading">
                 <h4 id="settings-integrations-heading">Integrations</h4>
                 <p id="settings-local-files-help">ART uses local and network-accessible file workflows for import, export, and project operations.</p>

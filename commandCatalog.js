@@ -1313,7 +1313,7 @@ function runReplaceReportWorkflow(context = {}) {
 }
 
 function runSearchEverywhereWorkflow(context = {}) {
-    return openSearchEverywhereDialog(context.triggerElement || document.activeElement || null, context.query || '', 'workspace');
+    return openSearchEverywhereDialog(context.triggerElement || document.activeElement || null, context.query || '', 'auto');
 }
 
 function runSearchWithScope(scope, context = {}) {

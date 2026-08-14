@@ -9,6 +9,9 @@ import {
     findImportedStandardConflict,
     findShortcutConflict,
     getAnalyticsConfig,
+    getUniversalSearchConfig,
+    updateUniversalSearchConfig,
+    clearUniversalSearchHistory,
     getApplicationInfo,
     getAssignableActions,
     getCollaborationConfig,
@@ -1632,6 +1635,7 @@ function refreshSettingsView() {
         renderCollaborationSettings();
         renderVisualAccessibilitySettings();
         renderAnalyticsSettings();
+        renderSearchSettings();
         renderWorkspaceViewSettings();
         renderPluginManager();
         renderAbout();
@@ -2817,12 +2821,70 @@ function bindWorkspaceViewSettings() {
     });
 }
 
+function getSearchControls() {
+    return {
+        defaultScope: document.getElementById('settings-search-default-scope'),
+        historyEnabled: document.getElementById('settings-search-history-enabled'),
+        applyButton: document.getElementById('btn-settings-search-apply'),
+        clearHistoryButton: document.getElementById('btn-settings-search-clear-history'),
+        summary: document.getElementById('settings-search-summary')
+    };
+}
+
+function renderSearchSettings() {
+    const controls = getSearchControls();
+    if (!controls.defaultScope || !controls.applyButton) return;
+
+    const config = getUniversalSearchConfig();
+    controls.defaultScope.value = String(config.scopePreference || 'auto');
+    if (controls.historyEnabled) controls.historyEnabled.checked = config.historyEnabled !== false;
+
+    if (controls.summary) {
+        const historyCount = Array.isArray(config.history) ? config.history.length : 0;
+        const scopeLabel = controls.defaultScope.selectedOptions?.[0]?.textContent || controls.defaultScope.value;
+        controls.summary.textContent = `Default search scope ${scopeLabel}. Search history ${config.historyEnabled !== false ? 'on' : 'off'}, ${historyCount} saved ${historyCount === 1 ? 'entry' : 'entries'}.`;
+    }
+}
+
+function applySearchSettings() {
+    const controls = getSearchControls();
+    if (!controls.defaultScope) return false;
+
+    updateUniversalSearchConfig({
+        scopePreference: controls.defaultScope.value || 'auto',
+        historyEnabled: Boolean(controls.historyEnabled?.checked)
+    }, {
+        action: 'Updated search settings',
+        persist: true
+    });
+
+    writeStatus('Search settings applied.');
+    renderSearchSettings();
+    return true;
+}
+
+function bindSearchSettings() {
+    const controls = getSearchControls();
+    if (!controls.applyButton) return;
+
+    controls.applyButton.addEventListener('click', () => {
+        applySearchSettings();
+    });
+
+    controls.clearHistoryButton?.addEventListener('click', () => {
+        clearUniversalSearchHistory({ persist: true });
+        writeStatus('Search history cleared.');
+        renderSearchSettings();
+    });
+}
+
 function bindAnalyticsSettings() {
     const controls = getAnalyticsControls();
     if (!controls.applyButton) return;
     controls.applyButton.addEventListener('click', () => {
         applyAnalyticsSettings();
     });
+    bindSearchSettings();
 }
 
 function bindCollaborationSettings() {

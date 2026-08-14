@@ -143,11 +143,18 @@ function getHelpSections(rows) {
             id: 'help-universal-search',
             title: 'Universal Search Framework',
             content: `
-                <p>ART includes a Universal Search Framework that unifies search across commands, reports, templates, project workspaces, project assets, keyboard shortcuts, help topics, dashboard widgets, and imported accessibility standards.</p>
+                <p>ART includes a Universal Search Framework that unifies search across commands, reports, report fields and findings, templates, project workspaces, project assets, keyboard shortcuts, help topics, dashboard widgets, accessibility standards and WCAG Success Criteria, report layouts, themes, branding, publishing profiles, saved searches, plugins, and packages.</p>
                 <p>Use <strong>Ctrl+K</strong> to open <strong>Search Everywhere</strong>, then type a query and use Arrow keys plus Enter to activate results.</p>
+                <p>Search is location aware. When a report is open, Search Everywhere starts in <strong>Current Report</strong>. When a Project Workspace is open, it starts in <strong>Current Project Workspace</strong>. Otherwise it starts in <strong>All ART Content</strong>.</p>
+                <p>Use the <strong>Search scope</strong> list to change what is searched. The active scope is announced when it changes and is included in the result status message along with a count for each result category.</p>
+                <p>When a search returns no results in a narrower scope, a <strong>Search all ART content instead</strong> button appears so you can broaden the search deliberately. ART never broadens the scope automatically.</p>
+                <p>Activating a result opens its exact destination. A finding moves focus to that value in Report Editor, a report field moves focus to that field in Report Builder, a Success Criterion opens it in the Accessibility Lookup Tool, and a command runs the same command used by menus and shortcuts.</p>
+                <p>Accessibility Standard results include the criterion number, name, and conformance level, so you can search by identifier such as <strong>1.4.3</strong>, by name such as <strong>Contrast Minimum</strong>, or by concept such as <strong>keyboard trap</strong>.</p>
                 <p>The same reusable search results framework is used by Search Everywhere, Command Palette, Menu Bar Command Search, and Dashboard Search so behavior, keyboard interaction, and status announcements remain consistent.</p>
                 <p>Search supports phrase queries (<strong>"quoted phrase"</strong>), wildcard terms (<strong>*</strong> and <strong>?</strong>), and include/exclude terms with <strong>+</strong> and <strong>-</strong> prefixes.</p>
                 <p>Use <strong>Save Search</strong> to store frequently used queries, and use <strong>Clear History</strong> to remove stored query history.</p>
+                <p>Press <strong>Escape</strong> to close Search Everywhere and return focus to the control that opened it.</p>
+                <p>Application Settings includes a <strong>Search</strong> section where you can set the default search scope, turn search history on or off, and clear stored search history.</p>
             `
         },
         {

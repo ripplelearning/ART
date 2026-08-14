@@ -254,6 +254,21 @@ Universal Search supports organization-specific structured filters:
 
 These filters are available through Search Everywhere and are served by the resource-organization provider.
 
+## Search Scope and Search Everywhere
+Search Everywhere (Ctrl+K) is location aware. It starts in Current Report when a report is open, Current Project Workspace when a workspace is open, and All ART Content otherwise.
+
+Use the Search scope list to change what is searched. The active scope is announced when it changes, and the result status reports the scope, the total number of results, and a count for each result category.
+
+Search Everywhere covers commands, report fields and findings, reports, templates, workspaces, project assets, accessibility standards and WCAG Success Criteria, report layouts, themes, branding, publishing profiles, keyboard shortcuts, help topics, saved searches, dashboard widgets, plugins, and packages.
+
+WCAG results include the criterion number, name, and conformance level. You can search by identifier such as 1.4.3, by name such as Contrast Minimum, or by concept such as keyboard trap.
+
+When a search returns no results in a narrower scope, use the Search all ART content instead button to broaden it. ART does not broaden the scope automatically.
+
+Activating a result opens its exact destination and moves focus there. Press Escape to close Search Everywhere and return focus to the control that opened it.
+
+Application Settings includes a Search section for the default search scope, saving search history on this device, and clearing search history.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

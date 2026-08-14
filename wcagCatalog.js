@@ -122,6 +122,17 @@ export function loadWcagCatalog() {
     return buildMergedCatalog();
 }
 
+// Search providers run synchronously, so expose the catalog without awaiting the merged promise.
+export function getWcagCatalogSync() {
+    if (!Array.isArray(defaultStandards)) return [];
+    const builtInCatalog = defaultStandards.map(normalizeCriterion);
+    const importedCriteria = getImportedAccessibilityStandards().flatMap((standard) => {
+        const standardName = String(standard.displayName || standard.internalId || 'Imported Standard').trim();
+        return (Array.isArray(standard.criteria) ? standard.criteria : []).map((criterion) => normalizeImportedCatalogEntry(criterion, standardName));
+    });
+    return [...builtInCatalog, ...importedCriteria];
+}
+
 export async function getWcagCriteriaForStandard(standard) {
     const catalog = await loadWcagCatalog();
     return catalog.filter((item) => item.standard === standard);

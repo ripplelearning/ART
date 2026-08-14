@@ -1410,6 +1410,7 @@ function normalizeUniversalSearchConfig(config) {
     const source = config && typeof config === 'object' ? config : {};
     return {
         scopePreference: normalizeSearchScopePreference(source.scopePreference),
+        historyEnabled: source.historyEnabled !== false,
         defaultScopeOverride: String(source.defaultScopeOverride || '').trim(),
         history: Array.isArray(source.history)
             ? source.history.map((item, index) => normalizeSearchHistoryEntry(item, index)).slice(0, 100)
@@ -3868,6 +3869,7 @@ export function setUniversalSearchScopePreference(scopePreference, options = {})
 
 export function recordUniversalSearchHistory(entry, options = {}) {
     const current = getUniversalSearchConfig();
+    if (current.historyEnabled === false) return false;
     const existing = Array.isArray(current.history) ? current.history : [];
     const nextEntry = normalizeSearchHistoryEntry(entry, 0);
     const deduped = [nextEntry, ...existing.filter((item) => !(item.query === nextEntry.query && item.scope === nextEntry.scope))].slice(0, 100);
