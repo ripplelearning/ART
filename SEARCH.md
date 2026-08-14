@@ -169,6 +169,30 @@ Quick Open modes: `quick-open`, `recent`, `favorites`, `bookmarks`. Favorites re
 
 Related commands: `addToFavorites`, `removeFromFavorites`, `openFavorites`, `addBookmark`, `openBookmarks`, `clearBookmarks`. All are registered with no default shortcut.
 
+## Navigation History and Breadcrumbs
+
+`navigationHistoryFramework.js` provides one centralized history service for the application.
+
+- Entries store a navigation payload, so restoring a location reuses `executeUniversalSearchResult`.
+- `universalSearchFramework.js` dispatches `art-navigation-performed` after a successful navigation instead of importing the history service, which avoids an import cycle.
+- Panel changes are captured from the existing `art-panel-changed` event.
+- Consecutive duplicate locations refresh the current entry rather than adding a step.
+- Navigating after going back truncates the forward branch, matching browser behavior.
+- `restoringNavigation` guards Back, Forward, and history jumps so replaying a location is not recorded as a new one.
+- Command availability is published through `art-navigation-availability-changed`; the `navigateBack` and `navigateForward` commands report enablement via `canNavigateBack()` and `canNavigateForward()`.
+
+Breadcrumbs render into the `#breadcrumb-nav` landmark in `index.html`. The trail is Workspace, Report, View, then the specific location. The current item uses `aria-current="page"`; ancestors are buttons that navigate using the same payload model.
+
+State persists under `appState.navigationHistory`:
+
+- `enabled`
+- `breadcrumbsEnabled`
+- `maxEntries`
+- `entries`
+- `currentIndex`
+
+Related commands: `navigateBack`, `navigateForward`, `openNavigationHistory`, `clearNavigationHistory`. All are registered with no default shortcut. Clearing navigation history does not affect favorites, bookmarks, recent items, or saved searches.
+
 ## Settings
 
 Application Settings includes a `Search` section with:
@@ -179,6 +203,10 @@ Application Settings includes a `Search` section with:
 - Maximum Recent Items (`maxRecentItems`)
 - Clear Search History
 - Clear Recent Items
+- Save navigation history on this device (`navigationHistory.enabled`)
+- Show breadcrumbs (`navigationHistory.breadcrumbsEnabled`)
+- Maximum Navigation History Entries (`navigationHistory.maxEntries`)
+- Clear Navigation History
 
 When search history is disabled, `recordUniversalSearchHistory()` does not store queries.
 

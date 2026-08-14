@@ -13,6 +13,9 @@ import {
     updateUniversalSearchConfig,
     clearUniversalSearchHistory,
     clearRecentItems,
+    getNavigationHistory,
+    updateNavigationHistory,
+    clearNavigationHistoryEntries,
     getApplicationInfo,
     getAssignableActions,
     getCollaborationConfig,
@@ -2828,6 +2831,10 @@ function getSearchControls() {
         historyEnabled: document.getElementById('settings-search-history-enabled'),
         recentEnabled: document.getElementById('settings-search-recent-enabled'),
         recentMax: document.getElementById('settings-search-recent-max'),
+        navigationEnabled: document.getElementById('settings-navigation-history-enabled'),
+        breadcrumbsEnabled: document.getElementById('settings-navigation-breadcrumbs-enabled'),
+        navigationMax: document.getElementById('settings-navigation-history-max'),
+        clearNavigationButton: document.getElementById('btn-settings-clear-navigation-history'),
         applyButton: document.getElementById('btn-settings-search-apply'),
         clearHistoryButton: document.getElementById('btn-settings-search-clear-history'),
         clearRecentButton: document.getElementById('btn-settings-search-clear-recent'),
@@ -2844,6 +2851,11 @@ function renderSearchSettings() {
     if (controls.historyEnabled) controls.historyEnabled.checked = config.historyEnabled !== false;
     if (controls.recentEnabled) controls.recentEnabled.checked = config.recentItemsEnabled !== false;
     if (controls.recentMax) controls.recentMax.value = String(config.maxRecentItems || 20);
+
+    const navigation = getNavigationHistory();
+    if (controls.navigationEnabled) controls.navigationEnabled.checked = navigation.enabled !== false;
+    if (controls.breadcrumbsEnabled) controls.breadcrumbsEnabled.checked = navigation.breadcrumbsEnabled !== false;
+    if (controls.navigationMax) controls.navigationMax.value = String(navigation.maxEntries || 50);
 
     if (controls.summary) {
         const historyCount = Array.isArray(config.history) ? config.history.length : 0;
@@ -2864,6 +2876,15 @@ function applySearchSettings() {
         maxRecentItems: Number(controls.recentMax?.value) || 20
     }, {
         action: 'Updated search settings',
+        persist: true
+    });
+
+    updateNavigationHistory({
+        enabled: Boolean(controls.navigationEnabled?.checked),
+        breadcrumbsEnabled: Boolean(controls.breadcrumbsEnabled?.checked),
+        maxEntries: Number(controls.navigationMax?.value) || 50
+    }, {
+        action: 'Updated navigation settings',
         persist: true
     });
 
@@ -2889,6 +2910,12 @@ function bindSearchSettings() {
     controls.clearRecentButton?.addEventListener('click', () => {
         clearRecentItems({ persist: true });
         writeStatus('Recent items cleared.');
+        renderSearchSettings();
+    });
+
+    controls.clearNavigationButton?.addEventListener('click', () => {
+        clearNavigationHistoryEntries({ persist: true });
+        writeStatus('Navigation history cleared. Favorites, bookmarks, and saved searches were not changed.');
         renderSearchSettings();
     });
 }

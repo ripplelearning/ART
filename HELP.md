@@ -293,6 +293,21 @@ Bookmarks store stable internal references, so renaming a report does not break 
 
 Favorites and bookmarks are personal and stored on this device. They never change who can access a resource, and removing them never deletes the underlying resource.
 
+## Navigation History, Breadcrumbs, and Back/Forward
+ART records meaningful locations you visit so you can return to them. Back returns to the previous location and Forward returns to the location you navigated back from, following the browser model where navigating somewhere new after going back replaces the forward path.
+
+Meaningful destinations include views, reports, findings, report fields, bookmarks, favorites, and search results. Ordinary interactions such as focus movement, typing, and confirmation dialogs are not recorded.
+
+Use Open Navigation History to review, filter, and jump to a previous location. The list is ordered most recent first and identifies your current location.
+
+Breadcrumbs appear above the main content and show your Project Workspace, current report, current view, and specific location. The current item is marked for screen readers and earlier levels can be activated to move up.
+
+Returning to a location restores the correct view and moves focus to the destination rather than the top of the page. If a location no longer exists, ART reports it and leaves your current work in place.
+
+Clear Navigation History removes stored locations only. It never deletes reports, workspaces, favorites, bookmarks, or saved searches.
+
+Navigation history is personal and stored on this device. Application Settings controls whether navigation history and breadcrumbs are enabled and how many locations are kept.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

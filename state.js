@@ -136,6 +136,10 @@ const defaultState = {
         addBookmark: '',
         openBookmarks: '',
         clearBookmarks: '',
+        navigateBack: '',
+        navigateForward: '',
+        openNavigationHistory: '',
+        clearNavigationHistory: '',
         searchCurrentReport: '',
         searchCurrentProjectWorkspace: '',
         searchAllProjects: '',
@@ -585,6 +589,13 @@ const defaultState = {
             isIndexing: false,
             indexedItemCount: 0
         }
+    },
+    navigationHistory: {
+        enabled: true,
+        breadcrumbsEnabled: true,
+        maxEntries: 50,
+        entries: [],
+        currentIndex: -1
     }
 };
 
@@ -1731,6 +1742,10 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'addBookmark', label: 'Bookmark This Location', defaultShortcut: defaultState.shortcuts.addBookmark },
     { action: 'openBookmarks', label: 'Open Bookmarks', defaultShortcut: defaultState.shortcuts.openBookmarks },
     { action: 'clearBookmarks', label: 'Clear Bookmarks', defaultShortcut: defaultState.shortcuts.clearBookmarks },
+    { action: 'navigateBack', label: 'Back', defaultShortcut: defaultState.shortcuts.navigateBack },
+    { action: 'navigateForward', label: 'Forward', defaultShortcut: defaultState.shortcuts.navigateForward },
+    { action: 'openNavigationHistory', label: 'Open Navigation History', defaultShortcut: defaultState.shortcuts.openNavigationHistory },
+    { action: 'clearNavigationHistory', label: 'Clear Navigation History', defaultShortcut: defaultState.shortcuts.clearNavigationHistory },
     { action: 'searchCurrentReport', label: 'Search Current Report', defaultShortcut: defaultState.shortcuts.searchCurrentReport },
     { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace', defaultShortcut: defaultState.shortcuts.searchCurrentProjectWorkspace },
     { action: 'searchAllProjects', label: 'Search All Projects', defaultShortcut: defaultState.shortcuts.searchAllProjects },
@@ -2053,6 +2068,10 @@ export function getAssignableActions() {
         { action: 'addBookmark', label: 'Bookmark This Location' },
         { action: 'openBookmarks', label: 'Open Bookmarks' },
         { action: 'clearBookmarks', label: 'Clear Bookmarks' },
+        { action: 'navigateBack', label: 'Back' },
+        { action: 'navigateForward', label: 'Forward' },
+        { action: 'openNavigationHistory', label: 'Open Navigation History' },
+        { action: 'clearNavigationHistory', label: 'Clear Navigation History' },
         { action: 'searchCurrentReport', label: 'Search Current Report' },
         { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace' },
         { action: 'searchAllProjects', label: 'Search All Projects' },
@@ -2548,7 +2567,8 @@ export let appState = {
     workspaces: normalizeProjectWorkspaces(storedState.workspaces),
     activeWorkspaceId: String(storedState.activeWorkspaceId || ''),
     recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces),
-    universalSearch: normalizeUniversalSearchConfig(storedState.universalSearch)
+    universalSearch: normalizeUniversalSearchConfig(storedState.universalSearch),
+    navigationHistory: normalizeNavigationHistory(storedState.navigationHistory)
 };
 
 function normalizeStateSnapshot(rawState) {
@@ -2621,6 +2641,7 @@ function normalizeStateSnapshot(rawState) {
         activeWorkspaceId: String(base.activeWorkspaceId || ''),
         recentProjectWorkspaces: normalizeRecentProjectWorkspaces(base.recentProjectWorkspaces),
         universalSearch: normalizeUniversalSearchConfig(base.universalSearch),
+        navigationHistory: normalizeNavigationHistory(base.navigationHistory),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -3712,6 +3733,74 @@ export function getRecentProjectWorkspaces() {
 
 export function getUniversalSearchConfig() {
     return normalizeUniversalSearchConfig(appState.universalSearch);
+}
+
+function normalizeNavigationEntry(entry, index) {
+    const source = entry && typeof entry === 'object' ? entry : {};
+    return {
+        id: String(source.id || `navigation-${index}`),
+        label: String(source.label || '').trim(),
+        context: String(source.context || '').trim(),
+        targetType: String(source.targetType || source.type || '').trim(),
+        payload: source.payload && typeof source.payload === 'object' ? source.payload : null,
+        focusId: String(source.focusId || '').trim(),
+        breadcrumbs: Array.isArray(source.breadcrumbs)
+            ? source.breadcrumbs.map((crumb) => ({
+                label: String(crumb?.label || '').trim(),
+                payload: crumb?.payload && typeof crumb.payload === 'object' ? crumb.payload : null
+            })).filter((crumb) => crumb.label)
+            : [],
+        visitedAt: String(source.visitedAt || new Date().toISOString())
+    };
+}
+
+function normalizeNavigationHistory(history) {
+    const source = history && typeof history === 'object' ? history : {};
+    const maxEntries = Number.isFinite(Number(source.maxEntries)) && Number(source.maxEntries) > 0
+        ? Math.min(200, Math.floor(Number(source.maxEntries)))
+        : 50;
+    const entries = Array.isArray(source.entries)
+        ? source.entries.map((entry, index) => normalizeNavigationEntry(entry, index)).filter((entry) => entry.label).slice(-maxEntries)
+        : [];
+    const rawIndex = Number.isFinite(Number(source.currentIndex)) ? Math.floor(Number(source.currentIndex)) : entries.length - 1;
+
+    return {
+        enabled: source.enabled !== false,
+        breadcrumbsEnabled: source.breadcrumbsEnabled !== false,
+        maxEntries,
+        entries,
+        currentIndex: Math.max(-1, Math.min(rawIndex, entries.length - 1))
+    };
+}
+
+export function getNavigationHistory() {
+    return normalizeNavigationHistory(appState.navigationHistory);
+}
+
+export function updateNavigationHistory(updates = {}, options = {}) {
+    const next = normalizeNavigationHistory({
+        ...getNavigationHistory(),
+        ...(updates && typeof updates === 'object' ? updates : {})
+    });
+    appState.navigationHistory = next;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated navigation history'), recordHistory: false });
+    }
+
+    window.dispatchEvent(new CustomEvent('art-navigation-history-updated', {
+        detail: { type: String(options.eventType || 'navigation-history-updated'), history: next }
+    }));
+
+    return next;
+}
+
+export function clearNavigationHistoryEntries(options = {}) {
+    return updateNavigationHistory({ entries: [], currentIndex: -1 }, {
+        ...options,
+        action: String(options.action || 'Cleared navigation history'),
+        eventType: 'navigation-history-cleared'
+    });
 }
 
 export function getFavoriteItems() {

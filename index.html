@@ -267,10 +267,16 @@
                 <label for="settings-search-recent-max">Maximum Recent Items</label>
                 <input id="settings-search-recent-max" type="number" min="1" max="100" step="1" value="20">
 
+                <label><input id="settings-navigation-history-enabled" type="checkbox"> Save navigation history on this device</label>
+                <label><input id="settings-navigation-breadcrumbs-enabled" type="checkbox"> Show breadcrumbs</label>
+                <label for="settings-navigation-history-max">Maximum Navigation History Entries</label>
+                <input id="settings-navigation-history-max" type="number" min="1" max="200" step="1" value="50">
+
                 <div class="viewer-dialog-actions" role="group" aria-label="Search settings actions">
                     <button id="btn-settings-search-apply" type="button">Apply Search Settings</button>
                     <button id="btn-settings-search-clear-history" type="button">Clear Search History</button>
                     <button id="btn-settings-search-clear-recent" type="button">Clear Recent Items</button>
+                    <button id="btn-settings-clear-navigation-history" type="button">Clear Navigation History</button>
                 </div>
             </section>
 
@@ -709,6 +715,9 @@
     </section>
 
     <main id="main-content" role="main" aria-label="main content">
+        <nav id="breadcrumb-nav" class="app-breadcrumb" aria-label="Breadcrumb" hidden>
+            <ol id="breadcrumb-list" class="app-breadcrumb__list"></ol>
+        </nav>
         <div id="main-inner"></div>
     </main>
 

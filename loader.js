@@ -22,6 +22,7 @@ import { initializeResourceOrganizationFramework } from './resourceOrganizationF
 import { initializeHistoryFramework } from './historyFramework.js';
 import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetworkActivity } from './state.js';
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
+import { initNavigationHistoryFramework } from './navigationHistoryFramework.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -201,6 +202,7 @@ function initializeApp() {
     runStartupStage('initializeResourceRelationshipFramework', () => initializeResourceRelationshipFramework());
     runStartupStage('initializeResourceOrganizationFramework', () => initializeResourceOrganizationFramework());
     runStartupStage('initializeUniversalSearchFramework', () => initializeUniversalSearchFramework());
+    runStartupStage('initNavigationHistoryFramework', () => initNavigationHistoryFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());
     runStartupStage('initGlobalContextMenuFramework', () => initGlobalContextMenuFramework());

@@ -1364,6 +1364,25 @@ function focusWhenAvailable(resolveTarget, attempt = 0) {
 
 export function executeUniversalSearchResult(result) {
     const item = result?.result || result;
+    const navigated = performResultNavigation(result);
+
+    // Broadcast rather than importing the history service, which would create an import cycle.
+    if (navigated && item && typeof item === 'object') {
+        window.dispatchEvent(new CustomEvent('art-navigation-performed', {
+            detail: {
+                payload: item,
+                type: normalizeText(item.type),
+                title: normalizeText(item.title),
+                context: normalizeText(item.providerName || item.subtitle)
+            }
+        }));
+    }
+
+    return navigated;
+}
+
+function performResultNavigation(result) {
+    const item = result?.result || result;
     if (!item || typeof item !== 'object') return false;
 
     if (item.type === 'command' && item.raw?.command?.id) {

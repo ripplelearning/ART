@@ -115,6 +115,14 @@ import {
     runUniversalSearch
 } from './universalSearchFramework.js';
 import {
+    canNavigateBack,
+    canNavigateForward,
+    clearNavigationHistoryFromCommand,
+    navigateBack,
+    navigateForward,
+    openNavigationHistory
+} from './navigationHistoryFramework.js';
+import {
     addActiveResourceToFavorites,
     addBookmarkForCurrentLocation,
     clearBookmarksFromCommand,
@@ -1647,6 +1655,36 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Search',
         description: 'Remove all bookmarks stored on this device.',
         handler: () => clearBookmarksFromCommand()
+    },
+    {
+        action: 'navigateBack',
+        id: 'Navigation.Back',
+        category: 'Navigation',
+        description: 'Return to the previous location.',
+        enabled: () => canNavigateBack(),
+        handler: () => navigateBack()
+    },
+    {
+        action: 'navigateForward',
+        id: 'Navigation.Forward',
+        category: 'Navigation',
+        description: 'Move forward to the location you navigated back from.',
+        enabled: () => canNavigateForward(),
+        handler: () => navigateForward()
+    },
+    {
+        action: 'openNavigationHistory',
+        id: 'Navigation.OpenHistory',
+        category: 'Navigation',
+        description: 'Review locations you visited earlier and return to one.',
+        handler: (context) => openNavigationHistory(context.triggerElement || document.activeElement || null)
+    },
+    {
+        action: 'clearNavigationHistory',
+        id: 'Navigation.ClearHistory',
+        category: 'Navigation',
+        description: 'Clear navigation history without affecting favorites, bookmarks, or saved searches.',
+        handler: () => clearNavigationHistoryFromCommand()
     },
     {
         action: 'searchCurrentReport',
