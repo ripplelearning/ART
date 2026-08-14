@@ -1462,6 +1462,13 @@ export function executeUniversalSearchResult(result) {
         });
     }
 
+    if (item.type === 'panel' && item.raw?.tabId) {
+        activateTabById(item.raw.tabId);
+        const headingId = normalizeText(item.raw.headingId);
+        if (headingId) focusWhenAvailable(() => document.getElementById(headingId));
+        return true;
+    }
+
     if (item.type === 'help-topic') {
         const helpButton = document.getElementById('btn-help');
         helpButton?.click();

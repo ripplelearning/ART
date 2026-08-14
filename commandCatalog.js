@@ -115,9 +115,15 @@ import {
     runUniversalSearch
 } from './universalSearchFramework.js';
 import {
+    addActiveResourceToFavorites,
+    addBookmarkForCurrentLocation,
+    clearBookmarksFromCommand,
     clearRecentItemsFromCommand,
+    openBookmarksDialog,
+    openFavoritesDialog,
     openQuickOpen,
-    openRecentItemsDialog
+    openRecentItemsDialog,
+    removeActiveResourceFromFavorites
 } from './quickOpenFramework.js';
 import {
     addProjectAssetFromCommand,
@@ -299,6 +305,12 @@ function getDefaultMenuLocation(action, category) {
         case 'quickOpen':
         case 'openRecentItems':
         case 'clearRecentItems':
+        case 'addToFavorites':
+        case 'removeFromFavorites':
+        case 'openFavorites':
+        case 'addBookmark':
+        case 'openBookmarks':
+        case 'clearBookmarks':
         case 'searchCurrentReport':
         case 'searchCurrentProjectWorkspace':
         case 'searchAllProjects':
@@ -1586,6 +1598,55 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Search',
         description: 'Clear the locally stored list of recently opened resources.',
         handler: () => clearRecentItemsFromCommand()
+    },
+    {
+        action: 'addToFavorites',
+        id: 'Search.AddToFavorites',
+        category: 'Search',
+        description: 'Add the current resource or location to favorites.',
+        handler: (context) => addActiveResourceToFavorites({
+            sourceElement: context.triggerElement || context.activeElement || null
+        })
+    },
+    {
+        action: 'removeFromFavorites',
+        id: 'Search.RemoveFromFavorites',
+        category: 'Search',
+        description: 'Remove the current resource or location from favorites.',
+        handler: (context) => removeActiveResourceFromFavorites({
+            sourceElement: context.triggerElement || context.activeElement || null
+        })
+    },
+    {
+        action: 'openFavorites',
+        id: 'Search.OpenFavorites',
+        category: 'Search',
+        description: 'Open your favorite ART resources.',
+        handler: (context) => openFavoritesDialog(context.triggerElement || document.activeElement || null)
+    },
+    {
+        action: 'addBookmark',
+        id: 'Search.AddBookmark',
+        category: 'Search',
+        description: 'Bookmark the current location so you can return to it later.',
+        handler: (context) => addBookmarkForCurrentLocation({
+            name: String(context.name || ''),
+            sourceElement: context.triggerElement || context.activeElement || null
+        })
+    },
+    {
+        action: 'openBookmarks',
+        id: 'Search.OpenBookmarks',
+        category: 'Search',
+        description: 'Open your bookmarked ART locations.',
+        handler: (context) => openBookmarksDialog(context.triggerElement || document.activeElement || null)
+    },
+    {
+        action: 'clearBookmarks',
+        id: 'Search.ClearBookmarks',
+        category: 'Search',
+        description: 'Remove all bookmarks stored on this device.',
+        handler: () => clearBookmarksFromCommand()
     },
     {
         action: 'searchCurrentReport',

@@ -174,6 +174,24 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-favorites-bookmarks',
+            title: 'Favorites and Bookmarks',
+            content: `
+                <p><strong>Favorites</strong> and <strong>Bookmarks</strong> are separate features. A Favorite marks a resource you use often. A Bookmark marks a specific location inside a resource.</p>
+                <p>For example, you can favorite an entire report, and separately bookmark one finding inside that report.</p>
+                <p>Adding a Favorite never creates a Bookmark, and adding a Bookmark never creates a Favorite.</p>
+                <h4>Favorites</h4>
+                <p>Use <strong>Add To Favorites</strong> and <strong>Remove From Favorites</strong> to favorite the resource or location you are currently working in. In Quick Open, the action button also adds or removes the selected result, and its label always states which action it will perform.</p>
+                <p>Use <strong>Open Favorites</strong> to review your favorites and open one. Favorite results are labeled as favorites in Quick Open and receive a small relevance boost, but they never displace a stronger match.</p>
+                <h4>Bookmarks</h4>
+                <p>Use <strong>Bookmark This Location</strong> to save where you are. ART records the exact location, such as a specific finding, a report field in Field Configuration, or a view, and generates a meaningful name for it.</p>
+                <p>Use <strong>Open Bookmarks</strong> to review your bookmarks and return to one. Opening a bookmark restores the correct view and moves focus to the exact location. Use <strong>Rename Bookmark</strong> and <strong>Remove Bookmark</strong> to manage the selected entry, and <strong>Clear Bookmarks</strong> to remove them all.</p>
+                <p>Bookmarks store stable internal references, so renaming a report does not break them. If a bookmarked location no longer exists, ART tells you and leaves your current work in place instead of navigating somewhere unrelated.</p>
+                <p>Favorites and bookmarks are personal to you and stored on this device. Adding either one never changes who can access the underlying resource. Removing a favorite or bookmark never deletes the resource itself.</p>
+                <p>All of these actions are available from the Search menu, Command Search, and the Command Palette, and can be assigned keyboard shortcuts in the Keyboard Shortcut Manager.</p>
+            `
+        },
+        {
             id: 'help-menu-bar',
             title: 'Menu Bar and Command Search',
             content: `

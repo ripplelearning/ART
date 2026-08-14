@@ -282,6 +282,17 @@ Use Remove From Recent to remove the selected entry, or Clear Recent Items to re
 
 Quick Open, Open Recent Items, and Clear Recent Items are available from the Search menu, Command Search, and the Command Palette, and can be assigned keyboard shortcuts in the Keyboard Shortcut Manager. They have no shortcut assigned by default.
 
+## Favorites and Bookmarks
+Favorites and Bookmarks are separate features. A Favorite marks a resource you use often. A Bookmark marks a specific location inside a resource. Adding one never creates the other.
+
+Use Add To Favorites and Remove From Favorites for the resource or location you are working in. In Quick Open, the action button adds or removes the selected result and its label states which action it will perform. Use Open Favorites to review and open favorites. Favorites receive a small relevance boost in Quick Open but never displace a stronger match.
+
+Use Bookmark This Location to save where you are. ART records the exact location, such as a specific finding or a report field, and generates a meaningful name. Use Open Bookmarks to return to one, and Rename Bookmark, Remove Bookmark, and Clear Bookmarks to manage them.
+
+Bookmarks store stable internal references, so renaming a report does not break them. If a bookmarked location no longer exists, ART reports it and leaves your current work in place.
+
+Favorites and bookmarks are personal and stored on this device. They never change who can access a resource, and removing them never deletes the underlying resource.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

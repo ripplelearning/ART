@@ -130,6 +130,12 @@ const defaultState = {
         quickOpen: '',
         openRecentItems: '',
         clearRecentItems: '',
+        addToFavorites: '',
+        removeFromFavorites: '',
+        openFavorites: '',
+        addBookmark: '',
+        openBookmarks: '',
+        clearBookmarks: '',
         searchCurrentReport: '',
         searchCurrentProjectWorkspace: '',
         searchAllProjects: '',
@@ -1409,6 +1415,36 @@ function normalizeSearchScopePreference(value) {
     return 'auto';
 }
 
+function normalizeFavoriteItem(item, index) {
+    const source = item && typeof item === 'object' ? item : { resultId: String(item || '') };
+    return {
+        id: String(source.id || `favorite-${index}`),
+        resultId: String(source.resultId || '').trim(),
+        resourceType: String(source.resourceType || source.type || '').trim(),
+        title: String(source.title || '').trim(),
+        subtitle: String(source.subtitle || '').trim(),
+        context: String(source.context || '').trim(),
+        payload: source.payload && typeof source.payload === 'object' ? source.payload : null,
+        addedAt: String(source.addedAt || new Date().toISOString())
+    };
+}
+
+function normalizeBookmark(bookmark, index) {
+    const source = bookmark && typeof bookmark === 'object' ? bookmark : {};
+    return {
+        id: String(source.id || `bookmark-${index}`),
+        name: String(source.name || '').trim(),
+        description: String(source.description || '').trim(),
+        targetType: String(source.targetType || '').trim(),
+        context: String(source.context || '').trim(),
+        workspaceId: String(source.workspaceId || '').trim(),
+        reportId: String(source.reportId || '').trim(),
+        payload: source.payload && typeof source.payload === 'object' ? source.payload : null,
+        createdAt: String(source.createdAt || new Date().toISOString()),
+        updatedAt: String(source.updatedAt || source.createdAt || new Date().toISOString())
+    };
+}
+
 function normalizeRecentItem(item, index) {
     const source = item && typeof item === 'object' ? item : {};
     return {
@@ -1449,7 +1485,10 @@ function normalizeUniversalSearchConfig(config) {
             ? source.collections.map((item, index) => normalizeSearchCollection(item, index)).slice(0, 100)
             : [],
         favorites: Array.isArray(source.favorites)
-            ? source.favorites.map((value) => String(value || '').trim()).filter(Boolean)
+            ? source.favorites.map((item, index) => normalizeFavoriteItem(item, index)).filter((item) => item.resultId || item.title).slice(0, 200)
+            : [],
+        bookmarks: Array.isArray(source.bookmarks)
+            ? source.bookmarks.map((item, index) => normalizeBookmark(item, index)).filter((item) => item.name).slice(0, 200)
             : [],
         providers: Array.isArray(source.providers)
             ? source.providers.map((item) => String(item || '').trim()).filter(Boolean)
@@ -1686,6 +1725,12 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'quickOpen', label: 'Quick Open', defaultShortcut: defaultState.shortcuts.quickOpen },
     { action: 'openRecentItems', label: 'Open Recent Items', defaultShortcut: defaultState.shortcuts.openRecentItems },
     { action: 'clearRecentItems', label: 'Clear Recent Items', defaultShortcut: defaultState.shortcuts.clearRecentItems },
+    { action: 'addToFavorites', label: 'Add To Favorites', defaultShortcut: defaultState.shortcuts.addToFavorites },
+    { action: 'removeFromFavorites', label: 'Remove From Favorites', defaultShortcut: defaultState.shortcuts.removeFromFavorites },
+    { action: 'openFavorites', label: 'Open Favorites', defaultShortcut: defaultState.shortcuts.openFavorites },
+    { action: 'addBookmark', label: 'Bookmark This Location', defaultShortcut: defaultState.shortcuts.addBookmark },
+    { action: 'openBookmarks', label: 'Open Bookmarks', defaultShortcut: defaultState.shortcuts.openBookmarks },
+    { action: 'clearBookmarks', label: 'Clear Bookmarks', defaultShortcut: defaultState.shortcuts.clearBookmarks },
     { action: 'searchCurrentReport', label: 'Search Current Report', defaultShortcut: defaultState.shortcuts.searchCurrentReport },
     { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace', defaultShortcut: defaultState.shortcuts.searchCurrentProjectWorkspace },
     { action: 'searchAllProjects', label: 'Search All Projects', defaultShortcut: defaultState.shortcuts.searchAllProjects },
@@ -2002,6 +2047,12 @@ export function getAssignableActions() {
         { action: 'quickOpen', label: 'Quick Open' },
         { action: 'openRecentItems', label: 'Open Recent Items' },
         { action: 'clearRecentItems', label: 'Clear Recent Items' },
+        { action: 'addToFavorites', label: 'Add To Favorites' },
+        { action: 'removeFromFavorites', label: 'Remove From Favorites' },
+        { action: 'openFavorites', label: 'Open Favorites' },
+        { action: 'addBookmark', label: 'Bookmark This Location' },
+        { action: 'openBookmarks', label: 'Open Bookmarks' },
+        { action: 'clearBookmarks', label: 'Clear Bookmarks' },
         { action: 'searchCurrentReport', label: 'Search Current Report' },
         { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace' },
         { action: 'searchAllProjects', label: 'Search All Projects' },
@@ -3661,6 +3712,108 @@ export function getRecentProjectWorkspaces() {
 
 export function getUniversalSearchConfig() {
     return normalizeUniversalSearchConfig(appState.universalSearch);
+}
+
+export function getFavoriteItems() {
+    const config = getUniversalSearchConfig();
+    return Array.isArray(config.favorites) ? config.favorites : [];
+}
+
+export function isFavoriteResource(resultId) {
+    const target = String(resultId || '').trim();
+    if (!target) return false;
+    return getFavoriteItems().some((item) => item.resultId === target);
+}
+
+export function addFavoriteItem(entry, options = {}) {
+    const favorite = normalizeFavoriteItem({
+        ...entry,
+        id: entry?.id || `favorite-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        addedAt: new Date().toISOString()
+    }, 0);
+    if (!favorite.resultId && !favorite.title) return false;
+    if (isFavoriteResource(favorite.resultId)) return false;
+
+    const existing = getFavoriteItems();
+    return updateUniversalSearchConfig({ favorites: [favorite, ...existing].slice(0, 200) }, {
+        ...options,
+        action: String(options.action || `Added ${favorite.title || 'resource'} to favorites`),
+        eventType: 'favorites-updated'
+    });
+}
+
+export function removeFavoriteItem(resultId, options = {}) {
+    const target = String(resultId || '').trim();
+    const existing = getFavoriteItems();
+    const filtered = existing.filter((item) => item.resultId !== target && item.id !== target);
+    if (filtered.length === existing.length) return false;
+
+    return updateUniversalSearchConfig({ favorites: filtered }, {
+        ...options,
+        action: String(options.action || 'Removed resource from favorites'),
+        eventType: 'favorites-updated'
+    });
+}
+
+export function getBookmarks() {
+    const config = getUniversalSearchConfig();
+    return Array.isArray(config.bookmarks) ? config.bookmarks : [];
+}
+
+export function addBookmark(entry, options = {}) {
+    const bookmark = normalizeBookmark({
+        ...entry,
+        id: entry?.id || `bookmark-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    }, 0);
+    if (!bookmark.name) return false;
+
+    const existing = getBookmarks();
+    return updateUniversalSearchConfig({ bookmarks: [bookmark, ...existing].slice(0, 200) }, {
+        ...options,
+        action: String(options.action || `Added bookmark ${bookmark.name}`),
+        eventType: 'bookmarks-updated'
+    });
+}
+
+export function updateBookmark(bookmarkId, updates = {}, options = {}) {
+    const target = String(bookmarkId || '').trim();
+    const existing = getBookmarks();
+    let changed = false;
+    const next = existing.map((item) => {
+        if (item.id !== target) return item;
+        changed = true;
+        return normalizeBookmark({ ...item, ...updates, updatedAt: new Date().toISOString() }, 0);
+    });
+    if (!changed) return false;
+
+    return updateUniversalSearchConfig({ bookmarks: next }, {
+        ...options,
+        action: String(options.action || 'Updated bookmark'),
+        eventType: 'bookmarks-updated'
+    });
+}
+
+export function removeBookmark(bookmarkId, options = {}) {
+    const target = String(bookmarkId || '').trim();
+    const existing = getBookmarks();
+    const filtered = existing.filter((item) => item.id !== target);
+    if (filtered.length === existing.length) return false;
+
+    return updateUniversalSearchConfig({ bookmarks: filtered }, {
+        ...options,
+        action: String(options.action || 'Removed bookmark'),
+        eventType: 'bookmarks-updated'
+    });
+}
+
+export function clearBookmarks(options = {}) {
+    return updateUniversalSearchConfig({ bookmarks: [] }, {
+        ...options,
+        action: String(options.action || 'Cleared bookmarks'),
+        eventType: 'bookmarks-cleared'
+    });
 }
 
 export function getRecentItems() {

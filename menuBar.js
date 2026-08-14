@@ -197,6 +197,12 @@ function getMenuLocation(command) {
         case 'quickOpen':
         case 'openRecentItems':
         case 'clearRecentItems':
+        case 'addToFavorites':
+        case 'removeFromFavorites':
+        case 'openFavorites':
+        case 'addBookmark':
+        case 'openBookmarks':
+        case 'clearBookmarks':
         case 'searchCurrentReport':
         case 'searchCurrentProjectWorkspace':
         case 'searchAllProjects':

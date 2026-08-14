@@ -148,6 +148,27 @@ Recent items persist under `appState.universalSearch`:
 
 Related commands: `quickOpen`, `openRecentItems`, `clearRecentItems`. All three are registered in the Keyboard Shortcut Manager with no default assignment.
 
+## Favorites and Bookmarks
+
+Favorites and bookmarks are distinct concepts that share the Quick Open surface and the search navigation model.
+
+- A favorite references a resource (`favorites`).
+- A bookmark references a location within a resource (`bookmarks`).
+
+Both persist under `appState.universalSearch` and store the originating navigation payload, so activation reuses `executeUniversalSearchResult`. Renaming a resource does not invalidate them because payloads use stable identifiers rather than display names.
+
+`captureCurrentLocation(sourceElement)` builds a navigation payload for the user's current position. It prefers the element focused before a command surface opened, and resolves to one of:
+
+| Location | Payload type |
+| --- | --- |
+| Editor entry field | `finding` |
+| Builder field row | `report-field` |
+| Any active view | `panel` |
+
+Quick Open modes: `quick-open`, `recent`, `favorites`, `bookmarks`. Favorites receive a small ranking boost in Quick Open search results and are labeled as favorites, but ranking never overrides a stronger match.
+
+Related commands: `addToFavorites`, `removeFromFavorites`, `openFavorites`, `addBookmark`, `openBookmarks`, `clearBookmarks`. All are registered with no default shortcut.
+
 ## Settings
 
 Application Settings includes a `Search` section with:

@@ -1,5 +1,21 @@
 // quickOpenFramework.js
-import { announce, getRecentItems, recordRecentItem, clearRecentItems, removeRecentItem, appState } from './state.js';
+import {
+    announce,
+    getRecentItems,
+    recordRecentItem,
+    clearRecentItems,
+    removeRecentItem,
+    getFavoriteItems,
+    isFavoriteResource,
+    addFavoriteItem,
+    removeFavoriteItem,
+    getBookmarks,
+    addBookmark,
+    updateBookmark,
+    removeBookmark,
+    clearBookmarks,
+    appState
+} from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import {
     executeUniversalSearchResult,
@@ -87,6 +103,8 @@ function ensureQuickOpenElements() {
             <div id="quick-open-results" role="listbox" aria-label="Quick Open results"></div>
             <button id="btn-quick-open-broaden" type="button" hidden>Search all ART content instead</button>
             <div class="viewer-dialog-actions" role="group" aria-label="Quick Open actions">
+                <button id="btn-quick-open-favorite" type="button">Add To Favorites</button>
+                <button id="btn-quick-open-rename" type="button" hidden>Rename Bookmark</button>
                 <button id="btn-quick-open-remove-recent" type="button">Remove From Recent</button>
                 <button id="btn-quick-open-clear-recent" type="button">Clear Recent Items</button>
             </div>
@@ -102,6 +120,8 @@ function ensureQuickOpenElements() {
     const closeButton = document.getElementById('btn-quick-open-close');
     const clearRecentButton = document.getElementById('btn-quick-open-clear-recent');
     const removeRecentButton = document.getElementById('btn-quick-open-remove-recent');
+    const favoriteButton = document.getElementById('btn-quick-open-favorite');
+    const renameButton = document.getElementById('btn-quick-open-rename');
 
     if (!(input instanceof HTMLInputElement) || !(results instanceof HTMLElement)) return null;
 
@@ -121,6 +141,7 @@ function ensureQuickOpenElements() {
         onActivate: (item) => activateQuickOpenItem(item),
         onSelectionChange: () => {
             input.setAttribute('aria-activedescendant', controller.getActiveOptionId() || '');
+            syncFavoriteButton();
         }
     });
 
@@ -134,6 +155,8 @@ function ensureQuickOpenElements() {
         closeButton,
         clearRecentButton,
         removeRecentButton,
+        favoriteButton,
+        renameButton,
         controller,
         lastTrigger: null,
         scope: 'auto',
@@ -197,6 +220,19 @@ function ensureQuickOpenElements() {
 
         removeRecentButton?.addEventListener('click', () => {
             const active = controller.getActiveResult();
+            if (quickOpenState?.mode === 'bookmarks') {
+                const bookmarkId = active?.bookmark?.id;
+                if (!bookmarkId) {
+                    announce('Select a bookmark to remove.');
+                    return;
+                }
+                removeBookmark(bookmarkId, { persist: true });
+                announce(`Removed bookmark ${active.title}.`);
+                refreshQuickOpenResults();
+                quickOpenState?.input?.focus();
+                return;
+            }
+
             const recentId = active?.recentItemId;
             if (!recentId) {
                 announce('Select a recent item to remove.');
@@ -207,9 +243,89 @@ function ensureQuickOpenElements() {
             refreshQuickOpenResults();
             quickOpenState?.input?.focus();
         });
+
+        favoriteButton?.addEventListener('click', () => {
+            toggleFavoriteForActiveResult();
+        });
+
+        renameButton?.addEventListener('click', () => {
+            const active = controller.getActiveResult();
+            const bookmark = active?.bookmark;
+            if (!bookmark) {
+                announce('Select a bookmark to rename.');
+                return;
+            }
+            const nextName = normalizeText(window.prompt('Bookmark name:', bookmark.name));
+            if (!nextName) return;
+            updateBookmark(bookmark.id, { name: nextName }, { persist: true });
+            announce(`Renamed bookmark to ${nextName}.`);
+            refreshQuickOpenResults();
+            quickOpenState?.input?.focus();
+        });
     }
 
     return quickOpenState;
+}
+
+function getActiveResultIdentity() {
+    const state = quickOpenState;
+    const active = state?.controller.getActiveResult();
+    if (!active) return null;
+
+    const payload = active.result || active.recentItem?.payload || active.favorite?.payload || active.bookmark?.payload || null;
+    const resultId = active.result?.id || active.recentItem?.resultId || active.favorite?.resultId || '';
+    const resourceType = active.result?.type || active.recentItem?.resourceType || active.favorite?.resourceType || '';
+
+    return {
+        active,
+        payload,
+        resultId: String(resultId || ''),
+        resourceType: String(resourceType || ''),
+        title: String(active.title || ''),
+        subtitle: String(active.subtitle || '')
+    };
+}
+
+function syncFavoriteButton() {
+    const state = quickOpenState;
+    if (!state?.favoriteButton) return;
+
+    const identity = getActiveResultIdentity();
+    const isBookmarkMode = state.mode === 'bookmarks';
+    state.favoriteButton.hidden = isBookmarkMode;
+    if (isBookmarkMode) return;
+
+    const favorited = Boolean(identity?.resultId) && isFavoriteResource(identity.resultId);
+    const label = favorited ? 'Remove From Favorites' : 'Add To Favorites';
+    if (state.favoriteButton.textContent !== label) state.favoriteButton.textContent = label;
+    state.favoriteButton.disabled = !identity?.resultId;
+}
+
+function toggleFavoriteForActiveResult() {
+    const identity = getActiveResultIdentity();
+    if (!identity?.resultId) {
+        announce('Select a resource to add to favorites.');
+        return false;
+    }
+
+    if (isFavoriteResource(identity.resultId)) {
+        removeFavoriteItem(identity.resultId, { persist: true });
+        announce(`Removed ${identity.title} from favorites.`);
+    } else {
+        addFavoriteItem({
+            resultId: identity.resultId,
+            resourceType: identity.resourceType,
+            title: identity.title,
+            subtitle: identity.subtitle,
+            context: identity.active?.result?.providerName || identity.active?.recentItem?.context || '',
+            payload: identity.payload
+        }, { persist: true });
+        announce(`Added ${identity.title} to favorites.`);
+    }
+
+    refreshQuickOpenResults();
+    quickOpenState?.input?.focus();
+    return true;
 }
 
 function syncQuickOpenScopeOptions() {
@@ -243,11 +359,55 @@ function buildRecentItemResults() {
     }));
 }
 
+function buildFavoriteResults() {
+    return getFavoriteItems().map((item) => ({
+        id: `favorite:${item.id}`,
+        title: item.title,
+        subtitle: `${getResourceTypeLabel(item.resourceType)}${item.context ? ` | ${item.context}` : ''}`,
+        description: 'Favorite',
+        favorite: item,
+        resultId: item.resultId
+    }));
+}
+
+function buildBookmarkResults() {
+    return getBookmarks().map((item) => ({
+        id: `bookmark:${item.id}`,
+        title: item.name,
+        subtitle: item.context || getResourceTypeLabel(item.targetType),
+        description: item.description || 'Bookmarked location',
+        bookmark: item
+    }));
+}
+
+function filterListItems(items, query) {
+    const normalized = query.toLowerCase();
+    if (!normalized) return items;
+    return items.filter((item) => `${item.title} ${item.subtitle} ${item.description}`.toLowerCase().includes(normalized));
+}
+
 function refreshQuickOpenResults() {
     const state = quickOpenState;
     if (!state) return null;
 
     const query = normalizeText(state.input.value);
+
+    if (state.mode === 'favorites' || state.mode === 'bookmarks') {
+        const all = state.mode === 'favorites' ? buildFavoriteResults() : buildBookmarkResults();
+        const items = filterListItems(all, query);
+        state.controller.setResults(items);
+        state.input.setAttribute('aria-activedescendant', state.controller.getActiveOptionId() || '');
+        if (state.broadenButton) state.broadenButton.hidden = true;
+        const noun = state.mode === 'favorites' ? 'favorite' : 'bookmark';
+        if (state.status) {
+            state.status.textContent = items.length > 0
+                ? `${items.length} ${noun}${items.length === 1 ? '' : 's'}.`
+                : (all.length === 0 ? `No ${noun}s yet.` : `No ${noun}s match your filter.`);
+        }
+        syncFavoriteButton();
+        return null;
+    }
+
     const showRecent = !query;
 
     if (showRecent) {
@@ -261,6 +421,7 @@ function refreshQuickOpenResults() {
                 : 'No recent items yet. Type to search resources.';
         }
         state.announcedSuggestions = false;
+        syncFavoriteButton();
         return null;
     }
 
@@ -279,10 +440,18 @@ function refreshQuickOpenResults() {
         return null;
     }
 
-    const items = output.results.map((item) => ({
+    const favoriteIds = new Set(getFavoriteItems().map((item) => item.resultId).filter(Boolean));
+    // Favorites get a modest boost but never displace a stronger match.
+    const ranked = [...output.results].sort((left, right) => {
+        const leftScore = Number(left.score || 0) - (favoriteIds.has(left.id) ? 0.25 : 0);
+        const rightScore = Number(right.score || 0) - (favoriteIds.has(right.id) ? 0.25 : 0);
+        return leftScore - rightScore;
+    });
+
+    const items = ranked.map((item) => ({
         id: item.id,
         title: item.title,
-        subtitle: normalizeText(item.subtitle) || getResourceTypeLabel(item.type),
+        subtitle: `${normalizeText(item.subtitle) || getResourceTypeLabel(item.type)}${favoriteIds.has(item.id) ? ' | Favorite' : ''}`,
         description: item.description,
         disabled: item.disabled,
         result: item
@@ -290,6 +459,7 @@ function refreshQuickOpenResults() {
 
     state.controller.setResults(items);
     state.input.setAttribute('aria-activedescendant', state.controller.getActiveOptionId() || '');
+    syncFavoriteButton();
 
     const scopeLabel = getUniversalSearchScopeLabel(output.scope);
     const canBroaden = items.length === 0 && output.scope !== 'workspace';
@@ -318,27 +488,56 @@ function activateQuickOpenItem(item) {
 
     const state = quickOpenState;
     const recentItem = item.recentItem || null;
+    const favorite = item.favorite || null;
+    const bookmark = item.bookmark || null;
     const searchResult = item.result || null;
 
     closeQuickOpen(false);
 
-    if (recentItem) {
-        // Recent entries store their original result payload so navigation targets stay stable.
-        const payload = recentItem.payload || null;
+    const openStoredTarget = (stored, label, unavailableMessage) => {
+        const payload = stored?.payload || null;
         const opened = payload ? executeUniversalSearchResult(payload) : false;
         if (!opened) {
-            announce(`${recentItem.title} is no longer available. Remove it from recent items or search for it again.`);
+            announce(unavailableMessage);
             if (state?.lastTrigger?.focus) state.lastTrigger.focus();
             return false;
         }
         recordRecentItem({
-            resultId: recentItem.resultId,
-            resourceType: recentItem.resourceType,
-            title: recentItem.title,
-            subtitle: recentItem.subtitle,
-            context: recentItem.context,
+            resultId: stored.resultId || payload.id || '',
+            resourceType: stored.resourceType || payload.type || '',
+            title: label,
+            subtitle: stored.subtitle || '',
+            context: stored.context || '',
             payload
         }, { persist: true });
+        return true;
+    };
+
+    if (recentItem) {
+        return openStoredTarget(
+            recentItem,
+            recentItem.title,
+            `${recentItem.title} is no longer available. Remove it from recent items or search for it again.`
+        );
+    }
+
+    if (favorite) {
+        return openStoredTarget(
+            favorite,
+            favorite.title,
+            `${favorite.title} is no longer available. Remove it from favorites or search for it again.`
+        );
+    }
+
+    if (bookmark) {
+        const payload = bookmark.payload || null;
+        const opened = payload ? executeUniversalSearchResult(payload) : false;
+        if (!opened) {
+            announce(`The bookmarked location ${bookmark.name} is no longer available. Remove the bookmark or create a new one.`);
+            if (state?.lastTrigger?.focus) state.lastTrigger.focus();
+            return false;
+        }
+        announce(`Opened bookmark ${bookmark.name}.`);
         return true;
     }
 
@@ -385,13 +584,33 @@ export function openQuickOpen(trigger = null, options = {}) {
     if (!state) return false;
 
     if (trigger) state.lastTrigger = trigger;
-    state.mode = options.mode === 'recent' ? 'recent' : 'quick-open';
+    const requestedMode = normalizeText(options.mode);
+    state.mode = ['recent', 'favorites', 'bookmarks'].includes(requestedMode) ? requestedMode : 'quick-open';
     state.scope = normalizeText(options.scope) || 'auto';
     state.announcedSuggestions = false;
     syncQuickOpenScopeOptions();
 
     const heading = document.getElementById('quick-open-heading');
-    if (heading) heading.textContent = state.mode === 'recent' ? 'Recent Items' : 'Quick Open';
+    if (heading) {
+        heading.textContent = state.mode === 'recent'
+            ? 'Recent Items'
+            : state.mode === 'favorites'
+                ? 'Favorites'
+                : state.mode === 'bookmarks'
+                    ? 'Bookmarks'
+                    : 'Quick Open';
+    }
+
+    const listMode = state.mode === 'favorites' || state.mode === 'bookmarks';
+    if (state.scopeSelect) state.scopeSelect.hidden = listMode;
+    const scopeLabelElement = document.querySelector('label[for="quick-open-scope"]');
+    if (scopeLabelElement) scopeLabelElement.hidden = listMode;
+    if (state.removeRecentButton) {
+        state.removeRecentButton.hidden = state.mode === 'favorites';
+        state.removeRecentButton.textContent = state.mode === 'bookmarks' ? 'Remove Bookmark' : 'Remove From Recent';
+    }
+    if (state.renameButton) state.renameButton.hidden = state.mode !== 'bookmarks';
+    if (state.clearRecentButton) state.clearRecentButton.hidden = state.mode !== 'recent' && state.mode !== 'quick-open';
 
     state.dialog.hidden = false;
     state.input.value = normalizeText(options.query);
@@ -401,12 +620,156 @@ export function openQuickOpen(trigger = null, options = {}) {
 
     announce(state.mode === 'recent'
         ? 'Recent Items opened.'
-        : `Quick Open opened. Scope: ${getUniversalSearchScopeLabel(state.scope)}.`);
+        : state.mode === 'favorites'
+            ? 'Favorites opened.'
+            : state.mode === 'bookmarks'
+                ? 'Bookmarks opened.'
+                : `Quick Open opened. Scope: ${getUniversalSearchScopeLabel(state.scope)}.`);
     return true;
 }
 
 export function openRecentItemsDialog(trigger = null) {
     return openQuickOpen(trigger, { mode: 'recent' });
+}
+
+export function openFavoritesDialog(trigger = null) {
+    return openQuickOpen(trigger, { mode: 'favorites' });
+}
+
+export function openBookmarksDialog(trigger = null) {
+    return openQuickOpen(trigger, { mode: 'bookmarks' });
+}
+
+function getActivePanelDescriptor() {
+    const tabs = [
+        ['tab-builder', 'builder-heading', 'Report Builder'],
+        ['tab-editor', 'editor-heading', 'Report Editor'],
+        ['tab-view', 'viewer-heading', 'Report Viewer'],
+        ['tab-welcome', 'welcome-heading', 'Welcome']
+    ];
+    const selected = tabs.find(([tabId]) => document.getElementById(tabId)?.getAttribute('aria-selected') === 'true');
+    const [tabId, headingId, label] = selected || tabs[0];
+    return { tabId, headingId, label };
+}
+
+// Bookmarks reuse search navigation payloads so a location resolves the same way a search result does.
+export function captureCurrentLocation(sourceElement = null) {
+    const panel = getActivePanelDescriptor();
+    const reportName = normalizeText(appState.reportTitle) || 'Current Report';
+
+    // Prefer the element focused before a command surface opened, since dialogs take focus.
+    const candidate = sourceElement instanceof HTMLElement ? sourceElement : document.activeElement;
+    const active = candidate instanceof HTMLElement
+        && !candidate.closest('#command-palette-dialog, #quick-open-dialog, #search-everywhere-dialog, #menu-bar')
+        ? candidate
+        : null;
+
+    const entryIndex = Number(active?.dataset?.entryIndex);
+    const fieldIndex = Number(active?.dataset?.fieldIndex);
+    if (Number.isInteger(entryIndex) && Number.isInteger(fieldIndex)) {
+        const fields = Array.isArray(appState.fields) ? appState.fields : [];
+        const fieldLabel = normalizeText(fields[fieldIndex]?.label) || `Field ${fieldIndex + 1}`;
+        return {
+            name: `${fieldLabel} — Finding ${entryIndex + 1} — ${reportName}`,
+            targetType: 'finding',
+            context: `${panel.label} | ${reportName}`,
+            payload: {
+                id: `finding:${entryIndex}:${fieldIndex}`,
+                type: 'finding',
+                title: fieldLabel,
+                raw: { entryIndex, fieldIndex, fieldLabel }
+            }
+        };
+    }
+
+    const builderFieldIndex = Number(active?.dataset?.fieldIndex);
+    if (panel.tabId === 'tab-builder' && Number.isInteger(builderFieldIndex)) {
+        const fields = Array.isArray(appState.fields) ? appState.fields : [];
+        const fieldLabel = normalizeText(fields[builderFieldIndex]?.label) || `Field ${builderFieldIndex + 1}`;
+        return {
+            name: `${fieldLabel} — Field Configuration — ${reportName}`,
+            targetType: 'report-field',
+            context: `${panel.label} | ${reportName}`,
+            payload: {
+                id: `report-field:${builderFieldIndex}`,
+                type: 'report-field',
+                title: fieldLabel,
+                raw: { fieldIndex: builderFieldIndex }
+            }
+        };
+    }
+
+    return {
+        name: `${panel.label}${reportName && panel.tabId !== 'tab-welcome' ? ` — ${reportName}` : ''}`,
+        targetType: 'panel',
+        context: panel.label,
+        payload: {
+            id: `panel:${panel.tabId}`,
+            type: 'panel',
+            title: panel.label,
+            raw: { tabId: panel.tabId, headingId: panel.headingId }
+        }
+    };
+}
+
+export function addBookmarkForCurrentLocation(options = {}) {
+    const location = captureCurrentLocation(options.sourceElement);
+    if (!location?.payload) {
+        announce('This location cannot be bookmarked.');
+        return false;
+    }
+
+    // The generated name is meaningful on its own; renaming stays available in the Bookmarks list.
+    const name = normalizeText(options.name) || location.name;
+    if (!name) return false;
+
+    const added = addBookmark({
+        name,
+        description: normalizeText(options.description),
+        targetType: location.targetType,
+        context: location.context,
+        workspaceId: String(appState.activeWorkspaceId || ''),
+        reportId: String(appState.selectedReportId || ''),
+        payload: location.payload
+    }, { persist: true });
+
+    if (!added) return false;
+    announce(`Bookmarked ${name}.`);
+    return true;
+}
+
+export function addActiveResourceToFavorites(options = {}) {
+    const location = captureCurrentLocation(options.sourceElement);
+    if (!location?.payload) return false;
+
+    if (isFavoriteResource(location.payload.id)) {
+        announce(`${location.payload.title} is already in favorites.`);
+        return false;
+    }
+
+    addFavoriteItem({
+        resultId: location.payload.id,
+        resourceType: location.payload.type,
+        title: location.payload.title || location.name,
+        subtitle: location.context,
+        context: location.context,
+        payload: location.payload
+    }, { persist: true });
+    announce(`Added ${location.payload.title || location.name} to favorites.`);
+    return true;
+}
+
+export function removeActiveResourceFromFavorites(options = {}) {
+    const location = captureCurrentLocation(options.sourceElement);
+    if (!location?.payload) return false;
+
+    const removed = removeFavoriteItem(location.payload.id, { persist: true });
+    if (!removed) {
+        announce('This resource is not in favorites.');
+        return false;
+    }
+    announce(`Removed ${location.payload.title || location.name} from favorites.`);
+    return true;
 }
 
 export function closeQuickOpen(restoreFocus = true) {
@@ -428,5 +791,11 @@ export function closeQuickOpen(restoreFocus = true) {
 export function clearRecentItemsFromCommand() {
     clearRecentItems({ persist: true });
     announce('Recent items cleared.');
+    return true;
+}
+
+export function clearBookmarksFromCommand() {
+    clearBookmarks({ persist: true });
+    announce('Bookmarks cleared.');
     return true;
 }
