@@ -9,9 +9,43 @@ export const METRIC_AVAILABILITY = {
 };
 
 const metricDefinitions = new Map();
+const runtimeCache = {
+    index: null,
+    metrics: new Map(),
+    hits: 0,
+    misses: 0
+};
 
 function normalizeText(value) {
     return String(value ?? '').trim();
+}
+
+function getReportsSignature(reports) {
+    return (Array.isArray(reports) ? reports : [])
+        .map((report) => `${normalizeText(report?.id)}:${Number(report?.updatedAt || 0)}`)
+        .sort()
+        .join('|');
+}
+
+function getScopeSignature(scope) {
+    const source = scope && typeof scope === 'object' ? scope : {};
+    return JSON.stringify({
+        organization: normalizeText(source.organization),
+        product: normalizeText(source.product),
+        project: normalizeText(source.project),
+        workspaceId: normalizeText(source.workspaceId),
+        dateFrom: source.dateFrom instanceof Date ? source.dateFrom.toISOString() : normalizeText(source.dateFrom),
+        dateTo: source.dateTo instanceof Date ? source.dateTo.toISOString() : normalizeText(source.dateTo)
+    });
+}
+
+export function clearOrganizationMetricsCache() {
+    runtimeCache.index = null;
+    runtimeCache.metrics.clear();
+}
+
+export function getOrganizationMetricsCacheStats() {
+    return { hits: runtimeCache.hits, misses: runtimeCache.misses, metricEntries: runtimeCache.metrics.size };
 }
 
 // Organization identity is kept separate from its display name so a future canonical
@@ -134,7 +168,15 @@ function buildFindingRecords(report) {
  */
 export function buildOrganizationIndex(options = {}) {
     const authorize = typeof options.authorize === 'function' ? options.authorize : () => true;
-    const reports = (Array.isArray(options.reports) ? options.reports : getRecentReports()).filter(authorize);
+    const sourceReports = Array.isArray(options.reports) ? options.reports : getRecentReports();
+    const reportsSignature = getReportsSignature(sourceReports);
+
+    if (!options.reports && !options.authorize && runtimeCache.index?.signature === reportsSignature) {
+        runtimeCache.hits += 1;
+        return runtimeCache.index.value;
+    }
+
+    const reports = sourceReports.filter(authorize);
 
     const organizations = new Map();
     const unassignedReports = [];
@@ -180,7 +222,8 @@ export function buildOrganizationIndex(options = {}) {
         organization.reports.push(record);
     });
 
-    return {
+    const index = {
+        signature: reportsSignature,
         organizations: [...organizations.values()].map((organization) => ({
             ...organization,
             displayNameVariants: [...organization.displayNameVariants]
@@ -188,6 +231,11 @@ export function buildOrganizationIndex(options = {}) {
         unassignedReports,
         totalReports: reports.length
     };
+
+    if (!options.reports && !options.authorize) {
+        runtimeCache.index = { signature: reportsSignature, value: index };
+    }
+    return index;
 }
 
 export function getOrganizationSummaries(options = {}) {
@@ -620,6 +668,15 @@ export function calculateOrganizationMetrics(scope = {}, options = {}) {
     const requestedIds = Array.isArray(options.metricIds) && options.metricIds.length > 0
         ? options.metricIds
         : [...metricDefinitions.keys()];
+    const canCache = !options.authorize && Boolean(index.signature);
+    const cacheKey = canCache
+        ? `${index.signature}|${getScopeSignature(scope)}|${requestedIds.map(normalizeText).sort().join(',')}`
+        : '';
+    if (cacheKey && runtimeCache.metrics.has(cacheKey)) {
+        runtimeCache.hits += 1;
+        return runtimeCache.metrics.get(cacheKey);
+    }
+    runtimeCache.misses += 1;
 
     const context = { reports, organization, scope, index };
     const metrics = {};
@@ -634,7 +691,7 @@ export function calculateOrganizationMetrics(scope = {}, options = {}) {
         }
     });
 
-    return {
+    const result = {
         scope: {
             organization: organization?.displayName || '',
             product: normalizeText(scope.product),
@@ -652,10 +709,18 @@ export function calculateOrganizationMetrics(scope = {}, options = {}) {
                 : []
         }
     };
+
+    if (cacheKey) runtimeCache.metrics.set(cacheKey, result);
+    return result;
 }
 
 export function initializeOrganizationMetricsFramework() {
     registerBuiltInMetrics();
+    if (typeof window !== 'undefined' && !window.__artOrganizationMetricsCacheBound) {
+        window.__artOrganizationMetricsCacheBound = true;
+        window.addEventListener('art-state-updated', clearOrganizationMetricsCache);
+        window.addEventListener('art-state-restored', clearOrganizationMetricsCache);
+    }
     return true;
 }
 
