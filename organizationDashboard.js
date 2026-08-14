@@ -42,6 +42,89 @@ function normalizeText(value) {
     return String(value ?? '').trim();
 }
 
+function getOrganizationSavedViews() {
+    try {
+        const stored = JSON.parse(localStorage.getItem('art-organization-statistics-views-v1') || '[]');
+        return Array.isArray(stored)
+            ? stored.filter((view) => view && typeof view === 'object' && normalizeText(view.name) && view.config && typeof view.config === 'object')
+                .sort((left, right) => normalizeText(left.name).localeCompare(normalizeText(right.name)))
+            : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveOrganizationView(name, config) {
+    const views = getOrganizationSavedViews();
+    if (views.some((view) => normalizeText(view.name).toLowerCase() === name.toLowerCase())) {
+        return { ok: false, message: `Saved view ${name} already exists.` };
+    }
+    const view = {
+        id: `organization-view-${Date.now()}`,
+        name,
+        config,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem('art-organization-statistics-views-v1', JSON.stringify([...views, view]));
+    return { ok: true, view };
+}
+
+function buildOrganizationViewConfig(dialog) {
+    const config = getOrganizationMetricsConfig();
+    return {
+        organization: readFilterValue(dialog, '#organization-select'),
+        product: readFilterValue(dialog, '#organization-product-filter'),
+        project: readFilterValue(dialog, '#organization-project-filter'),
+        workspaceId: readFilterValue(dialog, '#organization-workspace-filter'),
+        dateRange: readFilterValue(dialog, '#organization-date-filter') || config.defaultDateRange,
+        activeTab: config.activeTab,
+        showProductAnalytics: config.showProductAnalytics,
+        showTesterAnalytics: config.showTesterAnalytics,
+        showRecurrenceAnalytics: config.showRecurrenceAnalytics,
+        showAccessibilityHealth: config.showAccessibilityHealth,
+        showBenchmarking: config.showBenchmarking
+    };
+}
+
+function buildOrganizationExportPayload(dialog) {
+    const config = buildOrganizationViewConfig(dialog);
+    const index = buildOrganizationIndex();
+    const result = calculateOrganizationMetrics({
+        organization: config.organization,
+        product: config.product,
+        project: config.project,
+        workspaceId: config.workspaceId,
+        ...resolveDateRange(config.dateRange)
+    }, { index });
+
+    return {
+        artOrganizationStatisticsVersion: '1.0',
+        exportedAt: new Date().toISOString(),
+        scope: config,
+        reportCount: result.reportCount,
+        metrics: result.metrics,
+        dataQuality: result.dataQuality,
+        note: 'Statistics describe recorded report data. They are not a compliance score or certification.'
+    };
+}
+
+function downloadOrganizationExport(dialog) {
+    const payload = buildOrganizationExportPayload(dialog);
+    const organization = normalizeText(payload.scope.organization).toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'organization';
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `art-organization-statistics-${organization}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    announce('Organization Statistics exported.');
+    return payload;
+}
+
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -372,11 +455,27 @@ function renderDialog() {
             ? `Organization: ${selected.displayName}. ${result.reportCount} report${result.reportCount === 1 ? '' : 's'} included after filters. Statistics reflect reports available to you.`
             : 'No reports contain an Organization/Client value, so organization statistics cannot be calculated yet.';
     }
+
+    const savedViewSelect = state.dialog.querySelector('#organization-saved-view-select');
+    if (savedViewSelect instanceof HTMLSelectElement) {
+        const savedViews = getOrganizationSavedViews();
+        const previous = savedViewSelect.value;
+        savedViewSelect.innerHTML = '<option value="">Choose a saved view</option>'
+            + savedViews.map((view) => `<option value="${escapeHtml(view.id)}">${escapeHtml(view.name)}</option>`).join('');
+        savedViewSelect.value = savedViews.some((view) => view.id === previous) ? previous : '';
+    }
 }
 
 function readFilterValue(dialog, selector) {
     const element = dialog.querySelector(selector);
     return element instanceof HTMLSelectElement ? normalizeText(element.value) : '';
+}
+
+function setFilterValue(dialog, selector, value) {
+    const element = dialog.querySelector(selector);
+    if (element instanceof HTMLSelectElement && [...element.options].some((option) => option.value === normalizeText(value))) {
+        element.value = normalizeText(value);
+    }
 }
 
 function syncScopeFilters(dialog, scopeOptions, config) {
@@ -463,6 +562,15 @@ function ensureDialog() {
                 <select id="organization-date-filter"></select>
             </div>
             <p id="organization-scope-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div class="organization-view-actions" role="group" aria-label="Organization Statistics view actions">
+                <label for="organization-view-name">View name</label>
+                <input id="organization-view-name" type="text" value="Organization Statistics View" maxlength="100">
+                <button id="btn-organization-save-view" type="button">Save View</button>
+                <label for="organization-saved-view-select">Saved view</label>
+                <select id="organization-saved-view-select"><option value="">Choose a saved view</option></select>
+                <button id="btn-organization-load-view" type="button">Load View</button>
+                <button id="btn-organization-export" type="button">Export JSON</button>
+            </div>
             <div id="organization-tablist" role="tablist" aria-label="Organization statistics sections"></div>
             <div id="organization-panels"></div>
         `;
@@ -475,6 +583,46 @@ function ensureDialog() {
         dialog.dataset.organizationBound = 'true';
 
         dialog.querySelector('#btn-organization-statistics-close')?.addEventListener('click', () => closeOrganizationStatistics(true));
+        dialog.querySelector('#btn-organization-export')?.addEventListener('click', () => downloadOrganizationExport(dialog));
+
+        dialog.querySelector('#btn-organization-save-view')?.addEventListener('click', () => {
+            const nameInput = dialog.querySelector('#organization-view-name');
+            const name = normalizeText(nameInput?.value) || 'Organization Statistics View';
+            const result = saveOrganizationView(name, buildOrganizationViewConfig(dialog));
+            if (!result.ok) {
+                announce(result.message || 'The Organization Statistics view could not be saved.');
+                return;
+            }
+            renderDialog();
+            announce(`Saved view ${name}.`);
+        });
+
+        dialog.querySelector('#btn-organization-load-view')?.addEventListener('click', () => {
+            const select = dialog.querySelector('#organization-saved-view-select');
+            const savedView = getOrganizationSavedViews().find((view) => view.id === select?.value);
+            if (!savedView?.config) {
+                announce('Choose a saved Organization Statistics view first.');
+                return;
+            }
+            const view = savedView.config;
+            updateOrganizationMetricsConfig({
+                selectedOrganization: view.organization || '',
+                activeTab: view.activeTab || 'overview',
+                showProductAnalytics: view.showProductAnalytics !== false,
+                showTesterAnalytics: view.showTesterAnalytics !== false,
+                showRecurrenceAnalytics: view.showRecurrenceAnalytics !== false,
+                showAccessibilityHealth: view.showAccessibilityHealth !== false,
+                showBenchmarking: view.showBenchmarking !== false,
+                defaultDateRange: view.dateRange || 'all'
+            }, { persist: true });
+            renderDialog();
+            setFilterValue(dialog, '#organization-product-filter', view.product);
+            setFilterValue(dialog, '#organization-project-filter', view.project);
+            setFilterValue(dialog, '#organization-workspace-filter', view.workspaceId);
+            setFilterValue(dialog, '#organization-date-filter', view.dateRange || 'all');
+            renderDialog();
+            announce(`Loaded view ${savedView.name}.`);
+        });
 
         dialog.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
@@ -533,6 +681,35 @@ export function openOrganizationStatistics(trigger = null, options = {}) {
     focusTarget();
 
     announce('Organization Statistics opened.');
+    return true;
+}
+
+export function exportOrganizationStatisticsFromCommand(context = {}) {
+    const state = ensureDialog();
+    if (!state) return false;
+    if (context.triggerElement) state.lastTrigger = context.triggerElement;
+    state.dialog.hidden = false;
+    renderDialog();
+    downloadOrganizationExport(state.dialog);
+    return true;
+}
+
+export function saveOrganizationStatisticsViewFromCommand() {
+    const state = ensureDialog();
+    if (!state) return false;
+    const name = `Organization Statistics ${new Date().toISOString().slice(0, 10)}`;
+    const result = saveOrganizationView(name, buildOrganizationViewConfig(state.dialog));
+    announce(result.ok ? `Saved view ${name}.` : (result.message || 'The Organization Statistics view could not be saved.'));
+    renderDialog();
+    return result.ok;
+}
+
+export function openOrganizationSavedViewsFromCommand(trigger = null) {
+    const opened = openOrganizationStatistics(trigger);
+    if (!opened) return false;
+    const state = ensureDialog();
+    state.dialog.querySelector('#organization-saved-view-select')?.focus();
+    announce('Saved Organization Statistics views are available.');
     return true;
 }
 

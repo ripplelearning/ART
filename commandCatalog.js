@@ -119,7 +119,10 @@ import {
 } from './universalSearchFramework.js';
 import {
     closeOrganizationStatistics,
-    openOrganizationStatistics
+    exportOrganizationStatisticsFromCommand,
+    openOrganizationSavedViewsFromCommand,
+    openOrganizationStatistics,
+    saveOrganizationStatisticsViewFromCommand
 } from './organizationDashboard.js';
 import {
     canNavigateBack,
@@ -326,6 +329,9 @@ function getDefaultMenuLocation(action, category) {
         case 'openOrganizationTrends':
         case 'openOrganizationRecurrence':
         case 'openOrganizationComparison':
+        case 'openOrganizationSavedViews':
+        case 'saveOrganizationStatisticsView':
+        case 'exportOrganizationStatistics':
         case 'openOrganizationDataQuality': return 'Organization>Statistics';
         case 'toggleOrganizationDashboardSection': return 'Organization';
         case 'searchEverywhere':
@@ -1723,6 +1729,36 @@ const BASE_COMMAND_DEFINITIONS = [
         unavailableReason: 'Enable Organization Statistics in Application Settings first.',
         aliases: ['organization metrics', 'org stats'],
         handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null)
+    },
+    {
+        action: 'openOrganizationSavedViews',
+        id: 'Organization.OpenSavedViews',
+        category: 'Organization',
+        description: 'Open saved Organization Statistics views.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => openOrganizationSavedViewsFromCommand(context.triggerElement || document.activeElement || null)
+    },
+    {
+        action: 'saveOrganizationStatisticsView',
+        id: 'Organization.SaveView',
+        category: 'Organization',
+        description: 'Save the current Organization Statistics scope and tab.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: () => saveOrganizationStatisticsViewFromCommand()
+    },
+    {
+        action: 'exportOrganizationStatistics',
+        id: 'Organization.ExportStatistics',
+        category: 'Organization',
+        description: 'Export the current Organization Statistics as JSON.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => exportOrganizationStatisticsFromCommand(context)
     },
     {
         action: 'openOrganizationOverview',
