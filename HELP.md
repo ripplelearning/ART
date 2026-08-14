@@ -357,6 +357,8 @@ The Data Quality tab includes a report-by-report list of missing Organization/Cl
 
 Organization Statistics views can be saved and loaded without modifying report data. A saved view records the selected organization, filters, date range, active tab, and optional section settings. Use Export JSON for a complete structured result or Export CSV for a spreadsheet-friendly metric table. The exports include availability and explanatory reasons where a metric is unavailable or not applicable.
 
+Use Record Snapshot when you want to preserve the current scope for later comparison. Snapshots are explicit, local records and appear in the Trends tab for the same organization and filters. ART does not create snapshots automatically, and snapshots do not rewrite report history.
+
 Organization Statistics describe the reports available to you and are not a complete picture of an organization's accessibility programme when reports or metadata are missing. Fewer findings does not automatically mean better accessibility, because it can also mean less testing. Organization Statistics are derived from reports and never modify them.
 
 ## Metadata Portability and Integrity

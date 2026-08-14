@@ -8,6 +8,8 @@ import {
     compareOrganizations,
     getOrganizationScopeOptions,
     getOrganizationSummaries,
+    getOrganizationMetricSnapshots,
+    recordOrganizationMetricSnapshot,
     resolveDateRange
 } from './organizationMetricsFramework.js';
 
@@ -84,6 +86,17 @@ function buildOrganizationViewConfig(dialog) {
         showRecurrenceAnalytics: config.showRecurrenceAnalytics,
         showAccessibilityHealth: config.showAccessibilityHealth,
         showBenchmarking: config.showBenchmarking
+    };
+}
+
+function buildOrganizationMetricsScope(dialog) {
+    const config = buildOrganizationViewConfig(dialog);
+    return {
+        organization: config.organization,
+        product: config.product,
+        project: config.project,
+        workspaceId: config.workspaceId,
+        ...resolveDateRange(config.dateRange)
     };
 }
 
@@ -216,11 +229,11 @@ function renderKeyValueSummary(metric, heading, rows, note = '') {
     return `<h4>${escapeHtml(heading)}</h4>${renderSummaryTable(summaryRows)}${note ? `<p>${escapeHtml(note)}</p>` : ''}`;
 }
 
-function renderTrend(metric) {
+function renderTrend(metric, snapshots = []) {
     const rendered = renderMetricValue(metric);
     const periods = metric?.value?.periods;
     if (!Array.isArray(periods)) {
-        return `<h4>Reporting Activity Over Time</h4><p>${escapeHtml(rendered.text)}${rendered.note ? ` ${escapeHtml(rendered.note)}` : ''}</p>`;
+        return `<h4>Reporting Activity Over Time</h4><p>${escapeHtml(rendered.text)}${rendered.note ? ` ${escapeHtml(rendered.note)}` : ''}</p>${renderSnapshotHistory(snapshots)}`;
     }
 
     const undated = Number(metric.value.reportsWithoutDate || 0);
@@ -234,6 +247,27 @@ function renderTrend(metric) {
             </tbody>
         </table>
         ${undated > 0 ? `<p>${undated} report${undated === 1 ? '' : 's'} have no usable date and are not shown in the trend.</p>` : ''}
+        ${renderSnapshotHistory(snapshots)}
+    `;
+}
+
+function renderSnapshotHistory(snapshots) {
+    if (!Array.isArray(snapshots) || snapshots.length === 0) {
+        return '<h4>Recorded Metric Snapshots</h4><p>No historical snapshots have been recorded for this scope.</p>';
+    }
+    return `
+        <h4>Recorded Metric Snapshots</h4>
+        <table class="organization-metrics-table">
+            <caption class="sr-only">Historical organization metric snapshots</caption>
+            <thead><tr><th scope="col">Recorded</th><th scope="col">Reports</th><th scope="col">Findings</th><th scope="col">Resolved</th></tr></thead>
+            <tbody>
+                ${snapshots.map((snapshot) => {
+                    const resolved = snapshot.remediationProgress?.value?.resolvedPercentage;
+                    return `<tr><th scope="row">${escapeHtml(new Date(snapshot.recordedAt).toLocaleString())}</th><td>${snapshot.reportCount}</td><td>${snapshot.totalFindings?.value ?? 'Not available'}</td><td>${resolved === undefined || resolved === null ? 'Not available' : `${resolved}%`}</td></tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+        <p>Snapshots are explicit records of this scope at the time they were captured; they do not rewrite report history.</p>
     `;
 }
 
@@ -353,7 +387,7 @@ function buildTabPanelContent(tabId, result) {
     }
 
     if (tabId === 'trends') {
-        return renderTrend(metrics.reportTrend);
+        return renderTrend(metrics.reportTrend, result.historicalSnapshots);
     }
 
     if (tabId === 'recurrence') {
@@ -471,6 +505,7 @@ function renderDialog() {
         ? calculateOrganizationMetrics(scope, { index })
         : { metrics: {}, dataQuality: { reportsWithoutOrganization: index.unassignedReports.length }, reportCount: 0 };
     result.comparison = compareOrganizations({ index });
+    result.historicalSnapshots = selected ? getOrganizationMetricSnapshots(scope) : [];
 
     const visibleTabs = getVisibleTabs(config);
     const activeTab = visibleTabs.some((tab) => tab.id === config.activeTab) ? config.activeTab : (visibleTabs[0]?.id || 'overview');
@@ -614,6 +649,7 @@ function ensureDialog() {
                 <label for="organization-saved-view-select">Saved view</label>
                 <select id="organization-saved-view-select"><option value="">Choose a saved view</option></select>
                 <button id="btn-organization-load-view" type="button">Load View</button>
+                <button id="btn-organization-record-snapshot" type="button">Record Snapshot</button>
                 <button id="btn-organization-export" type="button">Export JSON</button>
                 <button id="btn-organization-export-csv" type="button">Export CSV</button>
             </div>
@@ -631,6 +667,11 @@ function ensureDialog() {
         dialog.querySelector('#btn-organization-statistics-close')?.addEventListener('click', () => closeOrganizationStatistics(true));
         dialog.querySelector('#btn-organization-export')?.addEventListener('click', () => downloadOrganizationExport(dialog));
         dialog.querySelector('#btn-organization-export-csv')?.addEventListener('click', () => downloadOrganizationCsv(dialog));
+        dialog.querySelector('#btn-organization-record-snapshot')?.addEventListener('click', () => {
+            const snapshot = recordOrganizationMetricSnapshot(buildOrganizationMetricsScope(dialog));
+            renderDialog();
+            announce(`Metric snapshot recorded at ${new Date(snapshot.recordedAt).toLocaleString()}.`);
+        });
 
         dialog.querySelector('#btn-organization-save-view')?.addEventListener('click', () => {
             const nameInput = dialog.querySelector('#organization-view-name');
@@ -748,6 +789,18 @@ export function exportOrganizationStatisticsCsvFromCommand(context = {}) {
     state.dialog.hidden = false;
     renderDialog();
     downloadOrganizationCsv(state.dialog);
+    return true;
+}
+
+export function recordOrganizationStatisticsSnapshotFromCommand(context = {}) {
+    const state = ensureDialog();
+    if (!state) return false;
+    if (context.triggerElement) state.lastTrigger = context.triggerElement;
+    state.dialog.hidden = false;
+    renderDialog();
+    const snapshot = recordOrganizationMetricSnapshot(buildOrganizationMetricsScope(state.dialog));
+    renderDialog();
+    announce(`Metric snapshot recorded at ${new Date(snapshot.recordedAt).toLocaleString()}.`);
     return true;
 }
 

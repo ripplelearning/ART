@@ -15,6 +15,7 @@ const runtimeCache = {
     hits: 0,
     misses: 0
 };
+const HISTORICAL_SNAPSHOT_KEY = 'art-organization-metrics-snapshots-v1';
 
 function normalizeText(value) {
     return String(value ?? '').trim();
@@ -30,7 +31,7 @@ function getReportsSignature(reports) {
 function getScopeSignature(scope) {
     const source = scope && typeof scope === 'object' ? scope : {};
     return JSON.stringify({
-        organization: normalizeText(source.organization),
+        organization: getOrganizationKey(source.organization),
         product: normalizeText(source.product),
         project: normalizeText(source.project),
         workspaceId: normalizeText(source.workspaceId),
@@ -46,6 +47,44 @@ export function clearOrganizationMetricsCache() {
 
 export function getOrganizationMetricsCacheStats() {
     return { hits: runtimeCache.hits, misses: runtimeCache.misses, metricEntries: runtimeCache.metrics.size };
+}
+
+function readHistoricalSnapshots() {
+    try {
+        const stored = JSON.parse(localStorage.getItem(HISTORICAL_SNAPSHOT_KEY) || '[]');
+        return Array.isArray(stored) ? stored.filter((snapshot) => snapshot && typeof snapshot === 'object') : [];
+    } catch {
+        return [];
+    }
+}
+
+export function getOrganizationMetricSnapshots(scope = {}) {
+    const signature = getScopeSignature(scope);
+    return readHistoricalSnapshots()
+        .filter((snapshot) => snapshot.scopeSignature === signature)
+        .sort((left, right) => String(left.recordedAt).localeCompare(String(right.recordedAt)));
+}
+
+export function recordOrganizationMetricSnapshot(scope = {}, options = {}) {
+    const index = options.index || buildOrganizationIndex(options);
+    const result = calculateOrganizationMetrics(scope, { ...options, index });
+    const snapshot = {
+        id: `organization-snapshot-${Date.now()}`,
+        recordedAt: new Date().toISOString(),
+        scopeSignature: getScopeSignature(scope),
+        scope: result.scope,
+        reportCount: result.reportCount,
+        totalFindings: result.metrics.totalFindings || null,
+        remediationProgress: result.metrics.remediationProgress || null,
+        metadataCompleteness: result.metrics.metadataCompleteness || null
+    };
+    const snapshots = [...readHistoricalSnapshots(), snapshot].slice(-200);
+    localStorage.setItem(HISTORICAL_SNAPSHOT_KEY, JSON.stringify(snapshots));
+    return snapshot;
+}
+
+export function clearOrganizationMetricSnapshots() {
+    localStorage.removeItem(HISTORICAL_SNAPSHOT_KEY);
 }
 
 // Organization identity is kept separate from its display name so a future canonical

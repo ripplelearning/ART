@@ -123,6 +123,7 @@ import {
     exportOrganizationStatisticsFromCommand,
     openOrganizationSavedViewsFromCommand,
     openOrganizationStatistics,
+    recordOrganizationStatisticsSnapshotFromCommand,
     saveOrganizationStatisticsViewFromCommand
 } from './organizationDashboard.js';
 import {
@@ -334,6 +335,7 @@ function getDefaultMenuLocation(action, category) {
         case 'saveOrganizationStatisticsView':
         case 'exportOrganizationStatistics':
         case 'exportOrganizationStatisticsCsv':
+        case 'recordOrganizationStatisticsSnapshot':
         case 'openOrganizationDataQuality': return 'Organization>Statistics';
         case 'toggleOrganizationDashboardSection': return 'Organization';
         case 'searchEverywhere':
@@ -1771,6 +1773,16 @@ const BASE_COMMAND_DEFINITIONS = [
         enabled: () => isOrganizationStatisticsEnabled(),
         unavailableReason: 'Enable Organization Statistics in Application Settings first.',
         handler: (context) => exportOrganizationStatisticsCsvFromCommand(context)
+    },
+    {
+        action: 'recordOrganizationStatisticsSnapshot',
+        id: 'Organization.RecordSnapshot',
+        category: 'Organization',
+        description: 'Record the current Organization Statistics for historical comparison.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => recordOrganizationStatisticsSnapshotFromCommand(context)
     },
     {
         action: 'openOrganizationOverview',
