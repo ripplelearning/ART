@@ -30,6 +30,7 @@ const REQUIRED_TOP_LEVEL_MENU_SHORTCUT_DEFAULTS = Object.fromEntries(
 const defaultState = {
     reportTitle: "",
     orgClient: "",
+    product: "",
     projectName: "",
     scopeUrl: "",
     auditDateStart: "",
@@ -138,6 +139,11 @@ const defaultState = {
         clearBookmarks: '',
         navigateBack: 'Alt+[',
         navigateForward: 'Alt+]',
+        openOrganizationStatistics: '',
+        openOrganizationOverview: '',
+        openOrganizationFindings: '',
+        openOrganizationDataQuality: '',
+        toggleOrganizationDashboardSection: '',
         openNavigationHistory: '',
         clearNavigationHistory: '',
         searchCurrentReport: '',
@@ -411,6 +417,7 @@ const defaultState = {
             'current-report',
             'report-metrics',
             'dashboard-analytics',
+            'organization-statistics',
             'recent-activity',
             'notifications',
             'dashboard-search'
@@ -605,12 +612,26 @@ const defaultState = {
         maxEntries: 50,
         entries: [],
         currentIndex: -1
+    },
+    organizationMetrics: {
+        enabled: false,
+        dashboardSectionVisible: true,
+        selectedOrganization: '',
+        activeTab: 'overview',
+        visibleTabs: [],
+        defaultDateRange: 'all',
+        showProductAnalytics: true,
+        showTesterAnalytics: true,
+        showRecurrenceAnalytics: true,
+        showAccessibilityHealth: true,
+        showBenchmarking: true
     }
 };
 
 const reportDefaults = {
     reportTitle: defaultState.reportTitle,
     orgClient: defaultState.orgClient,
+    product: defaultState.product,
     projectName: defaultState.projectName,
     scopeUrl: defaultState.scopeUrl,
     auditDateStart: defaultState.auditDateStart,
@@ -1787,6 +1808,11 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'navigateForward', label: 'Forward', defaultShortcut: defaultState.shortcuts.navigateForward },
     { action: 'openNavigationHistory', label: 'Open Navigation History', defaultShortcut: defaultState.shortcuts.openNavigationHistory },
     { action: 'clearNavigationHistory', label: 'Clear Navigation History', defaultShortcut: defaultState.shortcuts.clearNavigationHistory },
+    { action: 'openOrganizationStatistics', label: 'Open Organization Statistics', defaultShortcut: defaultState.shortcuts.openOrganizationStatistics },
+    { action: 'openOrganizationOverview', label: 'Open Organization Overview', defaultShortcut: defaultState.shortcuts.openOrganizationOverview },
+    { action: 'openOrganizationFindings', label: 'Open Organization Findings', defaultShortcut: defaultState.shortcuts.openOrganizationFindings },
+    { action: 'openOrganizationDataQuality', label: 'Open Organization Data Quality', defaultShortcut: defaultState.shortcuts.openOrganizationDataQuality },
+    { action: 'toggleOrganizationDashboardSection', label: 'Show or Hide Organization Statistics Dashboard Section', defaultShortcut: defaultState.shortcuts.toggleOrganizationDashboardSection },
     { action: 'searchCurrentReport', label: 'Search Current Report', defaultShortcut: defaultState.shortcuts.searchCurrentReport },
     { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace', defaultShortcut: defaultState.shortcuts.searchCurrentProjectWorkspace },
     { action: 'searchAllProjects', label: 'Search All Projects', defaultShortcut: defaultState.shortcuts.searchAllProjects },
@@ -2113,6 +2139,11 @@ export function getAssignableActions() {
         { action: 'navigateForward', label: 'Forward' },
         { action: 'openNavigationHistory', label: 'Open Navigation History' },
         { action: 'clearNavigationHistory', label: 'Clear Navigation History' },
+        { action: 'openOrganizationStatistics', label: 'Open Organization Statistics' },
+        { action: 'openOrganizationOverview', label: 'Open Organization Overview' },
+        { action: 'openOrganizationFindings', label: 'Open Organization Findings' },
+        { action: 'openOrganizationDataQuality', label: 'Open Organization Data Quality' },
+        { action: 'toggleOrganizationDashboardSection', label: 'Show or Hide Organization Statistics Dashboard Section' },
         { action: 'searchCurrentReport', label: 'Search Current Report' },
         { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace' },
         { action: 'searchAllProjects', label: 'Search All Projects' },
@@ -2609,7 +2640,8 @@ export let appState = {
     activeWorkspaceId: String(storedState.activeWorkspaceId || ''),
     recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces),
     universalSearch: normalizeUniversalSearchConfig(storedState.universalSearch),
-    navigationHistory: normalizeNavigationHistory(storedState.navigationHistory)
+    navigationHistory: normalizeNavigationHistory(storedState.navigationHistory),
+    organizationMetrics: normalizeOrganizationMetricsConfig(storedState.organizationMetrics)
 };
 
 function normalizeStateSnapshot(rawState) {
@@ -2683,6 +2715,7 @@ function normalizeStateSnapshot(rawState) {
         recentProjectWorkspaces: normalizeRecentProjectWorkspaces(base.recentProjectWorkspaces),
         universalSearch: normalizeUniversalSearchConfig(base.universalSearch),
         navigationHistory: normalizeNavigationHistory(base.navigationHistory),
+        organizationMetrics: normalizeOrganizationMetricsConfig(base.organizationMetrics),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -2811,6 +2844,7 @@ function getCurrentReportSnapshotData() {
     return {
         reportTitle: appState.reportTitle,
         orgClient: appState.orgClient,
+        product: appState.product,
         projectName: appState.projectName,
         scopeUrl: appState.scopeUrl,
         auditDateStart: appState.auditDateStart,
@@ -2873,6 +2907,7 @@ function getDefaultMetadataObject() {
     return {
         reportTitle: defaultState.reportTitle,
         orgClient: defaultState.orgClient,
+        product: defaultState.product,
         projectName: defaultState.projectName,
         scopeUrl: defaultState.scopeUrl,
         auditDateStart: defaultState.auditDateStart,
@@ -2899,6 +2934,7 @@ function keyToLabel(key) {
     const map = {
         reportTitle: 'Report Title',
         orgClient: 'Organization/Client',
+        product: 'Product',
         projectName: 'Project Name',
         scopeUrl: 'URL / Scope',
         auditDateStart: 'Audit Start',
@@ -3011,6 +3047,7 @@ function captureCurrentReportData() {
     return {
         reportTitle: appState.reportTitle,
         orgClient: appState.orgClient,
+        product: appState.product,
         projectName: appState.projectName,
         scopeUrl: appState.scopeUrl,
         auditDateStart: appState.auditDateStart,
@@ -3812,6 +3849,51 @@ function normalizeNavigationHistory(history) {
         entries,
         currentIndex: Math.max(-1, Math.min(rawIndex, entries.length - 1))
     };
+}
+
+function normalizeOrganizationMetricsConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    return {
+        enabled: source.enabled === true,
+        dashboardSectionVisible: source.dashboardSectionVisible !== false,
+        selectedOrganization: String(source.selectedOrganization || '').trim(),
+        activeTab: String(source.activeTab || 'overview').trim() || 'overview',
+        visibleTabs: Array.isArray(source.visibleTabs)
+            ? source.visibleTabs.map((tab) => String(tab || '').trim()).filter(Boolean)
+            : [],
+        defaultDateRange: String(source.defaultDateRange || 'all').trim() || 'all',
+        showProductAnalytics: source.showProductAnalytics !== false,
+        showTesterAnalytics: source.showTesterAnalytics !== false,
+        showRecurrenceAnalytics: source.showRecurrenceAnalytics !== false,
+        showAccessibilityHealth: source.showAccessibilityHealth !== false,
+        showBenchmarking: source.showBenchmarking !== false
+    };
+}
+
+export function getOrganizationMetricsConfig() {
+    return normalizeOrganizationMetricsConfig(appState.organizationMetrics);
+}
+
+export function isOrganizationStatisticsEnabled() {
+    return getOrganizationMetricsConfig().enabled === true;
+}
+
+export function updateOrganizationMetricsConfig(updates = {}, options = {}) {
+    const next = normalizeOrganizationMetricsConfig({
+        ...getOrganizationMetricsConfig(),
+        ...(updates && typeof updates === 'object' ? updates : {})
+    });
+    appState.organizationMetrics = next;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated organization metrics settings'), recordHistory: false });
+    }
+
+    window.dispatchEvent(new CustomEvent('art-organization-metrics-updated', {
+        detail: { type: String(options.eventType || 'organization-metrics-updated'), config: next }
+    }));
+
+    return next;
 }
 
 export function getNavigationHistory() {
@@ -5660,6 +5742,7 @@ function createManagedDataSnapshot() {
     return {
         reportTitle: appState.reportTitle,
         orgClient: appState.orgClient,
+        product: appState.product,
         projectName: appState.projectName,
         scopeUrl: appState.scopeUrl,
         auditDateStart: appState.auditDateStart,

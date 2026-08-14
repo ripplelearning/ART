@@ -243,6 +243,34 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-organization-statistics',
+            title: 'Organization Statistics',
+            content: `
+                <p><strong>Organization Statistics</strong> are optional. They aggregate accessibility data across multiple reports that belong to the same organization, so you can look at findings across products, projects, workspaces, and time rather than one report at a time.</p>
+                <p>Enable them in <strong>Application Settings</strong> under Organization Statistics. When enabled, ART adds an <strong>Organization</strong> menu and an optional Organization Statistics section on the Dashboard. When disabled, the menu and Dashboard section are removed and ART behaves exactly as before.</p>
+                <h4>How ART decides which reports belong to an organization</h4>
+                <p><strong>Important:</strong> Organization Statistics can only be accurate when the <strong>Organization/Client</strong> field in Report Metadata is consistently and accurately populated. ART groups reports using that value.</p>
+                <p>Reports with the same Organization/Client value are aggregated together. Reports with different values stay separate. ART does not merge similar names automatically, because guessing could combine genuinely different organizations. These would be treated as four different organizations:</p>
+                <ul>
+                    <li>Acme Corporation</li>
+                    <li>Acme Corp.</li>
+                    <li>ACME</li>
+                    <li>Acme Corporation, Inc.</li>
+                </ul>
+                <p>Use the same spelling every time for reports that belong to the same organization. The <strong>Data Quality</strong> tab reports when an organization appears under more than one spelling.</p>
+                <h4>Reports without an Organization/Client value</h4>
+                <p>Stand-alone audits, personal testing, demonstrations, and training reports do not need an Organization/Client value. ART never assigns these to an organization. They continue to work normally with Report Analytics and exports, and the Data Quality tab reports how many reports were excluded for this reason.</p>
+                <h4>Product</h4>
+                <p>Report Metadata includes an optional <strong>Product</strong> field identifying the application, website, service, or other resource the report covers. Reports without a Product value still contribute to organization-level statistics, but cannot contribute to product-level statistics.</p>
+                <h4>Testers</h4>
+                <p>Tester statistics use the <strong>Auditor(s)</strong> value in Report Metadata. The same person appearing in several reports is counted once. Tester statistics describe testing activity and coverage and are not a measure of individual performance.</p>
+                <h4>Reading the numbers responsibly</h4>
+                <p>ART distinguishes a real zero from missing data. A metric that cannot be calculated is shown as <strong>Not available</strong> with the reason, never as zero.</p>
+                <p>Organization Statistics describe the reports available to you. They are not a complete picture of an organization's accessibility programme when reports are missing, metadata is incomplete, or testing coverage varies. Fewer findings does not automatically mean better accessibility, because it can also mean less testing.</p>
+                <p>Organization Statistics are derived from your reports and never modify them.</p>
+            `
+        },
+        {
             id: 'help-menu-bar',
             title: 'Menu Bar and Command Search',
             content: `

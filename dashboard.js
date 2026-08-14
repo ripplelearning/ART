@@ -12,6 +12,7 @@ import {
     executeUniversalSearchResult,
     runUniversalSearch
 } from './universalSearchFramework.js';
+import { getOrganizationMetricsConfig } from './state.js';
 import { createSearchResultsController } from './searchResultsFramework.js';
 import {
     getWorkspaceExplorerSummary,
@@ -68,6 +69,17 @@ import {
     validateTemplateJsonPayload
 } from './state.js';
 import { openSettingsCollaborationSectionFromCommand } from './settings.js';
+import { calculateOrganizationMetrics, getOrganizationSummaries } from './organizationMetricsFramework.js';
+import { openOrganizationStatistics } from './organizationDashboard.js';
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 function moveFocusToEditorHeading() {
     const editorHeading = document.getElementById('editor-heading');
@@ -316,6 +328,46 @@ function renderOrganizationOverviewWidget(container) {
             <div><dt>Unresolved References</dt><dd>${unresolved}</dd></div>
         </dl>
     `;
+}
+
+function renderOrganizationStatisticsWidget(container) {
+    const config = getOrganizationMetricsConfig();
+    if (!config.enabled || config.dashboardSectionVisible === false) {
+        container.innerHTML = '<p>Organization Statistics section is hidden.</p>';
+        return;
+    }
+
+    const summaries = getOrganizationSummaries();
+    if (summaries.length === 0) {
+        container.innerHTML = '<p>No reports contain an Organization/Client value yet. Add an Organization/Client value in Report Metadata to build organization statistics.</p>';
+        return;
+    }
+
+    const selected = summaries.find((entry) => entry.key === config.selectedOrganization) || summaries[0];
+    const result = calculateOrganizationMetrics({ organization: selected.displayName }, {
+        metricIds: ['totalReports', 'totalFindings', 'uniqueProducts', 'uniqueTesters']
+    });
+
+    const renderValue = (metricId) => {
+        const metric = result.metrics[metricId];
+        if (!metric || metric.availability !== 'available') return 'Not available';
+        return String(metric.value);
+    };
+
+    container.innerHTML = `
+        <p>Organization: <strong>${escapeHtml(selected.displayName)}</strong></p>
+        <dl class="dashboard-widget__definition-list">
+            <div><dt>Reports</dt><dd>${escapeHtml(renderValue('totalReports'))}</dd></div>
+            <div><dt>Findings</dt><dd>${escapeHtml(renderValue('totalFindings'))}</dd></div>
+            <div><dt>Products</dt><dd>${escapeHtml(renderValue('uniqueProducts'))}</dd></div>
+            <div><dt>Unique Testers</dt><dd>${escapeHtml(renderValue('uniqueTesters'))}</dd></div>
+        </dl>
+        <button id="btn-dashboard-organization-statistics" type="button">Open Organization Statistics</button>
+    `;
+
+    container.querySelector('#btn-dashboard-organization-statistics')?.addEventListener('click', (event) => {
+        openOrganizationStatistics(event.currentTarget);
+    });
 }
 
 function renderRecentSavedViewsWidget(container) {
@@ -1071,6 +1123,22 @@ function registerDashboardWidgetsIfNeeded() {
         description: 'Summary of tags, collections, and saved views.',
         category: 'Workspace',
         render: renderOrganizationOverviewWidget
+    });
+
+    registerDashboardWidget({
+        id: 'organization-statistics',
+        name: 'Organization Statistics',
+        heading: 'Organization Statistics',
+        description: 'Accessibility statistics aggregated by Organization/Client.',
+        category: 'Workspace',
+        hideWhenUnavailable: true,
+        visibility: () => {
+            const config = getOrganizationMetricsConfig();
+            if (!config.enabled) return { visible: false, message: 'Organization Statistics are disabled.' };
+            if (config.dashboardSectionVisible === false) return { visible: false, message: 'Organization Statistics section is hidden.' };
+            return { visible: true, message: '' };
+        },
+        render: renderOrganizationStatisticsWidget
     });
 
     registerDashboardWidget({
@@ -2262,4 +2330,8 @@ export function renderDashboard() {
     }
     rebuildRecentReports();
     refreshDashboardWidgetFramework();
+
+    window.addEventListener('art-organization-metrics-updated', () => {
+        refreshDashboardWidgetFramework();
+    });
 }

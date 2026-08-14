@@ -1,6 +1,9 @@
 import { commandRegistry } from './commandRegistry.js';
 import {
     announce,
+    getOrganizationMetricsConfig,
+    isOrganizationStatisticsEnabled,
+    updateOrganizationMetricsConfig,
     canRedoState,
     canUndoState,
     clearUniversalSearchHistory,
@@ -114,6 +117,10 @@ import {
     openSearchEverywhereDialog,
     runUniversalSearch
 } from './universalSearchFramework.js';
+import {
+    closeOrganizationStatistics,
+    openOrganizationStatistics
+} from './organizationDashboard.js';
 import {
     canNavigateBack,
     canNavigateForward,
@@ -309,6 +316,15 @@ function getDefaultMenuLocation(action, category) {
         case 'compareVersions': return 'Edit>History';
         case 'restorePreviousVersion': return 'Edit>History';
         case 'clearHistory': return 'Edit>History';
+        case 'navigateBack':
+        case 'navigateForward':
+        case 'openNavigationHistory':
+        case 'clearNavigationHistory': return 'View>Navigation';
+        case 'openOrganizationStatistics':
+        case 'openOrganizationOverview':
+        case 'openOrganizationFindings':
+        case 'openOrganizationDataQuality': return 'Organization>Statistics';
+        case 'toggleOrganizationDashboardSection': return 'Organization';
         case 'searchEverywhere':
         case 'quickOpen':
         case 'openRecentItems':
@@ -1693,6 +1709,65 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Navigation',
         description: 'Clear navigation history without affecting favorites, bookmarks, or saved searches.',
         handler: () => clearNavigationHistoryFromCommand()
+    },
+    {
+        action: 'openOrganizationStatistics',
+        id: 'Organization.OpenStatistics',
+        category: 'Organization',
+        description: 'Open Organization Statistics for reports grouped by Organization/Client.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        aliases: ['organization metrics', 'org stats'],
+        handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null)
+    },
+    {
+        action: 'openOrganizationOverview',
+        id: 'Organization.OpenOverview',
+        category: 'Organization',
+        description: 'Open the Organization Statistics overview.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null, { tab: 'overview' })
+    },
+    {
+        action: 'openOrganizationFindings',
+        id: 'Organization.OpenFindings',
+        category: 'Organization',
+        description: 'Open organization findings analytics.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null, { tab: 'findings' })
+    },
+    {
+        action: 'openOrganizationDataQuality',
+        id: 'Organization.OpenDataQuality',
+        category: 'Organization',
+        description: 'Review organization metadata quality and excluded reports.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null, { tab: 'data-quality' })
+    },
+    {
+        action: 'toggleOrganizationDashboardSection',
+        id: 'Organization.ToggleDashboardSection',
+        category: 'Organization',
+        description: 'Show or hide the Organization Statistics section on the Dashboard.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: () => {
+            const config = getOrganizationMetricsConfig();
+            const next = !config.dashboardSectionVisible;
+            updateOrganizationMetricsConfig({ dashboardSectionVisible: next });
+            announce(next
+                ? 'Organization Statistics section shown on the Dashboard.'
+                : 'Organization Statistics section hidden. Organization Statistics remain enabled.');
+            return true;
+        }
     },
     {
         action: 'searchCurrentReport',

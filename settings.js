@@ -17,6 +17,8 @@ import {
     updateNavigationHistory,
     clearNavigationHistoryEntries,
     getSearchAnalytics,
+    getOrganizationMetricsConfig,
+    updateOrganizationMetricsConfig,
     setSearchAnalyticsEnabled,
     clearSearchAnalytics,
     getApplicationInfo,
@@ -348,6 +350,37 @@ function escapeHtml(value) {
 function formatMilliseconds(value) {
     const ms = Number(value) || 0;
     return ms >= 1000 ? `${(ms / 1000).toFixed(2)} seconds` : `${ms.toFixed(1)} ms`;
+}
+
+function renderOrganizationSettings() {
+    const checkbox = document.getElementById('settings-organization-enabled');
+    const summary = document.getElementById('settings-organization-summary');
+    if (!checkbox) return;
+
+    const config = getOrganizationMetricsConfig();
+    checkbox.checked = config.enabled === true;
+
+    if (summary) {
+        summary.textContent = config.enabled
+            ? 'Organization Statistics are enabled. The Organization menu and Dashboard section are available.'
+            : 'Organization Statistics are disabled. Reports, analytics, and stand-alone audits are unaffected.';
+    }
+}
+
+function bindOrganizationSettings() {
+    const applyButton = document.getElementById('btn-settings-organization-apply');
+    const checkbox = document.getElementById('settings-organization-enabled');
+    if (!applyButton) return;
+
+    applyButton.addEventListener('click', () => {
+        const enabled = Boolean(checkbox?.checked);
+        updateOrganizationMetricsConfig({ enabled });
+        writeStatus(enabled ? 'Organization Statistics enabled.' : 'Organization Statistics disabled.');
+        announce(enabled
+            ? 'Organization Statistics enabled. An Organization menu is now available.'
+            : 'Organization Statistics disabled.');
+        renderOrganizationSettings();
+    });
 }
 
 function renderSearchAnalytics() {
@@ -1780,6 +1813,7 @@ function refreshSettingsView() {
         renderAnalyticsSettings();
         renderSearchSettings();
         renderSearchAnalytics();
+        renderOrganizationSettings();
         renderWorkspaceViewSettings();
         renderPluginManager();
         renderAbout();
@@ -3276,6 +3310,7 @@ export function initSettings() {
     bindShortcutCapture();
     bindSettingsSearch();
     bindSearchAnalyticsSettings();
+    bindOrganizationSettings();
     bindVisualAccessibilitySettings();
     bindAnalyticsSettings();
     bindCollaborationSettings();

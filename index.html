@@ -284,6 +284,18 @@
                 </div>
             </section>
 
+            <section aria-labelledby="settings-organization-heading">
+                <h4 id="settings-organization-heading">Organization Statistics</h4>
+                <p id="settings-organization-summary" role="status" aria-live="polite" aria-atomic="true">Organization Statistics are optional.</p>
+
+                <label><input id="settings-organization-enabled" type="checkbox"> Enable Organization Statistics</label>
+                <p id="settings-organization-help">Organization Statistics aggregate accessibility data across reports that share the same Organization/Client value. Enabling this adds an Organization menu and an optional Dashboard section. Stand-alone reports without an Organization/Client value continue to work normally and are never assigned to an organization.</p>
+
+                <div class="viewer-dialog-actions" role="group" aria-label="Organization statistics actions">
+                    <button id="btn-settings-organization-apply" type="button">Apply Organization Setting</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-search-analytics-heading">
                 <h4 id="settings-search-analytics-heading">Search Analytics</h4>
                 <p id="settings-search-analytics-summary" role="status" aria-live="polite" aria-atomic="true">Search analytics are stored only on this device.</p>

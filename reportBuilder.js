@@ -1191,6 +1191,8 @@ export async function renderBuilder() {
             <div class="metadata-grid">
                 <label>Report Title: <input type="text" id="report-title" value="${appState.reportTitle || ''}"></label>
                 <label>Organization/Client: <input type="text" id="org-client" value="${appState.orgClient || ''}"></label>
+                <label>Product: <input type="text" id="product-name" value="${escapeHtml(appState.product)}" aria-describedby="product-name-help"></label>
+                <p id="product-name-help" class="sr-only">Optional. Identifies the product, application, website, or service this report covers. Used for product-level Organization Statistics.</p>
                 <label>Project Name: <input type="text" id="project-name" value="${appState.projectName || ''}"></label>
                 <label>URL / Scope: <input type="text" id="scope-url" value="${appState.scopeUrl || ''}"></label>
                 <label>Audit Start: <input type="date" id="date-start" value="${appState.auditDateStart || ''}"></label>
@@ -1558,6 +1560,7 @@ export async function renderBuilder() {
     const metadataFields = [
         ['report-title', 'reportTitle'],
         ['org-client', 'orgClient'],
+        ['product-name', 'product'],
         ['project-name', 'projectName'],
         ['scope-url', 'scopeUrl'],
         ['date-start', 'auditDateStart'],

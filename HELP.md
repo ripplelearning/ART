@@ -338,6 +338,23 @@ All analytics are presented as text and accessible data tables rather than chart
 
 Use the checkbox to stop collecting analytics and Clear Search Analytics to remove stored totals. Clearing analytics does not affect reports, saved searches, favorites, bookmarks, or history.
 
+## Organization Statistics
+Organization Statistics are optional and aggregate accessibility data across multiple reports belonging to the same organization. Enable them in Application Settings. When enabled, ART adds an Organization menu and an optional Dashboard section; when disabled, both are removed and ART behaves as before.
+
+**Important:** Organization Statistics can only be accurate when the Organization/Client field in Report Metadata is consistently and accurately populated. ART groups reports using that value.
+
+Reports with the same Organization/Client value are aggregated together, and reports with different values stay separate. ART does not merge similar names automatically, so Acme Corporation, Acme Corp., ACME, and Acme Corporation, Inc. are treated as four different organizations. Use the same spelling for every report belonging to the same organization. The Data Quality tab reports when an organization appears under more than one spelling.
+
+Reports without an Organization/Client value are never assigned to an organization. Stand-alone audits, personal testing, demonstrations, and training reports continue to work normally, and the Data Quality tab reports how many reports were excluded.
+
+Report Metadata includes an optional Product field identifying the application, website, or service the report covers. Reports without a Product value still contribute to organization-level statistics but cannot contribute to product-level statistics.
+
+Tester statistics use the Auditor(s) metadata value. The same person appearing in several reports is counted once. Tester statistics describe testing activity and coverage, not individual performance.
+
+ART distinguishes a real zero from missing data: a metric that cannot be calculated is shown as Not available with the reason, never as zero.
+
+Organization Statistics describe the reports available to you and are not a complete picture of an organization's accessibility programme when reports or metadata are missing. Fewer findings does not automatically mean better accessibility, because it can also mean less testing. Organization Statistics are derived from reports and never modify them.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

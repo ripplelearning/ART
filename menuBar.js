@@ -21,7 +21,7 @@ let menubarSessionStartIndex = 0;
 let suppressNextMenuButtonClick = false;
 let menuSearchResultsController = null;
 
-const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Presentation', 'Tools', 'Templates', 'Window', 'Collaboration', 'Help'];
+const TOP_LEVEL_MENU_ORDER = ['File', 'Edit', 'View', 'Search', 'Report', 'Presentation', 'Organization', 'Tools', 'Templates', 'Window', 'Collaboration', 'Help'];
 const MENU_CHILD_ORDER = new Map([
     ['File', new Map([
         ['New', 0],
@@ -189,6 +189,15 @@ function getMenuLocation(command) {
     if (location) return location;
 
     switch (command.action) {
+        case 'openOrganizationStatistics': return 'Organization>Statistics';
+        case 'openOrganizationOverview': return 'Organization>Statistics';
+        case 'openOrganizationFindings': return 'Organization>Statistics';
+        case 'openOrganizationDataQuality': return 'Organization>Statistics';
+        case 'toggleOrganizationDashboardSection': return 'Organization';
+        case 'navigateBack': return 'View>Navigation';
+        case 'navigateForward': return 'View>Navigation';
+        case 'openNavigationHistory': return 'View>Navigation';
+        case 'clearNavigationHistory': return 'View>Navigation';
         case 'openWelcome': return 'View>Welcome Screen';
         case 'openCommandPalette': return 'View>Command Palette';
         case 'focusMenuBar': return 'View>Menu Bar';
@@ -1494,6 +1503,7 @@ function bindEvents() {
     window.addEventListener('art-shortcuts-updated', () => renderMenuBar());
     window.addEventListener('art-visual-accessibility-updated', () => renderMenuBar());
     window.addEventListener('art-collaboration-updated', () => renderMenuBar());
+    window.addEventListener('art-organization-metrics-updated', () => renderMenuBar());
 
     renderMenuBar();
     return true;
