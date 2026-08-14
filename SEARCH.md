@@ -207,7 +207,7 @@ State persists under `appState.navigationHistory`:
 - `entries`
 - `currentIndex`
 
-Related commands: `navigateBack`, `navigateForward`, `openNavigationHistory`, `clearNavigationHistory`. All are registered with no default shortcut. Clearing navigation history does not affect favorites, bookmarks, recent items, or saved searches.
+Related commands: `navigateBack` (Alt+[), `navigateForward` (Alt+]), `openNavigationHistory`, `clearNavigationHistory`. Clearing navigation history does not affect favorites, bookmarks, recent items, or saved searches.
 
 ## Settings
 

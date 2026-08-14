@@ -294,7 +294,7 @@ Bookmarks store stable internal references, so renaming a report does not break 
 Favorites and bookmarks are personal and stored on this device. They never change who can access a resource, and removing them never deletes the underlying resource.
 
 ## Navigation History, Breadcrumbs, and Back/Forward
-ART records meaningful locations you visit so you can return to them. Back returns to the previous location and Forward returns to the location you navigated back from, following the browser model where navigating somewhere new after going back replaces the forward path.
+ART records meaningful locations you visit so you can return to them. Back (Alt+[) returns to the previous location and Forward (Alt+]) returns to the location you navigated back from, following the browser model where navigating somewhere new after going back replaces the forward path.
 
 Meaningful destinations include views, reports, findings, report fields, bookmarks, favorites, and search results. Ordinary interactions such as focus movement, typing, and confirmation dialogs are not recorded.
 

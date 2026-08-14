@@ -196,7 +196,7 @@ function getHelpSections(rows) {
             title: 'Navigation History, Breadcrumbs, and Back/Forward',
             content: `
                 <p>ART records the meaningful locations you visit so you can return to them without repeating a search or retracing menus.</p>
-                <p><strong>Back</strong> returns to the previous location and <strong>Forward</strong> returns to the location you navigated back from. They follow the familiar browser model: navigating somewhere new after going back replaces the forward path.</p>
+                <p><strong>Back</strong> returns to the previous location and <strong>Forward</strong> returns to the location you navigated back from. Press <strong>Alt+[</strong> for Back and <strong>Alt+]</strong> for Forward. They follow the familiar browser model: navigating somewhere new after going back replaces the forward path.</p>
                 <p>Navigation history records meaningful destinations such as opening a view, a report, a finding, a report field, a bookmark, a favorite, or a search result. It does not record ordinary interactions such as moving focus, typing, or opening a confirmation dialog.</p>
                 <p>Back and Forward report whether they are available, so assistive technology can tell when there is nowhere to go.</p>
                 <p>Use <strong>Open Navigation History</strong> to review previous locations, filter them, and jump directly to one. The list is ordered with the most recent location first and identifies your current location.</p>
