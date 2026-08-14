@@ -269,6 +269,19 @@ Activating a result opens its exact destination and moves focus there. Press Esc
 
 Application Settings includes a Search section for the default search scope, saving search history on this device, and clearing search history.
 
+## Quick Open and Recent Items
+Quick Open provides a fast way to open a resource you already know by name. It covers reports, report fields and findings, templates, Project Workspaces, project assets, working views, collections, tags, layouts, themes, branding, publishing profiles, plugins, and packages.
+
+Quick Open starts in the scope that matches your current location and provides a Quick Open scope list. When a search returns nothing in a narrower scope, use Search all ART content instead to broaden it.
+
+Focus moves to the Quick Open box when it opens. Press Down Arrow or Alt+Down Arrow to move into results, Enter to open the selected resource, and Escape to close and return focus to where you started.
+
+Opening Quick Open with an empty box lists Recent Items, most recently opened first. Recent items are recorded only when a resource is successfully opened, are personal to you, and are stored on this device.
+
+Use Remove From Recent to remove the selected entry, or Clear Recent Items to remove them all. Clearing recent items does not delete reports, workspaces, or other resources.
+
+Quick Open, Open Recent Items, and Clear Recent Items are available from the Search menu, Command Search, and the Command Palette, and can be assigned keyboard shortcuts in the Keyboard Shortcut Manager. They have no shortcut assigned by default.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

@@ -12,6 +12,7 @@ import {
     getUniversalSearchConfig,
     updateUniversalSearchConfig,
     clearUniversalSearchHistory,
+    clearRecentItems,
     getApplicationInfo,
     getAssignableActions,
     getCollaborationConfig,
@@ -2825,8 +2826,11 @@ function getSearchControls() {
     return {
         defaultScope: document.getElementById('settings-search-default-scope'),
         historyEnabled: document.getElementById('settings-search-history-enabled'),
+        recentEnabled: document.getElementById('settings-search-recent-enabled'),
+        recentMax: document.getElementById('settings-search-recent-max'),
         applyButton: document.getElementById('btn-settings-search-apply'),
         clearHistoryButton: document.getElementById('btn-settings-search-clear-history'),
+        clearRecentButton: document.getElementById('btn-settings-search-clear-recent'),
         summary: document.getElementById('settings-search-summary')
     };
 }
@@ -2838,11 +2842,14 @@ function renderSearchSettings() {
     const config = getUniversalSearchConfig();
     controls.defaultScope.value = String(config.scopePreference || 'auto');
     if (controls.historyEnabled) controls.historyEnabled.checked = config.historyEnabled !== false;
+    if (controls.recentEnabled) controls.recentEnabled.checked = config.recentItemsEnabled !== false;
+    if (controls.recentMax) controls.recentMax.value = String(config.maxRecentItems || 20);
 
     if (controls.summary) {
         const historyCount = Array.isArray(config.history) ? config.history.length : 0;
+        const recentCount = Array.isArray(config.recentItems) ? config.recentItems.length : 0;
         const scopeLabel = controls.defaultScope.selectedOptions?.[0]?.textContent || controls.defaultScope.value;
-        controls.summary.textContent = `Default search scope ${scopeLabel}. Search history ${config.historyEnabled !== false ? 'on' : 'off'}, ${historyCount} saved ${historyCount === 1 ? 'entry' : 'entries'}.`;
+        controls.summary.textContent = `Default search scope ${scopeLabel}. Search history ${config.historyEnabled !== false ? 'on' : 'off'}, ${historyCount} saved ${historyCount === 1 ? 'entry' : 'entries'}. Recent items ${config.recentItemsEnabled !== false ? 'on' : 'off'}, ${recentCount} stored.`;
     }
 }
 
@@ -2852,7 +2859,9 @@ function applySearchSettings() {
 
     updateUniversalSearchConfig({
         scopePreference: controls.defaultScope.value || 'auto',
-        historyEnabled: Boolean(controls.historyEnabled?.checked)
+        historyEnabled: Boolean(controls.historyEnabled?.checked),
+        recentItemsEnabled: Boolean(controls.recentEnabled?.checked),
+        maxRecentItems: Number(controls.recentMax?.value) || 20
     }, {
         action: 'Updated search settings',
         persist: true
@@ -2874,6 +2883,12 @@ function bindSearchSettings() {
     controls.clearHistoryButton?.addEventListener('click', () => {
         clearUniversalSearchHistory({ persist: true });
         writeStatus('Search history cleared.');
+        renderSearchSettings();
+    });
+
+    controls.clearRecentButton?.addEventListener('click', () => {
+        clearRecentItems({ persist: true });
+        writeStatus('Recent items cleared.');
         renderSearchSettings();
     });
 }

@@ -119,13 +119,45 @@ Universal search state persists under `appState.universalSearch`:
 
 Providers read live application state on each query, so renamed, added, and deleted content is reflected without a manual reindex.
 
+## Quick Open and Recent Items
+
+`quickOpenFramework.js` builds on the Search Service rather than adding a second search architecture. It queries a resource-focused subset of providers:
+
+- `reports`
+- `report-content`
+- `templates`
+- `project-workspaces`
+- `project-assets`
+- `resource-organization`
+- `presentation-resources`
+- `plugins-packages`
+
+Behavior:
+
+- Opening with an empty query lists recent items, most recent first.
+- Recent items are recorded only after a successful open, and store the originating result payload so navigation stays stable.
+- Scope resolution, the scope select, and the broaden action match Search Everywhere.
+- Screen readers are told that suggestions are available once per query session rather than on every keystroke.
+- `Escape` closes Quick Open and restores focus to the invoking control.
+
+Recent items persist under `appState.universalSearch`:
+
+- `recentItems`
+- `recentItemsEnabled`
+- `maxRecentItems`
+
+Related commands: `quickOpen`, `openRecentItems`, `clearRecentItems`. All three are registered in the Keyboard Shortcut Manager with no default assignment.
+
 ## Settings
 
 Application Settings includes a `Search` section with:
 
 - Default Search Scope (`scopePreference`)
 - Save search history on this device (`historyEnabled`)
+- Save recently opened items on this device (`recentItemsEnabled`)
+- Maximum Recent Items (`maxRecentItems`)
 - Clear Search History
+- Clear Recent Items
 
 When search history is disabled, `recordUniversalSearchHistory()` does not store queries.
 

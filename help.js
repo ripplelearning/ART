@@ -158,6 +158,22 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-quick-open',
+            title: 'Quick Open and Recent Items',
+            content: `
+                <p><strong>Quick Open</strong> is a fast way to open a resource you already know by name, without browsing menus or the Resource Navigator.</p>
+                <p>Quick Open covers reports, report fields and findings, templates, Project Workspaces, project assets, working views, collections, tags, report layouts, themes, branding, publishing profiles, plugins, and packages. Use <strong>Search Everywhere</strong> when you want broader discovery, including commands, help topics, and accessibility standards.</p>
+                <p>Quick Open uses your current location for its starting scope and provides a <strong>Quick Open scope</strong> list so you can change it. If a search returns nothing in a narrower scope, use <strong>Search all ART content instead</strong> to broaden it deliberately.</p>
+                <p>Focus moves to the Quick Open box when it opens. Type to filter, press <strong>Down Arrow</strong> or <strong>Alt+Down Arrow</strong> to move into the results, press <strong>Enter</strong> to open the selected resource, and press <strong>Escape</strong> to close Quick Open and return focus to where you started.</p>
+                <p>Screen readers announce that suggestions are available once rather than announcing every update while you type. Each result is announced when it receives keyboard focus.</p>
+                <p>Opening Quick Open with an empty box lists your <strong>Recent Items</strong>, ordered with the most recently opened first. Recent items are recorded only when you successfully open something.</p>
+                <p>Recent items are personal to you and are stored on this device. They are not shared with collaborators and are not Project Workspace activity.</p>
+                <p>Use <strong>Remove From Recent</strong> to remove the selected entry, or <strong>Clear Recent Items</strong> to remove them all. Clearing recent items never deletes the underlying reports, workspaces, or other resources.</p>
+                <p>Application Settings includes options to turn recent items on or off, set the maximum number kept, and clear them.</p>
+                <p><strong>Quick Open</strong>, <strong>Open Recent Items</strong>, and <strong>Clear Recent Items</strong> are available from the Search menu, Command Search, and the Command Palette, and can be assigned keyboard shortcuts in the Keyboard Shortcut Manager.</p>
+            `
+        },
+        {
             id: 'help-menu-bar',
             title: 'Menu Bar and Command Search',
             content: `

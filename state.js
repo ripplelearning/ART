@@ -127,6 +127,9 @@ const defaultState = {
         restorePreviousVersion: '',
         clearHistory: '',
         searchEverywhere: 'Ctrl+K',
+        quickOpen: '',
+        openRecentItems: '',
+        clearRecentItems: '',
         searchCurrentReport: '',
         searchCurrentProjectWorkspace: '',
         searchAllProjects: '',
@@ -1406,11 +1409,35 @@ function normalizeSearchScopePreference(value) {
     return 'auto';
 }
 
+function normalizeRecentItem(item, index) {
+    const source = item && typeof item === 'object' ? item : {};
+    return {
+        id: String(source.id || `recent-${index}`),
+        resultId: String(source.resultId || '').trim(),
+        resourceType: String(source.resourceType || source.type || '').trim(),
+        title: String(source.title || '').trim(),
+        subtitle: String(source.subtitle || '').trim(),
+        context: String(source.context || '').trim(),
+        scope: String(source.scope || '').trim(),
+        workspaceId: String(source.workspaceId || '').trim(),
+        reportId: String(source.reportId || '').trim(),
+        payload: source.payload && typeof source.payload === 'object' ? source.payload : null,
+        openedAt: String(source.openedAt || new Date().toISOString())
+    };
+}
+
 function normalizeUniversalSearchConfig(config) {
     const source = config && typeof config === 'object' ? config : {};
     return {
         scopePreference: normalizeSearchScopePreference(source.scopePreference),
         historyEnabled: source.historyEnabled !== false,
+        recentItemsEnabled: source.recentItemsEnabled !== false,
+        maxRecentItems: Number.isFinite(Number(source.maxRecentItems)) && Number(source.maxRecentItems) > 0
+            ? Math.min(100, Math.floor(Number(source.maxRecentItems)))
+            : 20,
+        recentItems: Array.isArray(source.recentItems)
+            ? source.recentItems.map((item, index) => normalizeRecentItem(item, index)).slice(0, 100)
+            : [],
         defaultScopeOverride: String(source.defaultScopeOverride || '').trim(),
         history: Array.isArray(source.history)
             ? source.history.map((item, index) => normalizeSearchHistoryEntry(item, index)).slice(0, 100)
@@ -1656,6 +1683,9 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'restorePreviousVersion', label: 'Restore Previous Version', defaultShortcut: defaultState.shortcuts.restorePreviousVersion },
     { action: 'clearHistory', label: 'Clear History', defaultShortcut: defaultState.shortcuts.clearHistory },
     { action: 'searchEverywhere', label: 'Search Everywhere', defaultShortcut: defaultState.shortcuts.searchEverywhere },
+    { action: 'quickOpen', label: 'Quick Open', defaultShortcut: defaultState.shortcuts.quickOpen },
+    { action: 'openRecentItems', label: 'Open Recent Items', defaultShortcut: defaultState.shortcuts.openRecentItems },
+    { action: 'clearRecentItems', label: 'Clear Recent Items', defaultShortcut: defaultState.shortcuts.clearRecentItems },
     { action: 'searchCurrentReport', label: 'Search Current Report', defaultShortcut: defaultState.shortcuts.searchCurrentReport },
     { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace', defaultShortcut: defaultState.shortcuts.searchCurrentProjectWorkspace },
     { action: 'searchAllProjects', label: 'Search All Projects', defaultShortcut: defaultState.shortcuts.searchAllProjects },
@@ -1969,6 +1999,9 @@ export function getAssignableActions() {
         { action: 'restorePreviousVersion', label: 'Restore Previous Version' },
         { action: 'clearHistory', label: 'Clear History' },
         { action: 'searchEverywhere', label: 'Search Everywhere' },
+        { action: 'quickOpen', label: 'Quick Open' },
+        { action: 'openRecentItems', label: 'Open Recent Items' },
+        { action: 'clearRecentItems', label: 'Clear Recent Items' },
         { action: 'searchCurrentReport', label: 'Search Current Report' },
         { action: 'searchCurrentProjectWorkspace', label: 'Search Current Project Workspace' },
         { action: 'searchAllProjects', label: 'Search All Projects' },
@@ -3628,6 +3661,58 @@ export function getRecentProjectWorkspaces() {
 
 export function getUniversalSearchConfig() {
     return normalizeUniversalSearchConfig(appState.universalSearch);
+}
+
+export function getRecentItems() {
+    const config = getUniversalSearchConfig();
+    return Array.isArray(config.recentItems) ? config.recentItems : [];
+}
+
+// Recent items are personal navigation data and are recorded only on a successful open.
+export function recordRecentItem(entry, options = {}) {
+    const config = getUniversalSearchConfig();
+    if (config.recentItemsEnabled === false) return false;
+
+    const nextEntry = normalizeRecentItem({
+        ...entry,
+        id: entry?.id || `recent-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        openedAt: new Date().toISOString()
+    }, 0);
+    if (!nextEntry.title && !nextEntry.resultId) return false;
+
+    const existing = Array.isArray(config.recentItems) ? config.recentItems : [];
+    const deduped = [
+        nextEntry,
+        ...existing.filter((item) => !(item.resultId && item.resultId === nextEntry.resultId))
+    ].slice(0, Number(config.maxRecentItems || 20));
+
+    return updateUniversalSearchConfig({ recentItems: deduped }, {
+        ...options,
+        action: String(options.action || `Opened ${nextEntry.title || 'resource'}`),
+        eventType: 'recent-items-updated'
+    });
+}
+
+export function removeRecentItem(recentItemId, options = {}) {
+    const config = getUniversalSearchConfig();
+    const existing = Array.isArray(config.recentItems) ? config.recentItems : [];
+    const targetId = String(recentItemId || '').trim();
+    const filtered = existing.filter((item) => item.id !== targetId);
+    if (filtered.length === existing.length) return false;
+
+    return updateUniversalSearchConfig({ recentItems: filtered }, {
+        ...options,
+        action: String(options.action || 'Removed recent item'),
+        eventType: 'recent-items-updated'
+    });
+}
+
+export function clearRecentItems(options = {}) {
+    return updateUniversalSearchConfig({ recentItems: [] }, {
+        ...options,
+        action: String(options.action || 'Cleared recent items'),
+        eventType: 'recent-items-cleared'
+    });
 }
 
 export function updateUniversalSearchConfig(updates = {}, options = {}) {

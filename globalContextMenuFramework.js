@@ -554,7 +554,7 @@ function splitLocation(location) {
 
 function isSearchAction(action) {
     const searchActions = new Set([
-        'searchEverywhere', 'searchCurrentReport', 'searchCurrentProjectWorkspace', 'searchAllProjects',
+        'searchEverywhere', 'quickOpen', 'openRecentItems', 'searchCurrentReport', 'searchCurrentProjectWorkspace', 'searchAllProjects',
         'searchAccessibilityStandards', 'searchHelpDocumentation', 'searchCommands', 'searchKeyboardShortcuts',
         'searchProjectAssets', 'searchTemplates', 'searchDashboard', 'findInCurrentResource', 'findNextMatch',
         'findPreviousMatch', 'nextSearchResult', 'previousSearchResult', 'clearSearchHighlights',

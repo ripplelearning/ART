@@ -194,6 +194,9 @@ function getMenuLocation(command) {
         case 'focusMenuBar': return 'View>Menu Bar';
         case 'focusMenuSearch': return 'View>Command Search';
         case 'searchEverywhere':
+        case 'quickOpen':
+        case 'openRecentItems':
+        case 'clearRecentItems':
         case 'searchCurrentReport':
         case 'searchCurrentProjectWorkspace':
         case 'searchAllProjects':

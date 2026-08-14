@@ -115,6 +115,11 @@ import {
     runUniversalSearch
 } from './universalSearchFramework.js';
 import {
+    clearRecentItemsFromCommand,
+    openQuickOpen,
+    openRecentItemsDialog
+} from './quickOpenFramework.js';
+import {
     addProjectAssetFromCommand,
     closeProjectWorkspaceFromCommand,
     continueWorkingFromCommand,
@@ -291,6 +296,9 @@ function getDefaultMenuLocation(action, category) {
         case 'restorePreviousVersion': return 'Edit>History';
         case 'clearHistory': return 'Edit>History';
         case 'searchEverywhere':
+        case 'quickOpen':
+        case 'openRecentItems':
+        case 'clearRecentItems':
         case 'searchCurrentReport':
         case 'searchCurrentProjectWorkspace':
         case 'searchAllProjects':
@@ -1555,6 +1563,29 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Search',
         description: 'Open Search Everywhere for commands, reports, templates, workspaces, help, and standards.',
         handler: (context) => runSearchEverywhereWorkflow(context)
+    },
+    {
+        action: 'quickOpen',
+        id: 'Search.QuickOpen',
+        category: 'Search',
+        description: 'Quickly open a report, workspace, working view, finding, template, or other ART resource.',
+        handler: (context) => openQuickOpen(context.triggerElement || document.activeElement || null, {
+            query: String(context.query || '')
+        })
+    },
+    {
+        action: 'openRecentItems',
+        id: 'Search.OpenRecentItems',
+        category: 'Search',
+        description: 'Open the list of recently opened ART resources.',
+        handler: (context) => openRecentItemsDialog(context.triggerElement || document.activeElement || null)
+    },
+    {
+        action: 'clearRecentItems',
+        id: 'Search.ClearRecentItems',
+        category: 'Search',
+        description: 'Clear the locally stored list of recently opened resources.',
+        handler: () => clearRecentItemsFromCommand()
     },
     {
         action: 'searchCurrentReport',
