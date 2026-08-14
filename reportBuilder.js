@@ -887,6 +887,52 @@ function buildFieldRowsMarkup() {
     }).join('');
 }
 
+// Updates the field section in place so assistive technology keeps a stable view instead of a rebuilt page.
+function refreshFieldConfigurationUi() {
+    const section = document.getElementById('fields-section');
+    const tbody = document.getElementById('fields-tbody');
+    if (!section || section.hidden || !tbody) return false;
+
+    tbody.innerHTML = buildFieldRowsMarkup();
+
+    const editField = getEditField();
+    const editType = normalizeFieldType(editField?.type);
+    const labelInput = document.getElementById('field-label-input');
+    const typeInput = document.getElementById('field-type-input');
+    const optionsInput = document.getElementById('field-dropdown-options-input');
+
+    if (labelInput instanceof HTMLInputElement) labelInput.value = editField?.label || '';
+    if (typeInput instanceof HTMLSelectElement) {
+        typeInput.value = isWcagCriterionFieldType(editType) ? 'wcag-success-criterion' : editType;
+    }
+    if (optionsInput instanceof HTMLTextAreaElement) optionsInput.value = getFieldOptionsText(editField);
+
+    const dropdownContainer = document.getElementById('dropdown-options-container');
+    if (dropdownContainer) dropdownContainer.hidden = editType !== 'dropdown';
+    const wcagContainer = document.getElementById('wcag-options-container');
+    if (wcagContainer) wcagContainer.hidden = !isWcagCriterionFieldType(editType);
+    const progressContainer = document.getElementById('progress-item-options-container');
+    if (progressContainer) progressContainer.hidden = editType !== 'evaluation-item-selection';
+
+    const addButton = document.getElementById('btn-add-field');
+    const addButtonLabel = appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes';
+    if (addButton && addButton.textContent.trim() !== addButtonLabel) {
+        addButton.textContent = addButtonLabel;
+    }
+
+    return true;
+}
+
+function applyFieldChange(focusAction, focusIndex = null) {
+    if (refreshFieldConfigurationUi()) {
+        applyBuilderFocusRequest({ action: focusAction, index: focusIndex });
+        return;
+    }
+
+    requestBuilderFocus(focusAction, focusIndex);
+    renderBuilder();
+}
+
 function confirmPendingFieldDelete() {
     if (!pendingDelete) {
         hideDeleteDialog(false);
@@ -903,11 +949,10 @@ function confirmPendingFieldDelete() {
     deleteField(deleteIndex);
     hideDeleteDialog(false);
     if (nextIndex >= 0) {
-        requestBuilderFocus('delete', nextIndex);
+        applyFieldChange('delete', nextIndex);
     } else {
-        requestBuilderFocus('btn-add-field');
+        applyFieldChange('btn-add-field');
     }
-    renderBuilder();
 }
 
 function handleFieldRowAction(action, index) {
@@ -915,8 +960,7 @@ function handleFieldRowAction(action, index) {
 
     if (action === 'edit') {
         setEditMode(index);
-        requestBuilderFocus('field-label-input');
-        renderBuilder();
+        applyFieldChange('field-label-input');
         return;
     }
 
@@ -928,8 +972,7 @@ function handleFieldRowAction(action, index) {
     const direction = action === 'move-up' ? -1 : 1;
     const newIndex = moveField(index, direction);
     if (newIndex === undefined) return;
-    requestBuilderFocus(action, newIndex);
-    renderBuilder();
+    applyFieldChange(action, newIndex);
 }
 
 async function handleBuilderContainerClick(event) {
@@ -1008,19 +1051,9 @@ function setupSelectAnnouncement(selectElement, label) {
 }
 
 export function executeAddFieldFromCommand() {
-    const isAdding = appState.editingIndex === -1;
-    const previousCount = appState.fields.length;
     addOrUpdateField();
-
-    if (isAdding && appState.fields.length > previousCount) {
-        appState.fieldsExpanded = true;
-        requestBuilderFocus('field-label-input');
-    } else if (isAdding) {
-        appState.fieldsExpanded = true;
-        requestBuilderFocus('field-label-input');
-    }
-
-    renderBuilder();
+    appState.fieldsExpanded = true;
+    applyFieldChange('field-label-input');
     return true;
 }
 
@@ -1108,13 +1141,6 @@ export async function renderBuilder() {
         hasAppliedFieldsExpandedDefault = true;
     }
 
-    const activeElementBeforeRender = document.activeElement;
-    const preserveFocusId = !pendingFocus
-        && activeElementBeforeRender
-        && container?.contains(activeElementBeforeRender)
-        && activeElementBeforeRender.id
-        ? activeElementBeforeRender.id
-        : '';
     const editField = getEditField();
     const editType = normalizeFieldType(editField?.type);
     const availableStandards = await getAvailableWcagStandards().catch(() => ['WCAG 2.2', 'WCAG 2.1']);
@@ -1147,6 +1173,15 @@ export async function renderBuilder() {
     const activeLayoutDraft = cloneCurrentLayoutDraft(resolvedPresentation);
     const activeThemeDraft = cloneCurrentThemeDraft(resolvedPresentation);
     const presentationScopeOptions = getPresentationScopeOptions();
+
+    // Captured immediately before the rebuild so focus set during an in-flight render is not lost.
+    const activeElementBeforeRender = document.activeElement;
+    const preserveFocusId = !pendingFocus
+        && activeElementBeforeRender
+        && container?.contains(activeElementBeforeRender)
+        && activeElementBeforeRender.id
+        ? activeElementBeforeRender.id
+        : '';
 
     container.innerHTML = `
         <section id="builder-view" aria-labelledby="builder-heading">
