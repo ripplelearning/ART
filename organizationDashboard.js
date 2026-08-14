@@ -1,20 +1,40 @@
 // organizationDashboard.js
 import { announce, getOrganizationMetricsConfig, updateOrganizationMetricsConfig } from './state.js';
 import {
+    DATE_RANGE_OPTIONS,
     METRIC_AVAILABILITY,
     buildOrganizationIndex,
     calculateOrganizationMetrics,
-    getOrganizationSummaries
+    compareOrganizations,
+    getOrganizationScopeOptions,
+    getOrganizationSummaries,
+    resolveDateRange
 } from './organizationMetricsFramework.js';
 
+// `requires` names an Application Settings toggle; a tab is hidden when its section is turned off.
 const ORGANIZATION_TABS = [
     { id: 'overview', label: 'Overview' },
     { id: 'findings', label: 'Findings' },
     { id: 'categories', label: 'Categories' },
-    { id: 'products', label: 'Products' },
-    { id: 'testers', label: 'Testers' },
+    { id: 'issue-types', label: 'Issue Types' },
+    { id: 'standards', label: 'Standards' },
+    { id: 'coverage', label: 'Testing Coverage' },
+    { id: 'targets', label: 'Pages and Components' },
+    { id: 'projects', label: 'Projects' },
+    { id: 'workspaces', label: 'Workspaces' },
+    { id: 'products', label: 'Products', requires: 'showProductAnalytics' },
+    { id: 'testers', label: 'Testers', requires: 'showTesterAnalytics' },
+    { id: 'trends', label: 'Trends' },
+    { id: 'recurrence', label: 'Recurrence', requires: 'showRecurrenceAnalytics' },
+    { id: 'remediation', label: 'Remediation' },
+    { id: 'health', label: 'Accessibility Health', requires: 'showAccessibilityHealth' },
+    { id: 'benchmarking', label: 'Comparison', requires: 'showBenchmarking' },
     { id: 'data-quality', label: 'Data Quality' }
 ];
+
+function getVisibleTabs(config = getOrganizationMetricsConfig()) {
+    return ORGANIZATION_TABS.filter((tab) => !tab.requires || config[tab.requires] !== false);
+}
 
 let dialogState = null;
 
@@ -54,7 +74,7 @@ function renderSummaryTable(rows) {
     `;
 }
 
-function renderDistribution(metric, heading) {
+function renderDistribution(metric, heading, countLabel = 'Findings') {
     const rendered = renderMetricValue(metric);
     if (!Array.isArray(metric?.value)) {
         return `<h4>${escapeHtml(heading)}</h4><p>${escapeHtml(rendered.text)}${rendered.note ? ` ${escapeHtml(rendered.note)}` : ''}</p>`;
@@ -64,11 +84,91 @@ function renderDistribution(metric, heading) {
         <h4>${escapeHtml(heading)}</h4>
         <table class="organization-metrics-table">
             <caption class="sr-only">${escapeHtml(heading)}</caption>
-            <thead><tr><th scope="col">Value</th><th scope="col">Findings</th><th scope="col">Percentage</th></tr></thead>
+            <thead><tr><th scope="col">Value</th><th scope="col">${escapeHtml(countLabel)}</th><th scope="col">Percentage</th></tr></thead>
             <tbody>
                 ${metric.value.map((entry) => `<tr><th scope="row">${escapeHtml(entry.label)}</th><td>${entry.count}</td><td>${entry.percentage}%</td></tr>`).join('')}
             </tbody>
         </table>
+    `;
+}
+
+function renderKeyValueSummary(metric, heading, rows, note = '') {
+    const rendered = renderMetricValue(metric);
+    const value = metric?.value;
+    if (!value || typeof value !== 'object') {
+        return `<h4>${escapeHtml(heading)}</h4><p>${escapeHtml(rendered.text)}${rendered.note ? ` ${escapeHtml(rendered.note)}` : ''}</p>`;
+    }
+
+    const summaryRows = rows
+        .filter((row) => value[row.key] !== undefined)
+        .map((row) => ({
+            label: row.label,
+            value: value[row.key] === null ? 'Not available' : `${value[row.key]}${row.suffix || ''}`,
+            note: ''
+        }));
+
+    return `<h4>${escapeHtml(heading)}</h4>${renderSummaryTable(summaryRows)}${note ? `<p>${escapeHtml(note)}</p>` : ''}`;
+}
+
+function renderTrend(metric) {
+    const rendered = renderMetricValue(metric);
+    const periods = metric?.value?.periods;
+    if (!Array.isArray(periods)) {
+        return `<h4>Reporting Activity Over Time</h4><p>${escapeHtml(rendered.text)}${rendered.note ? ` ${escapeHtml(rendered.note)}` : ''}</p>`;
+    }
+
+    const undated = Number(metric.value.reportsWithoutDate || 0);
+    return `
+        <h4>Reporting Activity Over Time</h4>
+        <table class="organization-metrics-table">
+            <caption class="sr-only">Reports and findings by month</caption>
+            <thead><tr><th scope="col">Month</th><th scope="col">Reports</th><th scope="col">Findings</th></tr></thead>
+            <tbody>
+                ${periods.map((entry) => `<tr><th scope="row">${escapeHtml(entry.period)}</th><td>${entry.reportCount}</td><td>${entry.findingCount}</td></tr>`).join('')}
+            </tbody>
+        </table>
+        ${undated > 0 ? `<p>${undated} report${undated === 1 ? '' : 's'} have no usable date and are not shown in the trend.</p>` : ''}
+    `;
+}
+
+function renderRecurrence(metric) {
+    const rendered = renderMetricValue(metric);
+    const groups = metric?.value;
+    if (!Array.isArray(groups)) {
+        return `<h4>Recurring Findings</h4><p>${escapeHtml(rendered.text)}${rendered.note ? ` ${escapeHtml(rendered.note)}` : ''}</p>`;
+    }
+    if (groups.length === 0) {
+        return '<h4>Recurring Findings</h4><p>No finding appears in more than one report in this scope.</p>';
+    }
+
+    return `
+        <h4>Recurring Findings</h4>
+        <table class="organization-metrics-table">
+            <caption class="sr-only">Findings appearing in more than one report</caption>
+            <thead><tr><th scope="col">Finding</th><th scope="col">Page or component</th><th scope="col">Reports</th><th scope="col">Occurrences</th></tr></thead>
+            <tbody>
+                ${groups.map((group) => `<tr><th scope="row">${escapeHtml(group.descriptor)}</th><td>${escapeHtml(group.target || 'Not recorded')}</td><td>${group.reportCount}</td><td>${group.occurrences}</td></tr>`).join('')}
+            </tbody>
+        </table>
+        <p>Recurrence is matched on the text recorded in each report. Findings worded differently are counted separately.</p>
+    `;
+}
+
+function renderComparison(rows) {
+    if (!Array.isArray(rows) || rows.length < 2) {
+        return '<h4>Organization Comparison</h4><p>Comparison needs at least two organizations with reports.</p>';
+    }
+
+    return `
+        <h4>Organization Comparison</h4>
+        <table class="organization-metrics-table">
+            <caption class="sr-only">Comparison of organizations</caption>
+            <thead><tr><th scope="col">Organization</th><th scope="col">Reports</th><th scope="col">Findings</th><th scope="col">Average findings per report</th><th scope="col">Percentage resolved</th></tr></thead>
+            <tbody>
+                ${rows.map((row) => `<tr><th scope="row">${escapeHtml(row.displayName)}</th><td>${row.reportCount}</td><td>${row.findingCount}</td><td>${row.averageFindingsPerReport ?? 'Not available'}</td><td>${row.resolvedPercentage === null ? 'Not available' : `${row.resolvedPercentage}%`}</td></tr>`).join('')}
+            </tbody>
+        </table>
+        <p>Organizations differ in size, scope, and testing practice. These figures describe recorded activity and are not a ranking.</p>
     `;
 }
 
@@ -99,8 +199,40 @@ function buildTabPanelContent(tabId, result) {
         return renderDistribution(metrics.findingsByCategory, 'Findings by Category');
     }
 
+    if (tabId === 'issue-types') {
+        return renderDistribution(metrics.findingsByIssueType, 'Findings by Issue Type');
+    }
+
+    if (tabId === 'standards') {
+        return renderDistribution(metrics.reportsByStandard, 'Reports by Accessibility Standard', 'Reports')
+            + renderDistribution(metrics.reportsByType, 'Reports by Report Type', 'Reports');
+    }
+
+    if (tabId === 'coverage') {
+        return renderKeyValueSummary(metrics.testingCoverage, 'Testing Coverage', [
+            { key: 'reportsWithFindings', label: 'Reports with recorded findings' },
+            { key: 'reportsWithoutFindings', label: 'Reports with no recorded findings' },
+            { key: 'distinctTargets', label: 'Distinct pages, screens, or components' },
+            { key: 'productsCovered', label: 'Products covered' },
+            { key: 'projectsCovered', label: 'Projects covered' }
+        ]);
+    }
+
+    if (tabId === 'targets') {
+        return renderDistribution(metrics.findingsByTarget, 'Findings by Page, Screen, or Component');
+    }
+
+    if (tabId === 'projects') {
+        return renderDistribution(metrics.reportsByProject, 'Reports by Project', 'Reports');
+    }
+
+    if (tabId === 'workspaces') {
+        return renderDistribution(metrics.reportsByWorkspace, 'Reports by Project Workspace', 'Reports');
+    }
+
     if (tabId === 'products') {
-        return renderDistribution(metrics.findingsByProduct, 'Findings by Product');
+        return renderDistribution(metrics.findingsByProduct, 'Findings by Product')
+            + renderDistribution(metrics.reportsByProduct, 'Reports by Product', 'Reports');
     }
 
     if (tabId === 'testers') {
@@ -110,7 +242,39 @@ function buildTabPanelContent(tabId, result) {
             <h4>Unique Testers</h4>
             <p>${escapeHtml(rendered.text)}${rendered.note ? ` ${escapeHtml(rendered.note)}` : ''}</p>
             <p>Tester statistics describe testing activity and coverage. They are not a measure of individual performance.</p>
+            ${renderDistribution(metrics.reportsByTester, 'Reports by Tester', 'Reports')}
         `;
+    }
+
+    if (tabId === 'trends') {
+        return renderTrend(metrics.reportTrend);
+    }
+
+    if (tabId === 'recurrence') {
+        return renderRecurrence(metrics.findingRecurrence);
+    }
+
+    if (tabId === 'remediation') {
+        return renderKeyValueSummary(metrics.remediationProgress, 'Remediation Progress', [
+            { key: 'resolved', label: 'Findings recorded as resolved' },
+            { key: 'open', label: 'Findings recorded as open' },
+            { key: 'other', label: 'Findings with another recorded status' },
+            { key: 'unclassified', label: 'Findings with no recorded status' },
+            { key: 'resolvedPercentage', label: 'Percentage resolved', suffix: '%' }
+        ], 'Status is read from each report\'s recorded status values. ART does not infer remediation that was not recorded.');
+    }
+
+    if (tabId === 'health') {
+        return renderKeyValueSummary(metrics.accessibilityHealth, 'Accessibility Health Indicators', [
+            { key: 'averageFindingsPerReport', label: 'Average findings per report' },
+            { key: 'reportsWithFindings', label: 'Reports with findings' },
+            { key: 'distinctCriteria', label: 'Distinct Success Criteria involved' },
+            { key: 'resolvedPercentage', label: 'Percentage resolved', suffix: '%' }
+        ], 'These indicators describe recorded testing activity. They are not a compliance score and do not certify conformance.');
+    }
+
+    if (tabId === 'benchmarking') {
+        return renderComparison(result.comparison);
     }
 
     if (tabId === 'data-quality') {
@@ -164,15 +328,28 @@ function renderDialog() {
     }
 
     const index = buildOrganizationIndex();
-    const result = selected
-        ? calculateOrganizationMetrics({ organization: selected.displayName }, { index })
-        : { metrics: {}, dataQuality: { reportsWithoutOrganization: index.unassignedReports.length }, reportCount: 0 };
+    const scopeOptions = selected ? getOrganizationScopeOptions(selected.displayName, { index }) : { products: [], projects: [], workspaces: [] };
+    syncScopeFilters(state.dialog, scopeOptions, config);
 
-    const activeTab = ORGANIZATION_TABS.some((tab) => tab.id === config.activeTab) ? config.activeTab : 'overview';
+    const scope = {
+        organization: selected?.displayName || '',
+        product: readFilterValue(state.dialog, '#organization-product-filter'),
+        project: readFilterValue(state.dialog, '#organization-project-filter'),
+        workspaceId: readFilterValue(state.dialog, '#organization-workspace-filter'),
+        ...resolveDateRange(readFilterValue(state.dialog, '#organization-date-filter') || config.defaultDateRange)
+    };
+
+    const result = selected
+        ? calculateOrganizationMetrics(scope, { index })
+        : { metrics: {}, dataQuality: { reportsWithoutOrganization: index.unassignedReports.length }, reportCount: 0 };
+    result.comparison = compareOrganizations({ index });
+
+    const visibleTabs = getVisibleTabs(config);
+    const activeTab = visibleTabs.some((tab) => tab.id === config.activeTab) ? config.activeTab : (visibleTabs[0]?.id || 'overview');
 
     const tablist = state.dialog.querySelector('#organization-tablist');
     if (tablist) {
-        tablist.innerHTML = ORGANIZATION_TABS.map((tab) => `
+        tablist.innerHTML = visibleTabs.map((tab) => `
             <button type="button" role="tab" id="organization-tab-${tab.id}"
                 aria-controls="organization-panel-${tab.id}"
                 aria-selected="${tab.id === activeTab ? 'true' : 'false'}"
@@ -182,7 +359,7 @@ function renderDialog() {
 
     const panels = state.dialog.querySelector('#organization-panels');
     if (panels) {
-        panels.innerHTML = ORGANIZATION_TABS.map((tab) => `
+        panels.innerHTML = visibleTabs.map((tab) => `
             <div role="tabpanel" id="organization-panel-${tab.id}" aria-labelledby="organization-tab-${tab.id}" tabindex="0" ${tab.id === activeTab ? '' : 'hidden'}>
                 ${tab.id === activeTab ? buildTabPanelContent(tab.id, result) : ''}
             </div>
@@ -192,8 +369,40 @@ function renderDialog() {
     const scopeStatus = state.dialog.querySelector('#organization-scope-status');
     if (scopeStatus) {
         scopeStatus.textContent = selected
-            ? `Organization: ${selected.displayName}. ${result.reportCount} report${result.reportCount === 1 ? '' : 's'} included. Statistics reflect reports available to you.`
+            ? `Organization: ${selected.displayName}. ${result.reportCount} report${result.reportCount === 1 ? '' : 's'} included after filters. Statistics reflect reports available to you.`
             : 'No reports contain an Organization/Client value, so organization statistics cannot be calculated yet.';
+    }
+}
+
+function readFilterValue(dialog, selector) {
+    const element = dialog.querySelector(selector);
+    return element instanceof HTMLSelectElement ? normalizeText(element.value) : '';
+}
+
+function syncScopeFilters(dialog, scopeOptions, config) {
+    const setOptions = (selector, options, allLabel) => {
+        const element = dialog.querySelector(selector);
+        if (!(element instanceof HTMLSelectElement)) return;
+        const markup = [`<option value="">${escapeHtml(allLabel)}</option>`]
+            .concat(options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`))
+            .join('');
+        if (element.dataset.signature === markup) return;
+        const previous = element.value;
+        element.innerHTML = markup;
+        element.dataset.signature = markup;
+        // Drop a stale selection rather than silently filtering on a value that no longer exists.
+        element.value = options.some((option) => option.value === previous) ? previous : '';
+    };
+
+    setOptions('#organization-product-filter', scopeOptions.products.map((value) => ({ value, label: value })), 'All products');
+    setOptions('#organization-project-filter', scopeOptions.projects.map((value) => ({ value, label: value })), 'All projects');
+    setOptions('#organization-workspace-filter', scopeOptions.workspaces.map((workspace) => ({ value: workspace.id, label: workspace.name })), 'All workspaces');
+
+    const dateFilter = dialog.querySelector('#organization-date-filter');
+    if (dateFilter instanceof HTMLSelectElement && !dateFilter.dataset.signature) {
+        dateFilter.innerHTML = DATE_RANGE_OPTIONS.map((option) => `<option value="${escapeHtml(option.id)}">${escapeHtml(option.label)}</option>`).join('');
+        dateFilter.dataset.signature = 'ready';
+        dateFilter.value = config.defaultDateRange || 'all';
     }
 }
 
@@ -207,7 +416,7 @@ function activateTab(tabId) {
 }
 
 function handleTablistKeydown(event) {
-    const tabs = ORGANIZATION_TABS.map((tab) => tab.id);
+    const tabs = getVisibleTabs().map((tab) => tab.id);
     const currentId = normalizeText(document.activeElement?.id).replace('organization-tab-', '');
     const currentIndex = tabs.indexOf(currentId);
     if (currentIndex < 0) return;
@@ -243,6 +452,16 @@ function ensureDialog() {
             <p id="organization-statistics-description">Statistics are grouped using the Organization/Client value in each report's metadata.</p>
             <label for="organization-select">Organization</label>
             <select id="organization-select"></select>
+            <div class="organization-filters">
+                <label for="organization-product-filter">Product</label>
+                <select id="organization-product-filter"></select>
+                <label for="organization-project-filter">Project</label>
+                <select id="organization-project-filter"></select>
+                <label for="organization-workspace-filter">Project Workspace</label>
+                <select id="organization-workspace-filter"></select>
+                <label for="organization-date-filter">Date range</label>
+                <select id="organization-date-filter"></select>
+            </div>
             <p id="organization-scope-status" role="status" aria-live="polite" aria-atomic="true"></p>
             <div id="organization-tablist" role="tablist" aria-label="Organization statistics sections"></div>
             <div id="organization-panels"></div>
@@ -275,10 +494,19 @@ function ensureDialog() {
         });
 
         dialog.addEventListener('change', (event) => {
-            if (!(event.target instanceof HTMLSelectElement) || event.target.id !== 'organization-select') return;
-            updateOrganizationMetricsConfig({ selectedOrganization: event.target.value }, { persist: true });
+            if (!(event.target instanceof HTMLSelectElement)) return;
+
+            if (event.target.id === 'organization-select') {
+                updateOrganizationMetricsConfig({ selectedOrganization: event.target.value }, { persist: true });
+                renderDialog();
+                announce(`Organization changed to ${event.target.selectedOptions[0]?.textContent || 'selection'}.`);
+                return;
+            }
+
+            if (!event.target.id.startsWith('organization-') || !event.target.id.endsWith('-filter')) return;
             renderDialog();
-            announce(`Organization changed to ${event.target.selectedOptions[0]?.textContent || 'selection'}.`);
+            const status = dialog.querySelector('#organization-scope-status');
+            announce(status?.textContent || 'Filters updated.');
         });
     }
 
@@ -320,5 +548,5 @@ export function closeOrganizationStatistics(restoreFocus = true) {
 }
 
 export function getOrganizationTabs() {
-    return ORGANIZATION_TABS.map((tab) => ({ ...tab }));
+    return getVisibleTabs().map((tab) => ({ ...tab }));
 }

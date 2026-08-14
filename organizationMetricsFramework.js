@@ -104,6 +104,7 @@ function buildFindingRecords(report) {
     const statusIndex = findField((label) => label.includes('status') || label.includes('result'));
     const criterionIndex = fields.findIndex((field) => String(field?.type || '').includes('wcag'));
     const targetIndex = findField((label) => label.includes('page') || label.includes('screen') || label.includes('component') || label.includes('url'));
+    const issueTypeIndex = findField((label) => label === 'type' || label.includes('issue type') || label.includes('defect type'));
 
     const readValue = (entry, index) => (index >= 0 ? normalizeText(entry?.fieldValues?.[index]) : '');
 
@@ -119,7 +120,8 @@ function buildFindingRecords(report) {
                 category: readValue(entry, categoryIndex),
                 status: readValue(entry, statusIndex),
                 criterion: readValue(entry, criterionIndex),
-                target: readValue(entry, targetIndex)
+                target: readValue(entry, targetIndex),
+                issueType: readValue(entry, issueTypeIndex)
             };
         })
         .filter(Boolean);
@@ -251,6 +253,78 @@ function buildDistribution(reports, selector) {
         .sort((left, right) => right.count - left.count);
 }
 
+// Counts reports rather than findings. `selector` may return a string or an array of strings.
+function buildReportDistribution(reports, selector) {
+    const counts = new Map();
+    let total = 0;
+
+    reports.forEach((report) => {
+        const raw = selector(report);
+        const values = (Array.isArray(raw) ? raw : [raw]).map(normalizeText).filter(Boolean);
+        new Set(values).forEach((value) => {
+            counts.set(value, Number(counts.get(value) || 0) + 1);
+            total += 1;
+        });
+    });
+
+    if (total === 0) return null;
+
+    return [...counts.entries()]
+        .map(([label, count]) => ({
+            label,
+            count,
+            percentage: Math.round((count / total) * 1000) / 10
+        }))
+        .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+}
+
+const RESOLVED_STATUS_PATTERN = /\b(pass|passed|resolved|fixed|closed|complete|completed|remediated)\b/i;
+const OPEN_STATUS_PATTERN = /\b(fail|failed|open|new|in progress|in-progress|pending|deferred|blocked)\b/i;
+
+function classifyStatus(status) {
+    const text = normalizeText(status);
+    if (!text) return 'unknown';
+    if (RESOLVED_STATUS_PATTERN.test(text)) return 'resolved';
+    if (OPEN_STATUS_PATTERN.test(text)) return 'open';
+    return 'other';
+}
+
+function getMonthKey(date) {
+    if (!(date instanceof Date)) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Recurrence is matched on the recorded text of a finding, not on a stable finding identity,
+// so near-duplicate wording is reported separately rather than merged.
+function buildRecurrenceGroups(reports) {
+    const groups = new Map();
+
+    reports.forEach((report) => {
+        report.findings.forEach((finding) => {
+            const descriptor = normalizeText(finding.criterion) || normalizeText(finding.issueType) || normalizeText(finding.category);
+            if (!descriptor) return;
+            const target = normalizeText(finding.target);
+            const key = `${descriptor.toLowerCase()}||${target.toLowerCase()}`;
+            if (!groups.has(key)) {
+                groups.set(key, { descriptor, target, occurrences: 0, reportIds: new Set() });
+            }
+            const group = groups.get(key);
+            group.occurrences += 1;
+            group.reportIds.add(report.id);
+        });
+    });
+
+    return [...groups.values()]
+        .filter((group) => group.reportIds.size > 1)
+        .map((group) => ({
+            descriptor: group.descriptor,
+            target: group.target,
+            occurrences: group.occurrences,
+            reportCount: group.reportIds.size
+        }))
+        .sort((left, right) => right.reportCount - left.reportCount || right.occurrences - left.occurrences);
+}
+
 function registerBuiltInMetrics() {
     if (metricDefinitions.size > 0) return;
 
@@ -380,6 +454,143 @@ function registerBuiltInMetrics() {
                 date: percent(reports.filter((report) => report.date instanceof Date).length)
             });
         });
+
+    const distributionMetric = (id, name, description, selector, emptyReason, extras = {}) => define(
+        id, name, description, 'distribution',
+        ({ reports }) => {
+            const distribution = buildDistribution(reports, selector);
+            return distribution
+                ? createMetricValue(distribution)
+                : createMetricValue(null, METRIC_AVAILABILITY.NOT_APPLICABLE, emptyReason);
+        },
+        extras
+    );
+
+    distributionMetric('findingsByIssueType', 'Findings by Issue Type', 'Distribution of findings by issue or defect type.',
+        (finding) => finding.issueType, 'Reports in this scope do not record an issue type value.', { requires: ['issueType'] });
+
+    distributionMetric('findingsByTarget', 'Findings by Page, Screen, or Component', 'Where findings were recorded.',
+        (finding) => finding.target, 'Reports in this scope do not record a page, screen, or component value.', { requires: ['target'] });
+
+    const reportDistributionMetric = (id, name, description, selector, emptyReason, extras = {}) => define(
+        id, name, description, 'distribution',
+        ({ reports }) => {
+            const distribution = buildReportDistribution(reports, selector);
+            return distribution
+                ? createMetricValue(distribution)
+                : createMetricValue(null, METRIC_AVAILABILITY.UNAVAILABLE, emptyReason);
+        },
+        extras
+    );
+
+    reportDistributionMetric('reportsByStandard', 'Reports by Accessibility Standard', 'Number of reports evaluated against each standard.',
+        (report) => report.standard, 'No reports in this scope record an accessibility standard.');
+
+    reportDistributionMetric('reportsByProject', 'Reports by Project', 'Number of reports for each project.',
+        (report) => report.projectName, 'No reports in this scope contain a Project value.', { requires: ['projectName'] });
+
+    reportDistributionMetric('reportsByWorkspace', 'Reports by Project Workspace', 'Number of reports in each Project Workspace.',
+        (report) => report.workspaceName, 'No reports in this scope belong to a Project Workspace.');
+
+    reportDistributionMetric('reportsByProduct', 'Reports by Product', 'Number of reports for each product.',
+        (report) => report.product, 'No reports in this scope contain a Product value.', { requires: ['product'] });
+
+    reportDistributionMetric('reportsByType', 'Reports by Report Type', 'Number of reports of each report type.',
+        (report) => report.reportType, 'No reports in this scope record a report type.');
+
+    reportDistributionMetric('reportsByTester', 'Reports by Tester', 'Number of reports each tester contributed to. This describes testing activity, not individual performance.',
+        (report) => report.testers, 'No reports in this scope contain Tester information.',
+        { requires: ['auditors'], source: 'Report Auditor(s) metadata' });
+
+    define('testingCoverage', 'Testing Coverage', 'How much of the organization\'s recorded work has been covered by testing activity.', 'summary',
+        ({ reports }) => {
+            if (reports.length === 0) {
+                return createMetricValue(null, METRIC_AVAILABILITY.UNAVAILABLE, 'No reports in this scope.');
+            }
+            const targets = new Set();
+            reports.forEach((report) => report.findings.forEach((finding) => {
+                if (finding.target) targets.add(finding.target.toLowerCase());
+            }));
+            return createMetricValue({
+                reportsWithFindings: reports.filter((report) => report.findings.length > 0).length,
+                reportsWithoutFindings: reports.filter((report) => report.findings.length === 0).length,
+                distinctTargets: targets.size,
+                productsCovered: countDistinct(reports.map((report) => report.product).filter(Boolean)),
+                projectsCovered: countDistinct(reports.map((report) => report.projectName).filter(Boolean))
+            });
+        });
+
+    define('reportTrend', 'Reporting Activity Over Time', 'Reports and findings recorded in each month.', 'timeSeries',
+        ({ reports }) => {
+            const dated = reports.filter((report) => report.date instanceof Date);
+            if (dated.length === 0) {
+                return createMetricValue(null, METRIC_AVAILABILITY.UNAVAILABLE, 'No reports in this scope contain a usable date.');
+            }
+            const buckets = new Map();
+            dated.forEach((report) => {
+                const key = getMonthKey(report.date);
+                if (!buckets.has(key)) buckets.set(key, { period: key, reportCount: 0, findingCount: 0 });
+                const bucket = buckets.get(key);
+                bucket.reportCount += 1;
+                bucket.findingCount += report.findings.length;
+            });
+            return createMetricValue({
+                periods: [...buckets.values()].sort((left, right) => left.period.localeCompare(right.period)),
+                reportsWithoutDate: reports.length - dated.length
+            });
+        });
+
+    define('findingRecurrence', 'Recurring Findings', 'Findings recorded in more than one report, matched on their recorded text.', 'summary',
+        ({ reports }) => {
+            const hasDescriptors = reports.some((report) => report.findings.some((finding) => finding.criterion || finding.issueType || finding.category));
+            if (!hasDescriptors) {
+                return createMetricValue(null, METRIC_AVAILABILITY.NOT_APPLICABLE, 'Findings in this scope do not record a criterion, issue type, or category to match on.');
+            }
+            if (reports.length < 2) {
+                return createMetricValue(null, METRIC_AVAILABILITY.NOT_APPLICABLE, 'Recurrence needs at least two reports in the selected scope.');
+            }
+            return createMetricValue(buildRecurrenceGroups(reports));
+        }, { requires: ['findings'] });
+
+    define('remediationProgress', 'Remediation Progress', 'How many findings are recorded as resolved versus open.', 'summary',
+        ({ reports }) => {
+            const statuses = reports.flatMap((report) => report.findings.map((finding) => classifyStatus(finding.status)));
+            const classified = statuses.filter((status) => status !== 'unknown');
+            if (classified.length === 0) {
+                return createMetricValue(null, METRIC_AVAILABILITY.NOT_APPLICABLE, 'Findings in this scope do not record a status value.');
+            }
+            const resolved = classified.filter((status) => status === 'resolved').length;
+            const open = classified.filter((status) => status === 'open').length;
+            const other = classified.filter((status) => status === 'other').length;
+            return createMetricValue({
+                resolved,
+                open,
+                other,
+                unclassified: statuses.length - classified.length,
+                resolvedPercentage: Math.round((resolved / classified.length) * 1000) / 10
+            });
+        }, { requires: ['status'] });
+
+    define('accessibilityHealth', 'Accessibility Health Indicators', 'Descriptive indicators of accessibility activity. These are not a compliance score.', 'summary',
+        ({ reports }) => {
+            if (reports.length === 0) {
+                return createMetricValue(null, METRIC_AVAILABILITY.UNAVAILABLE, 'No reports in this scope.');
+            }
+            const findings = reports.flatMap((report) => report.findings);
+            if (findings.length === 0) {
+                return createMetricValue(null, METRIC_AVAILABILITY.NOT_APPLICABLE, 'No findings are recorded in this scope.');
+            }
+            const statuses = findings.map((finding) => classifyStatus(finding.status));
+            const classified = statuses.filter((status) => status !== 'unknown');
+            return createMetricValue({
+                averageFindingsPerReport: Math.round((findings.length / reports.length) * 10) / 10,
+                reportsWithFindings: reports.filter((report) => report.findings.length > 0).length,
+                distinctCriteria: countDistinct(findings.map((finding) => finding.criterion).filter(Boolean)),
+                resolvedPercentage: classified.length > 0
+                    ? Math.round((classified.filter((status) => status === 'resolved').length / classified.length) * 1000) / 10
+                    : null
+            });
+        });
 }
 
 export function calculateOrganizationMetrics(scope = {}, options = {}) {
@@ -428,4 +639,58 @@ export function calculateOrganizationMetrics(scope = {}, options = {}) {
 export function initializeOrganizationMetricsFramework() {
     registerBuiltInMetrics();
     return true;
+}
+
+// Filter choices are derived from the reports already in scope so the UI never offers
+// a filter that would produce an empty result.
+export function getOrganizationScopeOptions(organizationName, options = {}) {
+    const index = options.index || buildOrganizationIndex(options);
+    const { reports } = collectScopeReports(index, { organization: organizationName });
+    const unique = (values) => [...new Set(values.filter(Boolean))].sort((left, right) => left.localeCompare(right));
+
+    return {
+        products: unique(reports.map((report) => report.product)),
+        projects: unique(reports.map((report) => report.projectName)),
+        workspaces: [...new Map(reports
+            .filter((report) => report.workspaceId)
+            .map((report) => [report.workspaceId, { id: report.workspaceId, name: report.workspaceName }])).values()]
+            .sort((left, right) => left.name.localeCompare(right.name))
+    };
+}
+
+export const DATE_RANGE_OPTIONS = [
+    { id: 'all', label: 'All dates' },
+    { id: 'last-30-days', label: 'Last 30 days' },
+    { id: 'last-90-days', label: 'Last 90 days' },
+    { id: 'last-12-months', label: 'Last 12 months' }
+];
+
+export function resolveDateRange(rangeId) {
+    const days = { 'last-30-days': 30, 'last-90-days': 90, 'last-12-months': 365 }[normalizeText(rangeId)];
+    if (!days) return {};
+    const dateFrom = new Date();
+    dateFrom.setDate(dateFrom.getDate() - days);
+    return { dateFrom };
+}
+
+// Comparison is descriptive only: organizations differ in size, scope, and testing practice,
+// so these figures are not a ranking.
+export function compareOrganizations(options = {}) {
+    const index = options.index || buildOrganizationIndex(options);
+    return index.organizations.map((organization) => {
+        const findings = organization.reports.flatMap((report) => report.findings);
+        const statuses = findings.map((finding) => classifyStatus(finding.status)).filter((status) => status !== 'unknown');
+        return {
+            key: organization.key,
+            displayName: organization.displayName,
+            reportCount: organization.reports.length,
+            findingCount: findings.length,
+            averageFindingsPerReport: organization.reports.length > 0
+                ? Math.round((findings.length / organization.reports.length) * 10) / 10
+                : null,
+            resolvedPercentage: statuses.length > 0
+                ? Math.round((statuses.filter((status) => status === 'resolved').length / statuses.length) * 1000) / 10
+                : null
+        };
+    });
 }

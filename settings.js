@@ -352,6 +352,15 @@ function formatMilliseconds(value) {
     return ms >= 1000 ? `${(ms / 1000).toFixed(2)} seconds` : `${ms.toFixed(1)} ms`;
 }
 
+const ORGANIZATION_SECTION_TOGGLES = [
+    ['settings-organization-product-analytics', 'showProductAnalytics'],
+    ['settings-organization-tester-analytics', 'showTesterAnalytics'],
+    ['settings-organization-recurrence-analytics', 'showRecurrenceAnalytics'],
+    ['settings-organization-accessibility-health', 'showAccessibilityHealth'],
+    ['settings-organization-benchmarking', 'showBenchmarking'],
+    ['settings-organization-dashboard-section', 'dashboardSectionVisible']
+];
+
 function renderOrganizationSettings() {
     const checkbox = document.getElementById('settings-organization-enabled');
     const summary = document.getElementById('settings-organization-summary');
@@ -359,6 +368,14 @@ function renderOrganizationSettings() {
 
     const config = getOrganizationMetricsConfig();
     checkbox.checked = config.enabled === true;
+
+    ORGANIZATION_SECTION_TOGGLES.forEach(([elementId, configKey]) => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.checked = config[configKey] !== false;
+            element.disabled = config.enabled !== true;
+        }
+    });
 
     if (summary) {
         summary.textContent = config.enabled
@@ -374,7 +391,13 @@ function bindOrganizationSettings() {
 
     applyButton.addEventListener('click', () => {
         const enabled = Boolean(checkbox?.checked);
-        updateOrganizationMetricsConfig({ enabled });
+        const updates = { enabled };
+        ORGANIZATION_SECTION_TOGGLES.forEach(([elementId, configKey]) => {
+            const element = document.getElementById(elementId);
+            if (element) updates[configKey] = Boolean(element.checked);
+        });
+
+        updateOrganizationMetricsConfig(updates);
         writeStatus(enabled ? 'Organization Statistics enabled.' : 'Organization Statistics disabled.');
         announce(enabled
             ? 'Organization Statistics enabled. An Organization menu is now available.'
@@ -3332,6 +3355,7 @@ export function initSettings() {
     window.addEventListener('art-collaboration-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-collaboration-framework-event', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-workspace-view-settings-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-organization-metrics-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-plugin-framework-event', refreshSettingsViewIfDialogOpen);
 
     maybeAutoConnectLiveCollaboration();

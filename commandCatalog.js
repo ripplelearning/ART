@@ -323,6 +323,9 @@ function getDefaultMenuLocation(action, category) {
         case 'openOrganizationStatistics':
         case 'openOrganizationOverview':
         case 'openOrganizationFindings':
+        case 'openOrganizationTrends':
+        case 'openOrganizationRecurrence':
+        case 'openOrganizationComparison':
         case 'openOrganizationDataQuality': return 'Organization>Statistics';
         case 'toggleOrganizationDashboardSection': return 'Organization';
         case 'searchEverywhere':
@@ -1750,6 +1753,36 @@ const BASE_COMMAND_DEFINITIONS = [
         enabled: () => isOrganizationStatisticsEnabled(),
         unavailableReason: 'Enable Organization Statistics in Application Settings first.',
         handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null, { tab: 'data-quality' })
+    },
+    {
+        action: 'openOrganizationTrends',
+        id: 'Organization.OpenTrends',
+        category: 'Organization',
+        description: 'Review reporting activity over time for the selected organization.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null, { tab: 'trends' })
+    },
+    {
+        action: 'openOrganizationRecurrence',
+        id: 'Organization.OpenRecurrence',
+        category: 'Organization',
+        description: 'Review findings that appear in more than one report.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null, { tab: 'recurrence' })
+    },
+    {
+        action: 'openOrganizationComparison',
+        id: 'Organization.OpenComparison',
+        category: 'Organization',
+        description: 'Compare recorded accessibility activity across organizations.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => openOrganizationStatistics(context.triggerElement || document.activeElement || null, { tab: 'benchmarking' })
     },
     {
         action: 'toggleOrganizationDashboardSection',

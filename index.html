@@ -291,6 +291,17 @@
                 <label><input id="settings-organization-enabled" type="checkbox"> Enable Organization Statistics</label>
                 <p id="settings-organization-help">Organization Statistics aggregate accessibility data across reports that share the same Organization/Client value. Enabling this adds an Organization menu and an optional Dashboard section. Stand-alone reports without an Organization/Client value continue to work normally and are never assigned to an organization.</p>
 
+                <fieldset>
+                    <legend>Optional statistics sections</legend>
+                    <p id="settings-organization-sections-help">Turn off any section you do not want. Hidden sections are removed from the Organization Statistics dialog.</p>
+                    <label><input id="settings-organization-product-analytics" type="checkbox" checked> Show Products section</label>
+                    <label><input id="settings-organization-tester-analytics" type="checkbox" checked> Show Testers section</label>
+                    <label><input id="settings-organization-recurrence-analytics" type="checkbox" checked> Show Recurrence section</label>
+                    <label><input id="settings-organization-accessibility-health" type="checkbox" checked> Show Accessibility Health section</label>
+                    <label><input id="settings-organization-benchmarking" type="checkbox" checked> Show Comparison section</label>
+                    <label><input id="settings-organization-dashboard-section" type="checkbox" checked> Show the Dashboard summary section</label>
+                </fieldset>
+
                 <div class="viewer-dialog-actions" role="group" aria-label="Organization statistics actions">
                     <button id="btn-settings-organization-apply" type="button">Apply Organization Setting</button>
                 </div>
