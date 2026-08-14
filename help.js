@@ -248,6 +248,8 @@ function getHelpSections(rows) {
                 <p>Context menus are generated from the Application Command Framework and the current application context, so the same commands appear consistently for the same situation.</p>
                 <p>The last item in every context menu is <strong>Command Search</strong>.</p>
                 <p>Command Search uses the same command search engine, listbox roles, keyboard interaction model, statuses, and shortcut-aware command execution behavior as Menu Bar Command Search.</p>
+                <p>Commands that cannot run right now stay visible so you can still discover them, but they are marked as unavailable and explain why. For example, Forward reports <strong>There is no next location. Use Back first.</strong> rather than only saying the command is unavailable.</p>
+                <p>Many commands also match common alternative wording. Searching <strong>revert</strong> finds Undo, and <strong>go forward</strong> finds Forward.</p>
                 <p>Commands show their current shortcut assignment when one exists, and context menus follow the same accessibility model throughout ART.</p>
             `
         },

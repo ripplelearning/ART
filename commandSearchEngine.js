@@ -25,7 +25,8 @@ function getSearchableText(command, shortcut) {
         shortcut,
         command.helpTopic,
         command.menuLocation,
-        command.notes
+        command.notes,
+        ...(Array.isArray(command.aliases) ? command.aliases : [])
     ].join(' ').toLowerCase();
 }
 
@@ -37,9 +38,12 @@ function scoreCommand(command, query) {
     const displayName = command.displayName.toLowerCase();
     const category = command.category.toLowerCase();
     const searchableText = command.searchableText;
+    const aliases = Array.isArray(command.aliases) ? command.aliases.map((alias) => alias.toLowerCase()) : [];
 
     if (displayName === query) return 0;
+    if (aliases.includes(query)) return 0.5;
     if (displayName.startsWith(query)) return 1;
+    if (aliases.some((alias) => alias.startsWith(query))) return 1.5;
     if (searchableText.includes(query)) return 2;
     if (searchableText.includes(compactQuery)) return 3;
     if (category === query || category.startsWith(query)) return 4;

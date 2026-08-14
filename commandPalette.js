@@ -84,7 +84,9 @@ function renderResults() {
         id: command.id,
         title: command.displayName,
         subtitle: `${command.category}${command.keyboardShortcut ? ` | ${command.keyboardShortcut}` : ''}`,
-        description: command.description || '',
+        description: command.canExecute
+            ? (command.description || '')
+            : [command.description, command.unavailableMessage || 'Unavailable in the current context.'].filter(Boolean).join(' '),
         disabled: !command.canExecute,
         command
     }));
@@ -94,7 +96,8 @@ function renderResults() {
     const selected = getSelectedCommand();
     if (selected) {
         const shortcut = selected.keyboardShortcut ? ` Shortcut ${selected.keyboardShortcut}.` : '';
-        const state = selected.canExecute ? 'Press Enter to execute.' : 'Command unavailable.';
+        const unavailable = selected.unavailableMessage || 'Command unavailable.';
+        const state = selected.canExecute ? 'Press Enter to execute.' : unavailable;
         updateStatus(`${selected.displayName}. ${selected.category}.${shortcut} ${state}`);
     }
 }
@@ -104,8 +107,9 @@ async function executeSelectedCommand() {
     if (!command) return false;
 
     if (!command.canExecute) {
-        updateStatus('Command unavailable.');
-        announce('Command unavailable.');
+        const message = command.unavailableMessage || 'Command unavailable.';
+        updateStatus(message);
+        announce(message);
         return false;
     }
 

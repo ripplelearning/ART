@@ -189,7 +189,8 @@ function buildCommandSearchableText(command, shortcut) {
         shortcut,
         command.helpTopic,
         command.menuLocation,
-        command.notes
+        command.notes,
+        ...(Array.isArray(command.aliases) ? command.aliases : [])
     ].join(' ').toLowerCase();
 }
 
@@ -274,6 +275,8 @@ function buildCommandProviderResults(queryModel, context) {
         let score = scoreTextMatch(command.searchableText, queryModel);
         if (shortcut && compactQuery && shortcut.includes(compactQuery)) score -= 0.4;
         if (normalizeSearchText(command.displayName) === queryModel.normalized) score -= 1;
+        // An alias match is as intentional as a name match.
+        if (Array.isArray(command.aliases) && command.aliases.some((alias) => normalizeSearchText(alias) === queryModel.normalized)) score -= 0.8;
 
         return {
             id: `command:${command.id}`,
@@ -281,7 +284,9 @@ function buildCommandProviderResults(queryModel, context) {
             type: 'command',
             title: command.displayName,
             subtitle: `${command.category}${command.keyboardShortcut ? ` | ${command.keyboardShortcut}` : ''}`,
-            description: command.description || '',
+            description: command.canExecute === false && command.unavailableMessage
+                ? `${command.description || ''} ${command.unavailableMessage}`.trim()
+                : (command.description || ''),
             disabled: command.canExecute === false,
             score,
             command

@@ -1504,6 +1504,8 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Edit',
         description: 'Undo the most recent undoable transaction.',
         enabled: () => canUndoState(),
+        unavailableReason: 'There is nothing to undo yet.',
+        aliases: ['revert', 'step back'],
         handler: () => {
             const result = executeUndoFromCommand();
             if (!result.ok) {
@@ -1520,6 +1522,8 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Edit',
         description: 'Redo the most recently undone transaction.',
         enabled: () => canRedoState(),
+        unavailableReason: 'There is nothing to redo yet.',
+        aliases: ['repeat'],
         handler: () => {
             const result = executeRedoFromCommand();
             if (!result.ok) {
@@ -1662,6 +1666,8 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Navigation',
         description: 'Return to the previous location.',
         enabled: () => canNavigateBack(),
+        unavailableReason: 'There is no previous location to return to.',
+        aliases: ['go back', 'previous location'],
         handler: () => navigateBack()
     },
     {
@@ -1670,6 +1676,8 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Navigation',
         description: 'Move forward to the location you navigated back from.',
         enabled: () => canNavigateForward(),
+        unavailableReason: 'There is no next location. Use Back first.',
+        aliases: ['go forward', 'next location'],
         handler: () => navigateForward()
     },
     {
@@ -2056,6 +2064,7 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Tools',
         description: 'Open the Progress Log dialog.',
         enabled: () => isProgressLogEnabled(),
+        unavailableReason: 'Enable the Progress Log in Report Builder first.',
         handler: () => Boolean(openProgressLogDialog(document.activeElement || null))
     },
     {
@@ -2214,6 +2223,7 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Report',
         description: 'Add a new audit entry.',
         enabled: () => currentReportSupportsAuditEntries(),
+        unavailableReason: 'The current report type does not use audit entries.',
         handler: () => runAddEntryWorkflow()
     },
     {
@@ -2545,6 +2555,7 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'File',
         description: 'Save the current ART project.',
         enabled: () => hasUnsavedProjectChanges(),
+        unavailableReason: 'There are no unsaved changes to save.',
         handler: () => saveDashboardProjectFromCommand()
     },
     {
@@ -3190,6 +3201,8 @@ function buildCommandDefinition(definition) {
         handler: definition.handler || null,
         enabled: definition.enabled || (() => true),
         visible: definition.visible || (() => true),
+        unavailableReason: definition.unavailableReason || '',
+        aliases: Array.isArray(definition.aliases) ? definition.aliases : [],
         keyboardShortcut,
         helpTopic: definition.helpTopic || '',
         menuLocation,

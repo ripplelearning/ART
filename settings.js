@@ -36,6 +36,7 @@ import {
     setNetworkActivity,
     resetAllApplicationData,
     resetShortcutsToDefault,
+    resetShortcutForAction,
     resetUserPreferences,
     getVisualAccessibilityConfig,
     resetVisualAccessibilityConfig,
@@ -331,6 +332,41 @@ function closeSubDialog(restoreFocus = true) {
     }
 }
 
+// Filters top-level settings sections by heading and visible text so options stay discoverable.
+function bindSettingsSearch() {
+    const input = document.getElementById('settings-search-filter');
+    const status = document.getElementById('settings-search-filter-status');
+    const dialog = document.getElementById('app-settings-dialog');
+    if (!(input instanceof HTMLInputElement) || !dialog) return;
+
+    const getSections = () => [...dialog.querySelectorAll(':scope > section[aria-labelledby]')];
+
+    input.addEventListener('input', () => {
+        const query = String(input.value || '').trim().toLowerCase();
+        const sections = getSections();
+
+        if (!query) {
+            sections.forEach((section) => { section.hidden = false; });
+            if (status) status.textContent = '';
+            return;
+        }
+
+        let matches = 0;
+        sections.forEach((section) => {
+            const text = String(section.textContent || '').toLowerCase();
+            const isMatch = text.includes(query);
+            section.hidden = !isMatch;
+            if (isMatch) matches += 1;
+        });
+
+        if (status) {
+            status.textContent = matches > 0
+                ? `${matches} settings section${matches === 1 ? '' : 's'} match.`
+                : 'No settings match your search.';
+        }
+    });
+}
+
 function renderShortcuts() {
     const body = document.getElementById('settings-shortcuts-body');
     if (!body) return;
@@ -355,6 +391,11 @@ function renderShortcuts() {
                     data-shortcut-action="${definition.action}"
                     aria-label="Change ${definition.label}"
                 >Change ${definition.label}</button>
+                <button
+                    type="button"
+                    data-shortcut-reset-action="${definition.action}"
+                    aria-label="Reset ${definition.label} to default"
+                >Reset ${definition.label}</button>
             </td>
         </tr>
     `).join('');
@@ -368,6 +409,22 @@ function renderShortcuts() {
             input.value = 'Press shortcut...';
             input.focus();
             writeStatus('Press the new shortcut now.');
+        });
+    });
+
+    body.querySelectorAll('[data-shortcut-reset-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const action = button.getAttribute('data-shortcut-reset-action');
+            if (!action) return;
+            const result = resetShortcutForAction(action);
+            if (!result.ok) return;
+            renderShortcuts();
+            const message = result.shortcut
+                ? `${result.label} reset to ${result.shortcut}.`
+                : `${result.label} reset to no shortcut.`;
+            writeStatus(message);
+            announce(message);
+            document.querySelector(`[data-shortcut-reset-action="${action}"]`)?.focus();
         });
     });
 }
@@ -3134,6 +3191,7 @@ export function initSettings() {
     });
 
     bindShortcutCapture();
+    bindSettingsSearch();
     bindVisualAccessibilitySettings();
     bindAnalyticsSettings();
     bindCollaborationSettings();

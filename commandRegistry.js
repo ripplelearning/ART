@@ -81,6 +81,12 @@ function normalizeCommandMetadata(definition = {}) {
         handler,
         enabled: normalizeBooleanPredicate(source.enabled, true),
         visible: normalizeBooleanPredicate(source.visible, true),
+        unavailableReason: typeof source.unavailableReason === 'function'
+            ? source.unavailableReason
+            : normalizeText(source.unavailableReason),
+        aliases: Array.isArray(source.aliases)
+            ? source.aliases.map((alias) => normalizeText(alias)).filter(Boolean)
+            : [],
         keyboardShortcut,
         helpTopic,
         menuLocation,

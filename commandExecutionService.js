@@ -85,6 +85,19 @@ function normalizeConditionResult(value) {
     return Boolean(value);
 }
 
+// Explains why a command cannot run right now so surfaces can tell the user what to do.
+function resolveUnavailableMessage(command, context) {
+    const reason = command?.unavailableReason;
+    if (typeof reason === 'function') {
+        try {
+            return normalizeText(reason(context, command));
+        } catch (error) {
+            return '';
+        }
+    }
+    return normalizeText(reason);
+}
+
 function evaluateCondition(condition, context, command) {
     if (typeof condition === 'function') {
         return normalizeConditionResult(condition(context, command));
@@ -241,7 +254,8 @@ export function createCommandExecutionService(options = {}) {
             enabled,
             canExecute: visible && enabled,
             command: cloneCommand(command),
-            reason: visible ? (enabled ? '' : 'disabled') : 'hidden'
+            reason: visible ? (enabled ? '' : 'disabled') : 'hidden',
+            unavailableMessage: visible && enabled ? '' : resolveUnavailableMessage(command, context)
         };
     }
 

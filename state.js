@@ -5047,6 +5047,19 @@ export function updateShortcut(action, shortcut, options = {}) {
     return { ok: true, conflict };
 }
 
+export function resetShortcutForAction(action) {
+    const definition = getAllShortcutDefinitions(appState.shortcuts).find((item) => item.action === action);
+    if (!definition) {
+        return { ok: false, reason: 'unknown-action' };
+    }
+
+    const defaultShortcut = String(defaultState.shortcuts?.[action] ?? '');
+    appState.shortcuts[action] = defaultShortcut;
+    saveState({ action: `Reset shortcut for ${definition.label}` });
+    window.dispatchEvent(new Event('art-shortcuts-updated'));
+    return { ok: true, shortcut: defaultShortcut, label: definition.label };
+}
+
 export function resetShortcutsToDefault() {
     appState.shortcuts = normalizeShortcuts(defaultState.shortcuts);
     saveState({ action: 'Restored default keyboard shortcuts' });

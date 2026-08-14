@@ -319,6 +319,16 @@ Structured field terms can be typed directly. Supported fields are type, level, 
 
 Save Search stores the query together with its scope, filters, and sort order, and opening a saved search restores all of them. Saved searches are personal, stored on this device, and searchable from the Saved Searches scope.
 
+## Command Availability and Command Aliases
+Commands that cannot run in the current context remain visible so they stay discoverable, are marked as unavailable for assistive technology, and explain why. For example, Forward reports that there is no next location and suggests using Back first.
+
+Many commands also match common alternative wording, so searching revert finds Undo and go forward finds Forward.
+
+## Application Settings
+Application Settings includes a Find a setting box that filters the settings sections as you type.
+
+The Keyboard Shortcut Manager provides a Change button and a Reset button for every command. Reset returns a single command to its default shortcut without affecting your other customizations, and Restore Default Shortcuts resets them all.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 
