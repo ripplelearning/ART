@@ -620,6 +620,12 @@ export function initNavigation() {
         const spellDialog = document.getElementById('editor-spellcheck-dialog');
         if (spellDialog && !spellDialog.hidden && spellDialog.contains(e.target)) return;
 
+        // Never intercept plain activation, editing, or navigation keys such as Enter, Space, or Tab.
+        const key = String(e.key || '');
+        const isFunctionKey = /^F\d+$/i.test(key);
+        const hasPrimaryModifier = e.ctrlKey || e.altKey || e.metaKey;
+        if (!hasPrimaryModifier && !isFunctionKey) return;
+
         let action = findShortcutAction(e);
         if (!action && e.ctrlKey && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
             action = 'redo';

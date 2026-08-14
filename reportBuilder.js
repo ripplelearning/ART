@@ -33,6 +33,7 @@ let applyWorkspaceBrandingDefault = false;
 let publishingPresentationExpanded = false;
 let reportBrandingExpanded = false;
 let hasAppliedFieldsExpandedDefault = false;
+let builderInteractionsBound = false;
 
 function requestBuilderFocus(action, index = null, itemId = '') {
     pendingFocus = { index, action, itemId };
@@ -65,6 +66,15 @@ function resolveBuilderFocusTarget(request) {
 
     const selector = `[data-field-action="${action}"][data-field-index="${index}"]`;
     const button = document.querySelector(selector);
+    if (button instanceof HTMLElement && !button.disabled) return button;
+
+    if (action === 'move-up' || action === 'move-down') {
+        const fallbackAction = action === 'move-up' ? 'move-down' : 'move-up';
+        const fallback = document.querySelector(`[data-field-action="${fallbackAction}"][data-field-index="${index}"]`)
+            || document.querySelector(`[data-field-action="edit"][data-field-index="${index}"]`);
+        if (fallback instanceof HTMLElement && !fallback.disabled) return fallback;
+    }
+
     return button instanceof HTMLElement ? button : null;
 }
 
@@ -852,6 +862,132 @@ function handleDialogKeydown(event) {
     }
 }
 
+function toggleFieldConfiguration() {
+    appState.fieldsExpanded = !appState.fieldsExpanded;
+    saveState();
+    requestBuilderFocus('btn-toggle-config');
+    renderBuilder();
+}
+
+function buildFieldRowsMarkup() {
+    return (appState.fields || []).map((field, index) => {
+        const label = escapeHtml(field?.label);
+        return `
+            <tr>
+                <td>${label}</td>
+                <td>${escapeHtml(getFieldTypeLabel(field?.type))}</td>
+                <td id="actions-${index}">
+                    <button id="btn-move-up-${index}" type="button" data-field-action="move-up" data-field-index="${index}" aria-label="Move ${label} Up" ${index === 0 ? 'disabled' : ''}>Move Up</button>
+                    <button id="btn-move-down-${index}" type="button" data-field-action="move-down" data-field-index="${index}" aria-label="Move ${label} Down" ${index === appState.fields.length - 1 ? 'disabled' : ''}>Move Down</button>
+                    <button id="btn-edit-${index}" type="button" data-field-action="edit" data-field-index="${index}" aria-label="Edit ${label}">Edit</button>
+                    <button id="btn-delete-${index}" type="button" data-field-action="delete" data-field-index="${index}" aria-label="Delete ${label}">Delete</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function confirmPendingFieldDelete() {
+    if (!pendingDelete) {
+        hideDeleteDialog(false);
+        return;
+    }
+
+    const deleteIndex = pendingDelete.index;
+    if (!appState.fields[deleteIndex]) {
+        hideDeleteDialog(true);
+        return;
+    }
+
+    const nextIndex = deleteIndex < appState.fields.length - 1 ? deleteIndex : deleteIndex - 1;
+    deleteField(deleteIndex);
+    hideDeleteDialog(false);
+    if (nextIndex >= 0) {
+        requestBuilderFocus('delete', nextIndex);
+    } else {
+        requestBuilderFocus('btn-add-field');
+    }
+    renderBuilder();
+}
+
+function handleFieldRowAction(action, index) {
+    if (!Number.isInteger(index) || !appState.fields[index]) return;
+
+    if (action === 'edit') {
+        setEditMode(index);
+        requestBuilderFocus('field-label-input');
+        renderBuilder();
+        return;
+    }
+
+    if (action === 'delete') {
+        showDeleteDialog(index);
+        return;
+    }
+
+    const direction = action === 'move-up' ? -1 : 1;
+    const newIndex = moveField(index, direction);
+    if (newIndex === undefined) return;
+    requestBuilderFocus(action, newIndex);
+    renderBuilder();
+}
+
+async function handleBuilderContainerClick(event) {
+    const button = event.target instanceof Element ? event.target.closest('button') : null;
+    if (!button || button.disabled) return;
+    if (!document.getElementById('builder-view')?.contains(button)) return;
+
+    if (button.id === 'btn-toggle-config') {
+        event.preventDefault();
+        toggleFieldConfiguration();
+        return;
+    }
+
+    if (button.id === 'btn-add-field') {
+        event.preventDefault();
+        const result = await executeBuilderAction('addField');
+        if (!result?.ok) {
+            executeAddFieldFromCommand();
+        }
+        return;
+    }
+
+    if (button.id === 'btn-delete-yes') {
+        event.preventDefault();
+        confirmPendingFieldDelete();
+        return;
+    }
+
+    if (button.id === 'btn-delete-no') {
+        event.preventDefault();
+        hideDeleteDialog(true);
+        return;
+    }
+
+    const fieldAction = button.dataset.fieldAction || '';
+    if (!fieldAction) return;
+    event.preventDefault();
+    handleFieldRowAction(fieldAction, Number.parseInt(button.dataset.fieldIndex || '', 10));
+}
+
+function handleBuilderContainerKeydown(event) {
+    if (event.key !== 'Escape') return;
+    const dialog = document.getElementById('delete-confirm-dialog');
+    if (!dialog || dialog.hidden) return;
+    if (!dialog.contains(event.target)) return;
+    handleDialogKeydown(event);
+}
+
+function bindBuilderInteractions() {
+    if (builderInteractionsBound) return;
+    const container = document.getElementById('main-inner');
+    if (!container) return;
+
+    container.addEventListener('click', handleBuilderContainerClick);
+    container.addEventListener('keydown', handleBuilderContainerKeydown);
+    builderInteractionsBound = true;
+}
+
 function setupSelectAnnouncement(selectElement, label) {
     if (!selectElement) return;
 
@@ -1334,7 +1470,7 @@ export async function renderBuilder() {
                 </div>
                 <table>
                     <thead><tr><th scope="col">Field Label</th><th scope="col">Field Type</th><th scope="col">Actions</th></tr></thead>
-                    <tbody id="fields-tbody"></tbody>
+                    <tbody id="fields-tbody">${buildFieldRowsMarkup()}</tbody>
                 </table>
                 <button id="btn-add-field" type="button">${appState.editingIndex === -1 ? 'Add Field' : 'Apply Changes'}</button>
                 <div id="delete-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-message" hidden>
@@ -1367,19 +1503,8 @@ export async function renderBuilder() {
     `;
 
     // --- Listeners ---
-    const toggleConfigButton = document.getElementById('btn-toggle-config');
-    const toggleFieldConfiguration = () => {
-        appState.fieldsExpanded = !appState.fieldsExpanded;
-        saveState();
-        renderBuilder();
-    };
-
-    if (toggleConfigButton) {
-        toggleConfigButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            toggleFieldConfiguration();
-        });
-    }
+    // Field configuration controls use delegated listeners so a later wiring failure cannot disable them.
+    bindBuilderInteractions();
 
     const presentationConfigRegion = document.getElementById('presentation-config-region');
     if (presentationConfigRegion instanceof HTMLDetailsElement) {
@@ -2267,50 +2392,12 @@ export async function renderBuilder() {
         commitFieldType();
     }
 
-    document.getElementById('btn-add-field').addEventListener('click', async () => {
-        const result = await executeBuilderAction('addField');
+    document.getElementById('btn-done')?.addEventListener('click', async () => {
+        const result = await executeBuilderAction('done');
         if (!result?.ok) {
-            executeAddFieldFromCommand();
+            executeDoneFromCommand();
         }
     });
-
-    const deleteDialog = document.getElementById('delete-confirm-dialog');
-    if (deleteDialog) {
-        deleteDialog.addEventListener('keydown', handleDialogKeydown);
-    }
-
-    const deleteYesButton = document.getElementById('btn-delete-yes');
-    if (deleteYesButton) {
-        deleteYesButton.addEventListener('click', () => {
-            if (!pendingDelete) return;
-
-            const deleteIndex = pendingDelete.index;
-            const nextIndex = deleteIndex < appState.fields.length - 1 ? deleteIndex : deleteIndex - 1;
-            deleteField(deleteIndex);
-            hideDeleteDialog(false);
-            if (nextIndex >= 0) {
-                requestBuilderFocus('delete', nextIndex);
-            } else {
-                requestBuilderFocus('btn-add-field');
-            }
-            renderBuilder();
-        });
-    }
-
-    const deleteNoButton = document.getElementById('btn-delete-no');
-    if (deleteNoButton) {
-        deleteNoButton.addEventListener('click', () => hideDeleteDialog(true));
-    }
-
-    const doneButton = document.getElementById('btn-done');
-    if (doneButton) {
-        doneButton.addEventListener('click', async () => {
-            const result = await executeBuilderAction('done');
-            if (!result?.ok) {
-                executeDoneFromCommand();
-            }
-        });
-    }
 
     const saveTemplateChangesButton = document.getElementById('btn-save-template-changes');
     if (saveTemplateChangesButton) {
@@ -2323,63 +2410,6 @@ export async function renderBuilder() {
             saveState();
             window.dispatchEvent(new Event('art-templates-updated'));
             announce(`${updated.name} template changes saved`);
-        });
-    }
-
-    // Populate Table Logic
-    const tbody = document.getElementById('fields-tbody');
-    if (tbody) {
-        appState.fields.forEach((f, i) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${f.label}</td><td>${getFieldTypeLabel(f.type)}</td>
-                <td id="actions-${i}"></td>`;
-            tbody.appendChild(tr);
-
-            const btnEdit = document.createElement('button');
-            btnEdit.innerText = 'Edit';
-            btnEdit.id = `btn-edit-${i}`;
-            btnEdit.dataset.fieldAction = 'edit';
-            btnEdit.dataset.fieldIndex = String(i);
-            btnEdit.setAttribute('aria-label', `Edit ${f.label}`);
-            btnEdit.onclick = () => { setEditMode(i); requestBuilderFocus('field-label-input'); renderBuilder(); };
-
-            const btnMoveUp = document.createElement('button');
-            btnMoveUp.innerText = 'Move Up';
-            btnMoveUp.id = `btn-move-up-${i}`;
-            btnMoveUp.dataset.fieldAction = 'move-up';
-            btnMoveUp.dataset.fieldIndex = String(i);
-            btnMoveUp.setAttribute('aria-label', `Move ${f.label} Up`);
-            btnMoveUp.disabled = i === 0;
-            btnMoveUp.onclick = () => {
-                const newIndex = moveField(i, -1);
-                if (newIndex === undefined) return;
-                requestBuilderFocus('move-up', newIndex);
-                renderBuilder();
-            };
-
-            const btnMoveDown = document.createElement('button');
-            btnMoveDown.innerText = 'Move Down';
-            btnMoveDown.id = `btn-move-down-${i}`;
-            btnMoveDown.dataset.fieldAction = 'move-down';
-            btnMoveDown.dataset.fieldIndex = String(i);
-            btnMoveDown.setAttribute('aria-label', `Move ${f.label} Down`);
-            btnMoveDown.disabled = i === appState.fields.length - 1;
-            btnMoveDown.onclick = () => {
-                const newIndex = moveField(i, 1);
-                if (newIndex === undefined) return;
-                requestBuilderFocus('move-down', newIndex);
-                renderBuilder();
-            };
-            
-            const btnDelete = document.createElement('button');
-            btnDelete.innerText = 'Delete';
-            btnDelete.id = `btn-delete-${i}`;
-            btnDelete.dataset.fieldAction = 'delete';
-            btnDelete.dataset.fieldIndex = String(i);
-            btnDelete.setAttribute('aria-label', `Delete ${f.label}`);
-            btnDelete.onclick = () => { showDeleteDialog(i); };
-
-            document.getElementById(`actions-${i}`).append(btnMoveUp, btnMoveDown, btnEdit, btnDelete);
         });
     }
 
