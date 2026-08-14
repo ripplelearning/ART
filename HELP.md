@@ -363,6 +363,20 @@ Use Clear Snapshots to remove the locally recorded metric snapshots. This affect
 
 Organization Statistics describe the reports available to you and are not a complete picture of an organization's accessibility programme when reports or metadata are missing. Fewer findings does not automatically mean better accessibility, because it can also mean less testing. Organization Statistics are derived from reports and never modify them.
 
+### Deferred Organization Statistics Parts
+
+Parts 5, 7, and 8 of the Organization Metrics and Accessibility Intelligence Framework are deferred until ART has a user and permission model. ART currently has no Organization Administrator, Contributor, or Viewer roles, no authenticated principal, and no authoritative authorization service. Implementing permission-aware organization analytics before those foundations exist would risk exposing cross-organization totals.
+
+The deferred work is:
+
+- **Part 5 — Configuration and permissions:** organization-level administration, role-aware configuration, and permission-filtered aggregation.
+- **Part 7 — Benchmarking, health, and recurrence:** permission-safe cross-organization comparison, organization health indicators, and recurrence analysis across authorized report histories.
+- **Part 8 — Security, testing, documentation, and acceptance:** authorization threat modeling, cross-organization isolation tests, auditability, and final acceptance criteria.
+
+Before implementation, ART must define the authenticated user identity, organization membership, role inheritance, resource-level permissions, organization isolation rules, and the behavior for deleted or inaccessible resources. The metrics engine already accepts an authorization predicate and filters before aggregation; that seam is intentionally ready for the future policy service.
+
+Required acceptance tests include: a Viewer cannot see Contributor- or Administrator-only configuration; users cannot infer inaccessible report counts through totals, percentages, trends, recurrence, exports, cache entries, or snapshots; comparison contains only authorized organizations; authorization changes invalidate derived caches; and every denied action has an accessible explanation without revealing protected resource names or metadata.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 
