@@ -119,6 +119,7 @@ import {
 } from './universalSearchFramework.js';
 import {
     closeOrganizationStatistics,
+    exportOrganizationStatisticsCsvFromCommand,
     exportOrganizationStatisticsFromCommand,
     openOrganizationSavedViewsFromCommand,
     openOrganizationStatistics,
@@ -332,6 +333,7 @@ function getDefaultMenuLocation(action, category) {
         case 'openOrganizationSavedViews':
         case 'saveOrganizationStatisticsView':
         case 'exportOrganizationStatistics':
+        case 'exportOrganizationStatisticsCsv':
         case 'openOrganizationDataQuality': return 'Organization>Statistics';
         case 'toggleOrganizationDashboardSection': return 'Organization';
         case 'searchEverywhere':
@@ -1759,6 +1761,16 @@ const BASE_COMMAND_DEFINITIONS = [
         enabled: () => isOrganizationStatisticsEnabled(),
         unavailableReason: 'Enable Organization Statistics in Application Settings first.',
         handler: (context) => exportOrganizationStatisticsFromCommand(context)
+    },
+    {
+        action: 'exportOrganizationStatisticsCsv',
+        id: 'Organization.ExportStatisticsCsv',
+        category: 'Organization',
+        description: 'Export the current Organization Statistics as CSV.',
+        visible: () => isOrganizationStatisticsEnabled(),
+        enabled: () => isOrganizationStatisticsEnabled(),
+        unavailableReason: 'Enable Organization Statistics in Application Settings first.',
+        handler: (context) => exportOrganizationStatisticsCsvFromCommand(context)
     },
     {
         action: 'openOrganizationOverview',

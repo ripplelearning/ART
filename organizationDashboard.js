@@ -125,6 +125,29 @@ function downloadOrganizationExport(dialog) {
     return payload;
 }
 
+function downloadOrganizationCsv(dialog) {
+    const payload = buildOrganizationExportPayload(dialog);
+    const rows = [['Metric', 'Availability', 'Value', 'Reason']];
+    Object.entries(payload.metrics || {}).forEach(([id, metric]) => {
+        const value = metric?.value && typeof metric.value === 'object'
+            ? JSON.stringify(metric.value)
+            : metric?.value ?? '';
+        rows.push([id, metric?.availability || '', value, metric?.reason || '']);
+    });
+    const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'art-organization-statistics.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    announce('Organization Statistics exported as CSV.');
+    return csv;
+}
+
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -362,6 +385,7 @@ function buildTabPanelContent(tabId, result) {
 
     if (tabId === 'data-quality') {
         const completeness = metrics.metadataCompleteness;
+        const details = metrics.metadataQualityDetails;
         const quality = result.dataQuality || {};
         const variantNote = Array.isArray(quality.organizationNameVariants) && quality.organizationNameVariants.length > 1
             ? `<p>This organization appears under more than one spelling: ${quality.organizationNameVariants.map((name) => escapeHtml(name)).join(', ')}. ART keeps these separate unless you make them consistent.</p>`
@@ -371,6 +395,7 @@ function buildTabPanelContent(tabId, result) {
             ? `<p>${unassigned} report${unassigned === 1 ? '' : 's'} have no Organization/Client value and are excluded from organization statistics.</p>`
             : '<p>All available reports contain an Organization/Client value.</p>';
 
+        const detailTable = renderMetadataQualityDetails(details);
         if (!Array.isArray(completeness?.value) && completeness?.value && typeof completeness.value === 'object') {
             return `
                 ${renderSummaryTable([
@@ -381,12 +406,32 @@ function buildTabPanelContent(tabId, result) {
                 ])}
                 ${unassignedNote}
                 ${variantNote}
+                ${detailTable}
             `;
         }
-        return `${unassignedNote}${variantNote}`;
+        return `${unassignedNote}${variantNote}${detailTable}`;
     }
 
     return '<p>No data available.</p>';
+}
+
+function renderMetadataQualityDetails(metric) {
+    if (metric?.availability === METRIC_AVAILABILITY.UNAVAILABLE) {
+        return `<p>${escapeHtml(metric.reason || 'Metadata quality details are not available.')}</p>`;
+    }
+    if (!Array.isArray(metric?.value) || metric.value.length === 0) {
+        return '<h4>Reports Needing Metadata Attention</h4><p>All reports in this scope contain the tracked metadata fields.</p>';
+    }
+    return `
+        <h4>Reports Needing Metadata Attention</h4>
+        <table class="organization-metrics-table">
+            <caption class="sr-only">Reports with missing metadata</caption>
+            <thead><tr><th scope="col">Report</th><th scope="col">Missing fields</th></tr></thead>
+            <tbody>
+                ${metric.value.map((record) => `<tr><th scope="row">${escapeHtml(record.reportName)}</th><td>${escapeHtml(record.missing.join(', '))}</td></tr>`).join('')}
+            </tbody>
+        </table>
+    `;
 }
 
 function renderDialog() {
@@ -570,6 +615,7 @@ function ensureDialog() {
                 <select id="organization-saved-view-select"><option value="">Choose a saved view</option></select>
                 <button id="btn-organization-load-view" type="button">Load View</button>
                 <button id="btn-organization-export" type="button">Export JSON</button>
+                <button id="btn-organization-export-csv" type="button">Export CSV</button>
             </div>
             <div id="organization-tablist" role="tablist" aria-label="Organization statistics sections"></div>
             <div id="organization-panels"></div>
@@ -584,6 +630,7 @@ function ensureDialog() {
 
         dialog.querySelector('#btn-organization-statistics-close')?.addEventListener('click', () => closeOrganizationStatistics(true));
         dialog.querySelector('#btn-organization-export')?.addEventListener('click', () => downloadOrganizationExport(dialog));
+        dialog.querySelector('#btn-organization-export-csv')?.addEventListener('click', () => downloadOrganizationCsv(dialog));
 
         dialog.querySelector('#btn-organization-save-view')?.addEventListener('click', () => {
             const nameInput = dialog.querySelector('#organization-view-name');
@@ -691,6 +738,16 @@ export function exportOrganizationStatisticsFromCommand(context = {}) {
     state.dialog.hidden = false;
     renderDialog();
     downloadOrganizationExport(state.dialog);
+    return true;
+}
+
+export function exportOrganizationStatisticsCsvFromCommand(context = {}) {
+    const state = ensureDialog();
+    if (!state) return false;
+    if (context.triggerElement) state.lastTrigger = context.triggerElement;
+    state.dialog.hidden = false;
+    renderDialog();
+    downloadOrganizationCsv(state.dialog);
     return true;
 }
 

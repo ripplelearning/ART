@@ -353,6 +353,10 @@ Tester statistics use the Auditor(s) metadata value. The same person appearing i
 
 ART distinguishes a real zero from missing data: a metric that cannot be calculated is shown as Not available with the reason, never as zero.
 
+The Data Quality tab includes a report-by-report list of missing Organization/Client, Product, Tester, or date metadata so the source reports needing attention can be identified. This list is filtered to the selected organization and scope.
+
+Organization Statistics views can be saved and loaded without modifying report data. A saved view records the selected organization, filters, date range, active tab, and optional section settings. Use Export JSON for a complete structured result or Export CSV for a spreadsheet-friendly metric table. The exports include availability and explanatory reasons where a metric is unavailable or not applicable.
+
 Organization Statistics describe the reports available to you and are not a complete picture of an organization's accessibility programme when reports or metadata are missing. Fewer findings does not automatically mean better accessibility, because it can also mean less testing. Organization Statistics are derived from reports and never modify them.
 
 ## Metadata Portability and Integrity

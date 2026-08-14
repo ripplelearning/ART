@@ -455,6 +455,24 @@ function registerBuiltInMetrics() {
             });
         });
 
+    define('metadataQualityDetails', 'Metadata Quality Details', 'Reports with missing organization metadata fields.', 'records',
+        ({ reports }) => {
+            if (reports.length === 0) {
+                return createMetricValue(null, METRIC_AVAILABILITY.UNAVAILABLE, 'No reports in this scope.');
+            }
+            const records = reports.map((report) => ({
+                reportId: report.id,
+                reportName: report.name || report.id,
+                missing: [
+                    !report.organizationName ? 'Organization/Client' : '',
+                    !report.product ? 'Product' : '',
+                    report.testers.length === 0 ? 'Tester' : '',
+                    !(report.date instanceof Date) ? 'Date' : ''
+                ].filter(Boolean)
+            })).filter((record) => record.missing.length > 0);
+            return createMetricValue(records);
+        });
+
     const distributionMetric = (id, name, description, selector, emptyReason, extras = {}) => define(
         id, name, description, 'distribution',
         ({ reports }) => {
