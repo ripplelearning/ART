@@ -154,7 +154,7 @@ const BUILT_IN_LAYOUTS = Object.freeze([
         description: 'Presentation template for usability-oriented summaries and narrative sections.',
         scope: 'application',
         readOnly: true,
-        supportedReportTypes: ['Executive Summary', 'Audit Log'],
+        supportedReportTypes: ['Usability Report', 'Executive Summary', 'Audit Log'],
         sections: [
             { id: 'cover-page', enabled: true, required: false },
             { id: 'executive-summary', enabled: true, required: false },
@@ -957,12 +957,13 @@ function getSectionAvailability() {
     const attachments = getAttachmentCount();
     const references = getReferenceCount();
     const progressItems = Array.isArray(getProgressItems()) ? getProgressItems() : [];
+    const isUsability = appState.reportType === 'Usability Report';
     return {
         'cover-page': true,
-        'table-of-contents': true,
-        'executive-summary': appState.reportType === 'Executive Summary' || hasContent,
+        'table-of-contents': !isUsability,
+        'executive-summary': appState.reportType === 'Executive Summary' || isUsability || hasContent,
         'workspace-report-summary': Boolean(appState.reportTitle || appState.projectName || appState.orgClient || appState.scopeUrl),
-        analytics: analyticsCount > 0,
+        analytics: !isUsability && analyticsCount > 0,
         findings: hasContent || Number(metrics?.totalAuditEntries || 0) > 0,
         recommendations: getRecommendationCount() > 0,
         appendices: progressItems.length > 0,
@@ -1247,11 +1248,15 @@ export function getResolvedReportPresentation() {
         ...buildBrandingValidationMessages(branding, theme, layout)
     ];
     const sectionAvailability = getSectionAvailability();
-    const visibleSections = layout.sections.filter((section) => section.enabled).map((section) => ({
-        ...section,
-        label: PRESENTATION_SECTION_LABELS[section.id] || section.id,
-        available: Boolean(sectionAvailability[section.id])
-    }));
+    const isUsability = appState.reportType === 'Usability Report';
+    const visibleSections = layout.sections
+        .filter((section) => section.enabled)
+        .filter((section) => !isUsability || (section.id !== 'analytics' && section.id !== 'table-of-contents'))
+        .map((section) => ({
+            ...section,
+            label: PRESENTATION_SECTION_LABELS[section.id] || section.id,
+            available: Boolean(sectionAvailability[section.id])
+        }));
 
     return {
         layout,

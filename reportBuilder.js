@@ -1,7 +1,7 @@
 // reportBuilder.js
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
-import { announce, appState, createUserTemplate, getActiveProjectWorkspace, getBuiltInTemplates, getUserTemplates, setActiveWorkspaceDefaultBranding, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
+import { announce, appState, createUserTemplate, DEFAULT_USABILITY_HEURISTICS, getActiveProjectWorkspace, getBuiltInTemplates, getUserTemplates, setActiveWorkspaceDefaultBranding, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { formatWcagCriterionDisplay, getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
 import { restoreFocus } from './focusManagement.js';
 import {
@@ -110,6 +110,7 @@ function getFieldTypeLabel(type) {
     const normalizedType = normalizeFieldType(type);
     if (normalizedType === 'textarea') return 'Textarea';
     if (normalizedType === 'dropdown') return 'Dropdown';
+    if (normalizedType === 'usability-heuristics') return 'Usability Heuristics';
     if (normalizedType === 'attachment') return 'Attachment';
     if (normalizedType === 'evaluation-item-selection') return 'Evaluation Item Selection Box';
     if (isWcagCriterionFieldType(normalizedType)) return 'WCAG Success Criterion';
@@ -117,7 +118,14 @@ function getFieldTypeLabel(type) {
 }
 
 function getFieldOptionsText(field) {
-    return Array.isArray(field?.dropdownOptions) ? field.dropdownOptions.join('\n') : '';
+    const type = normalizeFieldType(field?.type);
+    if (Array.isArray(field?.dropdownOptions) && field.dropdownOptions.length > 0) {
+        return field.dropdownOptions.join('\n');
+    }
+    if (type === 'usability-heuristics') {
+        return DEFAULT_USABILITY_HEURISTICS.join('\n');
+    }
+    return '';
 }
 
 function getEditField() {
@@ -908,7 +916,7 @@ function refreshFieldConfigurationUi() {
     if (optionsInput instanceof HTMLTextAreaElement) optionsInput.value = getFieldOptionsText(editField);
 
     const dropdownContainer = document.getElementById('dropdown-options-container');
-    if (dropdownContainer) dropdownContainer.hidden = editType !== 'dropdown';
+    if (dropdownContainer) dropdownContainer.hidden = editType !== 'dropdown' && editType !== 'usability-heuristics';
     const wcagContainer = document.getElementById('wcag-options-container');
     if (wcagContainer) wcagContainer.hidden = !isWcagCriterionFieldType(editType);
     const progressContainer = document.getElementById('progress-item-options-container');
@@ -1148,12 +1156,13 @@ export async function renderBuilder() {
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
     const reportLayouts = {
         'Audit Log': ['Paragraphs', 'Tabular', 'Template'],
-        'Executive Summary': ['Paragraphs', 'Bullets', 'Template']
+        'Executive Summary': ['Paragraphs', 'Bullets', 'Template'],
+        'Usability Report': ['Paragraphs', 'Bullets', 'Template']
     };
     const selectedLayouts = appState.reportType ? reportLayouts[appState.reportType] || [] : [];
     const templateOptions = appState.reportType === 'Audit Log'
         ? [{ value: 'Create Template', label: 'Create Template' }, { value: 'Choose Template', label: 'Choose Template' }]
-        : appState.reportType === 'Executive Summary'
+        : (appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report')
             ? [{ value: 'Create New', label: 'Create New' }, { value: 'Upload from File', label: 'Upload from File' }]
             : [];
     const showTemplateSection = appState.reportLayout === 'Template' && !!appState.reportType;
@@ -1210,6 +1219,7 @@ export async function renderBuilder() {
                         <option value="" ${!appState.reportType ? 'selected' : ''}>Select Report Type</option>
                         <option value="Audit Log" ${appState.reportType === 'Audit Log' ? 'selected' : ''}>Audit Log</option>
                         <option value="Executive Summary" ${appState.reportType === 'Executive Summary' ? 'selected' : ''}>Executive Summary</option>
+                        <option value="Usability Report" ${appState.reportType === 'Usability Report' ? 'selected' : ''}>Usability Report</option>
                     </select>
                 </div>
                 <div>
@@ -1480,14 +1490,21 @@ export async function renderBuilder() {
                     <option value="text" ${editType === 'text' ? 'selected' : ''}>Text</option>
                     <option value="textarea" ${editType === 'textarea' ? 'selected' : ''}>Textarea</option>
                     <option value="dropdown" ${editType === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                    ${appState.reportType === 'Usability Report' || editType === 'usability-heuristics' ? `
+                        <option value="usability-heuristics" ${editType === 'usability-heuristics' ? 'selected' : ''}>Usability Heuristics</option>
+                    ` : ''}
                     <option value="attachment" ${editType === 'attachment' ? 'selected' : ''}>Attachment</option>
                     <option value="evaluation-item-selection" ${editType === 'evaluation-item-selection' ? 'selected' : ''}>Evaluation Item Selection Box</option>
                     <option value="wcag-success-criterion" ${isWcagCriterionFieldType(editType) ? 'selected' : ''}>WCAG Success Criterion</option>
                 </select>
-                <div id="dropdown-options-container" ${editType === 'dropdown' ? '' : 'hidden'}>
-                    <label for="field-dropdown-options-input">Dropdown Options</label>
-                    <p id="dropdown-options-help">Type each entry for the dropdown on a new line.</p>
+                <div id="dropdown-options-container" ${editType === 'dropdown' || editType === 'usability-heuristics' ? '' : 'hidden'}>
+                    <label for="field-dropdown-options-input">${editType === 'usability-heuristics' ? 'Usability Heuristic Options' : 'Dropdown Options'}</label>
+                    <p id="dropdown-options-help">${editType === 'usability-heuristics' ? 'Type each usability heuristic option on a new line. Leave default for standard Nielsen heuristics.' : 'Type each entry for the dropdown on a new line.'}</p>
                     <textarea id="field-dropdown-options-input" aria-describedby="dropdown-options-help">${getFieldOptionsText(editField)}</textarea>
+                    <label class="branding-toggle" style="margin-top: 8px;">
+                        <input type="checkbox" id="field-multiselect-input" ${editField?.multiSelect !== false ? 'checked' : ''}>
+                        Allow multiple selections
+                    </label>
                 </div>
                 <div id="wcag-options-container" ${isWcagCriterionFieldType(editType) ? '' : 'hidden'}>
                     <label for="wcag-options-preview">WCAG Success Criteria Preview</label>
@@ -2417,9 +2434,23 @@ export async function renderBuilder() {
     if (fieldTypeInput && dropdownOptionsContainer && wcagOptionsContainer && progressItemOptionsContainer) {
         setupSelectAnnouncement(fieldTypeInput, 'Field Type');
         const commitFieldType = () => {
-            dropdownOptionsContainer.hidden = fieldTypeInput.value !== 'dropdown';
+            const isDropdownOrHeuristic = fieldTypeInput.value === 'dropdown' || fieldTypeInput.value === 'usability-heuristics';
+            dropdownOptionsContainer.hidden = !isDropdownOrHeuristic;
             wcagOptionsContainer.hidden = !isWcagCriterionFieldType(fieldTypeInput.value);
             progressItemOptionsContainer.hidden = fieldTypeInput.value !== 'evaluation-item-selection';
+
+            const dropdownLabel = dropdownOptionsContainer.querySelector('label[for="field-dropdown-options-input"]');
+            const dropdownHelp = dropdownOptionsContainer.querySelector('#dropdown-options-help');
+            if (dropdownLabel) {
+                dropdownLabel.textContent = fieldTypeInput.value === 'usability-heuristics' ? 'Usability Heuristic Options' : 'Dropdown Options';
+            }
+            if (dropdownHelp) {
+                dropdownHelp.textContent = fieldTypeInput.value === 'usability-heuristics' ? 'Type each usability heuristic option on a new line. Leave default for standard Nielsen heuristics.' : 'Type each entry for the dropdown on a new line.';
+            }
+            const optionsInput = document.getElementById('field-dropdown-options-input');
+            if (optionsInput && fieldTypeInput.value === 'usability-heuristics' && optionsInput.value.trim() === '') {
+                optionsInput.value = DEFAULT_USABILITY_HEURISTICS.join('\n');
+            }
         };
         fieldTypeInput.addEventListener('change', (e) => {
             appState.fieldsExpanded = true;

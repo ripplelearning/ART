@@ -674,6 +674,19 @@ const DEFAULT_PROGRESS_STATUSES = [
     'Complete'
 ];
 
+export const DEFAULT_USABILITY_HEURISTICS = Object.freeze([
+    'Visibility of system status',
+    'Match between system and the real world',
+    'User control and freedom',
+    'Consistency and standards',
+    'Error prevention',
+    'Recognition rather than recall',
+    'Flexibility and efficiency of use',
+    'Aesthetic and minimalist design',
+    'Help users recognize, diagnose, and recover from errors',
+    'Help and documentation'
+]);
+
 function normalizeProgressLogEnabled(value, reportType) {
     if (String(reportType || '').trim() !== 'Audit Log') return false;
     return value !== false;
@@ -2419,21 +2432,36 @@ const builtInTemplates = [
                 { label: 'Risk Level', type: 'dropdown', dropdownOptions: ['Low', 'Moderate', 'High'] }
             ]
         }
+    },
+    {
+        id: 'builtin-usability-report-basic',
+        name: 'Usability Report Basic',
+        data: {
+            ...reportDefaults,
+            reportTitle: 'Usability Report Template',
+            reportType: 'Usability Report',
+            reportLayout: 'Paragraphs',
+            fields: []
+        }
     }
 ];
 
 function normalizeField(field) {
     const normalizedType = field?.type === 'select' ? 'dropdown' : field?.type || 'text';
-    const dropdownOptions = Array.isArray(field?.dropdownOptions)
+    let dropdownOptions = Array.isArray(field?.dropdownOptions)
         ? field.dropdownOptions
         : typeof field?.dropdownOptions === 'string'
             ? field.dropdownOptions.split('\n')
             : [];
+    if (normalizedType === 'usability-heuristics' && dropdownOptions.length === 0) {
+        dropdownOptions = [...DEFAULT_USABILITY_HEURISTICS];
+    }
 
     return {
         ...field,
         type: normalizedType,
-        dropdownOptions: dropdownOptions.map((option) => option.trim()).filter(Boolean)
+        dropdownOptions: dropdownOptions.map((option) => option.trim()).filter(Boolean),
+        multiSelect: field?.multiSelect !== false
     };
 }
 
@@ -6638,17 +6666,24 @@ export function addOrUpdateField() {
     const labelInput = document.getElementById('field-label-input');
     const typeInput = document.getElementById('field-type-input');
     const optionsInput = document.getElementById('field-dropdown-options-input');
+    const multiSelectInput = document.getElementById('field-multiselect-input');
     
     if (!labelInput || !labelInput.value) return;
 
     const typeValue = typeInput?.value === 'select' ? 'dropdown' : typeInput?.value || 'text';
-    const dropdownOptions = typeValue === 'dropdown' && optionsInput
+    let dropdownOptions = (typeValue === 'dropdown' || typeValue === 'usability-heuristics') && optionsInput
         ? optionsInput.value.split('\n').map((option) => option.trim()).filter(Boolean)
         : [];
+    if (typeValue === 'usability-heuristics' && dropdownOptions.length === 0) {
+        dropdownOptions = [...DEFAULT_USABILITY_HEURISTICS];
+    }
+    const multiSelect = multiSelectInput ? Boolean(multiSelectInput.checked) : (typeValue === 'usability-heuristics');
+
     const fieldData = {
         label: labelInput.value,
         type: typeValue,
-        dropdownOptions
+        dropdownOptions,
+        multiSelect
     };
 
     if (appState.editingIndex === -1) {

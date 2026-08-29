@@ -178,8 +178,28 @@ function buildFindingRecords(report) {
     const criterionIndex = fields.findIndex((field) => String(field?.type || '').includes('wcag'));
     const targetIndex = findField((label) => label.includes('page') || label.includes('screen') || label.includes('component') || label.includes('url'));
     const issueTypeIndex = findField((label) => label === 'type' || label.includes('issue type') || label.includes('defect type'));
+    const heuristicIndex = fields.findIndex((field) => String(field?.type || '').includes('heuristic') || normalizeText(field?.label).toLowerCase().includes('heuristic'));
 
     const readValue = (entry, index) => (index >= 0 ? normalizeText(entry?.fieldValues?.[index]) : '');
+
+    if (entries.length === 0 && Array.isArray(data.editorFieldValues) && data.editorFieldValues.length > 0) {
+        const hasContent = data.editorFieldValues.some((value) => normalizeText(value));
+        if (hasContent) {
+            const readEditorVal = (idx) => (idx >= 0 ? normalizeText(data.editorFieldValues[idx]) : '');
+            return [{
+                id: `${report.id}:single`,
+                reportId: report.id,
+                entryIndex: 0,
+                severity: readEditorVal(severityIndex),
+                category: readEditorVal(categoryIndex),
+                status: readEditorVal(statusIndex),
+                criterion: readEditorVal(criterionIndex),
+                target: readEditorVal(targetIndex),
+                issueType: readEditorVal(issueTypeIndex),
+                heuristics: readEditorVal(heuristicIndex)
+            }];
+        }
+    }
 
     return entries
         .map((entry, entryIndex) => {
@@ -194,7 +214,8 @@ function buildFindingRecords(report) {
                 status: readValue(entry, statusIndex),
                 criterion: readValue(entry, criterionIndex),
                 target: readValue(entry, targetIndex),
-                issueType: readValue(entry, issueTypeIndex)
+                issueType: readValue(entry, issueTypeIndex),
+                heuristics: readValue(entry, heuristicIndex)
             };
         })
         .filter(Boolean);
@@ -321,10 +342,12 @@ function buildDistribution(reports, selector) {
 
     reports.forEach((report) => {
         report.findings.forEach((finding) => {
-            const rawValue = normalizeText(selector(finding));
-            if (!rawValue) return;
-            counts.set(rawValue, Number(counts.get(rawValue) || 0) + 1);
-            total += 1;
+            const raw = selector(finding);
+            const values = (Array.isArray(raw) ? raw : [raw]).map(normalizeText).filter(Boolean);
+            values.forEach((rawValue) => {
+                counts.set(rawValue, Number(counts.get(rawValue) || 0) + 1);
+                total += 1;
+            });
         });
     });
 
@@ -573,6 +596,13 @@ function registerBuiltInMetrics() {
 
     distributionMetric('findingsByIssueType', 'Findings by Issue Type', 'Distribution of findings by issue or defect type.',
         (finding) => finding.issueType, 'Reports in this scope do not record an issue type value.', { requires: ['issueType'] });
+
+    distributionMetric('findingsByUsabilityHeuristic', 'Findings by Usability Heuristic', 'Distribution of findings by Usability Heuristic.',
+        (finding) => {
+            const raw = finding.heuristics;
+            if (!raw) return null;
+            return raw.split(/[\r\n,;]+/).map((v) => v.trim()).filter(Boolean);
+        }, 'Reports in this scope do not record a Usability Heuristic value.', { requires: ['usability-heuristics'] });
 
     distributionMetric('findingsByTarget', 'Findings by Page, Screen, or Component', 'Where findings were recorded.',
         (finding) => finding.target, 'Reports in this scope do not record a page, screen, or component value.', { requires: ['target'] });

@@ -337,7 +337,8 @@ function buildTabPanelContent(tabId, result) {
     }
 
     if (tabId === 'categories') {
-        return renderDistribution(metrics.findingsByCategory, 'Findings by Category');
+        return renderDistribution(metrics.findingsByCategory, 'Findings by Category')
+            + renderDistribution(metrics.findingsByUsabilityHeuristic, 'Findings by Usability Heuristic');
     }
 
     if (tabId === 'issue-types') {

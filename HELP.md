@@ -377,6 +377,33 @@ Before implementation, ART must define the authenticated user identity, organiza
 
 Required acceptance tests include: a Viewer cannot see Contributor- or Administrator-only configuration; users cannot infer inaccessible report counts through totals, percentages, trends, recurrence, exports, cache entries, or snapshots; comparison contains only authorized organizations; authorization changes invalidate derived caches; and every denied action has an accessible explanation without revealing protected resource names or metadata.
 
+## Usability Reports
+Usability Reports provide a flexible reporting format for documenting usability issues that affect users but may fall outside typical accessibility standards or WCAG Success Criteria.
+
+### Parity with Executive Summary Layout and Field Configuration
+When **Usability Report** is selected as the Report Type in Report Builder, it provides the same Layout and Field Configuration capabilities available to Executive Summary reports, supporting Paragraphs, Bullets, and Template layouts.
+
+### No Default Fields
+**Usability Reports are completely configurable. ART does not require or automatically provide a predefined set of usability report fields. Users configure the fields appropriate to their testing methodology and reporting needs.**
+
+A newly created Usability Report contains zero default fields. Users can add, remove, reorder, and configure any fields required for their assessment.
+
+### Usability Heuristics Field Type
+**The Usability Heuristics field is an optional field type available when Usability Report is selected as the Report Type. Adding a Usability Heuristics field is optional.**
+
+When configured, the Report Editor displays a selection control with available usability heuristics (including Nielsen's 10 usability heuristics by default: Visibility of system status, Match between system and the real world, User control and freedom, Consistency and standards, Error prevention, Recognition rather than recall, Flexibility and efficiency of use, Aesthetic and minimalist design, Help users recognize, diagnose, and recover from errors, and Help and documentation).
+
+Options can be customized per field to support organization-specific heuristics or custom usability principles. Single-select or multi-select behavior is configurable per field.
+
+### No Analytics and No Table of Contents
+Usability Reports do not contain an Analytics section or a Table of Contents inside the individual report.
+
+### Organization Statistics Integration
+Usability Reports contribute to organization-level metrics (by Organization/Client, Product, Project, Workspace, and Usability Heuristic) through the separate Organization Statistics feature when Organization Statistics are enabled. Organization Statistics are computed across reports and never alter individual report content.
+
+### Workspace and Stand-Alone Support
+Usability Reports work both as stand-alone reports and within Project Workspaces, respecting existing permissions, templates, collaboration, and export workflows.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

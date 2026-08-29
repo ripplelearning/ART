@@ -351,6 +351,18 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-usability-reports',
+            title: 'Usability Reports',
+            content: `
+                <p>Usability Reports provide a flexible report format for documenting usability issues that affect users even when they fall outside specific WCAG Success Criteria or accessibility standards.</p>
+                <p><strong>Configurable with No Default Fields:</strong> Usability Reports are completely configurable. ART does not require or automatically provide a predefined set of usability report fields. Users configure the fields appropriate to their testing methodology and reporting needs.</p>
+                <p><strong>Usability Heuristics Field:</strong> The Usability Heuristics field is an optional field type available when Usability Report is selected as the Report Type. Adding a Usability Heuristics field is optional. When added, it provides selectable usability heuristics (including Nielsen's 10 usability heuristics by default, which can be customized).</p>
+                <p><strong>Executive Summary Parity:</strong> Usability Reports use the same Layout and Field Configuration capabilities as Executive Summaries, supporting Paragraphs, Bullets, and Template layouts.</p>
+                <p><strong>Suppression of Analytics and Table of Contents:</strong> Usability Reports do not include an Analytics section or Table of Contents within the individual report.</p>
+                <p><strong>Organization Statistics Integration:</strong> When Organization Statistics are enabled, Usability Reports contribute to organization-level metrics based on Organization/Client and Product metadata without displaying analytics inside the individual report.</p>
+            `
+        },
+        {
             id: 'help-progress-log-workflow',
             title: 'Progress Log Workflow',
             content: `

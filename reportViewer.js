@@ -482,6 +482,25 @@ function getResolvedFieldEntriesForValues(fieldValues, hideEmpty = true, context
             };
         }
 
+        if (type === 'usability-heuristics') {
+            const list = Array.isArray(rawValue)
+                ? rawValue.map((v) => String(v).trim()).filter(Boolean)
+                : String(rawValue || '').split(/[\r\n,;]+/).map((v) => v.trim()).filter(Boolean);
+            const displayText = list.join(', ');
+            return {
+                index,
+                field,
+                label,
+                type,
+                rawValue,
+                displayText,
+                exportText: displayText,
+                url: '',
+                attachments: [],
+                isEmpty: displayText.trim() === ''
+            };
+        }
+
         return {
             index,
             field,
@@ -1392,9 +1411,10 @@ function renderExecutiveParagraphLayout() {
     const entries = getVisibleFieldEntries();
     if (entries.length === 0) return '<p>No populated fields are available for this report.</p>';
 
+    const headingText = appState.reportType === 'Usability Report' ? 'Usability Report Content' : 'Executive Summary Content';
     return `
         <section aria-labelledby="viewer-content-heading">
-            <h3 id="viewer-content-heading">Executive Summary Content</h3>
+            <h3 id="viewer-content-heading">${escapeHtml(headingText)}</h3>
             ${entries.map((entry) => `
                 <section class="viewer-paragraph-item" aria-labelledby="field-heading-${entry.index}">
                     <h4 id="field-heading-${entry.index}">${escapeHtml(entry.label)}</h4>
@@ -1441,9 +1461,10 @@ function renderExecutiveBulletsLayout() {
     const entries = getVisibleFieldEntries();
     if (entries.length === 0) return '<p>No populated fields are available for this report.</p>';
 
+    const headingText = appState.reportType === 'Usability Report' ? 'Usability Report Highlights' : 'Executive Summary Highlights';
     return `
         <section aria-labelledby="viewer-content-heading">
-            <h3 id="viewer-content-heading">Executive Summary Highlights</h3>
+            <h3 id="viewer-content-heading">${escapeHtml(headingText)}</h3>
             <ul class="viewer-bullet-list">
                 ${entries.map((entry) => {
                     if (entry.type === 'attachment') {
@@ -1478,10 +1499,10 @@ function renderNonTemplateLayout() {
     if (type === 'Audit Log' && layout === 'Paragraphs') {
         return renderAuditParagraphLayout();
     }
-    if (type === 'Executive Summary' && layout === 'Bullets') {
+    if ((type === 'Executive Summary' || type === 'Usability Report') && layout === 'Bullets') {
         return renderExecutiveBulletsLayout();
     }
-    if (type === 'Executive Summary' && layout === 'Paragraphs') {
+    if ((type === 'Executive Summary' || type === 'Usability Report') && layout === 'Paragraphs') {
         return renderExecutiveParagraphLayout();
     }
 

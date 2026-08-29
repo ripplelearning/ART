@@ -13,6 +13,7 @@ import {
     getAuditEntries,
     getAuditEntryDisplayName,
     getCurrentReportMetrics,
+    DEFAULT_USABILITY_HEURISTICS,
     getProgressItemNames,
     isProgressLogEnabled,
     getShortcutForAction,
@@ -951,11 +952,54 @@ function renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly,
     `;
 }
 
+function parseSelectedHeuristics(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+    const text = String(value).trim();
+    if (!text) return [];
+    if (text.startsWith('[') && text.endsWith(']')) {
+        try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) return parsed.map((v) => String(v).trim()).filter(Boolean);
+        } catch {}
+    }
+    return text.split(/[\r\n,;]+/).map((v) => v.trim()).filter(Boolean);
+}
+
 function renderFieldControl(field, entryIndex, fieldIndex, storedValue, readOnly, labelledBy) {
     const type = normalizeFieldType(field.type);
 
     if (isWcagCriterionFieldType(type)) {
         return renderWcagControl(field, entryIndex, fieldIndex, storedValue, readOnly, labelledBy);
+    }
+
+    if (type === 'usability-heuristics') {
+        const options = Array.isArray(field.dropdownOptions) && field.dropdownOptions.length > 0
+            ? field.dropdownOptions
+            : DEFAULT_USABILITY_HEURISTICS;
+        const selectedValues = parseSelectedHeuristics(storedValue);
+        const isMulti = field.multiSelect !== false;
+
+        if (isMulti) {
+            return `
+                <select id="editor-field-${entryIndex}-${fieldIndex}" class="usability-heuristics-select" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" aria-describedby="editor-select-help" multiple ${readOnly ? 'disabled aria-disabled="true"' : ''}>
+                    ${options.map((option) => {
+                        const isSelected = selectedValues.includes(option);
+                        return `<option value="${escapeHtml(option)}" ${isSelected ? 'selected' : ''}>${escapeHtml(option)}</option>`;
+                    }).join('')}
+                </select>
+            `;
+        }
+
+        return `
+            <select id="editor-field-${entryIndex}-${fieldIndex}" class="usability-heuristics-select" data-entry-index="${entryIndex}" data-field-index="${fieldIndex}" aria-labelledby="${escapeHtml(labelledBy)}" aria-describedby="editor-select-help" ${readOnly ? 'disabled aria-disabled="true"' : ''}>
+                <option value="">Select a heuristic</option>
+                ${options.map((option) => {
+                    const isSelected = selectedValues.includes(option);
+                    return `<option value="${escapeHtml(option)}" ${isSelected ? 'selected' : ''}>${escapeHtml(option)}</option>`;
+                }).join('')}
+            </select>
+        `;
     }
 
     if (type === 'textarea') {
@@ -1732,7 +1776,11 @@ function bindAuditTableEvents(criteria) {
         control.addEventListener(eventName, (event) => {
             const entryIndex = Number(event.target.getAttribute('data-entry-index'));
             const fieldIndex = Number(event.target.getAttribute('data-field-index'));
-            updateAuditEntryFieldValue(entryIndex, fieldIndex, event.target.value);
+            let value = event.target.value;
+            if (event.target instanceof HTMLSelectElement && event.target.multiple) {
+                value = Array.from(event.target.selectedOptions).map((opt) => opt.value).join(', ');
+            }
+            updateAuditEntryFieldValue(entryIndex, fieldIndex, value);
             if (fieldIndex === 0) updateEntryActionLabels(entryIndex);
         });
     });
@@ -1968,7 +2016,11 @@ export async function renderEditor() {
             const eventName = control.tagName.toLowerCase() === 'select' ? 'change' : 'input';
             control.addEventListener(eventName, (event) => {
                 const fieldIndex = Number(event.target.getAttribute('data-field-index'));
-                updateEditorFieldValue(fieldIndex, event.target.value);
+                let value = event.target.value;
+                if (event.target instanceof HTMLSelectElement && event.target.multiple) {
+                    value = Array.from(event.target.selectedOptions).map((opt) => opt.value).join(', ');
+                }
+                updateEditorFieldValue(fieldIndex, value);
             });
         });
     }
