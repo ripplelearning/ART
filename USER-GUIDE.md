@@ -389,3 +389,66 @@ Project Properties and Resource Properties include History tabs with:
 - version actions
 
 Use these tabs for quick history access without leaving existing workflows.
+
+## Usability Reports
+ART includes **Usability Reports** as a dedicated Report Type in Report Builder. Usability Reports provide a flexible format for documenting user experience and usability issues that affect users even when they fall outside WCAG Success Criteria or formal accessibility compliance standards.
+
+### How Usability Reports Differ from Audit Logs and Executive Summaries
+- **Audit Logs:** Document formal accessibility violations mapped against WCAG Success Criteria or accessibility standards.
+- **Executive Summaries:** Summarize high-level accessibility audit findings and compliance risks for executive stakeholders.
+- **Usability Reports:** Focus on user experience barriers (e.g., confusing navigation, unclear error recovery, unnecessary workflow steps) using customizable fields and usability frameworks such as Nielsen's usability heuristics.
+
+### Selecting Usability Report Type in Report Builder
+1. Open Report Builder.
+2. In Report Metadata, set **Report Type** to **Usability Report**.
+3. Select a **Report Layout** (Paragraphs, Bullets, or Template). Usability Reports provide the same Layout and Field Configuration capabilities as Executive Summaries.
+
+### Configurable with No Default Fields
+Usability Reports contain **no default fields**. When creating a new Usability Report, the report starts completely empty with zero fields. Evaluators determine which fields are appropriate for their evaluation methodology and reporting needs.
+
+### Adding and Configuring Fields
+1. Expand **Configure Report Fields**.
+2. Enter a **Field Name** and select a **Field Type** (Text, Textarea, Dropdown, Usability Heuristics, Attachment, Evaluation Item Selection Box, or WCAG Success Criterion).
+3. Select **Add Field**. You can reorder, rename, or delete fields at any time.
+
+### Usability Heuristics Field Type
+- Select **Usability Heuristics** as the Field Type to add heuristic evaluation options to the report.
+- **Initial Default Heuristics:** Usability Heuristics fields include Nielsen's 10 usability heuristics by default:
+  - Visibility of system status
+  - Match between system and the real world
+  - User control and freedom
+  - Consistency and standards
+  - Error prevention
+  - Recognition rather than recall
+  - Flexibility and efficiency of use
+  - Aesthetic and minimalist design
+  - Help users recognize, diagnose, and recover from errors
+  - Help and documentation
+- **Customizing Options:** Evaluators can edit the heuristic options list in Field Configuration to use organization-specific heuristics, custom principles, or other usability frameworks.
+- **Single and Multi-Select:** Usability Heuristics fields support both single-selection and multiple-selection modes.
+
+### Data Entry in Report Editor
+- In Report Editor, Usability Reports support multi-issue data entry.
+- All issues entered in Report Editor are displayed in Report Viewer, Working Views, and exported formats in the order added (first added shows first, last added shows last).
+- When a Usability Heuristics field is configured, the editor displays an accessible select or multi-select control for picking applicable heuristics.
+
+### Optional Table of Contents and Section Links
+- Usability Reports do not include an Analytics section inside the report.
+- When enabled in layout configuration, Usability Reports include an optional **Table of Contents** placed immediately after the cover page as the first major section.
+- Table of Contents entries are accessible links (`.viewer-toc-link`). Activating a section link moves keyboard focus directly to that section's heading in Report Viewer.
+
+### Executive Summary Section Behavior
+- In both Executive Summaries and Usability Reports, the Executive Summary section lists **only issue titles** for quick scanning.
+- The Findings section remains intact and displays complete issue details for every issue in the order added.
+
+### Stand-Alone and Workspace Support
+Usability Reports function as stand-alone reports or within Project Workspaces. Workspace-based Usability Reports inherit workspace permissions, collaboration settings, sharing rules, and template workflows.
+
+### Collaboration and Working Views
+- Authorized collaborators can edit, review, and comment on Usability Reports.
+- Working Views support grouping, sorting, filtering, and batch updates on Usability Reports without modifying report data.
+
+### Organization Statistics Integration
+- When Organization Statistics are enabled in Application Settings, Usability Reports contribute data to organization-level metrics (by Organization/Client, Product, Project, Workspace, and Usability Heuristic).
+- **Organization/Client Metadata:** Aggregation relies on consistent population of the Organization/Client metadata field.
+- **Product and Tester Metadata:** Product information enables product-level usability trends, while Auditor(s) metadata contributes to unique tester activity counts without evaluating individual employee performance.
