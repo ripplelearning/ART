@@ -395,8 +395,8 @@ When configured, the Report Editor displays a selection control with available u
 
 Options can be customized per field to support organization-specific heuristics or custom usability principles. Single-select or multi-select behavior is configurable per field.
 
-### No Analytics and No Table of Contents
-Usability Reports do not contain an Analytics section or a Table of Contents inside the individual report.
+### No Analytics and Optional Table of Contents
+Usability Reports do not contain an Analytics section inside the individual report. When enabled in layout options, Usability Reports contain an optional **Table of Contents** that displays accessible links which move keyboard focus directly to each section heading in the report when activated.
 
 ### Organization Statistics Integration
 Usability Reports contribute to organization-level metrics (by Organization/Client, Product, Project, Workspace, and Usability Heuristic) through the separate Organization Statistics feature when Organization Statistics are enabled. Organization Statistics are computed across reports and never alter individual report content.

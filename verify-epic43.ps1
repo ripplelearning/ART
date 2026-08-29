@@ -60,7 +60,9 @@ $checks += [pscustomobject]@{ Name = 'Report Viewer and presentation layout pari
         'Usability Report Content',
         'Usability Report Highlights',
         'usability-heuristics',
-        'isMultiEntry\s*=\s*appState\.reportType === ''Audit Log'' \|\| appState\.reportType === ''Usability Report'''
+        'isMultiEntry\s*=\s*appState\.reportType === ''Audit Log'' \|\| appState\.reportType === ''Usability Report''',
+        'viewer-toc-link',
+        'data-toc-target'
     ) 'Report Viewer layout for Usability Reports is incomplete.'
 
     Assert-All 'reportPresentationFramework.js' $presentation @(
@@ -87,7 +89,7 @@ $checks += [pscustomobject]@{ Name = 'Help documentation coverage'; Script = {
         'Parity with Executive Summary Layout and Field Configuration',
         'No Default Fields',
         'Usability Heuristics Field Type',
-        'No Analytics and No Table of Contents'
+        'No Analytics and Optional Table of Contents'
     ) 'HELP.md documentation for Usability Reports is incomplete.'
 }}
 

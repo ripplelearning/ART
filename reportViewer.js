@@ -676,9 +676,13 @@ function buildPresentationSectionModels() {
     const referenceEntries = getReferenceEntries();
     const evidenceEntries = getEvidenceEntries();
     const analyticsRows = getAnalyticsRowsForPresentation();
-    const tocSections = presentation.visibleSections
-        .filter((section) => !['cover-page', 'table-of-contents'].includes(section.id))
-        .map((section) => section.label);
+
+    const getHeadingIdForSection = (sectionId) => {
+        if (sectionId === 'workspace-report-summary') return 'viewer-report-summary-heading';
+        if (sectionId === 'appendices') return 'viewer-progress-appendix-heading';
+        return `viewer-${sectionId}-heading`;
+    };
+
     const models = [];
 
     const pushModel = (model) => {
@@ -701,19 +705,25 @@ function buildPresentationSectionModels() {
                     title,
                     textLines: lines,
                     markdown: `# ${appState.reportTitle || 'Untitled Report'}\n\n${lines.slice(1).map((line) => `- ${line}`).join('\n')}`,
-                    html: `<section class="viewer-presentation-cover" aria-labelledby="viewer-cover-heading"><h1 id="viewer-cover-heading">${escapeHtml(appState.reportTitle || 'Untitled Report')}</h1>${lines.slice(1).map((line) => `<p>${escapeHtml(line)}</p>`).join('')}</section>`,
+                    html: `<section class="viewer-presentation-cover" aria-labelledby="viewer-cover-heading"><h1 id="viewer-cover-heading" tabindex="-1">${escapeHtml(appState.reportTitle || 'Untitled Report')}</h1>${lines.slice(1).map((line) => `<p>${escapeHtml(line)}</p>`).join('')}</section>`,
                     paragraphs: [{ style: 'Title', text: appState.reportTitle || 'Untitled Report' }, ...lines.slice(1).map((line) => ({ style: 'Normal', text: line }))]
                 });
                 break;
             }
             case 'table-of-contents': {
+                const tocItems = presentation.visibleSections
+                    .filter((s) => !['cover-page', 'table-of-contents'].includes(s.id))
+                    .map((s) => {
+                        const headingId = getHeadingIdForSection(s.id);
+                        return { id: s.id, label: s.label, headingId };
+                    });
                 pushModel({
                     id: section.id,
                     title,
-                    textLines: tocSections,
-                    markdown: `## ${title}\n${tocSections.map((line) => `- ${line}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-toc-heading"><h2 id="viewer-toc-heading">${escapeHtml(title)}</h2><ol>${tocSections.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ol></section>`,
-                    paragraphs: [{ style: 'Heading1', text: title }, ...tocSections.map((line) => ({ style: 'Normal', text: line }))]
+                    textLines: tocItems.map((item) => item.label),
+                    markdown: `## ${title}\n${tocItems.map((item) => `- [${item.label}](#${item.headingId})`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-toc-heading"><h2 id="viewer-toc-heading" tabindex="-1">${escapeHtml(title)}</h2><ol class="viewer-toc-list">${tocItems.map((item) => `<li><a href="#${item.headingId}" class="viewer-toc-link" data-toc-target="${item.headingId}">${escapeHtml(item.label)}</a></li>`).join('')}</ol></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...tocItems.map((item) => ({ style: 'Normal', text: item.label, url: `#${item.headingId}` }))]
                 });
                 break;
             }
@@ -727,7 +737,7 @@ function buildPresentationSectionModels() {
                     title,
                     textLines: entries.map((entry) => `${entry.label}: ${entry.value || entry.displayText || ''}`),
                     markdown: `## ${title}\n${entries.map((entry) => `- **${entry.label}:** ${entry.value || entry.displayText || ''}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-executive-summary-heading"><h2 id="viewer-executive-summary-heading">${escapeHtml(title)}</h2><ul>${entries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.value || entry.displayText) : escapeHtml(entry.value || entry.displayText)}</li>`).join('')}</ul></section>`,
+                    html: `<section aria-labelledby="viewer-executive-summary-heading"><h2 id="viewer-executive-summary-heading" tabindex="-1">${escapeHtml(title)}</h2><ul>${entries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.value || entry.displayText) : escapeHtml(entry.value || entry.displayText)}</li>`).join('')}</ul></section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...entries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.value || entry.displayText || ''}` }))]
                 });
                 break;
@@ -738,7 +748,7 @@ function buildPresentationSectionModels() {
                     title,
                     textLines: metadataRows.map(([label, value]) => `${label}: ${value}`),
                     markdown: `## ${title}\n${metadataRows.map(([label, value]) => `- **${label}:** ${value}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-report-summary-heading"><h2 id="viewer-report-summary-heading">${escapeHtml(title)}</h2><dl class="viewer-metadata-list">${metadataRows.map(([label, value]) => `<div class="viewer-metadata-item"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>`,
+                    html: `<section aria-labelledby="viewer-report-summary-heading"><h2 id="viewer-report-summary-heading" tabindex="-1">${escapeHtml(title)}</h2><dl class="viewer-metadata-list">${metadataRows.map(([label, value]) => `<div class="viewer-metadata-item"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...metadataRows.map(([label, value]) => ({ style: 'Normal', text: `${label}: ${value}` }))]
                 });
                 break;
@@ -749,7 +759,7 @@ function buildPresentationSectionModels() {
                     title,
                     textLines: analyticsRows.map(([label, value]) => `${label}: ${value}`),
                     markdown: `## ${title}\n${analyticsRows.map(([label, value]) => `- **${label}:** ${value}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-analytics-heading"><h2 id="viewer-analytics-heading">${escapeHtml(title)}</h2><ul>${analyticsRows.map(([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`).join('')}</ul></section>`,
+                    html: `<section aria-labelledby="viewer-analytics-heading"><h2 id="viewer-analytics-heading" tabindex="-1">${escapeHtml(title)}</h2><ul>${analyticsRows.map(([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`).join('')}</ul></section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...analyticsRows.map(([label, value]) => ({ style: 'Normal', text: `${label}: ${value}` }))]
                 });
                 break;
@@ -783,7 +793,7 @@ function buildPresentationSectionModels() {
                     title,
                     textLines,
                     markdown: `## ${title}\n${textLines.map((line) => `- ${line}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-findings-heading"><h2 id="viewer-findings-heading">${escapeHtml(title)}</h2>${html}</section>`,
+                    html: `<section aria-labelledby="viewer-findings-heading"><h2 id="viewer-findings-heading" tabindex="-1">${escapeHtml(title)}</h2>${html}</section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...textLines.map((line) => ({ style: 'Normal', text: line }))]
                 });
                 break;
@@ -794,7 +804,7 @@ function buildPresentationSectionModels() {
                     title,
                     textLines: recommendationEntries.map((entry) => `${entry.label}: ${entry.text}`),
                     markdown: `## ${title}\n${recommendationEntries.map((entry) => `- **${entry.label}:** ${entry.text}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-recommendations-heading"><h2 id="viewer-recommendations-heading">${escapeHtml(title)}</h2><ul>${recommendationEntries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.text)}</li>`).join('')}</ul></section>`,
+                    html: `<section aria-labelledby="viewer-recommendations-heading"><h2 id="viewer-recommendations-heading" tabindex="-1">${escapeHtml(title)}</h2><ul>${recommendationEntries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.text)}</li>`).join('')}</ul></section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...recommendationEntries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.text}` }))]
                 });
                 break;
@@ -817,7 +827,7 @@ function buildPresentationSectionModels() {
                     title,
                     textLines: referenceEntries.map((entry) => `${entry.label}: ${entry.text}`),
                     markdown: `## ${title}\n${referenceEntries.map((entry) => `- [${entry.label}](${entry.url})`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-references-heading"><h2 id="viewer-references-heading">${escapeHtml(title)}</h2><ul>${referenceEntries.map((entry) => `<li><a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.label)}</a></li>`).join('')}</ul></section>`,
+                    html: `<section aria-labelledby="viewer-references-heading"><h2 id="viewer-references-heading" tabindex="-1">${escapeHtml(title)}</h2><ul>${referenceEntries.map((entry) => `<li><a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.label)}</a></li>`).join('')}</ul></section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...referenceEntries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.text}`, url: entry.url }))]
                 });
                 break;
@@ -828,7 +838,7 @@ function buildPresentationSectionModels() {
                     title,
                     textLines: evidenceEntries.map((entry) => `${entry.label}: ${entry.text}`),
                     markdown: `## ${title}\n${evidenceEntries.map((entry) => `- **${entry.label}:** ${entry.text}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-evidence-heading"><h2 id="viewer-evidence-heading">${escapeHtml(title)}</h2><ul>${evidenceEntries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.text)}</li>`).join('')}</ul></section>`,
+                    html: `<section aria-labelledby="viewer-evidence-heading"><h2 id="viewer-evidence-heading" tabindex="-1">${escapeHtml(title)}</h2><ul>${evidenceEntries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.text)}</li>`).join('')}</ul></section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...evidenceEntries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.text}` }))]
                 });
                 break;
@@ -1793,6 +1803,19 @@ export function renderViewer() {
             </div>
         </section>
     `;
+
+    container.querySelectorAll('.viewer-toc-link, [data-toc-target]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            const targetId = link.getAttribute('data-toc-target') || (link.getAttribute('href') || '').replace('#', '');
+            const targetHeading = document.getElementById(targetId);
+            if (targetHeading) {
+                event.preventDefault();
+                targetHeading.focus();
+                targetHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                announce(`Moved focus to ${targetHeading.textContent.trim()} section.`);
+            }
+        });
+    });
 
     const exportButton = document.getElementById('btn-export-options');
     const openWorkingViewButton = document.getElementById('btn-open-working-view');

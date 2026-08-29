@@ -960,7 +960,7 @@ function getSectionAvailability() {
     const isUsability = appState.reportType === 'Usability Report';
     return {
         'cover-page': true,
-        'table-of-contents': !isUsability,
+        'table-of-contents': true,
         'executive-summary': appState.reportType === 'Executive Summary' || isUsability || hasContent,
         'workspace-report-summary': Boolean(appState.reportTitle || appState.projectName || appState.orgClient || appState.scopeUrl),
         analytics: !isUsability && analyticsCount > 0,
@@ -1251,7 +1251,7 @@ export function getResolvedReportPresentation() {
     const isUsability = appState.reportType === 'Usability Report';
     const visibleSections = layout.sections
         .filter((section) => section.enabled)
-        .filter((section) => !isUsability || (section.id !== 'analytics' && section.id !== 'table-of-contents'))
+        .filter((section) => !isUsability || section.id !== 'analytics')
         .map((section) => ({
             ...section,
             label: PRESENTATION_SECTION_LABELS[section.id] || section.id,

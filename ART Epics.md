@@ -92658,17 +92658,15 @@ functionality established by Epic 42.
 
 ------------------------------------------------------------------------
 
-#### No Table of Contents
+#### Optional Table of Contents
 
 When **Usability Report** is selected as the Report Type, the report
-shall **not include a Table of Contents**.
+may include an optional **Table of Contents**.
 
-The Report Builder shall not provide a Table of Contents configuration
-for Usability Reports where the existing report architecture allows
-Report Types to control this functionality.
-
-The resulting Usability Report shall not automatically generate a Table
-of Contents.
+When enabled, the Table of Contents shall display accessible links pointing
+to each section of the report. Activating a section link from the Table of
+Contents shall move keyboard focus directly to that section heading in the
+report.
 
 ------------------------------------------------------------------------
 
@@ -92719,11 +92717,11 @@ The user shall see:
 
 - The additional **Usability Heuristics** field type.
 
+- Table of Contents configuration options.
+
 The user shall not see:
 
 - Analytics configuration.
-
-- Table of Contents configuration.
 
 - Automatically generated usability fields.
 
@@ -92777,7 +92775,7 @@ The Viewer shall:
 
 - Not display Analytics.
 
-- Not display a Table of Contents.
+- Display an optional Table of Contents with accessible section focus links when configured.
 
 - Preserve the configured layout.
 
@@ -92958,7 +92956,7 @@ Verify that:
 
 - Usability Reports contain **no Analytics section**.
 
-- Usability Reports contain **no Table of Contents**.
+- Usability Reports contain an optional **Table of Contents** with accessible section focus links when configured.
 
 - Usability Reports retain Executive Summary-compatible layout
   functionality.
@@ -93022,7 +93020,7 @@ Instead:
 
 6.  Suppress Analytics for Usability Reports.
 
-7.  Suppress the Table of Contents for Usability Reports.
+7.  Allow an optional Table of Contents for Usability Reports with accessible section focus links.
 
 8.  Allow users to configure the fields they actually need.
 
@@ -93615,7 +93613,7 @@ No Analytics section shall be created.
 
 7.  
 
-No Table of Contents shall be created.
+Table of Contents shall be created only when explicitly enabled in template or layout options.
 
 8.  
 
@@ -94096,7 +94094,7 @@ No Analytics.
 
 - 
 
-No Table of Contents.
+Optional Table of Contents with accessible section focus links.
 
 **Organization Statistics:**
 
@@ -94277,7 +94275,7 @@ Verify that:
 - Changing a field label preserves its underlying data.
 - Templates preserve Usability Report configuration.
 - No Analytics section appears in a Usability Report.
-- No Table of Contents appears in a Usability Report.
+- An optional Table of Contents appears in a Usability Report when configured, providing accessible section focus links.
 - Organization Statistics can use Usability Report data without adding
   Analytics to the individual report.
 - Stand-alone Usability Reports work.
@@ -95333,7 +95331,7 @@ The Epic shall be considered complete when:
 - Heuristic options can be customized where supported.
 - Single- and multi-select behavior works according to configuration.
 - Usability Reports do not contain Analytics.
-- Usability Reports do not contain a Table of Contents.
+- Usability Reports support an optional Table of Contents with accessible links that move focus to report sections.
 - Usability Reports work as stand-alone reports.
 - Usability Reports work within Project Workspaces.
 - Usability Reports participate in existing permissions and
@@ -95452,16 +95450,16 @@ Then switch to a Report Type that supports Analytics.
 
 Verify that Analytics functionality continues to work normally.
 
-#### Table of Contents Suppression Testing
+#### Table of Contents Testing
 
-Select **Usability Report** as the Report Type.
+Select **Usability Report** as the Report Type and enable Table of Contents in layout configuration.
 
 Verify that:
 
-- Table of Contents configuration is unavailable.
-- A Table of Contents is not automatically generated.
-- No Table of Contents appears in the Report Viewer.
-- No Table of Contents appears in supported exports.
+- Table of Contents configuration is available.
+- The Table of Contents renders accessible links pointing to each section of the report.
+- Activating a section link from the Table of Contents moves keyboard focus directly to that section heading.
+- When disabled, no Table of Contents appears in the Report Viewer.
 
 Then switch to a Report Type that supports a Table of Contents.
 
@@ -95792,7 +95790,7 @@ Verify that:
 - Usability Heuristic values are preserved.
 - Metadata is preserved where supported.
 - Analytics are not added.
-- A Table of Contents is not added.
+- An optional Table of Contents with accessible section focus links is included when configured.
 - Unconfigured fields are not added.
 
 #### Report Viewer Testing
@@ -95904,7 +95902,7 @@ The primary implementation should be conceptually:
                     +-- Executive Summary Field Configuration capabilities
                     +-- Usability Heuristics field type
                     +-- No Analytics
-                    +-- No Table of Contents
+                    +-- Optional Table of Contents with accessible section focus links
 
 #### Code Quality
 
@@ -95946,7 +95944,7 @@ true:
 - Heuristic options can be customized where supported.
 - Single- and multi-selection work appropriately.
 - No Analytics are included in individual Usability Reports.
-- No Table of Contents is included in individual Usability Reports.
+- An optional Table of Contents can be included in Usability Reports, featuring accessible links that move focus to each section of the report when activated.
 - Organization Statistics can analyze Usability Report data
   independently of the individual report.
 - Organization/Client metadata is used for organizational aggregation.
@@ -95972,8 +95970,8 @@ true:
 **Usability Report is a flexible Report Builder Report Type—not a
 predefined usability-reporting template. It inherits the existing
 Executive Summary Layout and Field Configuration capabilities and adds
-only the optional Usability Heuristics field type, while excluding
-Analytics and Table of Contents.**
+the optional Usability Heuristics field type and optional Table of Contents
+with accessible section focus links, while excluding Analytics.**
 
 ## Epic 44 — Shared Progress Logs
 
