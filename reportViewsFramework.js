@@ -443,7 +443,7 @@ function getNonAuditFindingRecords() {
 }
 
 function getReportFindingRecords() {
-    if (normalizeText(appState.reportType) === 'Audit Log') return getAuditFindingRecords();
+    if (normalizeText(appState.reportType) === 'Audit Log' || normalizeText(appState.reportType) === 'Usability Report') return getAuditFindingRecords();
     return getNonAuditFindingRecords();
 }
 
@@ -1625,7 +1625,7 @@ function applyBatchToVisibleFindings(session, key, value, options = {}) {
 
     const indexMap = inferFieldIndexes();
     const targetIndex = Number(indexMap[key]);
-    const isAudit = normalizeText(appState.reportType) === 'Audit Log';
+    const isAudit = normalizeText(appState.reportType) === 'Audit Log' || normalizeText(appState.reportType) === 'Usability Report';
 
     if (isAudit) {
         if (!Number.isInteger(targetIndex) || targetIndex < 0) {
@@ -1887,7 +1887,7 @@ function bindWorkingViewInteractions(session, model) {
         button.addEventListener('dblclick', () => {
             const entryIndex = Number(button.getAttribute('data-entry-index') || -1);
             const fieldIndex = Number(button.getAttribute('data-field-index') || -1);
-            if (normalizeText(appState.reportType) === 'Audit Log' && entryIndex >= 0) {
+            if ((normalizeText(appState.reportType) === 'Audit Log' || normalizeText(appState.reportType) === 'Usability Report') && entryIndex >= 0) {
                 activateTabCommand('tab-editor', 'editor-heading', 'Report Editor');
                 announce('Moved to Report Editor for finding edit.');
                 return;
@@ -2079,7 +2079,7 @@ function openWorkingViewWithConfig(options = {}) {
 
 function reorderAuditEntriesFromSession(session) {
     if (!session) return false;
-    if (normalizeText(appState.reportType) !== 'Audit Log') return false;
+    if (normalizeText(appState.reportType) !== 'Audit Log' && normalizeText(appState.reportType) !== 'Usability Report') return false;
 
     const model = createViewModel(session.config);
     const orderedEntryIndexes = model.findings

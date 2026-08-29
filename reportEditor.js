@@ -1175,7 +1175,7 @@ function attachWcagCombobox(control, criteria, entryIndex, fieldIndex) {
             recommendationUrl: criterion.recommendationUrl
         };
         input.value = formatWcagCriterionDisplay(criterion);
-        if (appState.reportType === 'Audit Log') {
+        if (appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report') {
             updateAuditEntryFieldValue(entryIndex, fieldIndex, structuredValue);
             if (fieldIndex === 0) updateEntryActionLabels(entryIndex);
         } else {

@@ -59,7 +59,8 @@ $checks += [pscustomobject]@{ Name = 'Report Viewer and presentation layout pari
     Assert-All 'reportViewer.js' $viewer @(
         'Usability Report Content',
         'Usability Report Highlights',
-        'usability-heuristics'
+        'usability-heuristics',
+        'isMultiEntry\s*=\s*appState\.reportType === ''Audit Log'' \|\| appState\.reportType === ''Usability Report'''
     ) 'Report Viewer layout for Usability Reports is incomplete.'
 
     Assert-All 'reportPresentationFramework.js' $presentation @(

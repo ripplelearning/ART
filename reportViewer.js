@@ -600,14 +600,18 @@ function getRecommendationEntries() {
 
     if (recommendationIndexes.length === 0) return [];
 
-    return recommendationIndexes.map(({ field, index }) => {
-        const entry = getResolvedFieldEntries(false).find((item) => item.index === index);
-        return entry
-            ? {
+    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+    const fieldEntries = isMultiEntry
+        ? getAuditEntryGroups(false).flatMap((g) => g.entries)
+        : getResolvedFieldEntries(false);
+
+    return recommendationIndexes.flatMap(({ field, index }) => {
+        return fieldEntries
+            .filter((item) => item.index === index)
+            .map((entry) => ({
                 label: String(field.label || `Field ${index + 1}`),
                 text: String(entry.exportText || entry.displayText || '').trim()
-            }
-            : null;
+            }));
     }).filter((item) => item && item.text);
 }
 
@@ -617,7 +621,12 @@ function getReferenceEntries() {
         entries.push({ label: 'Scope URL', text: String(appState.scopeUrl).trim(), url: String(appState.scopeUrl).trim() });
     }
 
-    getResolvedFieldEntries(false).forEach((entry) => {
+    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+    const fieldEntries = isMultiEntry
+        ? getAuditEntryGroups(false).flatMap((g) => g.entries)
+        : getResolvedFieldEntries(false);
+
+    fieldEntries.forEach((entry) => {
         if (!entry.url) return;
         entries.push({
             label: entry.label,
@@ -631,7 +640,12 @@ function getReferenceEntries() {
 
 function getEvidenceEntries() {
     const evidence = [];
-    getResolvedFieldEntries(false).forEach((entry) => {
+    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+    const fieldEntries = isMultiEntry
+        ? getAuditEntryGroups(false).flatMap((g) => g.entries)
+        : getResolvedFieldEntries(false);
+
+    fieldEntries.forEach((entry) => {
         if (!Array.isArray(entry.attachments) || entry.attachments.length === 0) return;
         entry.attachments.forEach((attachment) => {
             evidence.push({
@@ -704,14 +718,17 @@ function buildPresentationSectionModels() {
                 break;
             }
             case 'executive-summary': {
-                const entries = getVisibleFieldEntries().slice(0, 5);
+                const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+                const entries = isMultiEntry
+                    ? getAuditEntryGroups(false).flatMap((g) => g.entries)
+                    : getVisibleFieldEntries().slice(0, 5);
                 pushModel({
                     id: section.id,
                     title,
-                    textLines: entries.map((entry) => `${entry.label}: ${entry.value}`),
-                    markdown: `## ${title}\n${entries.map((entry) => `- **${entry.label}:** ${entry.value}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-executive-summary-heading"><h2 id="viewer-executive-summary-heading">${escapeHtml(title)}</h2><ul>${entries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.value) : escapeHtml(entry.value)}</li>`).join('')}</ul></section>`,
-                    paragraphs: [{ style: 'Heading1', text: title }, ...entries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.value}` }))]
+                    textLines: entries.map((entry) => `${entry.label}: ${entry.value || entry.displayText || ''}`),
+                    markdown: `## ${title}\n${entries.map((entry) => `- **${entry.label}:** ${entry.value || entry.displayText || ''}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-executive-summary-heading"><h2 id="viewer-executive-summary-heading">${escapeHtml(title)}</h2><ul>${entries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.value || entry.displayText) : escapeHtml(entry.value || entry.displayText)}</li>`).join('')}</ul></section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...entries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.value || entry.displayText || ''}` }))]
                 });
                 break;
             }
@@ -741,7 +758,8 @@ function buildPresentationSectionModels() {
                 const html = appState.reportLayout === 'Template'
                     ? renderTemplateLayoutFields()
                     : renderNonTemplateLayout();
-                const textLines = appState.reportType === 'Audit Log'
+                const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+                const textLines = isMultiEntry
                     ? getAuditEntryGroups(false).flatMap((group) => {
                         const lines = [group.title];
                         group.entries.forEach((entry) => {
@@ -926,7 +944,7 @@ function buildXlsxBlob() {
         };
     };
 
-    if (appState.reportType === 'Audit Log') {
+    if (appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report') {
         getAuditEntriesList().forEach((auditEntry, entryIndex) => {
             const resolvedEntries = getResolvedFieldEntriesForValues(auditEntry?.fieldValues || {}, false, { entryIndex });
             const entryName = String(auditEntry?.fieldValues?.[0] || '').trim() || `Entry ${entryIndex + 1}`;
@@ -1270,7 +1288,7 @@ function getAttachmentFilesForExport() {
     const fields = appState.fields || [];
     const files = [];
 
-    if (appState.reportType === 'Audit Log') {
+    if (appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report') {
         getAuditEntriesList().forEach((auditEntry, entryIndex) => {
             fields.forEach((field, fieldIndex) => {
                 if (!isAttachmentFieldType(field?.type)) return;
@@ -1389,9 +1407,10 @@ function renderAuditParagraphLayout() {
     const groups = getAuditEntryGroups(true);
     if (groups.every((group) => group.entries.length === 0)) return '<p>No populated fields are available for this report.</p>';
 
+    const headingText = appState.reportType === 'Usability Report' ? 'Usability Report Content' : 'Audit Findings';
     return `
         <section aria-labelledby="viewer-content-heading">
-            <h3 id="viewer-content-heading">Audit Findings</h3>
+            <h3 id="viewer-content-heading">${escapeHtml(headingText)}</h3>
             ${groups.map((group) => `
                 <article class="viewer-paragraph-item">
                     <h4>${escapeHtml(group.title)}</h4>
@@ -1408,6 +1427,11 @@ function renderAuditParagraphLayout() {
 }
 
 function renderExecutiveParagraphLayout() {
+    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+    if (isMultiEntry) {
+        return renderAuditParagraphLayout();
+    }
+
     const entries = getVisibleFieldEntries();
     if (entries.length === 0) return '<p>No populated fields are available for this report.</p>';
 
