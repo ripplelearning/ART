@@ -84,6 +84,7 @@ const BUILT_IN_LAYOUTS = Object.freeze([
         supportedReportTypes: ['Executive Summary', 'Audit Log'],
         sections: [
             { id: 'cover-page', enabled: true, required: false },
+            { id: 'table-of-contents', enabled: true, required: false },
             { id: 'executive-summary', enabled: true, required: true },
             { id: 'workspace-report-summary', enabled: true, required: true },
             { id: 'analytics', enabled: true, required: false },
@@ -157,6 +158,7 @@ const BUILT_IN_LAYOUTS = Object.freeze([
         supportedReportTypes: ['Usability Report', 'Executive Summary', 'Audit Log'],
         sections: [
             { id: 'cover-page', enabled: true, required: false },
+            { id: 'table-of-contents', enabled: true, required: false },
             { id: 'executive-summary', enabled: true, required: false },
             { id: 'workspace-report-summary', enabled: true, required: true },
             { id: 'findings', enabled: true, required: true },
@@ -1249,7 +1251,32 @@ export function getResolvedReportPresentation() {
     ];
     const sectionAvailability = getSectionAvailability();
     const isUsability = appState.reportType === 'Usability Report';
-    const visibleSections = layout.sections
+    const tocEnabled = Boolean(layout.tableOfContents?.enabled);
+
+    let sections = layout.sections.map((s) => {
+        if (s.id === 'table-of-contents') {
+            return { ...s, enabled: tocEnabled };
+        }
+        return s;
+    });
+
+    if (tocEnabled && !sections.some((s) => s.id === 'table-of-contents')) {
+        const coverIdx = sections.findIndex((s) => s.id === 'cover-page');
+        const insertIdx = coverIdx >= 0 ? coverIdx + 1 : 0;
+        sections.splice(insertIdx, 0, { id: 'table-of-contents', enabled: true, required: false });
+    }
+
+    const tocIndex = sections.findIndex((s) => s.id === 'table-of-contents' && s.enabled);
+    if (tocIndex >= 0) {
+        const coverIndex = sections.findIndex((s) => s.id === 'cover-page' && s.enabled);
+        const targetIndex = coverIndex >= 0 ? coverIndex + 1 : 0;
+        if (tocIndex !== targetIndex) {
+            const [tocSec] = sections.splice(tocIndex, 1);
+            sections.splice(targetIndex, 0, tocSec);
+        }
+    }
+
+    const visibleSections = sections
         .filter((section) => section.enabled)
         .filter((section) => !isUsability || section.id !== 'analytics')
         .map((section) => ({

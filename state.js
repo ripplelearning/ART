@@ -6166,7 +6166,7 @@ export function getReportById(reportId) {
 }
 
 export function currentReportSupportsAuditEntries() {
-    if (appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report') return true;
+    if (appState.reportType === 'Audit Log' || appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report') return true;
 
     const hasAuditEntries = Array.isArray(appState.auditEntries) && appState.auditEntries.length > 0;
     if (hasAuditEntries) return true;
@@ -6651,7 +6651,7 @@ export function updateHeader(key, val) {
  */
 export function updateEditorFieldValue(index, value) {
     appState.editorFieldValues[index] = normalizeEditorFieldValue(value);
-    if (appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report') {
+    if (appState.reportType === 'Audit Log' || appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report') {
         syncAuditEntriesFromEditorValues();
     }
     saveState({ action: 'Updated report content' });

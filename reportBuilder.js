@@ -1920,6 +1920,14 @@ export async function renderBuilder() {
                     ...draft.tableOfContents,
                     enabled: presentationTocEnabled.checked
                 };
+                const tocSection = draft.sections.find((s) => s.id === 'table-of-contents');
+                if (tocSection) {
+                    tocSection.enabled = presentationTocEnabled.checked;
+                } else {
+                    const coverIdx = draft.sections.findIndex((s) => s.id === 'cover-page');
+                    const insertIdx = coverIdx >= 0 ? coverIdx + 1 : 0;
+                    draft.sections.splice(insertIdx, 0, { id: 'table-of-contents', enabled: presentationTocEnabled.checked, required: false });
+                }
             });
         });
     }

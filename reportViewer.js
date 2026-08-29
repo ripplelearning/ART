@@ -600,7 +600,7 @@ function getRecommendationEntries() {
 
     if (recommendationIndexes.length === 0) return [];
 
-    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report';
     const fieldEntries = isMultiEntry
         ? getAuditEntryGroups(false).flatMap((g) => g.entries)
         : getResolvedFieldEntries(false);
@@ -621,7 +621,7 @@ function getReferenceEntries() {
         entries.push({ label: 'Scope URL', text: String(appState.scopeUrl).trim(), url: String(appState.scopeUrl).trim() });
     }
 
-    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report';
     const fieldEntries = isMultiEntry
         ? getAuditEntryGroups(false).flatMap((g) => g.entries)
         : getResolvedFieldEntries(false);
@@ -640,7 +640,7 @@ function getReferenceEntries() {
 
 function getEvidenceEntries() {
     const evidence = [];
-    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+    const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report';
     const fieldEntries = isMultiEntry
         ? getAuditEntryGroups(false).flatMap((g) => g.entries)
         : getResolvedFieldEntries(false);
@@ -728,17 +728,17 @@ function buildPresentationSectionModels() {
                 break;
             }
             case 'executive-summary': {
-                const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
-                const entries = isMultiEntry
-                    ? getAuditEntryGroups(false).flatMap((g) => g.entries)
-                    : getVisibleFieldEntries().slice(0, 5);
+                const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report';
+                const issueTitles = isMultiEntry
+                    ? getAuditEntryGroups(false).map((g) => g.title).filter(Boolean)
+                    : getVisibleFieldEntries().slice(0, 5).map((e) => `${e.label}: ${e.value || e.displayText || ''}`);
                 pushModel({
                     id: section.id,
                     title,
-                    textLines: entries.map((entry) => `${entry.label}: ${entry.value || entry.displayText || ''}`),
-                    markdown: `## ${title}\n${entries.map((entry) => `- **${entry.label}:** ${entry.value || entry.displayText || ''}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-executive-summary-heading"><h2 id="viewer-executive-summary-heading" tabindex="-1">${escapeHtml(title)}</h2><ul>${entries.map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${entry.url ? renderWcagViewerLink(entry, entry.value || entry.displayText) : escapeHtml(entry.value || entry.displayText)}</li>`).join('')}</ul></section>`,
-                    paragraphs: [{ style: 'Heading1', text: title }, ...entries.map((entry) => ({ style: 'Normal', text: `${entry.label}: ${entry.value || entry.displayText || ''}` }))]
+                    textLines: issueTitles,
+                    markdown: `## ${title}\n${issueTitles.map((t) => `- ${t}`).join('\n')}`,
+                    html: `<section aria-labelledby="viewer-executive-summary-heading"><h2 id="viewer-executive-summary-heading" tabindex="-1">${escapeHtml(title)}</h2>${issueTitles.length > 0 ? `<ul>${issueTitles.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : '<p>No issues recorded.</p>'}</section>`,
+                    paragraphs: [{ style: 'Heading1', text: title }, ...issueTitles.map((t) => ({ style: 'Normal', text: t }))]
                 });
                 break;
             }
@@ -768,7 +768,7 @@ function buildPresentationSectionModels() {
                 const html = appState.reportLayout === 'Template'
                     ? renderTemplateLayoutFields()
                     : renderNonTemplateLayout();
-                const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Usability Report';
+                const isMultiEntry = appState.reportType === 'Audit Log' || appState.reportType === 'Executive Summary' || appState.reportType === 'Usability Report';
                 const textLines = isMultiEntry
                     ? getAuditEntryGroups(false).flatMap((group) => {
                         const lines = [group.title];
