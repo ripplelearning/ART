@@ -372,6 +372,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-shared-progress-logs',
+            title: 'Shared Progress Logs',
+            content: `
+                <p>Shared Progress Logs track testing and project tasks across one or more reports without changing report findings or configuration.</p>
+                <p>Open Shared Progress Logs from Tools &gt; Progress Log or Command Palette. Create a named log, associate reports, add tasks, select status values, and add comments.</p>
+                <p>Shared Progress Logs are currently local/file-based records. They are included in ART Project export/import payloads. Account-based sharing, permissions, server synchronization, @mentions, email, and personalized notifications require ART's future identity and authorization foundations.</p>
+            `
+        },
+        {
             id: 'help-evaluation-item-selection',
             title: 'Evaluation Item Selection Box',
             content: `

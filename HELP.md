@@ -404,6 +404,15 @@ Usability Reports contribute to organization-level metrics (by Organization/Clie
 ### Workspace and Stand-Alone Support
 Usability Reports work both as stand-alone reports and within Project Workspaces, respecting existing permissions, templates, collaboration, and export workflows.
 
+## Shared Progress Logs
+Shared Progress Logs provide a local/file-based way to track testing and project tasks across one or more ART reports. They are separate from report findings: a task records project or testing progress and does not create, edit, or delete a finding.
+
+Open **Shared Progress Logs** from Tools > Progress Log or Command Palette. Create a named log, associate existing reports, add tasks, select a task status, and add task comments. Logs, status definitions, task records, comments, associations, timestamps, and their stable IDs are retained in ART local data and included in ART Project export/import payloads.
+
+Status controls use native selects and are keyboard and screen-reader accessible. The dialog has an accessible name, status messages, Escape-to-close behavior, and restores focus to the control that opened it.
+
+Shared Progress Logs currently support local/file-based records only. ART does not yet provide authenticated accounts, organization membership, role-based permissions, server synchronization, email, or personalized notifications. Those server-dependent capabilities remain deferred until the identity, authentication, file-based collaboration, and authorization foundations in Epics 45, 49, 50, and 51 are implemented.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

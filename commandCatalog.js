@@ -97,6 +97,7 @@ import {
     openEditorValidationDialog
 } from './reportEditor.js';
 import { openProgressLogDialog } from './progressLog.js';
+import { openSharedProgressLogs } from './sharedProgressLogFramework.js';
 import { requestViewerExportDialog, requestViewerPrintPreview, renderViewer } from './reportViewer.js';
 import { executeLookupCopyActionFromCommand, resetLookupFromCommand } from './lookupTool.js';
 import { executeAddFieldFromCommand, executeDoneFromCommand, renderBuilder } from './reportBuilder.js';
@@ -383,6 +384,7 @@ function getDefaultMenuLocation(action, category) {
         case 'previousLandmark': return 'View>Application Landmarks';
         case 'openHelp': return 'Help>User Guide';
         case 'openProgressLog': return 'Tools>Progress Log';
+        case 'openSharedProgressLogs': return 'Tools>Progress Log';
         case 'focusLookup':
         case 'resetLookup': return 'Tools>Accessibility Lookup Tool';
         case 'spellCheck':
@@ -2246,6 +2248,14 @@ const BASE_COMMAND_DEFINITIONS = [
         enabled: () => isProgressLogEnabled(),
         unavailableReason: 'Enable the Progress Log in Report Builder first.',
         handler: () => Boolean(openProgressLogDialog(document.activeElement || null))
+    },
+    {
+        action: 'openSharedProgressLogs',
+        id: 'Tools.OpenSharedProgressLogs',
+        category: 'Tools',
+        description: 'Open local/file-based Shared Progress Logs and associated tasks.',
+        aliases: ['shared progress', 'project tasks', 'shared tasks'],
+        handler: (context) => Boolean(openSharedProgressLogs(context.triggerElement || document.activeElement || null))
     },
     {
         action: 'focusNavigation',

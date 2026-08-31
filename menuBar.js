@@ -254,6 +254,7 @@ function getMenuLocation(command) {
         case 'previousLandmark': return 'View>Application Landmarks';
         case 'openHelp': return 'Help>User Guide';
         case 'openProgressLog': return 'Tools>Progress Log';
+        case 'openSharedProgressLogs': return 'Tools>Progress Log';
         case 'focusLookup':
         case 'resetLookup': return 'Tools>Accessibility Lookup Tool';
         case 'spellCheck':

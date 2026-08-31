@@ -47,6 +47,10 @@ const defaultState = {
     progressLogEnabled: false,
     progressLogAppendixEnabled: false,
     progressItems: [],
+    sharedProgressLogs: {
+        logs: [],
+        activeLogId: ''
+    },
     fields: [],
     editingIndex: -1,
     editorUsesReportTitle: false,
@@ -116,6 +120,7 @@ const defaultState = {
         openEditor: 'Alt+Shift+E',
         openViewer: 'Alt+Shift+V',
         openProgressLog: 'Alt+Shift+P',
+        openSharedProgressLogs: '',
         focusLookup: 'Alt+Shift+L',
         focusMenuBar: 'F10',
         focusMenuSearch: 'Alt+Q',
@@ -737,6 +742,75 @@ function normalizeProgressItem(item, index) {
 function normalizeProgressItems(list) {
     if (!Array.isArray(list)) return [];
     return list.map((item, index) => normalizeProgressItem(item, index));
+}
+
+const DEFAULT_SHARED_PROGRESS_STATUSES = Object.freeze([
+    'Not Started', 'In Progress', 'Blocked', 'Completed', 'On Hold', 'Needs Review', 'Cancelled'
+]);
+
+function normalizeSharedProgressStatus(status, index) {
+    const source = status && typeof status === 'object' ? status : { label: status };
+    return {
+        id: String(source.id || `shared-progress-status-${index + 1}`).trim(),
+        label: String(source.label || source.name || DEFAULT_SHARED_PROGRESS_STATUSES[index] || 'Not Started').trim()
+    };
+}
+
+function normalizeSharedProgressComment(comment, index) {
+    const source = comment && typeof comment === 'object' ? comment : {};
+    return {
+        id: String(source.id || `shared-progress-comment-${Date.now()}-${index}`).trim(),
+        author: String(source.author || 'Local user').trim(),
+        content: String(source.content || '').trim(),
+        mentionedMemberIds: Array.isArray(source.mentionedMemberIds) ? source.mentionedMemberIds.map((id) => String(id).trim()).filter(Boolean) : [],
+        createdAt: normalizeIsoDateTime(source.createdAt) || new Date().toISOString(),
+        updatedAt: normalizeIsoDateTime(source.updatedAt)
+    };
+}
+
+function normalizeSharedProgressTask(task, index, statuses) {
+    const source = task && typeof task === 'object' ? task : {};
+    const fallbackStatusId = statuses[0]?.id || 'shared-progress-status-1';
+    const statusId = String(source.statusId || fallbackStatusId).trim();
+    return {
+        id: String(source.id || `shared-progress-task-${Date.now()}-${index}`).trim(),
+        name: String(source.name || `Task ${index + 1}`).trim(),
+        description: String(source.description || '').trim(),
+        assigneeMemberId: String(source.assigneeMemberId || '').trim(),
+        statusId: statuses.some((status) => status.id === statusId) ? statusId : fallbackStatusId,
+        comments: Array.isArray(source.comments) ? source.comments.map(normalizeSharedProgressComment) : [],
+        createdAt: normalizeIsoDateTime(source.createdAt) || new Date().toISOString(),
+        updatedAt: normalizeIsoDateTime(source.updatedAt) || new Date().toISOString()
+    };
+}
+
+function normalizeSharedProgressLog(log, index) {
+    const source = log && typeof log === 'object' ? log : {};
+    const statuses = (Array.isArray(source.statuses) && source.statuses.length > 0 ? source.statuses : DEFAULT_SHARED_PROGRESS_STATUSES)
+        .map(normalizeSharedProgressStatus)
+        .filter((status) => status.id && status.label);
+    return {
+        id: String(source.id || `shared-progress-log-${Date.now()}-${index}`).trim(),
+        name: String(source.name || `Shared Progress Log ${index + 1}`).trim(),
+        owner: String(source.owner || 'Local user').trim(),
+        sharing: source.sharing === true,
+        associatedReportIds: Array.isArray(source.associatedReportIds) ? source.associatedReportIds.map((id) => String(id).trim()).filter(Boolean) : [],
+        workspaceId: String(source.workspaceId || '').trim(),
+        statuses,
+        tasks: Array.isArray(source.tasks) ? source.tasks.map((task, taskIndex) => normalizeSharedProgressTask(task, taskIndex, statuses)) : [],
+        createdAt: normalizeIsoDateTime(source.createdAt) || new Date().toISOString(),
+        updatedAt: normalizeIsoDateTime(source.updatedAt) || new Date().toISOString()
+    };
+}
+
+function normalizeSharedProgressLogs(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const logs = Array.isArray(source.logs) ? source.logs.map(normalizeSharedProgressLog) : [];
+    const activeLogId = String(source.activeLogId || '').trim();
+    return {
+        logs,
+        activeLogId: logs.some((log) => log.id === activeLogId) ? activeLogId : ''
+    };
 }
 
 function normalizeBrandingImage(image, index = 0) {
@@ -1805,6 +1879,7 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'openEditor', label: 'Open Report Editor tab', defaultShortcut: defaultState.shortcuts.openEditor },
     { action: 'openViewer', label: 'Open Report Viewer tab', defaultShortcut: defaultState.shortcuts.openViewer },
     { action: 'openProgressLog', label: 'Open Progress Log', defaultShortcut: defaultState.shortcuts.openProgressLog },
+    { action: 'openSharedProgressLogs', label: 'Open Shared Progress Logs', defaultShortcut: defaultState.shortcuts.openSharedProgressLogs },
     { action: 'focusLookup', label: 'Focus Accessibility Lookup search', defaultShortcut: defaultState.shortcuts.focusLookup },
     { action: 'focusMenuBar', label: 'Focus Menu Bar', defaultShortcut: defaultState.shortcuts.focusMenuBar },
     { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search', defaultShortcut: defaultState.shortcuts.focusMenuSearch },
@@ -2146,6 +2221,7 @@ export function getAssignableActions() {
         { action: 'openEditor', label: 'Open Report Editor tab' },
         { action: 'openViewer', label: 'Open Report Viewer tab' },
         { action: 'openProgressLog', label: 'Open Progress Log' },
+        { action: 'openSharedProgressLogs', label: 'Open Shared Progress Logs' },
         { action: 'focusLookup', label: 'Focus Accessibility Lookup search' },
         { action: 'focusMenuBar', label: 'Focus Menu Bar' },
         { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search' },
@@ -2668,6 +2744,7 @@ export let appState = {
     progressLogEnabled: normalizeProgressLogEnabled(storedState.progressLogEnabled, storedState.reportType),
     progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(storedState.progressLogAppendixEnabled, storedState.reportType),
     progressItems: normalizeProgressItems(storedState.progressItems),
+    sharedProgressLogs: normalizeSharedProgressLogs(storedState.sharedProgressLogs),
     fields: normalizedInitialFields,
     editorFieldValues: normalizedInitialEditorValues,
     auditEntries: normalizeAuditEntries(storedState.auditEntries, normalizedInitialFields, normalizedInitialEditorValues),
@@ -2777,6 +2854,7 @@ function normalizeStateSnapshot(rawState) {
         progressLogEnabled: normalizeProgressLogEnabled(base.progressLogEnabled, reportType),
         progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(base.progressLogAppendixEnabled, reportType),
         progressItems: normalizeProgressItems(base.progressItems),
+        sharedProgressLogs: normalizeSharedProgressLogs(base.sharedProgressLogs),
         fields,
         editorFieldValues,
         auditEntries: normalizeAuditEntries(base.auditEntries, fields, editorFieldValues),
@@ -5376,6 +5454,90 @@ export function getProgressItems() {
     return normalizeProgressItems(appState.progressItems);
 }
 
+function emitSharedProgressLogUpdate(action) {
+    saveState({ action, recordHistory: false });
+    window.dispatchEvent(new Event('art-shared-progress-logs-updated'));
+}
+
+export function getSharedProgressLogs() {
+    return normalizeSharedProgressLogs(appState.sharedProgressLogs).logs;
+}
+
+export function getSharedProgressLog(logId) {
+    const id = String(logId || '').trim();
+    return getSharedProgressLogs().find((log) => log.id === id) || null;
+}
+
+export function createSharedProgressLog(input = {}) {
+    const logs = getSharedProgressLogs();
+    const currentReportId = String(appState.selectedReportId || '').trim();
+    const log = normalizeSharedProgressLog({
+        ...input,
+        id: input.id || `shared-progress-log-${Date.now()}`,
+        associatedReportIds: Array.isArray(input.associatedReportIds)
+            ? input.associatedReportIds
+            : (currentReportId ? [currentReportId] : []),
+        workspaceId: input.workspaceId || appState.activeWorkspaceId || ''
+    }, logs.length);
+    appState.sharedProgressLogs = { logs: [...logs, log], activeLogId: log.id };
+    emitSharedProgressLogUpdate(`Created Shared Progress Log ${log.name}`);
+    return log;
+}
+
+export function updateSharedProgressLog(logId, updates = {}) {
+    const targetId = String(logId || '').trim();
+    let updated = null;
+    appState.sharedProgressLogs = {
+        ...normalizeSharedProgressLogs(appState.sharedProgressLogs),
+        logs: getSharedProgressLogs().map((log, index) => {
+            if (log.id !== targetId) return log;
+            updated = normalizeSharedProgressLog({ ...log, ...updates, id: log.id, updatedAt: new Date().toISOString() }, index);
+            return updated;
+        })
+    };
+    if (!updated) return null;
+    emitSharedProgressLogUpdate(`Updated Shared Progress Log ${updated.name}`);
+    return updated;
+}
+
+export function addSharedProgressTask(logId, input = {}) {
+    const log = getSharedProgressLog(logId);
+    if (!log) return null;
+    const task = normalizeSharedProgressTask({ ...input, id: input.id || `shared-progress-task-${Date.now()}` }, log.tasks.length, log.statuses);
+    updateSharedProgressLog(log.id, { tasks: [...log.tasks, task] });
+    return task;
+}
+
+export function updateSharedProgressTask(logId, taskId, updates = {}) {
+    const log = getSharedProgressLog(logId);
+    if (!log) return null;
+    const id = String(taskId || '').trim();
+    let updated = null;
+    const tasks = log.tasks.map((task, index) => {
+        if (task.id !== id) return task;
+        updated = normalizeSharedProgressTask({ ...task, ...updates, id: task.id, updatedAt: new Date().toISOString() }, index, log.statuses);
+        return updated;
+    });
+    if (!updated) return null;
+    updateSharedProgressLog(log.id, { tasks });
+    return updated;
+}
+
+export function addSharedProgressComment(logId, taskId, input = {}) {
+    const log = getSharedProgressLog(logId);
+    const task = log?.tasks.find((entry) => entry.id === String(taskId || '').trim());
+    if (!log || !task) return null;
+    const comment = normalizeSharedProgressComment({ ...input, id: input.id || `shared-progress-comment-${Date.now()}` }, task.comments.length);
+    updateSharedProgressTask(log.id, task.id, { comments: [...task.comments, comment] });
+    return comment;
+}
+
+export function setSharedProgressLogReportAssociations(logId, reportIds) {
+    return updateSharedProgressLog(logId, {
+        associatedReportIds: Array.isArray(reportIds) ? reportIds.map((id) => String(id).trim()).filter(Boolean) : []
+    });
+}
+
 export function getProgressItemNames() {
     const seen = new Set();
     return getProgressItems()
@@ -5814,6 +5976,7 @@ function createManagedDataSnapshot() {
         progressLogEnabled: appState.progressLogEnabled,
         progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
         progressItems: appState.progressItems,
+        sharedProgressLogs: appState.sharedProgressLogs,
         fields: appState.fields,
         editorFieldValues: appState.editorFieldValues,
         auditEntries: appState.auditEntries,

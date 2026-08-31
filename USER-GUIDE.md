@@ -452,3 +452,20 @@ Usability Reports function as stand-alone reports or within Project Workspaces. 
 - When Organization Statistics are enabled in Application Settings, Usability Reports contribute data to organization-level metrics (by Organization/Client, Product, Project, Workspace, and Usability Heuristic).
 - **Organization/Client Metadata:** Aggregation relies on consistent population of the Organization/Client metadata field.
 - **Product and Tester Metadata:** Product information enables product-level usability trends, while Auditor(s) metadata contributes to unique tester activity counts without evaluating individual employee performance.
+
+## Shared Progress Logs
+Shared Progress Logs are a local/file-based workspace for tracking project and testing activity without duplicating the detailed findings in Audit Logs, Executive Summaries, or Usability Reports.
+
+### Creating and Managing a Shared Progress Log
+1. Open **Tools > Progress Log > Shared Progress Logs**, or find **Open Shared Progress Logs** in Command Palette.
+2. Select **Create Progress Log**. ART creates a named local Shared Progress Log with stable identifiers for the log and status definitions.
+3. Select one or more reports under **Associated Reports**. Associations reference existing report IDs and do not change report fields, findings, or report types.
+4. Select **Add Task** to create a task. Each task has a stable ID, name, description, status, timestamps, and comments.
+5. Use the native **Status** select to record task progress. Status is visible and programmatically available; ART never communicates progress only through color.
+6. Enter text in a task's **Add comment** field and select **Add Comment**. Comments retain an ID, author label, content, and timestamp.
+
+### Local Data and Portability
+Shared Progress Logs remain available in local ART operation and are included in ART Project export/import payloads. They can be used with a stand-alone report, several reports, or a Project Workspace. They do not require an ART server, account, Internet connection, or workspace.
+
+### Current Collaboration Boundary
+The current Shared Progress Log implementation stores local/file-based task records, report associations, statuses, and comments. It does not yet implement account-specific sharing, organization membership, permission enforcement, server synchronization, personalized assignments, email, or @mention notifications. Those capabilities require ART's authenticated identity, passwordless authentication, file-based collaboration, and authorization foundations defined in Epics 45, 49, 50, and 51. Local ART work remains available without those services.
