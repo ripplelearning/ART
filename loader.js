@@ -24,6 +24,7 @@ import { announce, canPerformExternalCommunication, recordSecurityAudit, setNetw
 import { initializeUniversalSearchFramework } from './universalSearchFramework.js';
 import { initNavigationHistoryFramework } from './navigationHistoryFramework.js';
 import { initializeOrganizationMetricsFramework } from './organizationMetricsFramework.js';
+import { initializeIdentityFramework } from './identityFramework.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -205,6 +206,7 @@ function initializeApp() {
     runStartupStage('initializeUniversalSearchFramework', () => initializeUniversalSearchFramework());
     runStartupStage('initNavigationHistoryFramework', () => initNavigationHistoryFramework());
     runStartupStage('initializeOrganizationMetricsFramework', () => initializeOrganizationMetricsFramework());
+    runStartupStage('initializeIdentityFramework', () => initializeIdentityFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());
     runStartupStage('initGlobalContextMenuFramework', () => initGlobalContextMenuFramework());

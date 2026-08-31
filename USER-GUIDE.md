@@ -469,3 +469,18 @@ Shared Progress Logs remain available in local ART operation and are included in
 
 ### Current Collaboration Boundary
 The current Shared Progress Log implementation stores local/file-based task records, report associations, statuses, and comments. It does not yet implement account-specific sharing, organization membership, permission enforcement, server synchronization, personalized assignments, email, or @mention notifications. Those capabilities require ART's authenticated identity, passwordless authentication, file-based collaboration, and authorization foundations defined in Epics 45, 49, 50, and 51. Local ART work remains available without those services.
+
+## Account and Identity Foundation
+ART remains fully usable without an account. Report creation, editing, importing, exporting, local Progress Logs, Shared Progress Logs, and local Organization Statistics do not require signing in.
+
+### Local Profile and Device Identity
+Open **Application Settings > Account and Identity** to save a local Name, Display Name, Email Address, and Job Title. ART creates a stable local user identifier and device identifier independently of these editable profile values. This local profile supports future file-based attribution but is not an authenticated account and does not grant access to shared or server-based resources.
+
+### Authentication State
+ART clearly distinguishes Not signed in, Authentication in progress, Signed in, Session expired, Signed out, and Authentication service unavailable. When signed out or when an authentication service is unavailable, local work remains available and unsaved local data is not removed.
+
+### Privacy and Credential Safety
+ART never stores passwords, passkeys, OAuth access tokens, refresh tokens, or session credentials in the local profile, ART project files, reports, exports, or ordinary application logs. Authentication providers must validate credentials externally and establish a non-secret identity session through ART's centralized identity service.
+
+### Current Authentication Boundary
+The Account and Identity service is the shared application boundary for future providers and authorization. It intentionally does not implement a browser-only mock login, OAuth callback, or passkey workflow. Secure passwordless authentication requires the server-side relying-party, origin, challenge, token, and session infrastructure specified for Epic 49. Organization membership, roles, and the Authorization Policy Service are scheduled for Epic 51.

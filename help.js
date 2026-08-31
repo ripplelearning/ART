@@ -381,6 +381,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-account-and-identity',
+            title: 'Account and Identity',
+            content: `
+                <p>ART remains usable without signing in. Application Settings &gt; Account and Identity lets you save a local profile and view this installation's stable device identity.</p>
+                <p>Your local profile is separate from authentication and does not grant access to server-based features. ART does not store passwords, passkeys, OAuth tokens, refresh tokens, or session credentials in local project data or exports.</p>
+                <p>Authentication state is presented as Not signed in, Authentication in progress, Signed in, Session expired, Signed out, or Authentication service unavailable. Local work remains available in every state.</p>
+            `
+        },
+        {
             id: 'help-evaluation-item-selection',
             title: 'Evaluation Item Selection Box',
             content: `

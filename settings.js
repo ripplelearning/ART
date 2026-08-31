@@ -62,6 +62,14 @@ import {
     validateAccessibilityStandardPayload
 } from './state.js';
 import {
+    AUTHENTICATION_STATES,
+    getAuthenticationSession,
+    getDeviceIdentity,
+    getLocalUserProfile,
+    signOutAuthenticatedSession,
+    updateLocalUserProfile
+} from './identityFramework.js';
+import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
     createCollaborationDiscoverySnapshot,
@@ -350,6 +358,62 @@ function escapeHtml(value) {
 function formatMilliseconds(value) {
     const ms = Number(value) || 0;
     return ms >= 1000 ? `${(ms / 1000).toFixed(2)} seconds` : `${ms.toFixed(1)} ms`;
+}
+
+function renderAccountIdentitySettings() {
+    const profile = getLocalUserProfile();
+    const session = getAuthenticationSession();
+    const fields = [
+        ['settings-local-profile-name', 'name'],
+        ['settings-local-profile-display-name', 'displayName'],
+        ['settings-local-profile-email', 'email'],
+        ['settings-local-profile-job-title', 'jobTitle']
+    ];
+    fields.forEach(([elementId, key]) => {
+        const element = document.getElementById(elementId);
+        if (element && document.activeElement !== element) element.value = profile[key] || '';
+    });
+
+    const status = document.getElementById('settings-account-status');
+    if (status) {
+        const messages = {
+            [AUTHENTICATION_STATES.ANONYMOUS]: 'Not signed in. Local ART features remain available.',
+            [AUTHENTICATION_STATES.SIGNED_OUT]: 'Signed out. Local ART features remain available.',
+            [AUTHENTICATION_STATES.AUTHENTICATING]: 'Authentication is in progress.',
+            [AUTHENTICATION_STATES.AUTHENTICATED]: `Signed in as ${session.user?.displayName || session.user?.id || 'an authenticated ART user'}.`,
+            [AUTHENTICATION_STATES.EXPIRED]: 'Your authenticated session has expired. Local ART features remain available.',
+            [AUTHENTICATION_STATES.UNAVAILABLE]: session.message || 'Authentication service is unavailable. Local ART features remain available.'
+        };
+        status.textContent = messages[session.state] || 'Not signed in. Local ART features remain available.';
+    }
+
+    const device = document.getElementById('settings-device-identity');
+    if (device) device.textContent = `This ART installation has a stable local device identity: ${getDeviceIdentity().id}.`;
+
+    const signOut = document.getElementById('btn-settings-auth-sign-out');
+    if (signOut) signOut.disabled = session.state !== AUTHENTICATION_STATES.AUTHENTICATED;
+}
+
+function bindAccountIdentitySettings() {
+    const saveProfile = document.getElementById('btn-settings-local-profile-save');
+    const signOut = document.getElementById('btn-settings-auth-sign-out');
+    saveProfile?.addEventListener('click', () => {
+        const profile = updateLocalUserProfile({
+            name: document.getElementById('settings-local-profile-name')?.value,
+            displayName: document.getElementById('settings-local-profile-display-name')?.value,
+            email: document.getElementById('settings-local-profile-email')?.value,
+            jobTitle: document.getElementById('settings-local-profile-job-title')?.value
+        });
+        writeStatus(`Saved local profile${profile.displayName ? ` for ${profile.displayName}` : ''}.`);
+        announce('Local profile saved. This does not sign you in or share your data.');
+        renderAccountIdentitySettings();
+    });
+    signOut?.addEventListener('click', () => {
+        signOutAuthenticatedSession();
+        writeStatus('Signed out. Local ART data was preserved.');
+        announce('Signed out. Local ART data was preserved.');
+        renderAccountIdentitySettings();
+    });
 }
 
 const ORGANIZATION_SECTION_TOGGLES = [
@@ -1836,6 +1900,7 @@ function refreshSettingsView() {
         renderAnalyticsSettings();
         renderSearchSettings();
         renderSearchAnalytics();
+        renderAccountIdentitySettings();
         renderOrganizationSettings();
         renderWorkspaceViewSettings();
         renderPluginManager();
@@ -3333,6 +3398,7 @@ export function initSettings() {
     bindShortcutCapture();
     bindSettingsSearch();
     bindSearchAnalyticsSettings();
+    bindAccountIdentitySettings();
     bindOrganizationSettings();
     bindVisualAccessibilitySettings();
     bindAnalyticsSettings();
@@ -3356,6 +3422,8 @@ export function initSettings() {
     window.addEventListener('art-collaboration-framework-event', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-workspace-view-settings-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-organization-metrics-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-authentication-state-changed', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-local-user-profile-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-plugin-framework-event', refreshSettingsViewIfDialogOpen);
 
     maybeAutoConnectLiveCollaboration();

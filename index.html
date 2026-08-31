@@ -284,6 +284,25 @@
                 </div>
             </section>
 
+            <section aria-labelledby="settings-account-heading">
+                <h4 id="settings-account-heading">Account and Identity</h4>
+                <p id="settings-account-status" role="status" aria-live="polite" aria-atomic="true">ART is available without signing in.</p>
+                <p id="settings-account-help">Your local profile helps identify your work in future file-based collaboration. It is not an authenticated account, and ART does not store passwords, passkeys, access tokens, or session credentials here.</p>
+                <label for="settings-local-profile-name">Name</label>
+                <input id="settings-local-profile-name" type="text" autocomplete="name">
+                <label for="settings-local-profile-display-name">Display Name</label>
+                <input id="settings-local-profile-display-name" type="text" autocomplete="nickname">
+                <label for="settings-local-profile-email">Email Address</label>
+                <input id="settings-local-profile-email" type="email" autocomplete="email">
+                <label for="settings-local-profile-job-title">Job Title</label>
+                <input id="settings-local-profile-job-title" type="text" autocomplete="organization-title">
+                <p id="settings-device-identity" class="sr-only"></p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Account and identity actions">
+                    <button id="btn-settings-local-profile-save" type="button">Save Local Profile</button>
+                    <button id="btn-settings-auth-sign-out" type="button">Sign Out</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-organization-heading">
                 <h4 id="settings-organization-heading">Organization Statistics</h4>
                 <p id="settings-organization-summary" role="status" aria-live="polite" aria-atomic="true">Organization Statistics are optional.</p>

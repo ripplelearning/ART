@@ -413,6 +413,13 @@ Status controls use native selects and are keyboard and screen-reader accessible
 
 Shared Progress Logs currently support local/file-based records only. ART does not yet provide authenticated accounts, organization membership, role-based permissions, server synchronization, email, or personalized notifications. Those server-dependent capabilities remain deferred until the identity, authentication, file-based collaboration, and authorization foundations in Epics 45, 49, 50, and 51 are implemented.
 
+## Account and Identity
+ART can always be used locally without signing in. Application Settings > Account and Identity lets you save a local profile and view this installation's stable device identity. The profile is separate from authentication and does not grant access to server-based features.
+
+ART's centralized identity service represents Not signed in, Authentication in progress, Signed in, Session expired, Signed out, and Authentication service unavailable. Local reports and local work remain available in every state.
+
+ART does not store passwords, passkeys, OAuth tokens, refresh tokens, or session credentials in Settings, local project data, reports, exports, or ordinary logs. Secure provider sign-in requires the server-side passwordless authentication infrastructure planned for Epic 49. Organization membership, roles, and authorization remain planned for Epic 51.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

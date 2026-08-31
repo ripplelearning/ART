@@ -14,6 +14,7 @@ ART Version 1.5 now also introduces a Resource Organization Framework that centr
 ART Version 1.5 now also introduces a History, Undo/Redo, and Resource Versioning Framework that centralizes change tracking, transaction grouping, undo/redo, version history, restore, and comparison operations.
 ART Version 1.5 now also introduces a Collaboration Framework that centralizes provider capability mapping, collaboration metadata, session tracking, conflict handling, discovery snapshots, and live/asynchronous synchronization commands.
 ART Version 1.5 now also introduces an optional Collaboration Server coordination layer for multi-user live sessions and asynchronous shared-folder synchronization.
+ART Version 1.5 now also introduces an Identity and Session Framework that centralizes local profile/device identity and non-secret authenticated-session state while preserving anonymous local use.
 
 ## Core Layers
 
@@ -46,6 +47,15 @@ ART Version 1.5 now also introduces an optional Collaboration Server coordinatio
 - Validates layout compatibility, presentation dependencies, contrast, required image alternative text, and non-color-only link/status presentation.
 - Exposes preview output contexts for screen, print, Word, PDF, and HTML publishing workflows.
 - Integrates with shared state, command registration, workspace resource catalogs, and collaboration permissions instead of creating a separate permission model.
+
+### Identity and Session Framework
+- `identityFramework.js` is the only shared application boundary for current authenticated identity and provider-neutral session state.
+- Local profile and device identity are separate from authenticated identity. They support local/file-based attribution but never grant authorization.
+- The framework exposes only non-secret identity/session metadata to application features; it never stores or exposes passwords, passkeys, OAuth tokens, refresh tokens, or provider credentials.
+- Authentication providers are registered through a provider abstraction and may establish a session only after external/server-side validation.
+- `sessionStorage` holds non-secret, browser-session identity metadata only. Project snapshots and exports intentionally omit authentication session state.
+- Authentication and authorization remain separate: the framework answers who the current authenticated user is; the planned Authorization Policy Service answers whether that user may perform an action.
+- Local-first workflows remain available for anonymous, expired, signed-out, and authentication-service-unavailable states.
 
 ### Command Palette
 - Reads command metadata from the Command Registry.
