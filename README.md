@@ -103,6 +103,7 @@ See:
 - [Command Reference](COMMANDS.md)
 - [Architecture Overview](ARCHITECTURE.md)
 - [Change Log](CHANGELOG.md)
+- [Security and Privacy](SECURITY.md)
 - [Help: Plugin and Package Framework](HELP.md)
 - [User Guide: Plugins and Packages](USER-GUIDE.md)
 - [Plugin Developer Guide](PLUGIN-DEVELOPER-GUIDE.md)

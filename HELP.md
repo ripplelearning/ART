@@ -420,6 +420,11 @@ ART's centralized identity service represents Not signed in, Authentication in p
 
 ART does not store passwords, passkeys, OAuth tokens, refresh tokens, or session credentials in Settings, local project data, reports, exports, or ordinary logs. Secure provider sign-in requires the server-side passwordless authentication infrastructure planned for Epic 49. Organization membership, roles, and authorization remain planned for Epic 51.
 
+## Security and Privacy
+ART is local-first and does not automatically send, upload, synchronize, or share ART data. Review exported reports and ART Project files before sharing them. Do not enter passwords, passkeys, OAuth tokens, refresh tokens, API keys, or other credentials into report fields or notes.
+
+Privacy Mode blocks external communication through ART's guarded paths. The current local security boundary, vulnerability-reporting process, and security release checklist are documented in [ART Security and Privacy](SECURITY.md). Hosted/self-hosted controls such as server-side authorization, organization isolation, secure server credential storage, monitoring, and incident response require future deployment work.
+
 ## Tasks and To-Do
 Open Tasks and To-Do from Tools > Tasks and To-Do or Command Palette. Create local tasks and manage them with native checkboxes, status selects, priority selects, due dates, deferred resume dates, and a single optional Comments text area.
 

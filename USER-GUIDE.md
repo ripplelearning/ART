@@ -485,6 +485,13 @@ ART never stores passwords, passkeys, OAuth access tokens, refresh tokens, or se
 ### Current Authentication Boundary
 The Account and Identity service is the shared application boundary for future providers and authorization. It intentionally does not implement a browser-only mock login, OAuth callback, or passkey workflow. Secure passwordless authentication requires the server-side relying-party, origin, challenge, token, and session infrastructure specified for Epic 49. Organization membership, roles, and the Authorization Policy Service are scheduled for Epic 51.
 
+## Security and Privacy
+ART is local-first: by default, ART-managed data remains in your browser on your device until you explicitly export, import, or use an external integration. Local browser storage is not equivalent to encrypted enterprise storage, so protect your device and browser profile appropriately.
+
+Review reports, Projects, tasks, and Shared Progress Logs before sharing exported files. Do not put passwords, passkeys, OAuth tokens, refresh tokens, API keys, or other credentials in report fields, templates, notes, or exports. Privacy Mode blocks external communication through ART's guarded paths.
+
+For the current security boundary, responsible vulnerability reporting, and the release checklist, see [ART Security and Privacy](SECURITY.md). Hosted or self-hosted deployments require separate secure authentication, server-side authorization, organization isolation, monitoring, backup, and incident-response controls before production use.
+
 ## Tasks and To-Do
 ART provides a local-first Tasks & To-Do workspace for tracking work without creating duplicate checklist or to-do records. Tasks use stable identifiers and can retain a name, description, status, priority, due date/time, deferred resume date/time, comments, report/workspace references, completion time, and reminder fields.
 

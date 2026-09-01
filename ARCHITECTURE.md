@@ -57,6 +57,11 @@ ART Version 1.5 now also introduces an Identity and Session Framework that centr
 - Authentication and authorization remain separate: the framework answers who the current authenticated user is; the planned Authorization Policy Service answers whether that user may perform an action.
 - Local-first workflows remain available for anonymous, expired, signed-out, and authentication-service-unavailable states.
 
+### Security Boundary
+- `SECURITY.md` defines ART's current local-first security boundary, responsible disclosure process, and release review checklist.
+- Browser storage, local report/project exports, and local profiles are user-controlled local data; they are not server-enforced multi-tenant storage.
+- Future hosted/self-hosted controls must implement secure authentication, server-side authorization, organization isolation, secure credential storage, transport security, monitoring, recovery, and incident response independently of client UI controls.
+
 ### Command Palette
 - Reads command metadata from the Command Registry.
 - Reads current shortcut assignments from the Keyboard Shortcut Manager.
