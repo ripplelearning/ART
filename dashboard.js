@@ -2356,6 +2356,7 @@ export function renderDashboard() {
     window.addEventListener('art-security-updated', refreshDashboardWidgetFramework);
     window.addEventListener('art-analytics-settings-updated', refreshDashboardWidgetFramework);
     window.addEventListener('art-dashboard-config-updated', refreshDashboardWidgetFramework);
+    window.addEventListener('art-tasks-updated', refreshDashboardWidgetFramework);
 
     const projectInfo = getProjectDocumentInfo();
     if (projectInfo.hasRecoveredChanges && hasOpenReportWithUnsavedChanges()) {
