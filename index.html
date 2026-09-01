@@ -296,6 +296,8 @@
                 <input id="settings-local-profile-email" type="email" autocomplete="email">
                 <label for="settings-local-profile-job-title">Job Title</label>
                 <input id="settings-local-profile-job-title" type="text" autocomplete="organization-title">
+                <label for="settings-local-profile-art-role">ART Role</label>
+                <input id="settings-local-profile-art-role" type="text" placeholder="e.g., Tester, Developer, Reviewer">
                 <p id="settings-device-identity" class="sr-only"></p>
                 <div class="viewer-dialog-actions" role="group" aria-label="Account and identity actions">
                     <button id="btn-settings-local-profile-save" type="button">Save Local Profile</button>
@@ -323,6 +325,28 @@
 
                 <div class="viewer-dialog-actions" role="group" aria-label="Organization statistics actions">
                     <button id="btn-settings-organization-apply" type="button">Apply Organization Setting</button>
+                </div>
+            </section>
+
+            <section aria-labelledby="settings-organization-folders-heading">
+                <h4 id="settings-organization-folders-heading">Organization Folders</h4>
+                <p id="settings-organization-folders-summary" role="status" aria-live="polite" aria-atomic="true">Organization Folders enable file-based collaboration.</p>
+                <p id="settings-organization-folders-help">Configure a shared folder to enable collaboration on ART files, shared tasks, progress logs, and organization metrics. The folder can be on Google Drive, OneDrive, Dropbox, a network drive, or any synchronized folder accessible to your system.</p>
+                
+                <label for="settings-organization-folders-path">Folder Path</label>
+                <input id="settings-organization-folders-path" type="text" readonly placeholder="No folder configured">
+                
+                <label for="settings-organization-folders-name">Organization Name</label>
+                <input id="settings-organization-folders-name" type="text" placeholder="e.g., Acme Corporation">
+                
+                <label><input id="settings-organization-folders-recursive" type="checkbox" checked> Include subfolders in discovery</label>
+                
+                <p id="settings-organization-folders-status"></p>
+                
+                <div class="viewer-dialog-actions" role="group" aria-label="Organization folder actions">
+                    <button id="btn-settings-organization-folders-select" type="button">Select Folder</button>
+                    <button id="btn-settings-organization-folders-refresh" type="button" disabled>Refresh</button>
+                    <button id="btn-settings-organization-folders-remove" type="button" disabled>Remove Configuration</button>
                 </div>
             </section>
 

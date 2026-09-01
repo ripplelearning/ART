@@ -56,6 +56,16 @@ const defaultState = {
         activeTab: 'personal',
         sortBy: 'priority'
     },
+    collaborationMetadata: {
+        documentId: '',
+        currentRevisionId: '',
+        isCollaborative: false,
+        sharedFilePath: '',
+        lastSyncedRevision: '',
+        lastExternalChangeDetected: '',
+        pendingMergeConflicts: [],
+        mergeInProgress: false
+    },
     fields: [],
     editingIndex: -1,
     editorUsesReportTitle: false,
@@ -128,6 +138,11 @@ const defaultState = {
         openSharedProgressLogs: '',
         openTasks: '',
         openMergeConflicts: '',
+        refreshFromSharedFile: 'Ctrl+Shift+R',
+        checkForExternalChanges: '',
+        viewVersionHistory: '',
+        configureOrganizationFolder: '',
+        refreshOrganizationMetrics: '',
         focusLookup: 'Alt+Shift+L',
         focusMenuBar: 'F10',
         focusMenuSearch: 'Alt+Q',
@@ -648,6 +663,14 @@ const defaultState = {
         showRecurrenceAnalytics: true,
         showAccessibilityHealth: true,
         showBenchmarking: true
+    },
+    organizationFolders: {
+        configured: false,
+        folderPath: '',
+        organizationId: '',
+        organizationName: '',
+        includeSubfolders: true,
+        lastRefreshed: ''
     }
 };
 
@@ -2797,6 +2820,7 @@ export let appState = {
     progressItems: normalizeProgressItems(storedState.progressItems),
     sharedProgressLogs: normalizeSharedProgressLogs(storedState.sharedProgressLogs),
     taskManager: normalizeTaskManager(storedState.taskManager),
+    collaborationMetadata: normalizeCollaborationMetadata(storedState.collaborationMetadata),
     fields: normalizedInitialFields,
     editorFieldValues: normalizedInitialEditorValues,
     auditEntries: normalizeAuditEntries(storedState.auditEntries, normalizedInitialFields, normalizedInitialEditorValues),
@@ -2825,7 +2849,8 @@ export let appState = {
     recentProjectWorkspaces: normalizeRecentProjectWorkspaces(storedState.recentProjectWorkspaces),
     universalSearch: normalizeUniversalSearchConfig(storedState.universalSearch),
     navigationHistory: normalizeNavigationHistory(storedState.navigationHistory),
-    organizationMetrics: normalizeOrganizationMetricsConfig(storedState.organizationMetrics)
+    organizationMetrics: normalizeOrganizationMetricsConfig(storedState.organizationMetrics),
+    organizationFolders: normalizeOrganizationFoldersConfig(storedState.organizationFolders)
 };
 
 function normalizeStateSnapshot(rawState) {
@@ -2900,6 +2925,7 @@ function normalizeStateSnapshot(rawState) {
         universalSearch: normalizeUniversalSearchConfig(base.universalSearch),
         navigationHistory: normalizeNavigationHistory(base.navigationHistory),
         organizationMetrics: normalizeOrganizationMetricsConfig(base.organizationMetrics),
+        organizationFolders: normalizeOrganizationFoldersConfig(base.organizationFolders),
         userStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         importedStandards: normalizeUserStandards(base.userStandards || base.importedStandards),
         spellUserDictionary: normalizeSpellUserDictionary(base.spellUserDictionary),
@@ -2908,6 +2934,7 @@ function normalizeStateSnapshot(rawState) {
         progressItems: normalizeProgressItems(base.progressItems),
         sharedProgressLogs: normalizeSharedProgressLogs(base.sharedProgressLogs),
         taskManager: normalizeTaskManager(base.taskManager),
+        collaborationMetadata: normalizeCollaborationMetadata(base.collaborationMetadata),
         fields,
         editorFieldValues,
         auditEntries: normalizeAuditEntries(base.auditEntries, fields, editorFieldValues),
@@ -4077,6 +4104,40 @@ export function updateOrganizationMetricsConfig(updates = {}, options = {}) {
 
     window.dispatchEvent(new CustomEvent('art-organization-metrics-updated', {
         detail: { type: String(options.eventType || 'organization-metrics-updated'), config: next }
+    }));
+
+    return next;
+}
+
+function normalizeOrganizationFoldersConfig(config) {
+    const source = config && typeof config === 'object' ? config : {};
+    return {
+        configured: source.configured === true,
+        folderPath: String(source.folderPath || '').trim(),
+        organizationId: String(source.organizationId || '').trim(),
+        organizationName: String(source.organizationName || '').trim(),
+        includeSubfolders: source.includeSubfolders !== false,
+        lastRefreshed: String(source.lastRefreshed || '').trim()
+    };
+}
+
+export function getOrganizationFoldersConfig() {
+    return normalizeOrganizationFoldersConfig(appState.organizationFolders);
+}
+
+export function updateOrganizationFoldersConfig(updates = {}, options = {}) {
+    const next = normalizeOrganizationFoldersConfig({
+        ...getOrganizationFoldersConfig(),
+        ...(updates && typeof updates === 'object' ? updates : {})
+    });
+    appState.organizationFolders = next;
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated organization folder settings'), recordHistory: false });
+    }
+
+    window.dispatchEvent(new CustomEvent('art-organization-folders-updated', {
+        detail: { type: String(options.eventType || 'organization-folders-updated'), config: next }
     }));
 
     return next;
@@ -5653,6 +5714,41 @@ export function deleteTask(taskId) {
     appState.taskManager = { ...normalizeTaskManager(appState.taskManager), tasks: getTasks().filter((item) => item.id !== id) };
     emitTaskManagerUpdate(`Deleted task ${task.name}`);
     return task;
+}
+
+function normalizeCollaborationMetadata(metadata = {}) {
+    const source = metadata && typeof metadata === 'object' ? metadata : {};
+    return {
+        documentId: String(source.documentId || '').trim(),
+        currentRevisionId: String(source.currentRevisionId || '').trim(),
+        isCollaborative: source.isCollaborative === true,
+        sharedFilePath: String(source.sharedFilePath || '').trim(),
+        lastSyncedRevision: String(source.lastSyncedRevision || '').trim(),
+        lastExternalChangeDetected: String(source.lastExternalChangeDetected || '').trim(),
+        pendingMergeConflicts: Array.isArray(source.pendingMergeConflicts) ? source.pendingMergeConflicts : [],
+        mergeInProgress: source.mergeInProgress === true
+    };
+}
+
+export function getCollaborationMetadata() {
+    return normalizeCollaborationMetadata(appState.collaborationMetadata);
+}
+
+export function updateCollaborationMetadata(updates = {}, options = {}) {
+    appState.collaborationMetadata = normalizeCollaborationMetadata({
+        ...getCollaborationMetadata(),
+        ...(updates && typeof updates === 'object' ? updates : {})
+    });
+
+    if (options.persist !== false) {
+        saveState({ action: String(options.action || 'Updated collaboration metadata'), recordHistory: false });
+    }
+
+    window.dispatchEvent(new CustomEvent('art-collaboration-metadata-updated', {
+        detail: { type: String(options.eventType || 'collaboration-metadata-updated'), metadata: appState.collaborationMetadata }
+    }));
+
+    return getCollaborationMetadata();
 }
 
 export function getProgressItemNames() {

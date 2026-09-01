@@ -409,6 +409,23 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-file-based-collaboration',
+            title: 'File-Based Collaboration',
+            content: `
+                <p><strong>Overview:</strong> File-Based Collaboration enables multiple users to work on the same ART files through shared or synchronized folders without requiring an ART server.</p>
+                <p><strong>Setup:</strong> No authentication required. Use Application Settings &gt; Organization Folders to select a shared folder on Google Drive, OneDrive, Dropbox, a network drive, or other synchronized storage.</p>
+                <p><strong>How it works:</strong> When you save an ART file to a shared folder, other users can open that file and see your changes after they refresh. ART detects when the shared file has changed and offers to merge external changes with your current work.</p>
+                <p><strong>External change detection:</strong> Use File &gt; Check for External Changes to see if another user has saved newer changes without automatically merging. Use File &gt; Refresh from Shared File to detect and merge changes.</p>
+                <p><strong>Automatic merging:</strong> When changes affect different fields, ART merges them automatically. You only see the Merge Conflict Resolution dialog when the same field was changed differently by multiple users.</p>
+                <p><strong>Your profile:</strong> Application Settings &gt; Account and Identity includes fields for Name, Display Name, Email, Job Title, and ART Role. These help identify who made changes when working collaboratively.</p>
+                <p><strong>Shared tasks and progress logs:</strong> Tasks and Progress Logs stored in shared ART files can be viewed and edited by collaborators. Task assignments, status changes, and comments persist when files are synchronized.</p>
+                <p><strong>Organization metrics:</strong> Enable Organization Folder discovery to automatically aggregate statistics from ART files within a shared folder hierarchy. Use File &gt; Refresh Organization Metrics to update.</p>
+                <p><strong>Offline work:</strong> File-Based Collaboration does not require an Internet connection. You can edit local files and synchronize with shared folders when connectivity becomes available.</p>
+                <p><strong>No vendor lock-in:</strong> Choose any storage provider. ART does not require Google Drive, OneDrive, Dropbox, or any specific service.</p>
+                <p><strong>Privacy:</strong> Your personal profile information is never shared with other users merely because you use file-based collaboration. Email and identification information is included only when required by specific collaboration features.</p>
+            `
+        },
+        {
             id: 'help-evaluation-item-selection',
             title: 'Evaluation Item Selection Box',
             content: `

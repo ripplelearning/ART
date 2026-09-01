@@ -19,6 +19,10 @@ import {
     getSearchAnalytics,
     getOrganizationMetricsConfig,
     updateOrganizationMetricsConfig,
+    getOrganizationFoldersConfig,
+    updateOrganizationFoldersConfig,
+    getCollaborationMetadata,
+    updateCollaborationMetadata,
     setSearchAnalyticsEnabled,
     clearSearchAnalytics,
     getApplicationInfo,
@@ -367,7 +371,8 @@ function renderAccountIdentitySettings() {
         ['settings-local-profile-name', 'name'],
         ['settings-local-profile-display-name', 'displayName'],
         ['settings-local-profile-email', 'email'],
-        ['settings-local-profile-job-title', 'jobTitle']
+        ['settings-local-profile-job-title', 'jobTitle'],
+        ['settings-local-profile-art-role', 'artRole']
     ];
     fields.forEach(([elementId, key]) => {
         const element = document.getElementById(elementId);
@@ -402,7 +407,8 @@ function bindAccountIdentitySettings() {
             name: document.getElementById('settings-local-profile-name')?.value,
             displayName: document.getElementById('settings-local-profile-display-name')?.value,
             email: document.getElementById('settings-local-profile-email')?.value,
-            jobTitle: document.getElementById('settings-local-profile-job-title')?.value
+            jobTitle: document.getElementById('settings-local-profile-job-title')?.value,
+            artRole: document.getElementById('settings-local-profile-art-role')?.value
         });
         writeStatus(`Saved local profile${profile.displayName ? ` for ${profile.displayName}` : ''}.`);
         announce('Local profile saved. This does not sign you in or share your data.');
@@ -467,6 +473,123 @@ function bindOrganizationSettings() {
             ? 'Organization Statistics enabled. An Organization menu is now available.'
             : 'Organization Statistics disabled.');
         renderOrganizationSettings();
+    });
+}
+
+function renderOrganizationFoldersSettings() {
+    const config = getOrganizationFoldersConfig();
+    const pathInput = document.getElementById('settings-organization-folders-path');
+    const nameInput = document.getElementById('settings-organization-folders-name');
+    const recursiveCheckbox = document.getElementById('settings-organization-folders-recursive');
+    const statusArea = document.getElementById('settings-organization-folders-status');
+    const selectBtn = document.getElementById('btn-settings-organization-folders-select');
+    const refreshBtn = document.getElementById('btn-settings-organization-folders-refresh');
+    const removeBtn = document.getElementById('btn-settings-organization-folders-remove');
+
+    if (pathInput && document.activeElement !== pathInput) {
+        pathInput.value = config.folderPath || 'No folder configured';
+    }
+    if (nameInput && document.activeElement !== nameInput) {
+        nameInput.value = config.organizationName || '';
+    }
+    if (recursiveCheckbox) {
+        recursiveCheckbox.checked = config.includeSubfolders !== false;
+    }
+
+    if (statusArea) {
+        if (config.configured) {
+            const lastRefreshed = config.lastRefreshed ? new Date(config.lastRefreshed).toLocaleString() : 'Never';
+            statusArea.textContent = `Organization folder configured. Last refreshed: ${lastRefreshed}.`;
+        } else {
+            statusArea.textContent = 'No organization folder configured.';
+        }
+    }
+
+    if (refreshBtn) refreshBtn.disabled = !config.configured;
+    if (removeBtn) removeBtn.disabled = !config.configured;
+}
+
+function bindOrganizationFoldersSettings() {
+    const nameInput = document.getElementById('settings-organization-folders-name');
+    const recursiveCheckbox = document.getElementById('settings-organization-folders-recursive');
+    const selectBtn = document.getElementById('btn-settings-organization-folders-select');
+    const refreshBtn = document.getElementById('btn-settings-organization-folders-refresh');
+    const removeBtn = document.getElementById('btn-settings-organization-folders-remove');
+
+    nameInput?.addEventListener('change', () => {
+        updateOrganizationFoldersConfig({
+            organizationName: nameInput.value
+        });
+        renderOrganizationFoldersSettings();
+    });
+
+    recursiveCheckbox?.addEventListener('change', () => {
+        updateOrganizationFoldersConfig({
+            includeSubfolders: recursiveCheckbox.checked
+        });
+        renderOrganizationFoldersSettings();
+    });
+
+    selectBtn?.addEventListener('click', async () => {
+        if (!window.showDirectoryPicker) {
+            writeStatus('Folder selection is not available in this browser. Please use a supported browser.');
+            announce('Folder selection is not available in this browser.');
+            return;
+        }
+
+        try {
+            const dirHandle = await window.showDirectoryPicker();
+            const folderPath = dirHandle.name;
+            const organizationId = `org-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+            updateOrganizationFoldersConfig({
+                configured: true,
+                folderPath,
+                organizationId,
+                lastRefreshed: new Date().toISOString()
+            });
+
+            writeStatus(`Organization folder configured: ${folderPath}`);
+            announce(`Organization folder configured. Folder: ${folderPath}.`);
+            renderOrganizationFoldersSettings();
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                writeStatus('Failed to select organization folder.');
+                announce('Failed to select organization folder.');
+            }
+        }
+    });
+
+    refreshBtn?.addEventListener('click', () => {
+        const config = getOrganizationFoldersConfig();
+        if (!config.configured) return;
+
+        updateOrganizationFoldersConfig({
+            lastRefreshed: new Date().toISOString()
+        });
+
+        writeStatus('Organization folder refreshed.');
+        announce('Organization folder refreshed.');
+        renderOrganizationFoldersSettings();
+    });
+
+    removeBtn?.addEventListener('click', () => {
+        if (!confirm('Remove the configured organization folder? This does not delete files, only removes the ART configuration.')) {
+            return;
+        }
+
+        updateOrganizationFoldersConfig({
+            configured: false,
+            folderPath: '',
+            organizationId: '',
+            organizationName: '',
+            includeSubfolders: true,
+            lastRefreshed: ''
+        });
+
+        writeStatus('Organization folder configuration removed.');
+        announce('Organization folder configuration removed.');
+        renderOrganizationFoldersSettings();
     });
 }
 
@@ -1902,6 +2025,7 @@ function refreshSettingsView() {
         renderSearchAnalytics();
         renderAccountIdentitySettings();
         renderOrganizationSettings();
+        renderOrganizationFoldersSettings();
         renderWorkspaceViewSettings();
         renderPluginManager();
         renderAbout();
@@ -3400,6 +3524,7 @@ export function initSettings() {
     bindSearchAnalyticsSettings();
     bindAccountIdentitySettings();
     bindOrganizationSettings();
+    bindOrganizationFoldersSettings();
     bindVisualAccessibilitySettings();
     bindAnalyticsSettings();
     bindCollaborationSettings();
@@ -3422,6 +3547,7 @@ export function initSettings() {
     window.addEventListener('art-collaboration-framework-event', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-workspace-view-settings-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-organization-metrics-updated', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-organization-folders-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-authentication-state-changed', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-local-user-profile-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-plugin-framework-event', refreshSettingsViewIfDialogOpen);

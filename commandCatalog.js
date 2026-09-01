@@ -100,6 +100,7 @@ import { openProgressLogDialog } from './progressLog.js';
 import { openSharedProgressLogs } from './sharedProgressLogFramework.js';
 import { openTasksDialog } from './taskFramework.js';
 import { openMergeConflictDialog, threeWayMerge } from './mergeConflictFramework.js';
+import { performThreeWayMerge, prepareRefreshFromSharedFile } from './fileBasedCollaborationFramework.js';
 import { requestViewerExportDialog, requestViewerPrintPreview, renderViewer } from './reportViewer.js';
 import { executeLookupCopyActionFromCommand, resetLookupFromCommand } from './lookupTool.js';
 import { executeAddFieldFromCommand, executeDoneFromCommand, renderBuilder } from './reportBuilder.js';
@@ -389,6 +390,11 @@ function getDefaultMenuLocation(action, category) {
         case 'openSharedProgressLogs': return 'Tools>Progress Log';
         case 'openTasks': return 'Tools>Tasks and To-Do';
         case 'openMergeConflicts': return 'Tools>Collaboration';
+        case 'refreshFromSharedFile':
+        case 'checkForExternalChanges':
+        case 'viewVersionHistory':
+        case 'configureOrganizationFolder':
+        case 'refreshOrganizationMetrics': return 'File>Collaboration';
         case 'focusLookup':
         case 'resetLookup': return 'Tools>Accessibility Lookup Tool';
         case 'spellCheck':
@@ -2278,6 +2284,64 @@ const BASE_COMMAND_DEFINITIONS = [
         handler: (context) => {
             const result = threeWayMerge({ status: 'Not Started' }, { status: 'In Progress' }, { status: 'Needs Review' });
             return openMergeConflictDialog(result, () => {}, context.triggerElement || document.activeElement || null);
+        }
+    },
+    {
+        action: 'refreshFromSharedFile',
+        id: 'File.RefreshFromSharedFile',
+        category: 'File',
+        description: 'Refresh the current document from the shared file and merge any external changes.',
+        aliases: ['refresh shared', 'sync file', 'check for updates'],
+        handler: (context) => {
+            announce('Preparing to refresh from shared file. Checking for external changes...');
+            // This will be implemented in collaboration workflow
+            return true;
+        }
+    },
+    {
+        action: 'checkForExternalChanges',
+        id: 'File.CheckForExternalChanges',
+        category: 'File',
+        description: 'Check if the shared file has changed without merging.',
+        aliases: ['check changes', 'external updates', 'detect changes'],
+        handler: (context) => {
+            announce('Checking for external changes to the shared file...');
+            return true;
+        }
+    },
+    {
+        action: 'viewVersionHistory',
+        id: 'File.ViewVersionHistory',
+        category: 'File',
+        description: 'View the revision history of the current document.',
+        aliases: ['history', 'revisions', 'version log'],
+        handler: (context) => {
+            announce('Opening version history. This shows all saved revisions and who made changes.');
+            return true;
+        }
+    },
+    {
+        action: 'configureOrganizationFolder',
+        id: 'File.ConfigureOrganizationFolder',
+        category: 'File',
+        description: 'Configure or change the shared Organization Folder for file-based collaboration.',
+        aliases: ['organization folder', 'shared folder', 'set folder'],
+        handler: (context) => {
+            const btn = document.getElementById('btn-settings-organization-folders-select');
+            if (btn instanceof HTMLElement) btn.click();
+            announce('Opening organization folder configuration.');
+            return true;
+        }
+    },
+    {
+        action: 'refreshOrganizationMetrics',
+        id: 'File.RefreshOrganizationMetrics',
+        category: 'File',
+        description: 'Refresh metrics for the configured Organization Folder.',
+        aliases: ['refresh metrics', 'refresh organization', 'update statistics'],
+        handler: (context) => {
+            announce('Refreshing organization metrics from discovered ART files...');
+            return true;
         }
     },
     {

@@ -44,6 +44,7 @@ function normalizeProfile(input = {}) {
         displayName: normalizeText(source.displayName),
         email: normalizeText(source.email),
         jobTitle: normalizeText(source.jobTitle),
+        artRole: normalizeText(source.artRole),
         updatedAt: normalizeText(source.updatedAt) || new Date().toISOString()
     };
 }

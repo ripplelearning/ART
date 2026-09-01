@@ -12,6 +12,7 @@ const STATUS_OPTIONS = ['Not Started', 'In Progress', 'Blocked', 'Deferred', 'No
 const PRIORITY_OPTIONS = ['Critical', 'High', 'Normal', 'Low'];
 const PRIORITY_ORDER = { Critical: 0, High: 1, Normal: 2, Low: 3 };
 let dialogState = null;
+let newTaskDialogState = null;
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -106,14 +107,93 @@ function renderDialog() {
     bindRenderedEvents(state.dialog);
 }
 
+function ensureNewTaskDialog() {
+    if (newTaskDialogState?.dialog instanceof HTMLElement) return newTaskDialogState;
+    let dialog = document.getElementById('new-task-dialog');
+    if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.id = 'new-task-dialog';
+        dialog.className = 'command-palette-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'new-task-dialog-heading');
+        dialog.hidden = true;
+        document.body.appendChild(dialog);
+    }
+    newTaskDialogState = { dialog, lastTrigger: null };
+    dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeNewTaskDialog(true);
+        }
+    });
+    return newTaskDialogState;
+}
+
+function renderNewTaskDialog() {
+    const state = ensureNewTaskDialog();
+    state.dialog.innerHTML = `
+        <div class="command-palette-header"><h2 id="new-task-dialog-heading">Create New Task</h2></div>
+        <div class="viewer-field-card">
+            <label>Task name <input id="new-task-name-input" type="text" placeholder="Enter task name"></label>
+        </div>
+        <div class="viewer-dialog-actions" role="group" aria-label="Dialog actions">
+            <button id="btn-new-task-save" type="button">Save</button>
+            <button id="btn-new-task-cancel" type="button">Cancel</button>
+        </div>
+    `;
+    bindNewTaskDialogEvents(state.dialog);
+}
+
+function bindNewTaskDialogEvents(dialog) {
+    const nameInput = dialog.querySelector('#new-task-name-input');
+    const saveBtn = dialog.querySelector('#btn-new-task-save');
+    const cancelBtn = dialog.querySelector('#btn-new-task-cancel');
+
+    nameInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            saveBtn?.click();
+        }
+    });
+
+    saveBtn?.addEventListener('click', () => {
+        const taskName = (nameInput?.value ?? '').trim();
+        if (!taskName) {
+            announce('Task name is required.');
+            nameInput?.focus();
+            return;
+        }
+        const task = createTask({ name: taskName });
+        updateTaskManagerConfig({ activeTab: 'personal' });
+        closeNewTaskDialog(true);
+        renderDialog();
+        announce(`Created ${task.name}.`);
+    });
+
+    cancelBtn?.addEventListener('click', () => closeNewTaskDialog(true));
+    nameInput?.focus();
+}
+
+function openNewTaskDialog(trigger = null) {
+    const state = ensureNewTaskDialog();
+    if (trigger) state.lastTrigger = trigger;
+    state.dialog.hidden = false;
+    renderNewTaskDialog();
+    announce('Create new task dialog opened. Enter a task name and click Save.');
+}
+
+function closeNewTaskDialog(restoreFocus = true) {
+    if (!newTaskDialogState) return false;
+    newTaskDialogState.dialog.hidden = true;
+    if (restoreFocus && newTaskDialogState.lastTrigger?.focus) newTaskDialogState.lastTrigger.focus();
+    return true;
+}
+
 function bindRenderedEvents(dialog) {
     dialog.querySelector('#btn-tasks-close')?.addEventListener('click', () => closeTasksDialog(true));
-    dialog.querySelector('#btn-task-create')?.addEventListener('click', () => {
-        const task = createTask({ name: `Task ${getTasks().length + 1}` });
-        updateTaskManagerConfig({ activeTab: 'personal' });
-        renderDialog();
-        dialog.querySelector(`[data-task-id="${task.id}"] [data-task-status]`)?.focus();
-        announce(`Created ${task.name}.`);
+    dialog.querySelector('#btn-task-create')?.addEventListener('click', (event) => {
+        openNewTaskDialog(event.target);
     });
     dialog.querySelectorAll('[role="tab"]').forEach((tab) => tab.addEventListener('click', () => {
         updateTaskManagerConfig({ activeTab: tab.id.replace('tasks-tab-', '') });
