@@ -169,6 +169,16 @@ function saveTaskForm(dialog, taskId = null, mode = 'new') {
         nameInput?.focus();
         return;
     }
+    if (dueInput?.validity?.badInput) {
+        announce('The due date and time is incomplete. Enter both a date and a time, or clear the field.');
+        dueInput.focus();
+        return;
+    }
+    if (deferredInput?.validity?.badInput) {
+        announce('The resume date and time is incomplete. Enter both a date and a time, or clear the field.');
+        deferredInput.focus();
+        return;
+    }
 
     const payload = {
         name: taskName,
