@@ -493,23 +493,23 @@ Review reports, Projects, tasks, and Shared Progress Logs before sharing exporte
 For the current security boundary, responsible vulnerability reporting, and the release checklist, see [ART Security and Privacy](SECURITY.md). Hosted or self-hosted deployments require separate secure authentication, server-side authorization, organization isolation, monitoring, backup, and incident-response controls before production use.
 
 ## Tasks and To-Do
-ART provides a local-first Tasks & To-Do workspace for tracking work without creating duplicate checklist or to-do records. Tasks use stable identifiers and can retain a name, description, status, priority, due date/time, deferred resume date/time, comments, report/workspace references, completion time, and reminder fields.
+ART provides a local-first Tasks & To-Do workspace for tracking work without creating duplicate checklist or to-do records. Tasks use stable identifiers and can retain a name, description, status, priority, due date/time, deferred resume date/time, comments, report/workspace references, and completion time.
 
 ### Managing Local Tasks
 1. Open **Tools > Tasks and To-Do**, or use Command Palette to find **Open Tasks and To-Do**.
 2. Use **Create Task** to add a task to your Personal To-Do List.
 3. Use the checkbox to mark a task complete, or use the Status select for more detailed status.
-4. Select **Edit** on a task to open the Edit Task dialog and set Priority, Due date and time, an optional Reminder date and time, and optional Comments.
+4. Select **Edit** on a task to open the Edit Task dialog and set Priority, Due date and time, and optional Comments.
 5. When Status is **Deferred**, the Edit Task dialog also shows a Resume date and time field.
 
 ### Task Views and Sorting
 Tasks & To-Do provides accessible tabs for Assigned Tasks, Personal To-Do List, Completed Tasks, and Shared Tasks when shared tasks are available. Completed tasks move out of the active personal list automatically. Select a sort order to arrange active tasks by priority, due date, or date added. Priority is always displayed in text; it is never communicated only by color.
 
 ### Dashboard To-Do List
-The Dashboard's optional **To-Do List** widget shows up to five active personal tasks, ordered from Critical through Low priority. Completed tasks do not appear in this summary. Select **Open Tasks and To-Do** to manage the full list.
+The Dashboard's optional **To-Do List** widget shows up to five active personal tasks, ordered from Critical through Low priority. Each entry provides a Complete checkbox along with the task name, priority, and due date/time. Completed tasks do not appear in this summary. Select **Open Tasks and To-Do** to manage the full list.
 
 ### Local-First and Future Sharing
-Tasks are retained locally and in ART Project export/import data. Account-specific assignment, shared members, authenticated @mentions, cross-device reminders, email, server notifications, and permission enforcement require the future authentication, file-based collaboration, and authorization work in Epics 49, 50, and 51.
+Tasks are retained locally and in ART Project export/import data. Account-specific assignment, shared members, authenticated @mentions, email, server notifications, and permission enforcement require the future authentication, file-based collaboration, and authorization work in Epics 49, 50, and 51.
 
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.

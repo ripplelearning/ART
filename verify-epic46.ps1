@@ -16,10 +16,10 @@ $userGuide = Read-Text 'USER-GUIDE.md'
 $inAppHelp = Read-Text 'help.js'
 $checks = @()
 $checks += [pscustomobject]@{ Name = 'Unified local task data model'; Script = {
-    Assert-All 'state.js' $state @('taskManager', 'normalizeTask\(', 'createTask', 'updateTask', 'setTaskCompleted', 'deleteTask', 'deferredUntil', 'reminderAt') 'Local task model is incomplete.'
+    Assert-All 'state.js' $state @('taskManager', 'normalizeTask\(', 'createTask', 'updateTask', 'setTaskCompleted', 'deleteTask', 'deferredUntil') 'Local task model is incomplete.'
 }}
 $checks += [pscustomobject]@{ Name = 'Accessible Tasks and To-Do dialog'; Script = {
-    Assert-All 'taskFramework.js' $tasks @('tasks-dialog', 'role="tablist"', 'role="tabpanel"', 'data-task-complete', 'data-task-status', 'data-task-priority', 'data-task-comments', 'Completed Tasks') 'Tasks dialog is incomplete.'
+    Assert-All 'taskFramework.js' $tasks @('tasks-dialog', 'role="tablist"', 'role="tabpanel"', 'data-task-complete', 'data-task-status', 'data-task-edit', 'edit-task-dialog', 'Completed Tasks') 'Tasks dialog is incomplete.'
 }}
 $checks += [pscustomobject]@{ Name = 'Command and Dashboard integration'; Script = {
     Assert-All 'commandCatalog.js' $catalog @('action:\s*''openTasks''', 'Tools>Tasks and To-Do') 'Tasks command is missing.'

@@ -58,6 +58,7 @@ import {
     reportNameExists,
     resetReportToBlank,
     saveState,
+    setTaskCompleted,
     serializeArtProjectPayload,
     serializeArtxTemplatePayload,
     templateNameExists,
@@ -972,10 +973,19 @@ function renderTasksWidget(container) {
         .filter((task) => task.personal && task.status !== 'Complete')
         .sort((left, right) => (priorityOrder[left.priority] ?? 9) - (priorityOrder[right.priority] ?? 9))
         .slice(0, 5);
+    const formatDueDate = (value) => (value ? new Date(value).toLocaleString() : 'Not set');
 
     container.innerHTML = tasks.length
-        ? `<ul class="dashboard-widget__list">${tasks.map((task) => `<li><strong>${escapeHtml(task.priority)}:</strong> ${escapeHtml(task.name)} (${escapeHtml(task.status)})</li>`).join('')}</ul><button id="btn-dashboard-open-tasks" type="button">Open Tasks and To-Do</button>`
+        ? `<ul class="dashboard-widget__list">${tasks.map((task) => `<li data-task-id="${escapeHtml(task.id)}"><label><input type="checkbox" data-dashboard-task-complete> ${escapeHtml(task.name)}</label> — Priority: ${escapeHtml(task.priority)}, Due: ${escapeHtml(formatDueDate(task.dueAt))}</li>`).join('')}</ul><button id="btn-dashboard-open-tasks" type="button">Open Tasks and To-Do</button>`
         : '<p>No active personal tasks.</p><button id="btn-dashboard-open-tasks" type="button">Open Tasks and To-Do</button>';
+    container.querySelectorAll('[data-task-id]').forEach((item) => {
+        const taskId = item.getAttribute('data-task-id');
+        item.querySelector('[data-dashboard-task-complete]')?.addEventListener('change', (event) => {
+            setTaskCompleted(taskId, event.target.checked);
+            renderTasksWidget(container);
+            announce(event.target.checked ? 'Task completed and moved to Completed Tasks.' : 'Task reopened.');
+        });
+    });
     container.querySelector('#btn-dashboard-open-tasks')?.addEventListener('click', (event) => openTasksDialog(event.currentTarget));
 }
 

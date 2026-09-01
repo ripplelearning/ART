@@ -102517,7 +102517,7 @@ The architecture shall maintain a clear separation:
 
 This separation shall provide ART with a secure, reusable foundation for collaboration, shared tasks, Progress Logs, @mentions, organizations, permissions, synchronization, audit history, notifications, and future server-dependent functionality while preserving ART's ability to operate locally without requiring authentication.
 
-## Epic 46-- Assigned Tasks, Shared To-Do Lists, Personal To-Do Lists, and Task Reminders
+## Epic 46-- Assigned Tasks, Shared To-Do Lists, and Personal To-Do Lists
 
 ### Overview
 
@@ -102552,7 +102552,7 @@ Do **not** create separate first-class Checklist and To-Do systems. Tasks shall 
 
 The Tasks and To-Do functionality shall operate without requiring an ART server.
 
-Personal To-Do Lists, task status, priority, due dates, reminders, comments/notes/instructions, completion state, and task history shall be capable of being stored locally.
+Personal To-Do Lists, task status, priority, due dates, comments/notes/instructions, completion state, and task history shall be capable of being stored locally.
 
 Tasks associated with projects, workspaces, reports, or Shared Progress Logs shall be included in project/workspace export and import operations.
 
@@ -102674,7 +102674,6 @@ Users shall be able to:
 - Add a task to their Personal To-Do List.
 - Add comments, notes, or instructions.
 - Change permitted status values.
-- Set personal reminders.
 - Navigate to associated project/workspace/report information.
 
 Users shall only be able to modify tasks according to their permissions.
@@ -102693,7 +102692,6 @@ Users shall be able to:
 - View due dates.
 - Add eligible tasks to their Personal To-Do List.
 - Add comments where permitted.
-- Set personal reminders where permitted.
 - Navigate to associated ART content.
 
 Authorized users shall also be able to manage shared tasks according to their permissions.
@@ -102837,7 +102835,6 @@ ART shall retain the deferred date/time.
 
 When the deferred time arrives:
 
-- The task shall become eligible for a reminder/notification.
 - The deferred state shall be clearly communicated.
 - The task shall remain available to the user.
 - Existing task history shall be preserved.
@@ -102951,7 +102948,6 @@ A task may contain:
 - Deferred date/time.
 - Completion date/time.
 - Comments, Notes, or Instructions.
-- Personal reminder information.
 - Shared relationships.
 - Creation and modification timestamps.
 
@@ -103025,8 +103021,6 @@ For example:
 
 Removing a shared task from the Personal To-Do List shall **not delete the shared task**.
 
-Likewise, a personal reminder shall not modify another user's reminder.
-
 ### Personal Task References
 
 When an Assigned Task or Shared Task is added to a Personal To-Do List, ART shall create a personal relationship/reference rather than duplicating the underlying task.
@@ -103072,107 +103066,6 @@ Due dates shall be accessible and programmatically determinable.
 
 Overdue information shall not rely solely on color.
 
-### Task Reminders
-
-Users shall be able to create personal reminders for applicable tasks.
-
-A reminder shall support:
-
-- Task reference.
-- Reminder date/time.
-- Optional due date/time relationship.
-- Reminder state.
-- Snooze state.
-- User ownership.
-
-Reminders shall be personal to the user.
-
-One user's reminder shall not modify another user's reminder.
-
-### Reminder Configuration
-
-Users shall be able to configure reminder timing.
-
-Reminders may be set:
-
-- At a specific date/time.
-- Before the task is due.
-- At the task's due date/time.
-
-The interface shall clearly communicate the selected reminder time.
-
-### Reminder Alert Modal
-
-When a reminder becomes due, ART shall display an accessible Reminder Alert modal dialog.
-
-The modal shall:
-
-- Receive focus appropriately.
-- Clearly identify the task.
-- Identify the originating project/workspace/report.
-- Identify the due date/time.
-- Explain why the reminder is being displayed.
-- Provide accessible actions.
-
-Available actions shall include:
-
-- Open Task.
-- Mark Complete.
-- Snooze.
-- Dismiss (also dismissable using the Escape key).
-
-### Reminder Snooze
-
-Users shall be able to snooze reminders.
-
-Default options shall include:
-
-- 5 minutes.
-- 15 minutes.
-- 30 minutes.
-
-Additional snooze options may be configurable.
-
-Snoozing shall update only the current user's reminder.
-
-### Reminder Focus Management
-
-When the Reminder Alert opens:
-
-1. Focus shall move into the dialog.
-2. The task and reminder information shall be accessible to screen readers.
-3. Focus shall move to an appropriate action.
-4. Focus shall remain within the dialog while it is active.
-5. After dismissal, focus shall return to an appropriate originating control when practical.
-
-Multiple simultaneous reminders should be presented through an accessible consolidated reminder interface rather than repeatedly stealing focus.
-
-### Visual Reminder Alerts
-
-Users shall be able to configure visual reminder behavior where supported.
-
-Possible options include:
-
-- Modal alert.
-- Dashboard notification.
-- Application notification.
-- Accessible e-mail notification.
-
-Visual alerts shall not be the only notification mechanism.
-
-### Auditory Reminder Alerts
-
-Users shall be able to configure auditory reminder alerts.
-
-The sound system shall:
-
-- Support enable/disable.
-- Respect system/browser restrictions.
-- Provide configurable sounds where supported.
-- Provide an accessible alternative when sound cannot be played.
-
-Auditory alerts shall never be the sole means of communicating reminder information.
-
 ### Optional Task Sound Effects
 
 ART may support optional sound effects for specific task actions.
@@ -103184,7 +103077,6 @@ Possible actions include:
 - Task status changed.
 - Task assigned.
 - Task reassigned.
-- Reminder triggered.
 - Task marked Needs Review.
 -  Task marked Need Assistance.
 - Task deleted.
@@ -103277,7 +103169,6 @@ Potential commands include:
 - Reassign (based on user permissions).
 - Set Priority.
 - Set Due Date.
-- Set Reminder.
 - Sort.
 - Delete Task (available from Assigned Tasks or Shared Tasks (based on permissions)).
 
@@ -103297,7 +103188,6 @@ Potential commands include:
 - Reassign (based on permissions).
 - Set Priority.
 - Set Due Date.
-- Set Reminder.
 - Add/Edit Comments.
 - Add @Mention.
 - Defer Task.
@@ -103329,7 +103219,6 @@ Potential shortcuts include:
 - Change Status.
 - Add to Personal To-Do.
 - Remove from Personal To-Do.
-- Set Reminder.
 - Set Due Date.
 - Add/Edit Comments, Notes, or Instructions.
 - Request Assistance.
@@ -103395,7 +103284,6 @@ Notifications may be generated for:
 - Requests for assistance.
 - Requests for review.
 - Task comments.
-- Reminder events.
 
 Notifications shall respect permissions and user relationships.
 
@@ -103425,7 +103313,6 @@ This may include:
 
 - Status.
 - Comments.
-- Personal reminder.
 - Personal To-Do inclusion.
 
 Users shall not be able to reassign or delete tasks unless they have the required permissions.
@@ -103513,7 +103400,6 @@ Applicable actions may include:
 - Adding/removing a task from Personal To-Do.
 - Changing priority.
 - Changing due date.
-- Setting/removing a reminder.
 - Adding/editing task comments.
 - Assigning a task.
 - Reassigning a task.
@@ -103569,7 +103455,7 @@ Export/import shall preserve, where technically possible:
 - Comments.
 - Relevant relationships.
 
-Personal reminders and personal To-Do references should remain user-specific unless the export format explicitly supports them.
+Personal To-Do references should remain user-specific unless the export format explicitly supports them.
 
 ### Organization Statistics Integration
 
@@ -103615,7 +103501,6 @@ Verify:
 - Accessible menu bar commands.
 - Accessible confirmation dialogs.
 - Accessible notifications.
-- Accessible reminder dialogs.
 - Programmatically determinable task status.
 - Programmatically determinable priority.
 - Programmatically determinable sorting state.
@@ -103661,8 +103546,6 @@ Organization
                                   +-- Assigned User
                                   |
                                   +-- Personal To-Do References
-                                  |
-                                  +-- Reminder(s)
                                   |
                                   +-- Comments, Notes, or Instructions
 
@@ -103733,21 +103616,6 @@ Task completion represents completion of the task only.
 - Mentioned users receive appropriate notifications.
 - Shared and personal information is handled according to permissions.
 
-#### Reminders
-
-- Users can create task reminders.
-- Reminders are personal to the user.
-- Reminder timing is configurable.
-- Reminder alerts are accessible.
-- Reminder dialogs receive focus appropriately.
-- Snooze options include 5, 15, and 30 minutes.
-- Visual alerts are configurable.
-- Auditory alerts are configurable.
-- Sound is never the only notification mechanism.
-- Local task reminders shall operate without a server.
-
-Server-based notifications and email reminders may be provided when ART is connected to a collaboration service.
-
 #### Sound Effects
 
 - Users can enable/disable task sounds.
@@ -103809,7 +103677,6 @@ Server-based notifications and email reminders may be provided when ART is conne
 - Task data persists across sessions.
 - Shared task changes are visible to authorized users.
 - Personal To-Do information remains user-specific.
-- Personal reminders remain user-specific.
 - Permissions are consistently enforced.
 - Collaborative changes do not silently overwrite other users' work.
 
@@ -104861,7 +104728,7 @@ Conflicts may involve:
 - Shared To-Do membership
 - Status options
 
-Personal To-Do membership and personal reminders shall remain user-specific unless explicitly designed as shared data.
+Personal To-Do membership shall remain user-specific unless explicitly designed as shared data.
 
 ### Personal Data Protection
 
@@ -104871,7 +104738,6 @@ Instead:
 
 - Shared task data may require resolution.
 - Personal To-Do membership remains personal.
-- Personal reminders remain personal.
 - Personal sorting preferences remain personal.
 
 ### Notifications After Resolution
@@ -105633,7 +105499,6 @@ Notifications shall be evaluated for:
 - Email notifications
 - Task notifications
 - @mentions
-- Reminders
 - Shared Progress Log updates
 - Security alerts
 
@@ -114864,7 +114729,6 @@ This includes:
 * Task priority.
 * Task status.
 * Due dates.
-* Reminders where stored in the shared artifact.
 * Comments/notes/instructions.
 * @mentions.
 * Completion state.
@@ -116572,7 +116436,6 @@ The desktop application shall preserve, at minimum:
 * History Framework.
 * Undo.
 * Redo.
-* Task reminders.
 * @mentions.
 * Comments/Notes/Instructions.
 * Priority.
@@ -117188,7 +117051,6 @@ This includes, where implemented:
 * Progress information.
 * Organization Metrics.
 * Shared activity.
-* Reminders.
 * Collaboration information.
 * Other dashboard functionality.
 
@@ -117206,7 +117068,6 @@ Users shall be able to:
 * Set priority.
 * Set status.
 * Set due date/time.
-* Set reminders.
 * Add comments/notes/instructions.
 * Use @mentions.
 * Complete tasks.
@@ -117240,7 +117101,6 @@ Notifications may include:
 * Synchronization events.
 * Integration events.
 * Authentication events.
-* Reminders.
 * Update notifications.
 
 ### Desktop Notifications
@@ -117248,19 +117108,6 @@ Notifications may include:
 Where appropriate, ART may use native Windows notifications.
 
 Native notifications shall not replace ART's accessible Notifications interface.
-
-### Task Reminders
-
-Task reminders shall support:
-
-* Visual alerts.
-* Auditory alerts.
-* Focus-grabbing modal alerts where appropriate.
-* Snooze.
-* 5-minute snooze.
-* 15-minute snooze.
-* 30-minute snooze.
-* User-configurable snooze intervals.
 
 ### Sound Effects
 
@@ -117697,7 +117544,6 @@ Epic 58 shall be considered complete when:
 * Shared Tasks work.
 * Shared Progress Logs work.
 * Notifications work.
-* Task reminders work.
 * @mentions work.
 * Completed Tasks work.
 * WCAG Lookup works.
@@ -118096,7 +117942,6 @@ ART shall protect:
 * Priorities.
 * Due dates.
 * Status.
-* Reminders.
 * @mentions.
 
 ### Task Visibility
@@ -118957,7 +118802,7 @@ ART has evolved into a large application supporting:
 * Organization Metrics.
 * Shared projects.
 * @mentions.
-* Notifications and reminders.
+* Notifications.
 * Customizable keyboard shortcuts.
 * Customizable working views.
 * Accessibility settings.
@@ -119361,11 +119206,8 @@ Test:
 * Task priorities.
 * Status dropdowns.
 * Due dates.
-* Reminders.
 * Comments/Notes/Instructions.
 * @mentions.
-
-### Task Status Testing
 
 Verify all supported statuses, including:
 
@@ -119397,25 +119239,6 @@ Verify sorting by:
 * Date added.
 
 Verify that the default behavior places the highest-priority Tasks first.
-
-### Task Reminder Testing
-
-Test:
-
-* Reminder creation.
-* Reminder modification.
-* Reminder deletion.
-* Reminder timing.
-* Multiple reminders.
-* Overdue Tasks.
-* Snooze.
-* Dismissal.
-
-Test snooze options such as:
-
-* 5 minutes.
-* 15 minutes.
-* 30 minutes.
 
 ### Task Notification Testing
 
@@ -120421,7 +120244,6 @@ Epic 60 shall be considered complete when:
 * Task status testing is established.
 * Completed Task testing is established.
 * Task sorting testing is established.
-* Task reminder testing is established.
 * Task notification testing is established.
 * Task deletion testing is established.
 * @mention testing is established.
@@ -121140,7 +120962,6 @@ Tasks stored in shared collaborative locations shall support:
 * Status.
 * Priority.
 * Due dates.
-* Reminders where supported.
 * Comments/Notes/Instructions.
 * @mentions.
 * Completion.
@@ -121828,7 +121649,6 @@ The desktop application shall provide all functionality available in the web app
 * Menu bar.
 * Search.
 * Notifications.
-* Reminders.
 * @mentions.
 * Report management.
 * Report tracking.
@@ -122040,7 +121860,6 @@ Drag-and-drop functionality shall never be the only method available.
 
 Where appropriate, ART may use native desktop notifications for:
 
-* Task reminders.
 * @mentions.
 * Collaboration updates.
 * Merge conflicts.
@@ -122059,40 +121878,11 @@ Settings may include:
 * Enable/disable auditory notifications.
 * Enable/disable visual notifications.
 * Notification categories.
-* Reminder behavior.
-
-### Task Reminders
-
-Desktop ART shall support the same task reminder functionality as the web application.
-
-When a reminder is due, the application may use:
-
-* Native notification.
-* Accessible modal.
-* Visual alert.
-* Auditory alert.
-
-The user shall be able to configure the available alert methods.
-
-### Reminder Modal
-
-The reminder modal shall remain accessible.
-
-It shall support:
-
-* Keyboard operation.
-* Screen readers.
-* Focus management.
-* Snooze.
-* Dismiss.
-* Open task.
-* Appropriate task navigation.
 
 ### Auditory Alerts
 
 Where supported, desktop ART may provide configurable sounds for:
 
-* Task reminders.
 * Successful saves.
 * Synchronization completion.
 * Merge conflicts.
@@ -122571,7 +122361,6 @@ Status information shall communicate important events such as:
 * Update available.
 * Update completed.
 * Error.
-* Task reminder.
 
 ### Accessibility Settings
 
@@ -122771,7 +122560,6 @@ This includes:
 * Checkboxes.
 * Priority.
 * Due dates.
-* Reminders.
 * Comments/Notes/Instructions.
 * @mentions.
 * Completed Tasks.
@@ -123113,7 +122901,6 @@ Epic 62 shall be considered complete when:
 * Offline local functionality remains available.
 * Native desktop conveniences are implemented where appropriate.
 * Native notifications are available where appropriate.
-* Task reminders are available.
 * Configurable auditory alerts are available where appropriate.
 * Standard operating-system installation is supported.
 * The ART website provides an accessible desktop download link.
@@ -124501,7 +124288,6 @@ Respect the task functionality established in previous epics, including:
 * Status.
 * Priority.
 * Due date/time.
-* Reminders.
 * Comments/notes/instructions.
 * @mentions.
 * Assignment.

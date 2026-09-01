@@ -144,8 +144,6 @@ function buildTaskForm(task = {}, prefix = 'new-task') {
     const taskName = task.name || '';
     const priority = task.priority || 'Normal';
     const dueAtValue = task.dueAt ? formatDateTimeInput(task.dueAt) : '';
-    const reminderChecked = Boolean(task.reminderAt || task.reminderSnoozedUntil);
-    const reminderAtValue = task.reminderAt ? formatDateTimeInput(task.reminderAt) : '';
     const commentsValue = task.comments || '';
     const deferredValue = task.deferredUntil ? formatDateTimeInput(task.deferredUntil) : '';
     return `
@@ -155,10 +153,6 @@ function buildTaskForm(task = {}, prefix = 'new-task') {
             <label>Due date and time <input id="${prefix}-due-input" type="datetime-local" value="${escapeHtml(dueAtValue)}"></label>
             ${task.status === 'Deferred' ? `<label>Resume date and time <input id="${prefix}-deferred-input" type="datetime-local" value="${escapeHtml(deferredValue)}"></label>` : ''}
             <label>Comments <textarea id="${prefix}-comments-input" rows="3">${escapeHtml(commentsValue)}</textarea></label>
-            <label><input id="${prefix}-reminder-toggle" type="checkbox" ${reminderChecked ? 'checked' : ''}> Set Reminder</label>
-            <div id="${prefix}-reminder-container" ${reminderChecked ? '' : 'hidden'}>
-                <label>Reminder date and time <input id="${prefix}-reminder-input" type="datetime-local" value="${escapeHtml(reminderAtValue)}"></label>
-            </div>
         </div>
     `;
 }
@@ -168,8 +162,6 @@ function saveTaskForm(dialog, taskId = null, mode = 'new') {
     const priorityInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-priority-input`);
     const dueInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-due-input`);
     const commentsInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-comments-input`);
-    const reminderToggle = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-toggle`);
-    const reminderInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-input`);
     const deferredInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-deferred-input`);
     const taskName = (nameInput?.value ?? '').trim();
     if (!taskName) {
@@ -177,18 +169,12 @@ function saveTaskForm(dialog, taskId = null, mode = 'new') {
         nameInput?.focus();
         return;
     }
-    if (reminderToggle?.checked && !reminderInput?.value) {
-        announce('Please choose a reminder date and time.');
-        reminderInput?.focus();
-        return;
-    }
 
     const payload = {
         name: taskName,
         priority: priorityInput?.value || 'Normal',
         dueAt: dueInput?.value ? parseDateTimeInput(dueInput.value) : '',
-        comments: commentsInput?.value ?? '',
-        reminderAt: reminderToggle?.checked ? (reminderInput?.value ? parseDateTimeInput(reminderInput.value) : '') : ''
+        comments: commentsInput?.value ?? ''
     };
     if (deferredInput) {
         payload.deferredUntil = deferredInput.value ? parseDateTimeInput(deferredInput.value) : '';
@@ -292,16 +278,6 @@ function bindTaskFormEvents(dialog, { mode = 'new', taskId = null } = {}) {
     const nameInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-name-input`);
     const saveBtn = dialog.querySelector(`#${mode === 'new' ? 'btn-new-task-save' : 'btn-edit-task-save'}`);
     const cancelBtn = dialog.querySelector(`#${mode === 'new' ? 'btn-new-task-cancel' : 'btn-edit-task-cancel'}`);
-    const reminderToggle = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-toggle`);
-    const reminderContainer = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-container`);
-    const reminderInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-input`);
-
-    const updateReminderVisibility = () => {
-        if (reminderContainer) reminderContainer.hidden = !(reminderToggle?.checked ?? false);
-    };
-
-    reminderToggle?.addEventListener('change', updateReminderVisibility);
-    updateReminderVisibility();
 
     nameInput?.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
@@ -319,7 +295,6 @@ function bindTaskFormEvents(dialog, { mode = 'new', taskId = null } = {}) {
         }
     });
     nameInput?.focus();
-    if (reminderToggle?.checked && reminderInput) reminderInput.focus();
 }
 
 function openNewTaskDialog(trigger = null) {

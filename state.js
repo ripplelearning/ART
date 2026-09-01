@@ -869,9 +869,7 @@ function normalizeTask(task, index) {
         reportId: String(source.reportId || '').trim(),
         workspaceId: String(source.workspaceId || '').trim(),
         createdAt: normalizeIsoDateTime(source.createdAt) || new Date().toISOString(),
-        updatedAt: normalizeIsoDateTime(source.updatedAt) || new Date().toISOString(),
-        reminderAt: normalizeIsoDateTime(source.reminderAt),
-        reminderSnoozedUntil: normalizeIsoDateTime(source.reminderSnoozedUntil)
+        updatedAt: normalizeIsoDateTime(source.updatedAt) || new Date().toISOString()
     };
 }
 
