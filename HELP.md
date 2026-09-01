@@ -429,6 +429,13 @@ The Dashboard To-Do List widget presents active personal tasks without showing c
 
 Account-specific assignment, shared-member selection, authorization, authenticated @mentions, server notifications, and remote reminders are deferred to Epics 49, 50, and 51. These capabilities must not be implemented with display names or email addresses alone.
 
+## Merge Conflict Resolution
+ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
+
+Open Merge Conflict Resolution from Tools > Collaboration or Command Palette. The dialog uses keyboard-accessible radio controls, reports the conflict count, supports Escape to cancel, and restores focus to its trigger. Cancelling does not discard either source version.
+
+External revision detection, shared-file merging, server synchronization, identity attribution, and authorization-aware conflict resolution require the future collaboration, authentication, and authorization work in Epics 49, 50, and 51.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

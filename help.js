@@ -400,6 +400,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-merge-conflicts',
+            title: 'Merge Conflict Resolution',
+            content: `
+                <p>ART uses a provider-neutral three-way merge foundation to compare a common base version, your version, and another version.</p>
+                <p>Changes to different fields can merge automatically. When both versions change the same field differently, the Merge Conflict Resolution dialog preserves both values so you can choose Keep my version or Keep other version.</p>
+                <p>Open Merge Conflict Resolution from Tools &gt; Collaboration or Command Palette. The dialog uses accessible radio controls, reports unresolved conflicts, supports Escape to cancel, and restores focus after closing.</p>
+            `
+        },
+        {
             id: 'help-evaluation-item-selection',
             title: 'Evaluation Item Selection Box',
             content: `

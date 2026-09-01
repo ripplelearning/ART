@@ -503,3 +503,17 @@ The Dashboard's optional **To-Do List** widget shows up to five active personal 
 
 ### Local-First and Future Sharing
 Tasks are retained locally and in ART Project export/import data. Account-specific assignment, shared members, authenticated @mentions, cross-device reminders, email, server notifications, and permission enforcement require the future authentication, file-based collaboration, and authorization work in Epics 49, 50, and 51.
+
+## Merge Conflict Resolution
+ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
+
+### How Conflict Resolution Works
+1. ART automatically retains non-conflicting changes when the changes affect different fields.
+2. When both versions change the same value differently, ART creates a field-level conflict.
+3. Open **Tools > Collaboration > Open Merge Conflict Resolution** or use Command Palette to review the accessible conflict dialog.
+4. For each conflicting field, select **Keep my version** or **Keep other version**, then select **Apply Merge**.
+
+The dialog uses native radio controls, announces the number of unresolved fields, moves focus into the dialog, restores focus when closed, and supports Escape to cancel. Cancelling leaves both source versions unchanged.
+
+### Current Collaboration Boundary
+The merge engine is available for local/file-based structured data and preserves conflicts for resolution. Integrating it with external file revision checks, multi-user file exchange, server synchronization, identity attribution, and permission enforcement requires later file-based collaboration, authentication, and authorization foundations in Epics 49, 50, and 51.

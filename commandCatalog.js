@@ -99,6 +99,7 @@ import {
 import { openProgressLogDialog } from './progressLog.js';
 import { openSharedProgressLogs } from './sharedProgressLogFramework.js';
 import { openTasksDialog } from './taskFramework.js';
+import { openMergeConflictDialog, threeWayMerge } from './mergeConflictFramework.js';
 import { requestViewerExportDialog, requestViewerPrintPreview, renderViewer } from './reportViewer.js';
 import { executeLookupCopyActionFromCommand, resetLookupFromCommand } from './lookupTool.js';
 import { executeAddFieldFromCommand, executeDoneFromCommand, renderBuilder } from './reportBuilder.js';
@@ -387,6 +388,7 @@ function getDefaultMenuLocation(action, category) {
         case 'openProgressLog': return 'Tools>Progress Log';
         case 'openSharedProgressLogs': return 'Tools>Progress Log';
         case 'openTasks': return 'Tools>Tasks and To-Do';
+        case 'openMergeConflicts': return 'Tools>Collaboration';
         case 'focusLookup':
         case 'resetLookup': return 'Tools>Accessibility Lookup Tool';
         case 'spellCheck':
@@ -2266,6 +2268,17 @@ const BASE_COMMAND_DEFINITIONS = [
         description: 'Open local Tasks and To-Do lists.',
         aliases: ['to-do', 'todo', 'personal tasks'],
         handler: (context) => Boolean(openTasksDialog(context.triggerElement || document.activeElement || null))
+    },
+    {
+        action: 'openMergeConflicts',
+        id: 'Tools.OpenMergeConflicts',
+        category: 'Tools',
+        description: 'Review a local merge conflict resolution workflow.',
+        aliases: ['merge changes', 'resolve conflict'],
+        handler: (context) => {
+            const result = threeWayMerge({ status: 'Not Started' }, { status: 'In Progress' }, { status: 'Needs Review' });
+            return openMergeConflictDialog(result, () => {}, context.triggerElement || document.activeElement || null);
+        }
     },
     {
         action: 'focusNavigation',
