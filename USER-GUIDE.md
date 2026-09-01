@@ -484,3 +484,22 @@ ART never stores passwords, passkeys, OAuth access tokens, refresh tokens, or se
 
 ### Current Authentication Boundary
 The Account and Identity service is the shared application boundary for future providers and authorization. It intentionally does not implement a browser-only mock login, OAuth callback, or passkey workflow. Secure passwordless authentication requires the server-side relying-party, origin, challenge, token, and session infrastructure specified for Epic 49. Organization membership, roles, and the Authorization Policy Service are scheduled for Epic 51.
+
+## Tasks and To-Do
+ART provides a local-first Tasks & To-Do workspace for tracking work without creating duplicate checklist or to-do records. Tasks use stable identifiers and can retain a name, description, status, priority, due date/time, deferred resume date/time, comments, report/workspace references, completion time, and reminder fields.
+
+### Managing Local Tasks
+1. Open **Tools > Tasks and To-Do**, or use Command Palette to find **Open Tasks and To-Do**.
+2. Use **Create Task** to add a task to your Personal To-Do List.
+3. Use the checkbox to mark a task complete, or use the Status select for more detailed status.
+4. Set Priority, Due date and time, and optional Comments directly on the task.
+5. When Status is **Deferred**, specify a Resume date and time.
+
+### Task Views and Sorting
+Tasks & To-Do provides accessible tabs for Assigned Tasks, Personal To-Do List, Completed Tasks, and Shared Tasks when shared tasks are available. Completed tasks move out of the active personal list automatically. Select a sort order to arrange active tasks by priority, due date, or date added. Priority is always displayed in text; it is never communicated only by color.
+
+### Dashboard To-Do List
+The Dashboard's optional **To-Do List** widget shows up to five active personal tasks, ordered from Critical through Low priority. Completed tasks do not appear in this summary. Select **Open Tasks and To-Do** to manage the full list.
+
+### Local-First and Future Sharing
+Tasks are retained locally and in ART Project export/import data. Account-specific assignment, shared members, authenticated @mentions, cross-device reminders, email, server notifications, and permission enforcement require the future authentication, file-based collaboration, and authorization work in Epics 49, 50, and 51.

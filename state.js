@@ -51,6 +51,11 @@ const defaultState = {
         logs: [],
         activeLogId: ''
     },
+    taskManager: {
+        tasks: [],
+        activeTab: 'personal',
+        sortBy: 'priority'
+    },
     fields: [],
     editingIndex: -1,
     editorUsesReportTitle: false,
@@ -121,6 +126,7 @@ const defaultState = {
         openViewer: 'Alt+Shift+V',
         openProgressLog: 'Alt+Shift+P',
         openSharedProgressLogs: '',
+        openTasks: '',
         focusLookup: 'Alt+Shift+L',
         focusMenuBar: 'F10',
         focusMenuSearch: 'Alt+Q',
@@ -422,6 +428,7 @@ const defaultState = {
             'dashboard-analytics',
             'recent-activity',
             'notifications',
+            'tasks',
             'dashboard-search'
         ],
         visibleWidgetIds: [
@@ -434,6 +441,7 @@ const defaultState = {
             'organization-statistics',
             'recent-activity',
             'notifications',
+            'tasks',
             'dashboard-search'
         ],
         collapsedWidgets: {},
@@ -441,7 +449,7 @@ const defaultState = {
             {
                 id: 'workspace',
                 name: 'Workspace',
-                widgetIds: ['quick-actions', 'continue-working', 'recent-activity', 'notifications', 'dashboard-search']
+                widgetIds: ['quick-actions', 'continue-working', 'recent-activity', 'notifications', 'tasks', 'dashboard-search']
             },
             {
                 id: 'projects',
@@ -811,6 +819,44 @@ function normalizeSharedProgressLogs(value) {
         logs,
         activeLogId: logs.some((log) => log.id === activeLogId) ? activeLogId : ''
     };
+}
+
+const DEFAULT_TASK_STATUSES = Object.freeze([
+    'Not Started', 'In Progress', 'Blocked', 'Deferred', 'Not Applicable', 'Needs Review', 'Need Assistance', 'Complete'
+]);
+const TASK_PRIORITIES = Object.freeze(['Critical', 'High', 'Normal', 'Low']);
+
+function normalizeTask(task, index) {
+    const source = task && typeof task === 'object' ? task : {};
+    const status = DEFAULT_TASK_STATUSES.includes(String(source.status || '').trim()) ? String(source.status).trim() : 'Not Started';
+    const priority = TASK_PRIORITIES.includes(String(source.priority || '').trim()) ? String(source.priority).trim() : 'Normal';
+    return {
+        id: String(source.id || `task-${Date.now()}-${index}`).trim(),
+        name: String(source.name || `Task ${index + 1}`).trim(),
+        description: String(source.description || '').trim(),
+        status,
+        priority,
+        dueAt: normalizeIsoDateTime(source.dueAt),
+        deferredUntil: normalizeIsoDateTime(source.deferredUntil),
+        completedAt: status === 'Complete' ? (normalizeIsoDateTime(source.completedAt) || new Date().toISOString()) : '',
+        comments: String(source.comments || '').trim(),
+        personal: source.personal !== false,
+        sourceLogId: String(source.sourceLogId || '').trim(),
+        reportId: String(source.reportId || '').trim(),
+        workspaceId: String(source.workspaceId || '').trim(),
+        createdAt: normalizeIsoDateTime(source.createdAt) || new Date().toISOString(),
+        updatedAt: normalizeIsoDateTime(source.updatedAt) || new Date().toISOString(),
+        reminderAt: normalizeIsoDateTime(source.reminderAt),
+        reminderSnoozedUntil: normalizeIsoDateTime(source.reminderSnoozedUntil)
+    };
+}
+
+function normalizeTaskManager(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const tasks = Array.isArray(source.tasks) ? source.tasks.map(normalizeTask) : [];
+    const activeTab = ['assigned', 'shared', 'personal', 'completed'].includes(String(source.activeTab || '')) ? String(source.activeTab) : 'personal';
+    const sortBy = ['priority', 'due-asc', 'created-asc', 'created-desc'].includes(String(source.sortBy || '')) ? String(source.sortBy) : 'priority';
+    return { tasks, activeTab, sortBy };
 }
 
 function normalizeBrandingImage(image, index = 0) {
@@ -1880,6 +1926,7 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'openViewer', label: 'Open Report Viewer tab', defaultShortcut: defaultState.shortcuts.openViewer },
     { action: 'openProgressLog', label: 'Open Progress Log', defaultShortcut: defaultState.shortcuts.openProgressLog },
     { action: 'openSharedProgressLogs', label: 'Open Shared Progress Logs', defaultShortcut: defaultState.shortcuts.openSharedProgressLogs },
+    { action: 'openTasks', label: 'Open Tasks and To-Do', defaultShortcut: defaultState.shortcuts.openTasks },
     { action: 'focusLookup', label: 'Focus Accessibility Lookup search', defaultShortcut: defaultState.shortcuts.focusLookup },
     { action: 'focusMenuBar', label: 'Focus Menu Bar', defaultShortcut: defaultState.shortcuts.focusMenuBar },
     { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search', defaultShortcut: defaultState.shortcuts.focusMenuSearch },
@@ -2222,6 +2269,7 @@ export function getAssignableActions() {
         { action: 'openViewer', label: 'Open Report Viewer tab' },
         { action: 'openProgressLog', label: 'Open Progress Log' },
         { action: 'openSharedProgressLogs', label: 'Open Shared Progress Logs' },
+        { action: 'openTasks', label: 'Open Tasks and To-Do' },
         { action: 'focusLookup', label: 'Focus Accessibility Lookup search' },
         { action: 'focusMenuBar', label: 'Focus Menu Bar' },
         { action: 'focusMenuSearch', label: 'Focus Menu Bar Command Search' },
@@ -2745,6 +2793,7 @@ export let appState = {
     progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(storedState.progressLogAppendixEnabled, storedState.reportType),
     progressItems: normalizeProgressItems(storedState.progressItems),
     sharedProgressLogs: normalizeSharedProgressLogs(storedState.sharedProgressLogs),
+    taskManager: normalizeTaskManager(storedState.taskManager),
     fields: normalizedInitialFields,
     editorFieldValues: normalizedInitialEditorValues,
     auditEntries: normalizeAuditEntries(storedState.auditEntries, normalizedInitialFields, normalizedInitialEditorValues),
@@ -2855,6 +2904,7 @@ function normalizeStateSnapshot(rawState) {
         progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(base.progressLogAppendixEnabled, reportType),
         progressItems: normalizeProgressItems(base.progressItems),
         sharedProgressLogs: normalizeSharedProgressLogs(base.sharedProgressLogs),
+        taskManager: normalizeTaskManager(base.taskManager),
         fields,
         editorFieldValues,
         auditEntries: normalizeAuditEntries(base.auditEntries, fields, editorFieldValues),
@@ -5536,6 +5586,70 @@ export function setSharedProgressLogReportAssociations(logId, reportIds) {
     return updateSharedProgressLog(logId, {
         associatedReportIds: Array.isArray(reportIds) ? reportIds.map((id) => String(id).trim()).filter(Boolean) : []
     });
+}
+
+function emitTaskManagerUpdate(action) {
+    saveState({ action, recordHistory: true });
+    window.dispatchEvent(new Event('art-tasks-updated'));
+}
+
+export function getTasks() {
+    return normalizeTaskManager(appState.taskManager).tasks;
+}
+
+export function getTaskManagerConfig() {
+    const config = normalizeTaskManager(appState.taskManager);
+    return { activeTab: config.activeTab, sortBy: config.sortBy };
+}
+
+export function updateTaskManagerConfig(updates = {}) {
+    appState.taskManager = normalizeTaskManager({ ...normalizeTaskManager(appState.taskManager), ...updates });
+    emitTaskManagerUpdate('Updated task list preferences');
+    return getTaskManagerConfig();
+}
+
+export function createTask(input = {}) {
+    const tasks = getTasks();
+    const task = normalizeTask({
+        ...input,
+        id: input.id || `task-${Date.now()}`,
+        reportId: input.reportId || appState.selectedReportId || '',
+        workspaceId: input.workspaceId || appState.activeWorkspaceId || ''
+    }, tasks.length);
+    appState.taskManager = { ...normalizeTaskManager(appState.taskManager), tasks: [...tasks, task] };
+    emitTaskManagerUpdate(`Created task ${task.name}`);
+    return task;
+}
+
+export function updateTask(taskId, updates = {}) {
+    const id = String(taskId || '').trim();
+    let updated = null;
+    appState.taskManager = {
+        ...normalizeTaskManager(appState.taskManager),
+        tasks: getTasks().map((task, index) => {
+            if (task.id !== id) return task;
+            updated = normalizeTask({ ...task, ...updates, id: task.id, updatedAt: new Date().toISOString() }, index);
+            return updated;
+        })
+    };
+    if (!updated) return null;
+    emitTaskManagerUpdate(`Updated task ${updated.name}`);
+    return updated;
+}
+
+export function setTaskCompleted(taskId, completed) {
+    return updateTask(taskId, completed
+        ? { status: 'Complete', completedAt: new Date().toISOString() }
+        : { status: 'Not Started', completedAt: '' });
+}
+
+export function deleteTask(taskId) {
+    const id = String(taskId || '').trim();
+    const task = getTasks().find((item) => item.id === id) || null;
+    if (!task) return null;
+    appState.taskManager = { ...normalizeTaskManager(appState.taskManager), tasks: getTasks().filter((item) => item.id !== id) };
+    emitTaskManagerUpdate(`Deleted task ${task.name}`);
+    return task;
 }
 
 export function getProgressItemNames() {

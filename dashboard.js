@@ -46,6 +46,7 @@ import {
     getRecentReports,
     getReportById,
     getSecurityConfig,
+    getTasks,
     getTemplateById,
     getUserTemplates,
     hasUnsavedProjectChanges,
@@ -71,6 +72,7 @@ import {
 import { openSettingsCollaborationSectionFromCommand } from './settings.js';
 import { calculateOrganizationMetrics, getOrganizationSummaries } from './organizationMetricsFramework.js';
 import { openOrganizationStatistics } from './organizationDashboard.js';
+import { openTasksDialog } from './taskFramework.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -964,6 +966,19 @@ function renderNotificationsWidget(container) {
     container.innerHTML = `<ul>${notices.map((notice) => `<li>${notice}</li>`).join('')}</ul>`;
 }
 
+function renderTasksWidget(container) {
+    const priorityOrder = { Critical: 0, High: 1, Normal: 2, Low: 3 };
+    const tasks = getTasks()
+        .filter((task) => task.personal && task.status !== 'Complete')
+        .sort((left, right) => (priorityOrder[left.priority] ?? 9) - (priorityOrder[right.priority] ?? 9))
+        .slice(0, 5);
+
+    container.innerHTML = tasks.length
+        ? `<ul class="dashboard-widget__list">${tasks.map((task) => `<li><strong>${escapeHtml(task.priority)}:</strong> ${escapeHtml(task.name)} (${escapeHtml(task.status)})</li>`).join('')}</ul><button id="btn-dashboard-open-tasks" type="button">Open Tasks and To-Do</button>`
+        : '<p>No active personal tasks.</p><button id="btn-dashboard-open-tasks" type="button">Open Tasks and To-Do</button>';
+    container.querySelector('#btn-dashboard-open-tasks')?.addEventListener('click', (event) => openTasksDialog(event.currentTarget));
+}
+
 function renderDashboardSearchWidget(container) {
     container.innerHTML = `
         <label for="dashboard-widget-search-input">Search Dashboard and Commands</label>
@@ -1105,6 +1120,15 @@ function registerDashboardWidgetsIfNeeded() {
         description: 'Current dashboard notifications.',
         category: 'Workspace',
         render: renderNotificationsWidget
+    });
+
+    registerDashboardWidget({
+        id: 'tasks',
+        name: 'To-Do List',
+        heading: 'To-Do List',
+        description: 'Your highest-priority active personal tasks.',
+        category: 'Workspace',
+        render: renderTasksWidget
     });
 
     registerDashboardWidget({

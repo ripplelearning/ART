@@ -420,6 +420,15 @@ ART's centralized identity service represents Not signed in, Authentication in p
 
 ART does not store passwords, passkeys, OAuth tokens, refresh tokens, or session credentials in Settings, local project data, reports, exports, or ordinary logs. Secure provider sign-in requires the server-side passwordless authentication infrastructure planned for Epic 49. Organization membership, roles, and authorization remain planned for Epic 51.
 
+## Tasks and To-Do
+Open Tasks and To-Do from Tools > Tasks and To-Do or Command Palette. Create local tasks and manage them with native checkboxes, status selects, priority selects, due dates, deferred resume dates, and a single optional Comments text area.
+
+Personal To-Do List shows active personal tasks. Completed Tasks shows tasks marked Complete; changing the checkbox or status back to an incomplete value returns the same task to the active list. Tasks are sorted by decreasing priority by default and retain stable IDs, timestamps, report/workspace associations, and comments in local ART data and Project export/import payloads.
+
+The Dashboard To-Do List widget presents active personal tasks without showing completed tasks. Local tasks do not create findings or declare an audit complete.
+
+Account-specific assignment, shared-member selection, authorization, authenticated @mentions, server notifications, and remote reminders are deferred to Epics 49, 50, and 51. These capabilities must not be implemented with display names or email addresses alone.
+
 ## Metadata Portability and Integrity
 Resource organization metadata can be exported/imported independently and is also included in Project Workspace portability payloads.
 

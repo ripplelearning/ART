@@ -255,6 +255,7 @@ function getMenuLocation(command) {
         case 'openHelp': return 'Help>User Guide';
         case 'openProgressLog': return 'Tools>Progress Log';
         case 'openSharedProgressLogs': return 'Tools>Progress Log';
+        case 'openTasks': return 'Tools>Tasks and To-Do';
         case 'focusLookup':
         case 'resetLookup': return 'Tools>Accessibility Lookup Tool';
         case 'spellCheck':
