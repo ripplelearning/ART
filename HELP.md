@@ -426,9 +426,9 @@ ART is local-first and does not automatically send, upload, synchronize, or shar
 Privacy Mode blocks external communication through ART's guarded paths. The current local security boundary, vulnerability-reporting process, and security release checklist are documented in [ART Security and Privacy](SECURITY.md). Hosted/self-hosted controls such as server-side authorization, organization isolation, secure server credential storage, monitoring, and incident response require future deployment work.
 
 ## Tasks and To-Do
-Open Tasks and To-Do from Tools > Tasks and To-Do or Command Palette. Create local tasks and manage them with native checkboxes, status selects, priority selects, due dates, deferred resume dates, and a single optional Comments text area.
+Open Tasks and To-Do from Tools > Tasks and To-Do or Command Palette. Create local tasks and manage them with a native Complete checkbox and a status select directly on each task row, or select Edit on a task to open the Edit Task dialog and change the task name, priority, due date, an optional reminder date and time, and a single optional Comments text area.
 
-Personal To-Do List shows active personal tasks. Completed Tasks shows tasks marked Complete; changing the checkbox or status back to an incomplete value returns the same task to the active list. Tasks are sorted by decreasing priority by default and retain stable IDs, timestamps, report/workspace associations, and comments in local ART data and Project export/import payloads.
+Personal To-Do List shows active personal tasks. Completed Tasks shows tasks marked Complete; changing the checkbox or status back to an incomplete value returns the same task to the active list. Tasks are sorted by decreasing priority by default and retain stable IDs, timestamps, report/workspace associations, reminders, and comments in local ART data and Project export/import payloads.
 
 The Dashboard To-Do List widget presents active personal tasks without showing completed tasks. Local tasks do not create findings or declare an audit complete.
 

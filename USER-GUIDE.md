@@ -499,8 +499,8 @@ ART provides a local-first Tasks & To-Do workspace for tracking work without cre
 1. Open **Tools > Tasks and To-Do**, or use Command Palette to find **Open Tasks and To-Do**.
 2. Use **Create Task** to add a task to your Personal To-Do List.
 3. Use the checkbox to mark a task complete, or use the Status select for more detailed status.
-4. Set Priority, Due date and time, and optional Comments directly on the task.
-5. When Status is **Deferred**, specify a Resume date and time.
+4. Select **Edit** on a task to open the Edit Task dialog and set Priority, Due date and time, an optional Reminder date and time, and optional Comments.
+5. When Status is **Deferred**, the Edit Task dialog also shows a Resume date and time field.
 
 ### Task Views and Sorting
 Tasks & To-Do provides accessible tabs for Assigned Tasks, Personal To-Do List, Completed Tasks, and Shared Tasks when shared tasks are available. Completed tasks move out of the active personal list automatically. Select a sort order to arrange active tasks by priority, due date, or date added. Priority is always displayed in text; it is never communicated only by color.

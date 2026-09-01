@@ -394,7 +394,7 @@ function getHelpSections(rows) {
             title: 'Tasks and To-Do',
             content: `
                 <p>Tasks and To-Do provides a local-first workspace for tracking personal work without creating duplicate checklists or task records.</p>
-                <p>Open it from Tools &gt; Tasks and To-Do or Command Palette. Create a task, then use its checkbox, native Status select, Priority select, Due date/time, Deferred resume date/time, and optional Comments field.</p>
+                <p>Open it from Tools &gt; Tasks and To-Do or Command Palette. Create a task, then use its checkbox and native Status select directly on the task row, or select Edit to open the Edit Task dialog for Priority, Due date/time, an optional Reminder date/time, Deferred resume date/time, and optional Comments.</p>
                 <p>Completed tasks move to the Completed Tasks tab and return to your Personal To-Do List when reopened. The Dashboard To-Do List shows your highest-priority active tasks.</p>
                 <p>Account-specific assignments, permissions, @mentions, and server notifications require future authentication and authorization foundations.</p>
             `

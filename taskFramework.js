@@ -74,19 +74,52 @@ function ensureDialog() {
     return dialogState;
 }
 
+function formatDateTimeInput(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function parseDateTimeInput(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
 function renderTaskRow(task, tabId) {
     const completed = task.status === 'Complete';
+    const summaryLines = [
+        `Priority: ${escapeHtml(task.priority)}`,
+        `Due: ${escapeHtml(formatDateTime(task.dueAt))}`,
+        `Created: ${escapeHtml(formatDateTime(task.createdAt))}`
+    ];
+    if (task.status === 'Deferred' && task.deferredUntil) {
+        summaryLines.push(`Resume: ${escapeHtml(formatDateTime(task.deferredUntil))}`);
+    }
+    if (tabId === 'completed' && task.completedAt) {
+        summaryLines.push(`Completed: ${escapeHtml(formatDateTime(task.completedAt))}`);
+    }
+    if (task.comments) {
+        summaryLines.push(`Comments: ${escapeHtml(task.comments)}`);
+    }
+
     return `
         <article class="viewer-field-card" data-task-id="${escapeHtml(task.id)}">
-            <h4>${escapeHtml(task.name)}</h4>
-            <label><input type="checkbox" data-task-complete ${completed ? 'checked' : ''}> Complete</label>
-            <label>Status <select data-task-status>${STATUS_OPTIONS.map((status) => `<option value="${escapeHtml(status)}" ${task.status === status ? 'selected' : ''}>${escapeHtml(status)}</option>`).join('')}</select></label>
-            <label>Priority <select data-task-priority>${PRIORITY_OPTIONS.map((priority) => `<option value="${escapeHtml(priority)}" ${task.priority === priority ? 'selected' : ''}>${escapeHtml(priority)}</option>`).join('')}</select></label>
-            <label>Due date and time <input type="datetime-local" data-task-due value="${escapeHtml(task.dueAt ? task.dueAt.slice(0, 16) : '')}"></label>
-            ${task.status === 'Deferred' ? `<label>Resume date and time <input type="datetime-local" data-task-deferred value="${escapeHtml(task.deferredUntil ? task.deferredUntil.slice(0, 16) : '')}"></label>` : ''}
-            <label>Comments <textarea data-task-comments>${escapeHtml(task.comments)}</textarea></label>
-            <p>Priority: ${escapeHtml(task.priority)}. Due: ${escapeHtml(formatDateTime(task.dueAt))}. Created: ${escapeHtml(formatDateTime(task.createdAt))}.</p>
-            ${tabId === 'completed' ? `<p>Completed: ${escapeHtml(formatDateTime(task.completedAt))}.</p>` : ''}
+            <div class="viewer-dialog-actions" role="group" aria-label="Task row actions">
+                <label class="task-row-check">
+                    <input type="checkbox" data-task-complete ${completed ? 'checked' : ''}>
+                </label>
+                <span>${escapeHtml(task.name)}</span>
+                <label>Status <select data-task-status>${STATUS_OPTIONS.map((status) => `<option value="${escapeHtml(status)}" ${task.status === status ? 'selected' : ''}>${escapeHtml(status)}</option>`).join('')}</select></label>
+                <button type="button" data-task-edit="${escapeHtml(task.id)}">Edit ${escapeHtml(task.name)}</button>
+            </div>
+            <p>${summaryLines.join(' • ')}</p>
         </article>`;
 }
 
@@ -105,6 +138,77 @@ function renderDialog() {
     `;
     state.dialog.querySelector('#tasks-sort').value = config.sortBy;
     bindRenderedEvents(state.dialog);
+}
+
+function buildTaskForm(task = {}, prefix = 'new-task') {
+    const taskName = task.name || '';
+    const priority = task.priority || 'Normal';
+    const dueAtValue = task.dueAt ? formatDateTimeInput(task.dueAt) : '';
+    const reminderChecked = Boolean(task.reminderAt || task.reminderSnoozedUntil);
+    const reminderAtValue = task.reminderAt ? formatDateTimeInput(task.reminderAt) : '';
+    const commentsValue = task.comments || '';
+    const deferredValue = task.deferredUntil ? formatDateTimeInput(task.deferredUntil) : '';
+    return `
+        <div class="viewer-field-card">
+            <label>Task name <input id="${prefix}-name-input" type="text" value="${escapeHtml(taskName)}" placeholder="Enter task name"></label>
+            <label>Priority <select id="${prefix}-priority-input">${PRIORITY_OPTIONS.map((option) => `<option value="${escapeHtml(option)}" ${priority === option ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select></label>
+            <label>Due date and time <input id="${prefix}-due-input" type="datetime-local" value="${escapeHtml(dueAtValue)}"></label>
+            ${task.status === 'Deferred' ? `<label>Resume date and time <input id="${prefix}-deferred-input" type="datetime-local" value="${escapeHtml(deferredValue)}"></label>` : ''}
+            <label>Comments <textarea id="${prefix}-comments-input" rows="3">${escapeHtml(commentsValue)}</textarea></label>
+            <label><input id="${prefix}-reminder-toggle" type="checkbox" ${reminderChecked ? 'checked' : ''}> Set Reminder</label>
+            <div id="${prefix}-reminder-container" ${reminderChecked ? '' : 'hidden'}>
+                <label>Reminder date and time <input id="${prefix}-reminder-input" type="datetime-local" value="${escapeHtml(reminderAtValue)}"></label>
+            </div>
+        </div>
+    `;
+}
+
+function saveTaskForm(dialog, taskId = null, mode = 'new') {
+    const nameInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-name-input`);
+    const priorityInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-priority-input`);
+    const dueInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-due-input`);
+    const commentsInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-comments-input`);
+    const reminderToggle = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-toggle`);
+    const reminderInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-input`);
+    const deferredInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-deferred-input`);
+    const taskName = (nameInput?.value ?? '').trim();
+    if (!taskName) {
+        announce('Task name is required.');
+        nameInput?.focus();
+        return;
+    }
+    if (reminderToggle?.checked && !reminderInput?.value) {
+        announce('Please choose a reminder date and time.');
+        reminderInput?.focus();
+        return;
+    }
+
+    const payload = {
+        name: taskName,
+        priority: priorityInput?.value || 'Normal',
+        dueAt: dueInput?.value ? parseDateTimeInput(dueInput.value) : '',
+        comments: commentsInput?.value ?? '',
+        reminderAt: reminderToggle?.checked ? (reminderInput?.value ? parseDateTimeInput(reminderInput.value) : '') : ''
+    };
+    if (deferredInput) {
+        payload.deferredUntil = deferredInput.value ? parseDateTimeInput(deferredInput.value) : '';
+    }
+
+    if (taskId) {
+        updateTask(taskId, payload);
+        announce(`Updated ${taskName}.`);
+    } else {
+        const task = createTask(payload);
+        announce(`Created ${task.name}.`);
+    }
+
+    updateTaskManagerConfig({ activeTab: 'personal' });
+    if (mode === 'new') {
+        closeNewTaskDialog(true);
+    } else {
+        closeEditTaskDialog(true);
+    }
+    renderDialog();
 }
 
 function ensureNewTaskDialog() {
@@ -130,25 +234,74 @@ function ensureNewTaskDialog() {
     return newTaskDialogState;
 }
 
+let editTaskDialogState = null;
+
+function ensureEditTaskDialog() {
+    if (editTaskDialogState?.dialog instanceof HTMLElement) return editTaskDialogState;
+    let dialog = document.getElementById('edit-task-dialog');
+    if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.id = 'edit-task-dialog';
+        dialog.className = 'command-palette-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'edit-task-dialog-heading');
+        dialog.hidden = true;
+        document.body.appendChild(dialog);
+    }
+    editTaskDialogState = { dialog, lastTrigger: null, taskId: null };
+    dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeEditTaskDialog(true);
+        }
+    });
+    return editTaskDialogState;
+}
+
 function renderNewTaskDialog() {
     const state = ensureNewTaskDialog();
     state.dialog.innerHTML = `
         <div class="command-palette-header"><h2 id="new-task-dialog-heading">Create New Task</h2></div>
-        <div class="viewer-field-card">
-            <label>Task name <input id="new-task-name-input" type="text" placeholder="Enter task name"></label>
-        </div>
+        ${buildTaskForm({}, 'new-task')}
         <div class="viewer-dialog-actions" role="group" aria-label="Dialog actions">
             <button id="btn-new-task-save" type="button">Save</button>
             <button id="btn-new-task-cancel" type="button">Cancel</button>
         </div>
     `;
-    bindNewTaskDialogEvents(state.dialog);
+    bindTaskFormEvents(state.dialog, { mode: 'new' });
 }
 
-function bindNewTaskDialogEvents(dialog) {
-    const nameInput = dialog.querySelector('#new-task-name-input');
-    const saveBtn = dialog.querySelector('#btn-new-task-save');
-    const cancelBtn = dialog.querySelector('#btn-new-task-cancel');
+function renderEditTaskDialog(taskId) {
+    const task = getTasks().find((entry) => entry.id === taskId);
+    if (!task) return;
+    const state = ensureEditTaskDialog();
+    state.taskId = taskId;
+    state.dialog.innerHTML = `
+        <div class="command-palette-header"><h2 id="edit-task-dialog-heading">Edit Task</h2></div>
+        ${buildTaskForm(task, 'edit-task')}
+        <div class="viewer-dialog-actions" role="group" aria-label="Dialog actions">
+            <button id="btn-edit-task-save" type="button">Save</button>
+            <button id="btn-edit-task-cancel" type="button">Cancel</button>
+        </div>
+    `;
+    bindTaskFormEvents(state.dialog, { mode: 'edit', taskId });
+}
+
+function bindTaskFormEvents(dialog, { mode = 'new', taskId = null } = {}) {
+    const nameInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-name-input`);
+    const saveBtn = dialog.querySelector(`#${mode === 'new' ? 'btn-new-task-save' : 'btn-edit-task-save'}`);
+    const cancelBtn = dialog.querySelector(`#${mode === 'new' ? 'btn-new-task-cancel' : 'btn-edit-task-cancel'}`);
+    const reminderToggle = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-toggle`);
+    const reminderContainer = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-container`);
+    const reminderInput = dialog.querySelector(`#${mode === 'new' ? 'new-task' : 'edit-task'}-reminder-input`);
+
+    const updateReminderVisibility = () => {
+        if (reminderContainer) reminderContainer.hidden = !(reminderToggle?.checked ?? false);
+    };
+
+    reminderToggle?.addEventListener('change', updateReminderVisibility);
+    updateReminderVisibility();
 
     nameInput?.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
@@ -157,22 +310,16 @@ function bindNewTaskDialogEvents(dialog) {
         }
     });
 
-    saveBtn?.addEventListener('click', () => {
-        const taskName = (nameInput?.value ?? '').trim();
-        if (!taskName) {
-            announce('Task name is required.');
-            nameInput?.focus();
-            return;
+    saveBtn?.addEventListener('click', () => saveTaskForm(dialog, taskId, mode));
+    cancelBtn?.addEventListener('click', () => {
+        if (mode === 'new') {
+            closeNewTaskDialog(true);
+        } else {
+            closeEditTaskDialog(true);
         }
-        const task = createTask({ name: taskName });
-        updateTaskManagerConfig({ activeTab: 'personal' });
-        closeNewTaskDialog(true);
-        renderDialog();
-        announce(`Created ${task.name}.`);
     });
-
-    cancelBtn?.addEventListener('click', () => closeNewTaskDialog(true));
     nameInput?.focus();
+    if (reminderToggle?.checked && reminderInput) reminderInput.focus();
 }
 
 function openNewTaskDialog(trigger = null) {
@@ -190,10 +337,26 @@ function closeNewTaskDialog(restoreFocus = true) {
     return true;
 }
 
+function openEditTaskDialog(taskId, trigger = null) {
+    const state = ensureEditTaskDialog();
+    state.taskId = String(taskId || '').trim();
+    if (trigger) state.lastTrigger = trigger;
+    state.dialog.hidden = false;
+    renderEditTaskDialog(state.taskId);
+    announce('Edit task dialog opened.');
+}
+
+function closeEditTaskDialog(restoreFocus = true) {
+    if (!editTaskDialogState) return false;
+    editTaskDialogState.dialog.hidden = true;
+    if (restoreFocus && editTaskDialogState.lastTrigger?.focus) editTaskDialogState.lastTrigger.focus();
+    return true;
+}
+
 function bindRenderedEvents(dialog) {
     dialog.querySelector('#btn-tasks-close')?.addEventListener('click', () => closeTasksDialog(true));
     dialog.querySelector('#btn-task-create')?.addEventListener('click', (event) => {
-        openNewTaskDialog(event.target);
+        openNewTaskDialog(event.currentTarget);
     });
     dialog.querySelectorAll('[role="tab"]').forEach((tab) => tab.addEventListener('click', () => {
         updateTaskManagerConfig({ activeTab: tab.id.replace('tasks-tab-', '') });
@@ -212,10 +375,9 @@ function bindRenderedEvents(dialog) {
             announce(event.target.checked ? 'Task completed and moved to Completed Tasks.' : 'Task reopened.');
         });
         card.querySelector('[data-task-status]')?.addEventListener('change', (event) => { updateTask(taskId, { status: event.target.value }); renderDialog(); announce(`Task status updated to ${event.target.value}.`); });
-        card.querySelector('[data-task-priority]')?.addEventListener('change', (event) => { updateTask(taskId, { priority: event.target.value }); renderDialog(); announce(`Task priority updated to ${event.target.value}.`); });
-        card.querySelector('[data-task-due]')?.addEventListener('change', (event) => updateTask(taskId, { dueAt: event.target.value ? new Date(event.target.value).toISOString() : '' }));
-        card.querySelector('[data-task-deferred]')?.addEventListener('change', (event) => updateTask(taskId, { deferredUntil: event.target.value ? new Date(event.target.value).toISOString() : '' }));
-        card.querySelector('[data-task-comments]')?.addEventListener('change', (event) => updateTask(taskId, { comments: event.target.value }));
+        card.querySelector('[data-task-edit]')?.addEventListener('click', (event) => {
+            openEditTaskDialog(taskId, event.currentTarget);
+        });
     });
 }
 
