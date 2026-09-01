@@ -511,6 +511,18 @@ The Dashboard's optional **To-Do List** widget shows up to five active personal 
 ### Local-First and Future Sharing
 Tasks are retained locally and in ART Project export/import data. Account-specific assignment, shared members, authenticated @mentions, email, server notifications, and permission enforcement require the future authentication, file-based collaboration, and authorization work in Epics 49, 50, and 51.
 
+## Organizations, Roles, and Device Identity
+Application Settings, under **Account and Identity**, shows this ART installation's stable local device identity alongside a **Personal ART Identity Code**. The code is intended to recognize this installation when linking additional devices to the same identity in a future release; entering a code from a different installation is not yet supported because that requires ART's server-based identity service.
+
+Under **Organizations and Roles**, record the organizations you belong to and select your role in each:
+
+- **Owner** and **Admin** — manage the organization, members, and roles, in addition to project, report, task, and Progress Log actions.
+- **Editor** — manage projects, edit reports, and manage tasks and Progress Logs.
+- **Contributor** — edit reports and manage tasks.
+- **Viewer** — view-only access.
+
+ART's local **Authorization Policy Service** checks your recorded role before allowing organization-scoped actions. This is a client-side, local-first foundation for the authorization model described in Epic 51; it does not yet enforce permissions on a server, and full authenticated multi-user authorization requires Epic 49's authentication service.
+
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
 

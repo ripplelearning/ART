@@ -400,6 +400,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-organizations-and-roles',
+            title: 'Organizations, Roles, and Device Identity',
+            content: `
+                <p>In Application Settings under Account and Identity, ART shows this installation's stable local device identity and a Personal ART Identity Code, intended for recognizing this installation when linking additional devices to the same identity in the future.</p>
+                <p>Under Organizations and Roles, record the organizations you belong to and choose your role in each: Owner, Admin, Editor, Contributor, or Viewer. ART's local Authorization Policy Service uses your role to determine which organization-scoped actions are allowed.</p>
+                <p>This is a local-first foundation. Linking a different ART installation to a Personal ART Identity Code and server-enforced authorization both require ART's future authentication service and are not yet available.</p>
+            `
+        },
+        {
             id: 'help-merge-conflicts',
             title: 'Merge Conflict Resolution',
             content: `

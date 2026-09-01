@@ -74,6 +74,18 @@ import {
     updateLocalUserProfile
 } from './identityFramework.js';
 import {
+    ORGANIZATION_ROLES,
+    addOrganizationMembership,
+    getLinkedDevices,
+    getOrganizationMemberships,
+    getPersonalIdentityCode,
+    linkDeviceWithCode,
+    regeneratePersonalIdentityCode,
+    removeOrganizationMembership,
+    unlinkDevice,
+    updateOrganizationMembershipRole
+} from './authorizationFramework.js';
+import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
     createCollaborationDiscoverySnapshot,
@@ -419,6 +431,86 @@ function bindAccountIdentitySettings() {
         writeStatus('Signed out. Local ART data was preserved.');
         announce('Signed out. Local ART data was preserved.');
         renderAccountIdentitySettings();
+    });
+}
+
+function renderIdentityCodeSettings() {
+    const codeValue = document.getElementById('settings-identity-code-value');
+    if (codeValue) {
+        const record = getPersonalIdentityCode();
+        codeValue.textContent = `This device's personal ART identity code: ${record.code}`;
+    }
+    const list = document.getElementById('settings-linked-devices-list');
+    if (list) {
+        const devices = getLinkedDevices();
+        list.innerHTML = devices.map((device) => `<li>${escapeHtml(device.id)}${device.isCurrentDevice ? ' (this device)' : ''}${device.isCurrentDevice ? '' : ` <button type="button" data-unlink-device="${escapeHtml(device.id)}">Unlink</button>`}</li>`).join('');
+        list.querySelectorAll('[data-unlink-device]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const result = unlinkDevice(button.getAttribute('data-unlink-device'));
+                if (result.ok) {
+                    writeStatus('Device unlinked.');
+                    announce('Device unlinked.');
+                    renderIdentityCodeSettings();
+                } else {
+                    writeStatus(result.message);
+                }
+            });
+        });
+    }
+}
+
+function bindIdentityCodeSettings() {
+    document.getElementById('btn-settings-identity-code-regenerate')?.addEventListener('click', () => {
+        regeneratePersonalIdentityCode();
+        writeStatus('Generated a new personal ART identity code.');
+        announce('Generated a new personal ART identity code.');
+        renderIdentityCodeSettings();
+    });
+    document.getElementById('btn-settings-identity-link-device')?.addEventListener('click', () => {
+        const input = document.getElementById('settings-identity-link-code-input');
+        const result = linkDeviceWithCode(input?.value);
+        writeStatus(result.message);
+        announce(result.message);
+    });
+}
+
+function renderOrganizationRolesSettings() {
+    const list = document.getElementById('settings-org-roles-list');
+    if (!list) return;
+    const memberships = getOrganizationMemberships();
+    list.innerHTML = memberships.length
+        ? memberships.map((membership) => `<li data-membership-id="${escapeHtml(membership.id)}">${escapeHtml(membership.organizationName)} — <select aria-label="Role for ${escapeHtml(membership.organizationName)}" data-membership-role>${ORGANIZATION_ROLES.map((role) => `<option value="${escapeHtml(role)}" ${membership.role === role ? 'selected' : ''}>${escapeHtml(role)}</option>`).join('')}</select> <button type="button" data-membership-remove="${escapeHtml(membership.id)}">Remove</button></li>`).join('')
+        : '<li>No organization memberships recorded yet.</li>';
+    list.querySelectorAll('[data-membership-id]').forEach((item) => {
+        const membershipId = item.getAttribute('data-membership-id');
+        item.querySelector('[data-membership-role]')?.addEventListener('change', (event) => {
+            updateOrganizationMembershipRole(membershipId, event.target.value);
+            announce(`Role updated to ${event.target.value}.`);
+        });
+        item.querySelector('[data-membership-remove]')?.addEventListener('click', () => {
+            const removed = removeOrganizationMembership(membershipId);
+            writeStatus(removed ? `Removed membership in ${removed.organizationName}.` : 'Membership removed.');
+            announce('Organization membership removed.');
+            renderOrganizationRolesSettings();
+        });
+    });
+}
+
+function bindOrganizationRolesSettings() {
+    document.getElementById('btn-settings-org-roles-add')?.addEventListener('click', () => {
+        const nameInput = document.getElementById('settings-org-roles-name-input');
+        const roleInput = document.getElementById('settings-org-roles-role-input');
+        const organizationName = (nameInput?.value ?? '').trim();
+        if (!organizationName) {
+            announce('Enter an organization name.');
+            nameInput?.focus();
+            return;
+        }
+        const membership = addOrganizationMembership({ organizationName, role: roleInput?.value });
+        if (nameInput) nameInput.value = '';
+        writeStatus(`Added membership in ${membership.organizationName}.`);
+        announce(`Added ${membership.role} membership in ${membership.organizationName}.`);
+        renderOrganizationRolesSettings();
     });
 }
 
@@ -2024,6 +2116,8 @@ function refreshSettingsView() {
         renderSearchSettings();
         renderSearchAnalytics();
         renderAccountIdentitySettings();
+        renderIdentityCodeSettings();
+        renderOrganizationRolesSettings();
         renderOrganizationSettings();
         renderOrganizationFoldersSettings();
         renderWorkspaceViewSettings();
@@ -3523,6 +3617,8 @@ export function initSettings() {
     bindSettingsSearch();
     bindSearchAnalyticsSettings();
     bindAccountIdentitySettings();
+    bindIdentityCodeSettings();
+    bindOrganizationRolesSettings();
     bindOrganizationSettings();
     bindOrganizationFoldersSettings();
     bindVisualAccessibilitySettings();

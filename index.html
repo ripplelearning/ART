@@ -303,6 +303,36 @@
                     <button id="btn-settings-local-profile-save" type="button">Save Local Profile</button>
                     <button id="btn-settings-auth-sign-out" type="button">Sign Out</button>
                 </div>
+
+                <h5 id="settings-identity-code-heading">Personal ART Identity Code</h5>
+                <p id="settings-identity-code-help">Use this code to recognize this ART installation when linking additional devices to your identity in the future. Linking a different installation to this code requires ART's server-based identity service, which is not yet available.</p>
+                <p id="settings-identity-code-value" role="status" aria-live="polite" aria-atomic="true"></p>
+                <label for="settings-identity-link-code-input">Personal ART identity code to link</label>
+                <input id="settings-identity-link-code-input" type="text" autocomplete="off" spellcheck="false">
+                <div class="viewer-dialog-actions" role="group" aria-label="Device linking actions">
+                    <button id="btn-settings-identity-code-regenerate" type="button">Generate New Code</button>
+                    <button id="btn-settings-identity-link-device" type="button">Link Device</button>
+                </div>
+                <ul id="settings-linked-devices-list" class="dashboard-widget__list" aria-label="Linked devices"></ul>
+            </section>
+
+            <section aria-labelledby="settings-org-roles-heading">
+                <h4 id="settings-org-roles-heading">Organizations and Roles</h4>
+                <p id="settings-org-roles-help">Track the organizations you belong to and your role in each. Roles determine which local Authorization Policy checks (Owner, Admin, Editor, Contributor, Viewer) pass for organization-scoped actions. Server-enforced authorization requires ART's authentication service (Epic 49) and is not yet available.</p>
+                <label for="settings-org-roles-name-input">Organization name</label>
+                <input id="settings-org-roles-name-input" type="text" autocomplete="off">
+                <label for="settings-org-roles-role-input">Your role</label>
+                <select id="settings-org-roles-role-input">
+                    <option value="Owner">Owner</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Editor">Editor</option>
+                    <option value="Contributor">Contributor</option>
+                    <option value="Viewer">Viewer</option>
+                </select>
+                <div class="viewer-dialog-actions" role="group" aria-label="Organization membership actions">
+                    <button id="btn-settings-org-roles-add" type="button">Add Organization Membership</button>
+                </div>
+                <ul id="settings-org-roles-list" class="dashboard-widget__list" aria-label="Organization memberships"></ul>
             </section>
 
             <section aria-labelledby="settings-organization-heading">

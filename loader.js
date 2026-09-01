@@ -25,6 +25,7 @@ import { initializeUniversalSearchFramework } from './universalSearchFramework.j
 import { initNavigationHistoryFramework } from './navigationHistoryFramework.js';
 import { initializeOrganizationMetricsFramework } from './organizationMetricsFramework.js';
 import { initializeIdentityFramework } from './identityFramework.js';
+import { initializeAuthorizationFramework } from './authorizationFramework.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -207,6 +208,7 @@ function initializeApp() {
     runStartupStage('initNavigationHistoryFramework', () => initNavigationHistoryFramework());
     runStartupStage('initializeOrganizationMetricsFramework', () => initializeOrganizationMetricsFramework());
     runStartupStage('initializeIdentityFramework', () => initializeIdentityFramework());
+    runStartupStage('initializeAuthorizationFramework', () => initializeAuthorizationFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());
     runStartupStage('initGlobalContextMenuFramework', () => initGlobalContextMenuFramework());
