@@ -266,6 +266,7 @@ function getHelpSections(rows) {
                 <p>Tester statistics use the <strong>Auditor(s)</strong> value in Report Metadata. The same person appearing in several reports is counted once. Tester statistics describe testing activity and coverage and are not a measure of individual performance.</p>
                 <h4>Reading the numbers responsibly</h4>
                 <p>ART distinguishes a real zero from missing data. A metric that cannot be calculated is shown as <strong>Not available</strong> with the reason, never as zero.</p>
+                <p>Organization Statistics also include authorized task totals, open and completed tasks, overdue tasks, high-priority tasks, completion percentage, and distributions by the existing ART task status and priority values. Tasks are included when associated with a report or Project Workspace in the selected scope. The dashboard and tables identify the organization, filters, and report count used for each measure.</p>
                 <p>Organization Statistics describe the reports available to you. They are not a complete picture of an organization's accessibility programme when reports are missing, metadata is incomplete, or testing coverage varies. Fewer findings does not automatically mean better accessibility, because it can also mean less testing.</p>
                 <p>Organization Statistics are derived from your reports and never modify them.</p>
             `

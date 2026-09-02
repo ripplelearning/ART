@@ -452,6 +452,9 @@ Usability Reports function as stand-alone reports or within Project Workspaces. 
 - When Organization Statistics are enabled in Application Settings, Usability Reports contribute data to organization-level metrics (by Organization/Client, Product, Project, Workspace, and Usability Heuristic).
 - **Organization/Client Metadata:** Aggregation relies on consistent population of the Organization/Client metadata field.
 - **Product and Tester Metadata:** Product information enables product-level usability trends, while Auditor(s) metadata contributes to unique tester activity counts without evaluating individual employee performance.
+- Authorized tasks associated with the selected reports or Project Workspaces contribute task totals, open/completed counts, overdue and high-priority counts, completion percentage, and status/priority distributions.
+- The dialog identifies the selected organization, active filters, date range, and report count. Unavailable metrics include an explanation instead of being shown as zero.
+- Use the Data Quality view to identify reports missing organization, product, tester, or date metadata before interpreting aggregate results.
 
 ## Shared Progress Logs
 Shared Progress Logs are a local/file-based workspace for tracking project and testing activity without duplicating the detailed findings in Audit Logs, Executive Summaries, or Usability Reports.

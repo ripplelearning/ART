@@ -353,6 +353,8 @@ Tester statistics use the Auditor(s) metadata value. The same person appearing i
 
 ART distinguishes a real zero from missing data: a metric that cannot be calculated is shown as Not available with the reason, never as zero.
 
+Organization Statistics include authorized task totals, open and completed tasks, overdue tasks, high-priority tasks, task completion percentage, and task distributions by the existing ART status and priority values. Tasks are included only when associated with a report or Project Workspace in the selected scope. The dashboard and detail tables identify the selected organization, filters, and report count so the scope of each measure is clear.
+
 The Data Quality tab includes a report-by-report list of missing Organization/Client, Product, Tester, or date metadata so the source reports needing attention can be identified. This list is filtered to the selected organization and scope.
 
 Organization Statistics views can be saved and loaded without modifying report data. A saved view records the selected organization, filters, date range, active tab, and optional section settings. Use Export JSON for a complete structured result or Export CSV for a spreadsheet-friendly metric table. The exports include availability and explanatory reasons where a metric is unavailable or not applicable.
@@ -365,17 +367,9 @@ Organization Statistics describe the reports available to you and are not a comp
 
 ### Deferred Organization Statistics Parts
 
-Parts 5, 7, and 8 of the Organization Metrics and Accessibility Intelligence Framework are deferred until ART has a user and permission model. ART currently has no Organization Administrator, Contributor, or Viewer roles, no authenticated principal, and no authoritative authorization service. Implementing permission-aware organization analytics before those foundations exist would risk exposing cross-organization totals.
+The current release provides local-first report and task metrics, saved views, snapshots, filtering, accessible tables, JSON/CSV export, and a permission-filtering API. Authenticated server calculation, server-side enforcement, real-time multi-user updates, full shared-folder discovery, provider revision metadata, custom organization dashboards, shared views, privacy thresholds, XLSX/PDF/DOCX export, large-scale background calculation, and formal assistive-technology acceptance testing remain deferred.
 
-The deferred work is:
-
-- **Part 5 — Configuration and permissions:** organization-level administration, role-aware configuration, and permission-filtered aggregation.
-- **Part 7 — Benchmarking, health, and recurrence:** permission-safe cross-organization comparison, organization health indicators, and recurrence analysis across authorized report histories.
-- **Part 8 — Security, testing, documentation, and acceptance:** authorization threat modeling, cross-organization isolation tests, auditability, and final acceptance criteria.
-
-Before implementation, ART must define the authenticated user identity, organization membership, role inheritance, resource-level permissions, organization isolation rules, and the behavior for deleted or inaccessible resources. The metrics engine already accepts an authorization predicate and filters before aggregation; that seam is intentionally ready for the future policy service.
-
-Required acceptance tests include: a Viewer cannot see Contributor- or Administrator-only configuration; users cannot infer inaccessible report counts through totals, percentages, trends, recurrence, exports, cache entries, or snapshots; comparison contains only authorized organizations; authorization changes invalidate derived caches; and every denied action has an accessible explanation without revealing protected resource names or metadata.
+Local metrics never claim inaccessible or unavailable data is zero. Callers with an authorization policy can provide report and task predicates before aggregation; organization membership permissions remain a separate scope that can narrow effective access. Server deployment must still enforce those boundaries authoritatively.
 
 ## Usability Reports
 Usability Reports provide a flexible reporting format for documenting usability issues that affect users but may fall outside typical accessibility standards or WCAG Success Criteria.

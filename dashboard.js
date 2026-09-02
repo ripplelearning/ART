@@ -453,7 +453,7 @@ function renderOrganizationStatisticsWidget(container) {
 
     const selected = summaries.find((entry) => entry.key === config.selectedOrganization) || summaries[0];
     const result = calculateOrganizationMetrics({ organization: selected.displayName }, {
-        metricIds: ['totalReports', 'totalFindings', 'uniqueProducts', 'uniqueTesters']
+        metricIds: ['totalReports', 'totalFindings', 'uniqueProducts', 'uniqueTesters', 'taskSummary']
     });
 
     const renderValue = (metricId) => {
@@ -469,6 +469,7 @@ function renderOrganizationStatisticsWidget(container) {
             <div><dt>Findings</dt><dd>${escapeHtml(renderValue('totalFindings'))}</dd></div>
             <div><dt>Products</dt><dd>${escapeHtml(renderValue('uniqueProducts'))}</dd></div>
             <div><dt>Unique Testers</dt><dd>${escapeHtml(renderValue('uniqueTesters'))}</dd></div>
+            <div><dt>Tasks</dt><dd>${escapeHtml(result.metrics.taskSummary?.value?.total ?? 'Not available')}</dd></div>
         </dl>
         <button id="btn-dashboard-organization-statistics" type="button">Open Organization Statistics</button>
     `;

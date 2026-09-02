@@ -1,5 +1,5 @@
 // organizationMetricsFramework.js
-import { getProjectWorkspaces, getRecentReports } from './state.js';
+import { getProjectWorkspaces, getRecentReports, getTasks } from './state.js';
 
 // Availability is first-class: a metric that cannot be calculated is never reported as zero.
 export const METRIC_AVAILABILITY = {
@@ -219,6 +219,26 @@ function buildFindingRecords(report) {
             };
         })
         .filter(Boolean);
+}
+
+function buildTaskRecords(reports, options = {}) {
+    const sourceTasks = Array.isArray(options.tasks) ? options.tasks : getTasks();
+    const reportIds = new Set(reports.map((report) => report.id));
+    const workspaceIds = new Set(reports.map((report) => report.workspaceId).filter(Boolean));
+    const authorizeTask = typeof options.authorizeTask === 'function' ? options.authorizeTask : () => true;
+
+    return sourceTasks
+        .filter((task) => authorizeTask(task))
+        .filter((task) => reportIds.has(normalizeText(task.reportId)) || workspaceIds.has(normalizeText(task.workspaceId)))
+        .map((task) => ({
+            id: normalizeText(task.id),
+            name: normalizeText(task.name),
+            status: normalizeText(task.status) || 'Not Started',
+            priority: normalizeText(task.priority) || 'Normal',
+            dueAt: task.dueAt ? new Date(task.dueAt) : null,
+            reportId: normalizeText(task.reportId),
+            workspaceId: normalizeText(task.workspaceId)
+        }));
 }
 
 /**
@@ -455,6 +475,40 @@ function registerBuiltInMetrics() {
     define('totalFindings', 'Total Findings', 'Total number of findings within the selected scope.', 'count',
         ({ reports }) => createMetricValue(reports.reduce((total, report) => total + report.findings.length, 0)),
         { requires: ['findings'] });
+
+    define('taskSummary', 'Task Summary', 'Counts of authorized tasks associated with reports or workspaces in this scope.', 'summary',
+        ({ tasks }) => {
+            if (tasks.length === 0) {
+                return createMetricValue(null, METRIC_AVAILABILITY.UNAVAILABLE, 'No authorized tasks are associated with this scope.');
+            }
+            const now = Date.now();
+            const completed = tasks.filter((task) => task.status.toLowerCase() === 'complete').length;
+            const overdue = tasks.filter((task) => task.status.toLowerCase() !== 'complete' && task.dueAt instanceof Date && !Number.isNaN(task.dueAt.getTime()) && task.dueAt.getTime() < now).length;
+            const highPriority = tasks.filter((task) => ['critical', 'high'].includes(task.priority.toLowerCase())).length;
+            return createMetricValue({
+                total: tasks.length,
+                open: tasks.length - completed,
+                completed,
+                overdue,
+                highPriority,
+                completedPercentage: Math.round((completed / tasks.length) * 1000) / 10
+            });
+        }, { requires: ['tasks'], source: 'Task Manager' });
+
+    const taskDistribution = (tasks, selector, reason) => {
+        if (tasks.length === 0) return createMetricValue(null, METRIC_AVAILABILITY.UNAVAILABLE, reason);
+        const counts = new Map();
+        tasks.forEach((task) => counts.set(selector(task), Number(counts.get(selector(task)) || 0) + 1));
+        return createMetricValue([...counts.entries()].map(([label, count]) => ({ label, count })));
+    };
+
+    define('tasksByStatus', 'Tasks by Status', 'Authorized tasks grouped by their existing ART status.', 'distribution',
+        ({ tasks }) => taskDistribution(tasks, (task) => task.status, 'No authorized tasks are associated with this scope.'),
+        { requires: ['tasks'], source: 'Task Manager' });
+
+    define('tasksByPriority', 'Tasks by Priority', 'Authorized tasks grouped by their existing ART priority.', 'distribution',
+        ({ tasks }) => taskDistribution(tasks, (task) => task.priority, 'No authorized tasks are associated with this scope.'),
+        { requires: ['tasks'], source: 'Task Manager' });
 
     define('uniqueProducts', 'Products', 'Number of distinct products represented.', 'uniqueCount',
         ({ reports }) => {
@@ -747,7 +801,8 @@ export function calculateOrganizationMetrics(scope = {}, options = {}) {
     }
     runtimeCache.misses += 1;
 
-    const context = { reports, organization, scope, index };
+    const tasks = buildTaskRecords(reports, options);
+    const context = { reports, tasks, organization, scope, index };
     const metrics = {};
 
     requestedIds.forEach((metricId) => {
