@@ -491,6 +491,13 @@ Select **Export My ART Data** to download a credential-free JSON export containi
 
 Server-hosted retention, account deletion, organization data ownership, backup expiration, and third-party provider retention depend on the deployment and provider policies. ART does not claim to delete data it does not control.
 
+## Advanced Collaboration and Synchronization
+ART records a local-first collaboration session when an `.art` project is opened. The session records the local ART user/device attribution, a bounded revision history with content hashes and parent revision IDs, participant presence when supplied by a collaboration provider, and pending operations that can be queued while synchronization is unavailable.
+
+Local collaboration metadata never contains passwords, OAuth client secrets, access tokens, or refresh tokens. When a provider or server is unavailable, local work remains available and queued operations are retained for a future synchronization workflow. Conflicts and failed operations are exposed through the shared Storage and Synchronization status model rather than silently overwriting data.
+
+This release provides the shared coordination layer. Provider-specific remote revision checks, automatic compatible merges, real-time presence transport, server synchronization, and multi-user end-to-end testing remain dependent on their respective provider/server adapters and deployment infrastructure.
+
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
 

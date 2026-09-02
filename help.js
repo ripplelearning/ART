@@ -451,6 +451,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-advanced-collaboration',
+            title: 'Advanced Collaboration and Synchronization',
+            content: `
+                <p>When an .art project is opened, ART starts a local collaboration session and records local ART user/device attribution plus a bounded revision history with content hashes and parent revision IDs.</p>
+                <p>When a provider is unavailable, pending collaboration operations can remain queued locally. Conflict and failure states are reported through Storage and Synchronization, and local work is preserved. Collaboration metadata does not include passwords, OAuth secrets, or provider session tokens.</p>
+                <p>Provider-specific remote revision checks, automatic compatible merges, real-time presence, server synchronization, and multi-user end-to-end testing remain deployment-dependent.</p>
+            `
+        },
+        {
             id: 'help-merge-conflicts',
             title: 'Merge Conflict Resolution',
             content: `

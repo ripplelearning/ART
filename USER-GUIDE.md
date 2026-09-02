@@ -605,6 +605,13 @@ Use **Export My ART Data** to download a JSON copy of your local profile, ART pr
 
 Server-hosted retention, account deletion, organization-owned data, backups, and third-party provider retention depend on the relevant deployment and provider policies. The local application cannot delete data it does not control.
 
+## Advanced Collaboration and Synchronization
+When an `.art` project is opened, ART starts a local collaboration session and records the local ART user/device attribution plus a bounded revision history with content hashes and parent revision IDs. Collaboration providers can add participant presence and synchronization operations when their adapters are available.
+
+If synchronization is unavailable, ART can retain pending collaboration operations locally. Conflict and failure states are reported through Storage and Synchronization, and local work is preserved. This metadata does not include passwords, OAuth secrets, or provider session tokens.
+
+Provider-specific remote revision checks, automatic compatible merges, real-time presence, server synchronization, and multi-user end-to-end validation remain deployment-dependent work.
+
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
 

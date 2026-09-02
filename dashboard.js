@@ -104,6 +104,10 @@ import {
     refreshActiveStorage,
     synchronizeActiveStorage
 } from './storageSynchronizationFramework.js';
+import {
+    recordLocalCollaborationRevision,
+    startCollaborationSession
+} from './advancedCollaborationFramework.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -1598,6 +1602,12 @@ export function renderDashboard() {
             recoveryLabel: ''
         }, { action: 'Opened ART project file' });
         clearProjectRecoveryMark();
+        const session = startCollaborationSession({ resourceId: selectedFileName || buildProjectFileName(), resourceType: 'art-project' });
+        recordLocalCollaborationRevision(fileText, {
+            parentRevisionId: session.revisions.at(-1)?.revisionId,
+            changeType: 'open',
+            changeDescription: `Opened ${selectedFileName || 'ART project'}`
+        });
         reportPrecheckStatus(`Opened ${selectedFileName || 'project'} successfully.`);
         rebuildRecentReports();
         return true;
