@@ -122,6 +122,15 @@ import {
     updatePrivacyConfig
 } from './privacyFramework.js';
 import {
+    addOrganizationMember,
+    createOrganizationInvitation,
+    getAdministrableOrganizations,
+    getOrganizationAdministration,
+    removeOrganizationMember,
+    revokeOrganizationInvitation,
+    updateOrganizationProfile
+} from './authorizationAdministrationFramework.js';
+import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
     createCollaborationDiscoverySnapshot,
@@ -557,6 +566,81 @@ function bindOrganizationRolesSettings() {
         writeStatus(`Added membership in ${membership.organizationName}.`);
         announce(`Added ${membership.role} membership in ${membership.organizationName}.`);
         renderOrganizationRolesSettings();
+    });
+}
+
+function renderOrganizationAdministrationSettings() {
+    const organizations = getAdministrableOrganizations();
+    const select = document.getElementById('settings-org-admin-select');
+    if (!select) return;
+    const currentId = select.value;
+    select.innerHTML = organizations.length
+        ? organizations.map(({ membership }) => `<option value="${escapeHtml(membership.organizationId)}">${escapeHtml(membership.organizationName)}</option>`).join('')
+        : '<option value="">No administrable organizations</option>';
+    if (organizations.some(({ membership }) => membership.organizationId === currentId)) select.value = currentId;
+    const administration = select.value ? getOrganizationAdministration(select.value) : null;
+    const status = document.getElementById('settings-org-admin-status');
+    if (status) status.textContent = administration ? `Managing ${administration.record.displayName}.` : 'No organization administration access is available.';
+    ['display-name', 'description', 'website', 'contact'].forEach((field) => {
+        const input = document.getElementById(`settings-org-admin-${field}`);
+        const value = administration?.record[field] || '';
+        if (input && document.activeElement !== input) input.value = value;
+    });
+    const memberList = document.getElementById('settings-org-admin-members-list');
+    if (memberList) memberList.innerHTML = administration?.record.members.length
+        ? administration.record.members.map((member) => `<li>${escapeHtml(member.displayName)} (${escapeHtml(member.email)}) - ${escapeHtml(member.role)} <button type="button" data-org-admin-remove-member="${escapeHtml(member.id)}">Remove</button></li>`).join('')
+        : '<li>No member records.</li>';
+    const invitationList = document.getElementById('settings-org-admin-invitations-list');
+    if (invitationList) invitationList.innerHTML = administration?.record.invitations.length
+        ? administration.record.invitations.map((invitation) => `<li>${escapeHtml(invitation.email)} - ${escapeHtml(invitation.state)}${invitation.state === 'pending' ? ` <button type="button" data-org-admin-revoke-invitation="${escapeHtml(invitation.id)}">Revoke</button>` : ''}</li>`).join('')
+        : '<li>No invitation records.</li>';
+    const auditList = document.getElementById('settings-org-admin-audit-list');
+    if (auditList) auditList.innerHTML = administration?.record.auditLog.length
+        ? administration.record.auditLog.slice().reverse().map((entry) => `<li>${escapeHtml(entry.action)} - ${escapeHtml(entry.displayName)} (${escapeHtml(new Date(entry.at).toLocaleString())})</li>`).join('')
+        : '<li>No administrative actions recorded.</li>';
+}
+
+function bindOrganizationAdministrationSettings() {
+    const getSelectedId = () => document.getElementById('settings-org-admin-select')?.value || '';
+    document.getElementById('settings-org-admin-select')?.addEventListener('change', renderOrganizationAdministrationSettings);
+    document.getElementById('btn-settings-org-admin-save-profile')?.addEventListener('click', () => {
+        const result = updateOrganizationProfile(getSelectedId(), {
+            displayName: document.getElementById('settings-org-admin-display-name')?.value,
+            description: document.getElementById('settings-org-admin-description')?.value,
+            website: document.getElementById('settings-org-admin-website')?.value,
+            contact: document.getElementById('settings-org-admin-contact')?.value
+        });
+        writeStatus(result.message);
+        announce(result.message);
+        renderOrganizationAdministrationSettings();
+    });
+    document.getElementById('btn-settings-org-admin-add-member')?.addEventListener('click', () => {
+        const result = addOrganizationMember(getSelectedId(), { email: document.getElementById('settings-org-admin-member-email')?.value, displayName: document.getElementById('settings-org-admin-member-name')?.value });
+        writeStatus(result.message);
+        announce(result.message);
+        renderOrganizationAdministrationSettings();
+    });
+    document.getElementById('btn-settings-org-admin-invite-member')?.addEventListener('click', () => {
+        const result = createOrganizationInvitation(getSelectedId(), { email: document.getElementById('settings-org-admin-member-email')?.value });
+        writeStatus(result.message);
+        announce(result.message);
+        renderOrganizationAdministrationSettings();
+    });
+    document.getElementById('settings-org-admin-members-list')?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-org-admin-remove-member]');
+        if (!button) return;
+        const result = removeOrganizationMember(getSelectedId(), button.dataset.orgAdminRemoveMember);
+        writeStatus(result.message);
+        announce(result.message);
+        renderOrganizationAdministrationSettings();
+    });
+    document.getElementById('settings-org-admin-invitations-list')?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-org-admin-revoke-invitation]');
+        if (!button) return;
+        const result = revokeOrganizationInvitation(getSelectedId(), button.dataset.orgAdminRevokeInvitation);
+        writeStatus(result.message);
+        announce(result.message);
+        renderOrganizationAdministrationSettings();
     });
 }
 
@@ -2412,6 +2496,7 @@ function refreshSettingsView() {
         renderPrivacySettings();
         renderIdentityCodeSettings();
         renderOrganizationRolesSettings();
+        renderOrganizationAdministrationSettings();
         renderStorageProviderSettings();
         renderExternalIntegrationSettings();
         renderOrganizationSettings();
@@ -3916,6 +4001,7 @@ export function initSettings() {
     bindPrivacySettings();
     bindIdentityCodeSettings();
     bindOrganizationRolesSettings();
+    bindOrganizationAdministrationSettings();
     bindStorageProviderSettings();
     bindExternalIntegrationSettings();
     bindOrganizationSettings();

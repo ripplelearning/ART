@@ -496,6 +496,11 @@ Select **Export My ART Data** to download a credential-free JSON export containi
 
 Server-hosted retention, account deletion, organization data ownership, backup expiration, and third-party provider retention depend on the deployment and provider policies. ART does not claim to delete data it does not control.
 
+## Organization Administration
+Users with an Owner or Admin role recorded for an organization can use **Organization Administration** in Application Settings. The local administration surface supports editing the organization display name, description, website, and contact; recording or removing member records; creating and revoking local invitation records; and reviewing the administrative audit log.
+
+The existing Authorization Policy Service controls these actions. Users without an administrable organization see no organization to manage, and their actions cannot mutate administration records. Local invitation records do not send email, create accounts, disable users, or change server membership. Authenticated invitations, account status, ownership transfer, retention, integrations, and server-side enforcement require the future ART service.
+
 ## Advanced Collaboration and Synchronization
 ART records a local-first collaboration session when an `.art` project is opened. The session records the local ART user/device attribution, a bounded revision history with content hashes and parent revision IDs, participant presence when supplied by a collaboration provider, and pending operations that can be queued while synchronization is unavailable.
 

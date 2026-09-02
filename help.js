@@ -453,6 +453,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-organization-administration',
+            title: 'Organization Administration',
+            content: `
+                <p>Users with an Owner or Admin role recorded for an organization can use Organization Administration in Application Settings.</p>
+                <p>The local surface supports organization profile fields, member records, local invitation records, invitation revocation, and an administrative audit log. The Epic 51 Authorization Policy Service controls access.</p>
+                <p>Local invitation records do not send email, create accounts, disable users, or change server membership. Authenticated invitations, ownership transfer, account status, retention, integration restrictions, and server-side authorization require the future ART service.</p>
+            `
+        },
+        {
             id: 'help-advanced-collaboration',
             title: 'Advanced Collaboration and Synchronization',
             content: `

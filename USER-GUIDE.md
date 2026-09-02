@@ -609,6 +609,11 @@ Use **Export My ART Data** to download a JSON copy of your local profile, ART pr
 
 Server-hosted retention, account deletion, organization-owned data, backups, and third-party provider retention depend on the relevant deployment and provider policies. The local application cannot delete data it does not control.
 
+## Organization Administration
+If your recorded organization role is Owner or Admin, Application Settings shows **Organization Administration**. Select an organization to edit its profile, add or remove local member records, create or revoke local invitation records, and review the administrative audit log.
+
+These controls use the Epic 51 Authorization Policy Service. Users without an administrable organization cannot use them. Local invitation records do not send email, create accounts, disable users, or change server membership. Authenticated invitations, ownership transfer, account status, retention, organization-level integration restrictions, and server-side authorization remain deployment-dependent.
+
 ## Advanced Collaboration and Synchronization
 When an `.art` project is opened, ART starts a local collaboration session and records the local ART user/device attribution plus a bounded revision history with content hashes and parent revision IDs. Collaboration providers can add participant presence and synchronization operations when their adapters are available.
 

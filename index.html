@@ -362,6 +362,38 @@
                 <ul id="settings-org-roles-list" class="dashboard-widget__list" aria-label="Organization memberships"></ul>
             </section>
 
+            <section aria-labelledby="settings-org-admin-heading">
+                <h4 id="settings-org-admin-heading">Organization Administration</h4>
+                <p id="settings-org-admin-help">Only organizations where your recorded role permits administration appear here. Local records do not send invitations or change server accounts.</p>
+                <label for="settings-org-admin-select">Organization to administer</label>
+                <select id="settings-org-admin-select"></select>
+                <p id="settings-org-admin-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <label for="settings-org-admin-display-name">Organization display name</label>
+                <input id="settings-org-admin-display-name" type="text">
+                <label for="settings-org-admin-description">Organization description</label>
+                <textarea id="settings-org-admin-description" rows="2"></textarea>
+                <label for="settings-org-admin-website">Organization website</label>
+                <input id="settings-org-admin-website" type="url">
+                <label for="settings-org-admin-contact">Organization contact</label>
+                <input id="settings-org-admin-contact" type="text">
+                <div class="viewer-dialog-actions" role="group" aria-label="Organization profile actions">
+                    <button id="btn-settings-org-admin-save-profile" type="button">Save Organization Profile</button>
+                </div>
+                <h5 id="settings-org-admin-members-heading">Members and Invitations</h5>
+                <label for="settings-org-admin-member-email">Member email address</label>
+                <input id="settings-org-admin-member-email" type="email" autocomplete="email">
+                <label for="settings-org-admin-member-name">Member display name</label>
+                <input id="settings-org-admin-member-name" type="text" autocomplete="name">
+                <div class="viewer-dialog-actions" role="group" aria-label="Organization member actions">
+                    <button id="btn-settings-org-admin-add-member" type="button">Add Member Record</button>
+                    <button id="btn-settings-org-admin-invite-member" type="button">Create Invitation Record</button>
+                </div>
+                <ul id="settings-org-admin-members-list" class="dashboard-widget__list" aria-label="Organization members"></ul>
+                <ul id="settings-org-admin-invitations-list" class="dashboard-widget__list" aria-label="Organization invitations"></ul>
+                <h5 id="settings-org-admin-audit-heading">Administrative Audit Log</h5>
+                <ul id="settings-org-admin-audit-list" class="dashboard-widget__list" aria-label="Administrative audit log"></ul>
+            </section>
+
             <section aria-labelledby="settings-storage-heading">
                 <h4 id="settings-storage-heading">Storage Providers</h4>
                 <p id="settings-storage-help">ART always works with local files. Additional storage providers are optional and are never required for local functionality.</p>
