@@ -71,6 +71,20 @@ function bindWelcomeShortcutSync() {
     welcomeShortcutSyncBound = true;
 }
 
+function bindWelcomeOnboardingActions() {
+    const actions = {
+        'welcome-new-report': 'btn-new-report',
+        'welcome-open-project': 'btn-open-report',
+        'welcome-explore-builder': 'tab-builder',
+        'welcome-open-help': 'btn-help'
+    };
+    Object.entries(actions).forEach(([sourceId, targetId]) => {
+        document.getElementById(sourceId)?.addEventListener('click', () => {
+            document.getElementById(targetId)?.click();
+        });
+    });
+}
+
 // welcome.js
 export function renderWelcome() {
     const container = document.getElementById('main-inner');
@@ -85,6 +99,12 @@ export function renderWelcome() {
             <div>
                 <h2 id="welcome-getting-started-heading">Getting Started</h2>
                 <p>The best place to begin is the <strong>Dashboard</strong>, where you can create or open a <strong>Project Workspace</strong>, manage reports and assets, and configure ART through <strong>Application Settings</strong>.</p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Getting started actions">
+                    <button id="welcome-new-report" type="button">Start a New Report</button>
+                    <button id="welcome-open-project" type="button">Open an Existing Project</button>
+                    <button id="welcome-explore-builder" type="button">Explore Report Builder</button>
+                    <button id="welcome-open-help" type="button">Open Help Documentation</button>
+                </div>
                 <p>Select <strong>Configure Dashboard</strong> to choose a layout, show or hide widgets, reorder cards, manage dashboard tabs, and build custom widgets.</p>
                 <p>Use <strong>Continue Working</strong> to restore the most recent Project Workspace context when available.</p>
                 <p>When a workspace is open, use <strong>Close Workspace</strong> in Resource Navigator or press <strong>${closeWorkspaceShortcut}</strong> to close it.</p>
@@ -112,4 +132,5 @@ export function renderWelcome() {
     `;
 
     bindWelcomeShortcutSync();
+    bindWelcomeOnboardingActions();
 }

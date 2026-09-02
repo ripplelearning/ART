@@ -53,6 +53,9 @@ If validation fails:
 
 ### Keyboard Focus
 When a checkbox, dropdown, button, or other control changes data, ART keeps keyboard focus on that control while the surrounding view refreshes. If a completed task leaves the active list, focus moves to the next available task control or the task-management action. Focus is moved to a heading or dialog control only when the workflow explicitly opens or navigates to that destination.
+
+## Getting Started
+On the Welcome screen, choose **Start a New Report**, **Open an Existing Project**, **Explore Report Builder**, or **Open Help Documentation**. This first-run path is optional, and local report work does not require an account. After choosing a path, use the Dashboard and panel tabs to continue working.
 Plugin and package administration in ART is keyboard-accessible and announced through status regions.
 
 ## Collaboration Setup and Usage

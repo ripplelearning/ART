@@ -97,6 +97,7 @@ function getHelpSections(rows) {
             content: `
                 <p>ART (the Accessibility Reporting Tool) Version 1.5 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
                 <p>Use Dashboard actions to create or open a Project Workspace, then use the panel tabs for Builder, Editor, Viewer, and Help tasks.</p>
+                <p>The Welcome screen provides a first-run path: start a new report, open an existing project, explore Report Builder, or open Help Documentation. These actions are optional and do not require an account.</p>
             `
         },
         {

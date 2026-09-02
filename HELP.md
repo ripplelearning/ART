@@ -1,5 +1,13 @@
 # ART Help: Plugin and Package Framework
 
+Applies to ART Version 1.5.
+
+## Release Notes
+Version 1.5 includes the current reporting, task, collaboration, organization, metrics, accessibility, and onboarding workflows described in this Help document. Review the repository CHANGELOG.md for the detailed release history.
+
+## Troubleshooting
+For startup or partial-load problems, reload ART and check the visible status message before retrying. For focus problems, confirm that the control remains in the current view after the update; ART should preserve focus unless the workflow intentionally opens a dialog or navigates to a new destination.
+
 ## What Are Plugins?
 Plugins are executable ART extensions that register capabilities through approved extension points. Plugins do not modify core source files at runtime and do not bypass ART frameworks.
 
@@ -340,6 +348,9 @@ Use the checkbox to stop collecting analytics and Clear Search Analytics to remo
 
 ## Keyboard Focus
 ART preserves focus when a checkbox, select, button, or other control updates data and causes a view to refresh. Dashboard To-Do updates restore focus to the same task control when it remains available, or to the next task control when a completed task leaves the active list. Tasks and Working Views use the same rule for rerendered controls. Focus moves to a heading or dialog control only for an intentional navigation or dialog-opening workflow.
+
+## Getting Started
+The Welcome screen is the optional first-run starting point for ART. Choose **Start a New Report**, **Open an Existing Project**, **Explore Report Builder**, or **Open Help Documentation**. Fundamental local report work and Help are available without an account. Use the Dashboard and panel tabs to continue into reports, Tasks, Settings, projects, and collaboration.
 
 ## Organization Statistics
 Organization Statistics are optional and aggregate accessibility data across multiple reports belonging to the same organization. Enable them in Application Settings. When enabled, ART adds an Organization menu and an optional Dashboard section; when disabled, both are removed and ART behaves as before.
