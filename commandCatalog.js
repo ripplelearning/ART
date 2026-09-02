@@ -43,6 +43,7 @@ import { openCommandPalette } from './commandPalette.js';
 import { focusMenuBarFromCommand, focusMenuSearchFromCommand, openTopLevelMenuFromCommand } from './menuBar.js';
 import { getTopLevelMenuShortcutDescriptor, mergeTopLevelMenuLabels } from './menuShortcuts.js';
 import { openHelpDialog } from './help.js';
+import { openOnboardingWizard } from './onboardingWizard.js';
 import {
     applySoloCollaborationPresetFromCommand,
     applyTeamCollaborationPresetFromCommand,
@@ -1526,6 +1527,14 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'Help',
         description: 'Open the integrated Help documentation.',
         handler: (context) => openHelpDialog(context?.triggerElement || context?.activeElement || null)
+    },
+    {
+        action: 'openOnboardingWizard',
+        id: 'Help.OpenOnboardingWizard',
+        category: 'Help',
+        description: 'Open the optional ART Setup Wizard.',
+        menuLocation: 'Help',
+        handler: (context) => openOnboardingWizard(context?.triggerElement || context?.activeElement || null)
     },
     {
         action: 'openCommandPalette',

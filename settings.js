@@ -2998,6 +2998,26 @@ export function openSettingsCollaborationSectionFromCommand() {
     return focusSettingsSectionByHeadingId('settings-collaboration-heading');
 }
 
+export function openSettingsAccountSectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-account-heading');
+}
+
+export function openSettingsAccessibilitySectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-visual-heading');
+}
+
+export function openSettingsExternalIntegrationsSectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-external-integrations-heading');
+}
+
+export function openSettingsOrganizationSectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-organization-heading');
+}
+
+export function openSettingsStorageSectionFromCommand() {
+    return focusSettingsSectionByHeadingId('settings-storage-heading');
+}
+
 export function applySoloCollaborationPresetFromCommand() {
     return applyCollaborationPresetFromSettings('solo');
 }

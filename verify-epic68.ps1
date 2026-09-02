@@ -12,7 +12,8 @@ $helpDoc = Read-Text 'HELP.md'
 $userGuide = Read-Text 'USER-GUIDE.md'
 $checks = @()
 $checks += [pscustomobject]@{ Name = 'Actionable first-run onboarding'; Script = {
-    Assert-All 'welcome.js' $welcome @('welcome-new-report', 'welcome-open-project', 'welcome-explore-builder', 'welcome-open-help', 'bindWelcomeOnboardingActions') 'Welcome onboarding actions are incomplete.'
+    Assert-All 'welcome.js' $welcome @('New Report', 'Open ART Project', 'Builder', 'Help', 'welcome-open-setup-wizard', 'bindWelcomeOnboardingActions') 'Welcome onboarding guidance is incomplete.'
+    if ($welcome -match 'id="welcome-new-report"|id="welcome-open-project"|id="welcome-explore-builder"|id="welcome-open-help"') { throw 'FAIL: [welcome.js] Welcome duplicates primary ART controls.' }
 } }
 $checks += [pscustomobject]@{ Name = 'Central in-app Help coverage'; Script = {
     Assert-All 'help.js' $help @('help-getting-started', 'help-organization-statistics', 'Keyboard Shortcuts', 'Accessibility') 'In-app Help coverage is incomplete.'

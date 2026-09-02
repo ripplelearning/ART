@@ -352,6 +352,8 @@ ART preserves focus when a checkbox, select, button, or other control updates da
 ## Getting Started
 The Welcome screen is the optional first-run starting point for ART. Choose **Start a New Report**, **Open an Existing Project**, **Explore Report Builder**, or **Open Help Documentation**. Fundamental local report work and Help are available without an account. Use the Dashboard and panel tabs to continue into reports, Tasks, Settings, projects, and collaboration.
 
+The Welcome screen also provides **Open Optional ART Setup Wizard**. The same wizard is available from the **Help** menu. It guides first-time setup by linking to the existing Account and Identity, Storage Providers, External Integrations, Accessibility and Appearance, Organization and Metrics, and Collaboration Settings sections. The wizard does not duplicate those controls and is dismissible.
+
 ## Organization Statistics
 Organization Statistics are optional and aggregate accessibility data across multiple reports belonging to the same organization. Enable them in Application Settings. When enabled, ART adds an Organization menu and an optional Dashboard section; when disabled, both are removed and ART behaves as before.
 

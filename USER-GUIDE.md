@@ -56,6 +56,8 @@ When a checkbox, dropdown, button, or other control changes data, ART keeps keyb
 
 ## Getting Started
 On the Welcome screen, choose **Start a New Report**, **Open an Existing Project**, **Explore Report Builder**, or **Open Help Documentation**. This first-run path is optional, and local report work does not require an account. After choosing a path, use the Dashboard and panel tabs to continue working.
+
+Select **Open Optional ART Setup Wizard** on the Welcome screen, or choose the same command from the **Help** menu, for guided first-time setup. Each step opens the existing Settings section for Account and Identity, Storage Providers, External Integrations, Accessibility and Appearance, Organization and Metrics, or Collaboration. The wizard is optional, keyboard accessible, and can be closed without changing settings.
 Plugin and package administration in ART is keyboard-accessible and announced through status regions.
 
 ## Collaboration Setup and Usage

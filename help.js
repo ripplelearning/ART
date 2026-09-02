@@ -1,5 +1,6 @@
 import { announce, getAssignableActions, getShortcutDefinitions, getShortcutForAction } from './state.js';
 import { resolveFocusTarget, restoreFocus } from './focusManagement.js';
+import { openOnboardingWizard } from './onboardingWizard.js';
 
 const reservedShortcutSet = new Set([
     'Ctrl+L',
@@ -97,7 +98,9 @@ function getHelpSections(rows) {
             content: `
                 <p>ART (the Accessibility Reporting Tool) Version 1.5 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
                 <p>Use Dashboard actions to create or open a Project Workspace, then use the panel tabs for Builder, Editor, Viewer, and Help tasks.</p>
-                <p>The Welcome screen provides a first-run path: start a new report, open an existing project, explore Report Builder, or open Help Documentation. These actions are optional and do not require an account.</p>
+                <p>On the Welcome screen, use the existing Dashboard controls for New Report, Open ART Project..., Builder, and Help. These actions are optional and do not require an account.</p>
+                <p><button id="help-open-setup-wizard" type="button">Open Optional ART Setup Wizard</button></p>
+                <p>The setup wizard is also available from the <strong>Help</strong> menu. It provides guided links to existing Settings sections for identity, storage providers, integrations, accessibility and appearance, organization metrics, and collaboration. It does not duplicate those controls and can be closed at any time.</p>
             `
         },
         {
@@ -847,6 +850,12 @@ function bindHelpSearch() {
     });
 }
 
+function bindHelpOnboardingWizard() {
+    document.getElementById('help-open-setup-wizard')?.addEventListener('click', (event) => {
+        openOnboardingWizard(event.currentTarget);
+    });
+}
+
 function bindTocAnchors() {
     const toc = document.getElementById('help-toc');
     if (!toc) return;
@@ -886,6 +895,7 @@ function renderHelpDocumentation() {
 
     bindHelpSearch();
     bindTocAnchors();
+    bindHelpOnboardingWizard();
 }
 
 function closeHelpDialog(shouldRestoreFocus = true) {
