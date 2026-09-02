@@ -439,6 +439,11 @@ In Application Settings under Account and Identity, ART shows this installation'
 
 Under Organizations and Roles, record the organizations you belong to and select your role in each: Owner, Admin, Editor, Contributor, or Viewer. Each role maps to a fixed set of permissions (for example, Owner and Admin can manage members and roles; Contributor and Viewer cannot). ART's local Authorization Policy Service checks these roles before allowing organization-scoped actions, such as clearing Organization Statistics snapshots for an organization you have recorded a role for. This is a local-first foundation; it does not yet enforce permissions on a server, and full authenticated authorization requires Epic 49's authentication service.
 
+## Storage Providers
+Application Settings includes a **Storage Providers** section listing every storage location ART's provider-independent storage architecture can work with. **Local Computer** and **Network or Shared Folder** are available today; both use the same operating-system file dialogs ART already relies on to open and save `.art` files, so ART never needs to know whether a folder is a plain local folder, a network drive, or a synchronized cloud-drive folder. **Google Drive**, **Microsoft OneDrive**, **Dropbox**, and **ART Server** are listed as planned providers; selecting Connect explains that the integration is not yet available and that ART remains fully usable with local files in the meantime.
+
+Choose a **Default storage provider** to record your preference for future storage workflows. No storage provider is ever required for ART's core reporting, task, or Progress Log functionality.
+
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
 

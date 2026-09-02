@@ -523,6 +523,19 @@ Under **Organizations and Roles**, record the organizations you belong to and se
 
 ART's local **Authorization Policy Service** checks your recorded role before allowing organization-scoped actions — for example, clearing Organization Statistics snapshots requires a role with the manageOrganization permission (Owner or Admin) for that organization, if you have recorded a role for it. This is a client-side, local-first foundation for the authorization model described in Epic 51; it does not yet enforce permissions on a server, and full authenticated multi-user authorization requires Epic 49's authentication service.
 
+## Storage Providers
+ART uses a provider-independent storage architecture so its core reporting, task, and collaboration functionality never depends on a specific storage service.
+
+### Available Providers
+- **Local Computer** — the reference storage provider; open and save `.art` files using standard file dialogs.
+- **Network or Shared Folder** — any folder the operating system already exposes for file access, including network drives, shared folders, and synchronized cloud-drive folders. ART uses the same local file access as Local Computer and does not need to know how the folder is synchronized.
+
+### Planned Providers
+**Google Drive**, **Microsoft OneDrive**, **Dropbox**, and **ART Server** appear in Application Settings under **Storage Providers** as planned integrations (Epics 53, 54, 55, and a future authenticated server). Selecting **Connect** on any of these explains that the integration is not yet available; ART remains fully usable with local files in the meantime.
+
+### Choosing a Default Provider
+Select a **Default storage provider** in Application Settings to record your preference. No storage provider is ever required for ART's core reporting, Tasks, or Progress Log functionality, and existing local `.art` files continue to open normally.
+
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
 

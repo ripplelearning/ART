@@ -86,6 +86,12 @@ import {
     updateOrganizationMembershipRole
 } from './authorizationFramework.js';
 import {
+    connectStorageProvider,
+    getStorageConfig,
+    getStorageProviders,
+    updateStorageConfig
+} from './storageProviderFramework.js';
+import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
     createCollaborationDiscoverySnapshot,
@@ -511,6 +517,41 @@ function bindOrganizationRolesSettings() {
         writeStatus(`Added membership in ${membership.organizationName}.`);
         announce(`Added ${membership.role} membership in ${membership.organizationName}.`);
         renderOrganizationRolesSettings();
+    });
+}
+
+function renderStorageProviderSettings() {
+    const providers = getStorageProviders();
+    const config = getStorageConfig();
+
+    const select = document.getElementById('settings-storage-default-provider');
+    if (select) {
+        select.innerHTML = providers.map((provider) => `<option value="${escapeHtml(provider.id)}" ${config.defaultProviderId === provider.id ? 'selected' : ''}>${escapeHtml(provider.name)}</option>`).join('');
+    }
+
+    const list = document.getElementById('settings-storage-provider-list');
+    if (list) {
+        list.innerHTML = providers.map((provider) => {
+            const statusLabel = provider.status === 'available' ? 'Available' : provider.status === 'coming-soon' ? 'Not yet available' : 'Not connected';
+            const action = provider.status === 'coming-soon'
+                ? `<button type="button" data-storage-connect="${escapeHtml(provider.id)}">Connect</button>`
+                : '';
+            return `<li><strong>${escapeHtml(provider.name)}:</strong> ${escapeHtml(statusLabel)}. ${escapeHtml(provider.description)} ${action}</li>`;
+        }).join('');
+        list.querySelectorAll('[data-storage-connect]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const result = connectStorageProvider(button.getAttribute('data-storage-connect'));
+                writeStatus(result.message);
+                announce(result.message);
+            });
+        });
+    }
+}
+
+function bindStorageProviderSettings() {
+    document.getElementById('settings-storage-default-provider')?.addEventListener('change', (event) => {
+        updateStorageConfig({ defaultProviderId: event.target.value });
+        announce(`Default storage provider set to ${getStorageProviders().find((provider) => provider.id === event.target.value)?.name || event.target.value}.`);
     });
 }
 
@@ -2118,6 +2159,7 @@ function refreshSettingsView() {
         renderAccountIdentitySettings();
         renderIdentityCodeSettings();
         renderOrganizationRolesSettings();
+        renderStorageProviderSettings();
         renderOrganizationSettings();
         renderOrganizationFoldersSettings();
         renderWorkspaceViewSettings();
@@ -3619,6 +3661,7 @@ export function initSettings() {
     bindAccountIdentitySettings();
     bindIdentityCodeSettings();
     bindOrganizationRolesSettings();
+    bindStorageProviderSettings();
     bindOrganizationSettings();
     bindOrganizationFoldersSettings();
     bindVisualAccessibilitySettings();
