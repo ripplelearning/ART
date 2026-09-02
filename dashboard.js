@@ -99,6 +99,11 @@ import {
     updateArtFile as updateDropboxArtFile
 } from './dropboxStorageProvider.js';
 import { isStorageProviderConnected } from './storageProviderFramework.js';
+import {
+    getActiveStorageSummary,
+    refreshActiveStorage,
+    synchronizeActiveStorage
+} from './storageSynchronizationFramework.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -128,6 +133,7 @@ let runDashboardImportReportPickerWorkflow = null;
 let runDashboardImportTemplatePickerWorkflow = null;
 let runDashboardConfigureWorkflow = null;
 let dashboardWidgetsRegistered = false;
+let storageSyncPanelEventBound = false;
 
 export async function openDashboardProjectFromCommand() {
     if (typeof runDashboardOpenProjectWorkflow !== 'function') return false;
@@ -172,6 +178,39 @@ export async function openDashboardProjectFromDropboxFromCommand() {
 export async function saveDashboardProjectToDropboxFromCommand() {
     if (typeof runDashboardSaveDropboxWorkflow !== 'function') return false;
     return runDashboardSaveDropboxWorkflow();
+}
+
+function renderStorageSynchronizationPanel() {
+    const statusElement = document.getElementById('storage-sync-status');
+    const refreshButton = document.getElementById('btn-storage-refresh');
+    const synchronizeButton = document.getElementById('btn-storage-synchronize');
+    if (!statusElement || !refreshButton || !synchronizeButton) return;
+
+    const summary = getActiveStorageSummary();
+    statusElement.textContent = `${summary.providerName}: ${summary.syncStatusLabel}. ${summary.syncMessage}`;
+    refreshButton.disabled = false;
+    synchronizeButton.disabled = !summary.connected || !summary.fileId || summary.providerId === 'local' || summary.providerId === 'network-folder';
+
+    if (refreshButton.dataset.bound !== 'true') {
+        refreshButton.dataset.bound = 'true';
+        refreshButton.addEventListener('click', async () => {
+            refreshButton.disabled = true;
+            const result = await refreshActiveStorage();
+            statusElement.textContent = result.message || getActiveStorageSummary().syncMessage;
+            renderStorageSynchronizationPanel();
+            announce(result.message || 'Storage refresh completed.');
+        });
+    }
+    if (synchronizeButton.dataset.bound !== 'true') {
+        synchronizeButton.dataset.bound = 'true';
+        synchronizeButton.addEventListener('click', async () => {
+            synchronizeButton.disabled = true;
+            const result = await synchronizeActiveStorage();
+            statusElement.textContent = result.message || getActiveStorageSummary().syncMessage;
+            renderStorageSynchronizationPanel();
+            announce(result.message || 'Storage synchronization completed.');
+        });
+    }
 }
 
 export function startDashboardImportReportFromCommand() {
@@ -1253,6 +1292,7 @@ function registerDashboardWidgetsIfNeeded() {
  * This is called by loader.js once the DOM is ready.
  */
 export function renderDashboard() {
+    renderStorageSynchronizationPanel();
     const btnNew = document.getElementById('btn-new-report');
     const btnOpenReport = document.getElementById('btn-open-report');
     const btnSaveProject = document.getElementById('btn-save-project');
@@ -2139,6 +2179,10 @@ export function renderDashboard() {
     };
     refreshStorageProviderButtonVisibility();
     window.addEventListener('art-storage-providers-updated', refreshStorageProviderButtonVisibility);
+    if (!storageSyncPanelEventBound) {
+        window.addEventListener('art-storage-sync-updated', renderStorageSynchronizationPanel);
+        storageSyncPanelEventBound = true;
+    }
 
     openProjectInput.addEventListener('change', async () => {
         const selectedFile = openProjectInput.files && openProjectInput.files[0];

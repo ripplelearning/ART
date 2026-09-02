@@ -577,6 +577,11 @@ ART requests only file-content read/write scopes and Dropbox confines access to 
 ### Choosing a Default Provider
 Select a **Default storage provider** in Application Settings to record your preference. No storage provider is ever required for ART's core reporting, Tasks, or Progress Log functionality, and existing local `.art` files continue to open normally.
 
+## Storage and Synchronization
+The Dashboard's **Storage and Synchronization** section identifies the active provider and file, and reports whether the file is up to date, has local changes pending, is offline, or needs provider-specific synchronization. **Refresh Storage** checks the current state without replacing local work. **Synchronize Storage** is available for connected remote files after local changes are saved; it reports clearly when a provider's revision workflow is not yet available.
+
+If the network goes offline, ART keeps local editing, tasks, Progress Logs, and local saves available and marks the status **Offline**. After reconnection, refresh before assuming the remote file is current. ART does not silently overwrite newer remote content. Automatic remote revision comparison, compatible-change merging, and provider-specific conflict resolution are deferred until those provider adapters expose the required revision metadata and merge inputs.
+
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
 

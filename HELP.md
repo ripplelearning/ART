@@ -463,6 +463,11 @@ Dropbox is an optional cloud storage provider. Connecting requires a Dropbox App
 
 After connection, **Open from Dropbox...** and **Save to Dropbox** appear on the Dashboard, in the File menu, Command Palette, and Keyboard Shortcut Manager. Open lists `.art` files in the Dropbox app folder; Save creates a file the first time and updates that file afterward. Dropbox controls are hidden again after disconnecting. Folder browsing beyond the app folder and merge-conflict integration remain deferred.
 
+## Storage and Synchronization
+The Dashboard's **Storage and Synchronization** section shows the active storage provider, active file, connection state, and synchronization state. Select **Refresh Storage** to check the current local/provider state without replacing local work. Select **Synchronize Storage** when a connected remote `.art` file is active and local changes have already been saved. If synchronization is unavailable, ART reports that clearly and preserves local work rather than overwriting it.
+
+When the browser reports that the network is unavailable, ART marks the storage state **Offline** while local reports, tasks, and other local work remain available. When connectivity returns, ART reports that a refresh or synchronization is needed. Remote revision comparison, automatic compatible merges, and provider-specific conflict handling remain deferred until each provider exposes the required revision and remote-content workflow.
+
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
 

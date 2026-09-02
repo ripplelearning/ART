@@ -43,6 +43,14 @@
             <button id="btn-app-settings" type="button">Application Settings</button>
             <button id="btn-help" type="button">Help</button>
         </div>
+        <section id="storage-sync-status-panel" aria-labelledby="storage-sync-status-heading">
+            <h3 id="storage-sync-status-heading">Storage and Synchronization</h3>
+            <p id="storage-sync-status" role="status" aria-live="polite" aria-atomic="true">Storage status is loading.</p>
+            <div class="viewer-dialog-actions" role="group" aria-label="Storage synchronization actions">
+                <button id="btn-storage-refresh" type="button">Refresh Storage</button>
+                <button id="btn-storage-synchronize" type="button">Synchronize Storage</button>
+            </div>
+        </section>
 
         <section id="collaboration-toolbar" class="collaboration-toolbar" aria-labelledby="collaboration-toolbar-heading" hidden>
             <div class="collaboration-toolbar__summary">
