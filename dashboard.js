@@ -138,6 +138,7 @@ let runDashboardImportTemplatePickerWorkflow = null;
 let runDashboardConfigureWorkflow = null;
 let dashboardWidgetsRegistered = false;
 let storageSyncPanelEventBound = false;
+let desktopCommandEventBound = false;
 
 export async function openDashboardProjectFromCommand() {
     if (typeof runDashboardOpenProjectWorkflow !== 'function') return false;
@@ -1309,6 +1310,12 @@ export function renderDashboard() {
     const btnSaveProjectDropbox = document.getElementById('btn-save-project-dropbox');
     const btnImportData = document.getElementById('btn-import-data');
     const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
+    if (globalThis.artDesktop?.isDesktop && !desktopCommandEventBound) {
+        globalThis.artDesktop.onCommand((action) => {
+            void executeDashboardAction(action);
+        });
+        desktopCommandEventBound = true;
+    }
     const collaborationToolbar = document.getElementById('collaboration-toolbar');
     const collaborationToolbarStatus = document.getElementById('collaboration-toolbar-status');
     const collaborationToolbarDetails = document.getElementById('collaboration-toolbar-details');

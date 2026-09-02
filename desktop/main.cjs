@@ -1,10 +1,61 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
 const isDevelopment = !app.isPackaged;
 let mainWindow = null;
 let pendingArtifactPath = null;
+let windowState = { width: 1440, height: 1000 };
+
+function getWindowStatePath() {
+    return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function loadWindowState() {
+    try {
+        const stored = JSON.parse(fs.readFileSync(getWindowStatePath(), 'utf8'));
+        if (Number.isFinite(stored.width) && Number.isFinite(stored.height)) windowState = { width: stored.width, height: stored.height };
+    } catch {
+        // First launch uses the default geometry.
+    }
+}
+
+function saveWindowState() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const bounds = mainWindow.getBounds();
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(getWindowStatePath(), JSON.stringify({ width: bounds.width, height: bounds.height }, null, 2));
+}
+
+function buildApplicationMenu() {
+    const template = [
+        {
+            label: 'File',
+            submenu: [
+                { label: 'Open ART Project...', click: () => mainWindow?.webContents.send('art-desktop-command', 'openProject') },
+                { label: 'Save Project', click: () => mainWindow?.webContents.send('art-desktop-command', 'saveProject') },
+                { label: 'Save Project As...', click: () => mainWindow?.webContents.send('art-desktop-command', 'saveProjectAs') },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' },
+                { role: 'togglefullscreen' },
+                ...(isDevelopment ? [{ role: 'toggleDevTools' }] : [])
+            ]
+        },
+        {
+            label: 'Help',
+            submenu: [
+                { label: 'Open ART Help', click: () => mainWindow?.webContents.send('art-desktop-command', 'openHelp') }
+            ]
+        }
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
 
 function getArtifactPath(argv = []) {
     return argv.find((argument) => path.extname(argument).toLowerCase() === '.art') || null;
@@ -16,8 +67,8 @@ function getRendererUrl() {
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1440,
-        height: 1000,
+        width: windowState.width,
+        height: windowState.height,
         minWidth: 960,
         minHeight: 700,
         show: false,
@@ -43,7 +94,12 @@ function createWindow() {
     mainWindow.loadURL(getRendererUrl());
 
     if (isDevelopment) mainWindow.webContents.openDevTools({ mode: 'detach' });
-    mainWindow.on('closed', () => { mainWindow = null; });
+    mainWindow.on('resize', saveWindowState);
+    mainWindow.on('move', saveWindowState);
+    mainWindow.on('close', saveWindowState);
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
 }
 
 function deliverArtifactPath(filePath) {
@@ -76,6 +132,8 @@ if (!gotLock) {
     });
 
     app.whenReady().then(() => {
+        loadWindowState();
+        buildApplicationMenu();
         ipcMain.handle('art-get-open-file-path', () => pendingArtifactPath);
         ipcMain.handle('art-read-art-file', (_event, filePath) => {
             if (!filePath || path.extname(filePath).toLowerCase() !== '.art') throw new Error('Only .art files can be opened by ART.');

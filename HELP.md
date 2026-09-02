@@ -482,6 +482,11 @@ The Windows packaging configuration creates `ART-Setup.exe`, Start Menu/Desktop 
 
 Building the installer requires the Node/Electron development dependencies. Production code signing, GitHub Actions release automation, website download hosting, automatic updates, macOS/Linux packaging, and full desktop accessibility/performance testing are not configured in this release.
 
+### Desktop Parity and Native Behavior
+The Electron desktop application uses the same ART renderer, command registry, state model, validation, and accessibility implementation as the web application. Its native File, View, and Help menus route commands into that shared application layer rather than duplicating report workflows. The desktop shell also persists its window size in the operating system's application-data directory and delivers `.art` file-association launches through the shared project-open pipeline.
+
+Native OS menu accessibility, installer behavior, screen-reader parity, multi-monitor placement, native printing/notifications, update behavior, and macOS/Linux behavior require validation on the target operating systems. The current source provides the shared shell and Windows packaging foundation but does not claim those manual validations are complete.
+
 ## Privacy and User Data
 ART is local-first and does not require an account, sign-in, email address, external storage provider, or ART server for fundamental reporting work. Application Settings includes **Privacy and User Data**, which lists the categories stored in this browser: ART state, local profile/device identity, provider and integration preferences, and session-only credentials.
 

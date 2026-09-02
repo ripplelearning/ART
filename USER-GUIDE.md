@@ -596,6 +596,10 @@ The Windows package is configured as `ART-Setup.exe`. It creates standard Start 
 
 The source includes the desktop startup and packaging configuration, but production signing, release automation, website distribution, automatic updates, macOS/Linux packages, and full desktop assistive-technology testing remain deferred. Building locally requires the Node/Electron dependencies described in `package.json`.
 
+The desktop shell uses the same ART renderer, state model, validation, command registry, and accessibility implementation as the web app. Its native File, View, and Help menus send commands into that shared layer. Window size is persisted in the desktop application-data directory, and opening an `.art` file from Windows uses the same project validation/import workflow as the browser.
+
+Native menu accessibility, installer behavior, screen-reader parity, multi-monitor placement, native printing/notifications, update behavior, and macOS/Linux behavior still require manual validation on their target platforms.
+
 ## Privacy and User Data
 ART's fundamental local workflows do not require an account, sign-in, email address, cloud provider, or ART server. In Application Settings, **Privacy and User Data** lists the local data categories used by ART and the browser storage locations where they reside.
 

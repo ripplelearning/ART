@@ -438,6 +438,8 @@ function getHelpSections(rows) {
                 <p>ART's Electron desktop shell loads the same web application and shared core modules as the browser version. Reports, Tasks, Progress Logs, storage, integrations, accessibility settings, and keyboard shortcuts remain shared functionality.</p>
                 <p>The Windows package is configured as ART-Setup.exe with Start Menu/Desktop shortcuts and an .art file association. Opening an .art file from Windows launches ART and sends it through the same validation and import workflow used by the browser.</p>
                 <p>Production signing, release automation, website distribution, automatic updates, macOS/Linux packages, and full desktop assistive-technology testing remain deferred. Building locally requires the Node/Electron dependencies in package.json.</p>
+                <p>The native File, View, and Help menus route into the same ART command registry used by the web application. Window size is persisted in desktop application data, and Windows .art file launches use the shared project validation/import workflow.</p>
+                <p>Native menu accessibility, installer behavior, screen-reader parity, multi-monitor placement, native printing/notifications, update behavior, and macOS/Linux behavior require manual testing on their target platforms.</p>
             `
         },
         {
