@@ -468,6 +468,13 @@ The Dashboard's **Storage and Synchronization** section shows the active storage
 
 When the browser reports that the network is unavailable, ART marks the storage state **Offline** while local reports, tasks, and other local work remain available. When connectivity returns, ART reports that a refresh or synchronization is needed. Remote revision comparison, automatic compatible merges, and provider-specific conflict handling remain deferred until each provider exposes the required revision and remote-content workflow.
 
+## External Integrations
+Application Settings includes an **External Integrations** section separate from Storage Providers, ART Account settings, and authentication. Jira, GitHub Issues, Microsoft Azure DevOps, and Google Workspace are optional integration entries. ART remains fully usable without connecting any of them.
+
+Each integration records its connection state, account label, synchronization state, and the ART data-sharing scope selected by the user. The available scope choices in this release are Current report, Selected findings, and Selected tasks. Connect, Disconnect, and Test Connection actions are available for each entry; integrations without a configured provider adapter report **Configuration incomplete** rather than pretending to connect.
+
+The current release provides the common integration-management architecture only. Live OAuth/API adapters, importing external issues, creating Jira/GitHub/Azure work items, field mappings, external links, and bidirectional synchronization require provider credentials, service configuration, and additional provider-specific implementation.
+
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
 

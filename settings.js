@@ -130,6 +130,16 @@ import {
     startLiveCollaborationSession,
     upsertCollaborationSession
 } from './collaborationFramework.js';
+import {
+    connectExternalIntegration,
+    disconnectExternalIntegration,
+    getExternalIntegrationConfig,
+    getExternalIntegrations,
+    getExternalIntegrationState,
+    getIntegrationStatusLabel,
+    setExternalIntegrationShareScopes,
+    testExternalIntegration
+} from './externalIntegrationFramework.js';
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import {
@@ -683,6 +693,65 @@ function bindStorageProviderSettings() {
         announce(result.message);
         renderStorageProviderSettings();
     });
+}
+
+function renderExternalIntegrationSettings() {
+    const list = document.getElementById('settings-external-integrations-list');
+    if (!list) return;
+    list.innerHTML = getExternalIntegrations().map((integration) => {
+        const state = getExternalIntegrationState(integration.id);
+        const scopes = state.shareScopes || [];
+        return `<li data-external-integration="${escapeHtml(integration.id)}">
+            <strong>${escapeHtml(integration.name)}:</strong> ${escapeHtml(getIntegrationStatusLabel(integration.id))}.
+            ${escapeHtml(integration.description)}
+            <div class="viewer-dialog-actions" role="group" aria-label="${escapeHtml(integration.name)} actions">
+                <button type="button" data-integration-connect>Connect</button>
+                <button type="button" data-integration-disconnect>Disconnect</button>
+                <button type="button" data-integration-test>Test Connection</button>
+            </div>
+            <fieldset>
+                <legend>ART data shared with ${escapeHtml(integration.name)}</legend>
+                <label><input type="checkbox" data-integration-scope value="current-report" ${scopes.includes('current-report') ? 'checked' : ''}> Current report</label>
+                <label><input type="checkbox" data-integration-scope value="selected-findings" ${scopes.includes('selected-findings') ? 'checked' : ''}> Selected findings</label>
+                <label><input type="checkbox" data-integration-scope value="selected-tasks" ${scopes.includes('selected-tasks') ? 'checked' : ''}> Selected tasks</label>
+            </fieldset>
+        </li>`;
+    }).join('');
+
+    list.querySelectorAll('[data-external-integration]').forEach((item) => {
+        const integrationId = item.getAttribute('data-external-integration');
+        item.querySelector('[data-integration-connect]')?.addEventListener('click', () => {
+            connectExternalIntegration(integrationId).then((result) => {
+                writeStatus(result.message || 'Integration connection completed.');
+                announce(result.message || 'Integration connection completed.');
+                renderExternalIntegrationSettings();
+            });
+        });
+        item.querySelector('[data-integration-disconnect]')?.addEventListener('click', () => {
+            disconnectExternalIntegration(integrationId).then((result) => {
+                writeStatus(result.message || 'Integration disconnected.');
+                announce(result.message || 'Integration disconnected.');
+                renderExternalIntegrationSettings();
+            });
+        });
+        item.querySelector('[data-integration-test]')?.addEventListener('click', () => {
+            testExternalIntegration(integrationId).then((result) => {
+                writeStatus(result.message || 'Integration test completed.');
+                announce(result.message || 'Integration test completed.');
+            });
+        });
+        item.querySelectorAll('[data-integration-scope]').forEach((control) => {
+            control.addEventListener('change', () => {
+                const scopes = [...item.querySelectorAll('[data-integration-scope]:checked')].map((entry) => entry.value);
+                setExternalIntegrationShareScopes(integrationId, scopes);
+                announce(`Sharing scope updated for ${integrationId}.`);
+            });
+        });
+    });
+}
+
+function bindExternalIntegrationSettings() {
+    window.addEventListener('art-external-integrations-updated', refreshSettingsViewIfDialogOpen);
 }
 
 const ORGANIZATION_SECTION_TOGGLES = [
@@ -2290,6 +2359,7 @@ function refreshSettingsView() {
         renderIdentityCodeSettings();
         renderOrganizationRolesSettings();
         renderStorageProviderSettings();
+        renderExternalIntegrationSettings();
         renderOrganizationSettings();
         renderOrganizationFoldersSettings();
         renderWorkspaceViewSettings();
@@ -3792,6 +3862,7 @@ export function initSettings() {
     bindIdentityCodeSettings();
     bindOrganizationRolesSettings();
     bindStorageProviderSettings();
+    bindExternalIntegrationSettings();
     bindOrganizationSettings();
     bindOrganizationFoldersSettings();
     bindVisualAccessibilitySettings();

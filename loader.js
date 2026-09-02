@@ -28,6 +28,7 @@ import { initializeIdentityFramework } from './identityFramework.js';
 import { initializeAuthorizationFramework } from './authorizationFramework.js';
 import { initializeStorageProviderFramework } from './storageProviderFramework.js';
 import { initializeStorageSynchronizationFramework } from './storageSynchronizationFramework.js';
+import { initializeExternalIntegrationFramework } from './externalIntegrationFramework.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -213,6 +214,7 @@ function initializeApp() {
     runStartupStage('initializeAuthorizationFramework', () => initializeAuthorizationFramework());
     runStartupStage('initializeStorageProviderFramework', () => initializeStorageProviderFramework());
     runStartupStage('initializeStorageSynchronizationFramework', () => initializeStorageSynchronizationFramework());
+    runStartupStage('initializeExternalIntegrationFramework', () => initializeExternalIntegrationFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());
     runStartupStage('initGlobalContextMenuFramework', () => initGlobalContextMenuFramework());

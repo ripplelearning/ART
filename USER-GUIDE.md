@@ -582,6 +582,13 @@ The Dashboard's **Storage and Synchronization** section identifies the active pr
 
 If the network goes offline, ART keeps local editing, tasks, Progress Logs, and local saves available and marks the status **Offline**. After reconnection, refresh before assuming the remote file is current. ART does not silently overwrite newer remote content. Automatic remote revision comparison, compatible-change merging, and provider-specific conflict resolution are deferred until those provider adapters expose the required revision metadata and merge inputs.
 
+## External Integrations
+Application Settings has a separate **External Integrations** section for optional Jira, GitHub Issues, Microsoft Azure DevOps, and Google Workspace connections. These integrations do not replace ART storage providers and are never required for reports, audits, Tasks, or collaboration.
+
+For each integration, use **Connect**, **Disconnect**, or **Test Connection** when a provider adapter is configured. Choose the ART data-sharing scope explicitly. This release offers Current report, Selected findings, and Selected tasks. Integration state and sharing choices are stored locally; external credentials are not stored in `.art` files.
+
+The common management layer is available now, but live provider adapters, OAuth setup, importing external issues, creating external work items, field mappings, external links, and synchronization require provider-specific credentials and implementation. Unconfigured integrations display **Configuration incomplete** and leave ART's local workflows unchanged.
+
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
 

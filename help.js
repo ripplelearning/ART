@@ -423,6 +423,15 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-external-integrations',
+            title: 'External Integrations',
+            content: `
+                <p>External Integrations are separate from Storage Providers and ART authentication. Jira, GitHub Issues, Microsoft Azure DevOps, and Google Workspace are optional and never required for ART's core reporting, auditing, task, or collaboration features.</p>
+                <p>Application Settings lists each integration with Connect, Disconnect, and Test Connection actions. You can explicitly choose which ART data may be shared: Current report, Selected findings, or Selected tasks. Unconfigured integrations report Configuration incomplete instead of pretending to connect.</p>
+                <p>The common management layer is available now. Live OAuth/API adapters, external issue creation/import, field mappings, external links, and bidirectional synchronization require provider-specific credentials and implementation.</p>
+            `
+        },
+        {
             id: 'help-merge-conflicts',
             title: 'Merge Conflict Resolution',
             content: `
