@@ -474,7 +474,7 @@ The current Shared Progress Log implementation stores local/file-based task reco
 ART remains fully usable without an account. Report creation, editing, importing, exporting, local Progress Logs, Shared Progress Logs, and local Organization Statistics do not require signing in.
 
 ### Local Profile and Device Identity
-Open **Application Settings > Account and Identity** to save a local Name, Display Name, Email Address, and Job Title. ART creates a stable local user identifier and device identifier independently of these editable profile values. This local profile supports future file-based attribution but is not an authenticated account and does not grant access to shared or server-based resources.
+Open **Application Settings > Account and Identity** to save a local Name, Display Name, Email Address, Job Title, and ART Role. ART Role is selected from Accessibility Tester, Developer, Designer, Reviewer, Auditor, Project Manager, Contributor, Stakeholder, Administrator, or Other. ART creates a stable local user identifier and device identifier independently of these editable profile values. This local profile supports future file-based attribution but is not an authenticated account and does not grant access to shared or server-based resources.
 
 ### Authentication State
 ART clearly distinguishes Not signed in, Authentication in progress, Signed in, Session expired, Signed out, and Authentication service unavailable. When signed out or when an authentication service is unavailable, local work remains available and unsaved local data is not removed.

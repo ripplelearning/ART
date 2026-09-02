@@ -311,7 +311,18 @@
                 <label for="settings-local-profile-job-title">Job Title</label>
                 <input id="settings-local-profile-job-title" type="text" autocomplete="organization-title">
                 <label for="settings-local-profile-art-role">ART Role</label>
-                <input id="settings-local-profile-art-role" type="text" placeholder="e.g., Tester, Developer, Reviewer">
+                <select id="settings-local-profile-art-role">
+                    <option value="Accessibility Tester">Accessibility Tester</option>
+                    <option value="Developer">Developer</option>
+                    <option value="Designer">Designer</option>
+                    <option value="Reviewer">Reviewer</option>
+                    <option value="Auditor">Auditor</option>
+                    <option value="Project Manager">Project Manager</option>
+                    <option value="Contributor">Contributor</option>
+                    <option value="Stakeholder">Stakeholder</option>
+                    <option value="Administrator">Administrator</option>
+                    <option value="Other">Other</option>
+                </select>
                 <p id="settings-device-identity" class="sr-only"></p>
                 <div class="viewer-dialog-actions" role="group" aria-label="Account and identity actions">
                     <button id="btn-settings-local-profile-save" type="button">Save Local Profile</button>

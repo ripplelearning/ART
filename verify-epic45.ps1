@@ -53,6 +53,12 @@ $checks += [pscustomobject]@{ Name = 'Startup and Settings integration'; Script 
     Assert-All 'index.html' $html @('settings-account-heading', 'settings-local-profile-name', 'btn-settings-auth-sign-out') 'Account Settings markup is missing.'
 }}
 
+$checks += [pscustomobject]@{ Name = 'Accessible ART Role selection'; Script = {
+    Assert-All 'identityFramework.js' $identity @('ART_ROLE_OPTIONS', 'Accessibility Tester', 'Project Manager', 'Administrator', 'Other') 'Canonical ART roles are incomplete.'
+    Assert-All 'index.html' $html @('id="settings-local-profile-art-role"', '<select id="settings-local-profile-art-role">') 'ART Role must use a native select control.'
+    Assert-All 'settings.js' $settings @('ART_ROLE_OPTIONS', 'roleSelect.innerHTML') 'ART Role dropdown is not populated from the canonical role list.'
+}}
+
 $checks += [pscustomobject]@{ Name = 'Documentation coverage'; Script = {
     Assert-All 'ARCHITECTURE.md' $architecture @('Identity and Session Framework', 'Authentication and authorization remain separate') 'Developer identity architecture documentation is missing.'
     Assert-All 'HELP.md' $help @('## Account and Identity', 'ART does not store passwords') 'Account Help documentation is missing.'

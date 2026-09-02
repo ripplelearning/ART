@@ -9,6 +9,19 @@ export const AUTHENTICATION_STATES = Object.freeze({
     UNAVAILABLE: 'unavailable'
 });
 
+export const ART_ROLE_OPTIONS = Object.freeze([
+    'Accessibility Tester',
+    'Developer',
+    'Designer',
+    'Reviewer',
+    'Auditor',
+    'Project Manager',
+    'Contributor',
+    'Stakeholder',
+    'Administrator',
+    'Other'
+]);
+
 const PROFILE_KEY = 'art-local-user-profile-v1';
 const DEVICE_KEY = 'art-device-identity-v1';
 const SESSION_KEY = 'art-authenticated-session-v1';
@@ -44,7 +57,7 @@ function normalizeProfile(input = {}) {
         displayName: normalizeText(source.displayName),
         email: normalizeText(source.email),
         jobTitle: normalizeText(source.jobTitle),
-        artRole: normalizeText(source.artRole),
+        artRole: ART_ROLE_OPTIONS.includes(normalizeText(source.artRole)) ? normalizeText(source.artRole) : 'Other',
         updatedAt: normalizeText(source.updatedAt) || new Date().toISOString()
     };
 }

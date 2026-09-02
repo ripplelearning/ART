@@ -66,6 +66,7 @@ import {
     validateAccessibilityStandardPayload
 } from './state.js';
 import {
+    ART_ROLE_OPTIONS,
     AUTHENTICATION_STATES,
     getAuthenticationSession,
     getDeviceIdentity,
@@ -445,6 +446,11 @@ function renderAccountIdentitySettings() {
         const element = document.getElementById(elementId);
         if (element && document.activeElement !== element) element.value = profile[key] || '';
     });
+    const roleSelect = document.getElementById('settings-local-profile-art-role');
+    if (roleSelect) {
+        roleSelect.innerHTML = ART_ROLE_OPTIONS.map((role) => `<option value="${escapeHtml(role)}">${escapeHtml(role)}</option>`).join('');
+        roleSelect.value = ART_ROLE_OPTIONS.includes(profile.artRole) ? profile.artRole : 'Other';
+    }
 
     const status = document.getElementById('settings-account-status');
     if (status) {
