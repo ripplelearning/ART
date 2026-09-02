@@ -12,6 +12,7 @@ import {
     setPendingHistoryAction as setCentralPendingHistoryAction
 } from './historyFramework.js';
 import { commandRegistry } from './commandRegistry.js';
+import { isStorageProviderConnected } from './storageProviderFramework.js';
 import {
     getRequiredTopLevelMenuLabels,
     getTopLevelMenuLabelFromAction,
@@ -210,6 +211,8 @@ const defaultState = {
         saveProjectAs: 'Ctrl+Shift+S',
         openProjectFromGoogleDrive: '',
         saveProjectToGoogleDrive: '',
+        openProjectFromOneDrive: '',
+        saveProjectToOneDrive: '',
         importData: 'Ctrl+Shift+I',
         newProjectWorkspace: 'Ctrl+Alt+N',
         openProjectWorkspace: 'Ctrl+Alt+O',
@@ -2021,6 +2024,8 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'saveProjectAs', label: 'Save ART Project As', defaultShortcut: defaultState.shortcuts.saveProjectAs },
     { action: 'openProjectFromGoogleDrive', label: 'Open Project from Google Drive', defaultShortcut: defaultState.shortcuts.openProjectFromGoogleDrive },
     { action: 'saveProjectToGoogleDrive', label: 'Save Project to Google Drive', defaultShortcut: defaultState.shortcuts.saveProjectToGoogleDrive },
+    { action: 'openProjectFromOneDrive', label: 'Open Project from OneDrive', defaultShortcut: defaultState.shortcuts.openProjectFromOneDrive },
+    { action: 'saveProjectToOneDrive', label: 'Save Project to OneDrive', defaultShortcut: defaultState.shortcuts.saveProjectToOneDrive },
     { action: 'importData', label: 'Import Data', defaultShortcut: defaultState.shortcuts.importData },
     { action: 'newProjectWorkspace', label: 'Create new Project Workspace', defaultShortcut: defaultState.shortcuts.newProjectWorkspace },
     { action: 'openProjectWorkspace', label: 'Open Project Workspace', defaultShortcut: defaultState.shortcuts.openProjectWorkspace },
@@ -2242,6 +2247,16 @@ function normalizeShortcuts(rawShortcuts) {
     return normalized;
 }
 
+// Optional cloud storage providers are opt-in: their commands only appear in the Keyboard Shortcut
+// Manager (and, via commandCatalog.js's `visible` predicates, in menus/Command Palette) once the
+// user has connected that provider in Application Settings.
+const STORAGE_PROVIDER_GATED_ACTIONS = {
+    openProjectFromGoogleDrive: 'google-drive',
+    saveProjectToGoogleDrive: 'google-drive',
+    openProjectFromOneDrive: 'onedrive',
+    saveProjectToOneDrive: 'onedrive'
+};
+
 export function getAssignableActions() {
     const assignableActions = [
         { action: 'spellCheck', label: 'Spell Check' },
@@ -2366,6 +2381,8 @@ export function getAssignableActions() {
         { action: 'saveProjectAs', label: 'Save ART Project As' },
         { action: 'openProjectFromGoogleDrive', label: 'Open Project from Google Drive' },
         { action: 'saveProjectToGoogleDrive', label: 'Save Project to Google Drive' },
+        { action: 'openProjectFromOneDrive', label: 'Open Project from OneDrive' },
+        { action: 'saveProjectToOneDrive', label: 'Save Project to OneDrive' },
         { action: 'importData', label: 'Import Data' },
         { action: 'newProjectWorkspace', label: 'Create new Project Workspace' },
         { action: 'openProjectWorkspace', label: 'Open Project Workspace' },
@@ -2485,7 +2502,10 @@ export function getAssignableActions() {
         knownActions.add(definition.action);
     });
 
-    return assignableActions;
+    return assignableActions.filter((entry) => {
+        const providerId = STORAGE_PROVIDER_GATED_ACTIONS[entry.action];
+        return !providerId || isStorageProviderConnected(providerId);
+    });
 }
 
 function normalizeImportedCriterion(criterion, defaultStandard) {

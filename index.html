@@ -32,8 +32,10 @@
             <button id="btn-open-report">Open ART Project...</button>
             <button id="btn-save-project">Save Project</button>
             <button id="btn-save-project-as">Save Project As...</button>
-            <button id="btn-open-project-google-drive" type="button">Open from Google Drive...</button>
-            <button id="btn-save-project-google-drive" type="button">Save to Google Drive</button>
+            <button id="btn-open-project-google-drive" type="button" hidden>Open from Google Drive...</button>
+            <button id="btn-save-project-google-drive" type="button" hidden>Save to Google Drive</button>
+            <button id="btn-open-project-onedrive" type="button" hidden>Open from OneDrive...</button>
+            <button id="btn-save-project-onedrive" type="button" hidden>Save to OneDrive</button>
             <button id="btn-import-data">Import...</button>
             <button id="btn-configure-dashboard" type="button">Configure Dashboard</button>
             <button id="btn-app-settings" type="button">Application Settings</button>
@@ -353,6 +355,17 @@
                     <button id="btn-settings-google-drive-save-client-id" type="button">Save Client ID</button>
                     <button id="btn-settings-google-drive-connect" type="button">Connect Google Drive</button>
                     <button id="btn-settings-google-drive-disconnect" type="button">Disconnect Google Drive</button>
+                </div>
+
+                <h5 id="settings-onedrive-heading">Microsoft OneDrive Connection</h5>
+                <p id="settings-onedrive-help">Connecting requires a Microsoft Azure AD Application (Client) ID configured by an ART administrator. ART requests access only to its own App Folder (the Files.ReadWrite.AppFolder scope), never your entire OneDrive. Connecting opens a Microsoft sign-in popup; allow popups for this site if the browser blocks it.</p>
+                <label for="settings-onedrive-client-id">Microsoft OneDrive Application (Client) ID</label>
+                <input id="settings-onedrive-client-id" type="text" autocomplete="off" spellcheck="false">
+                <p id="settings-onedrive-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <div class="viewer-dialog-actions" role="group" aria-label="OneDrive actions">
+                    <button id="btn-settings-onedrive-save-client-id" type="button">Save Client ID</button>
+                    <button id="btn-settings-onedrive-connect" type="button">Connect OneDrive</button>
+                    <button id="btn-settings-onedrive-disconnect" type="button">Disconnect OneDrive</button>
                 </div>
             </section>
 
@@ -809,6 +822,16 @@
                 <div class="viewer-dialog-actions" role="group" aria-label="Google Drive open actions">
                     <button id="btn-google-drive-open-confirm" type="button">Open</button>
                     <button id="btn-google-drive-open-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+            <div id="onedrive-open-dialog" role="dialog" aria-modal="true" aria-labelledby="onedrive-open-heading" class="command-palette-dialog" hidden>
+                <div class="command-palette-header"><h2 id="onedrive-open-heading">Open from OneDrive</h2></div>
+                <p id="onedrive-open-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <label for="onedrive-open-select">.art files in your OneDrive App Folder</label>
+                <select id="onedrive-open-select" size="8"></select>
+                <div class="viewer-dialog-actions" role="group" aria-label="OneDrive open actions">
+                    <button id="btn-onedrive-open-confirm" type="button">Open</button>
+                    <button id="btn-onedrive-open-cancel" type="button">Cancel</button>
                 </div>
             </div>
             <div id="template-edit-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-edit-confirm-heading" aria-describedby="template-edit-confirm-message" hidden>

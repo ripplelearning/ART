@@ -531,17 +531,20 @@ ART uses a provider-independent storage architecture so its core reporting, task
 - **Network or Shared Folder** — any folder the operating system already exposes for file access, including network drives, shared folders, and synchronized cloud-drive folders. ART uses the same local file access as Local Computer and does not need to know how the folder is synchronized.
 
 ### Planned Providers
-**Microsoft OneDrive**, **Dropbox**, and **ART Server** appear in Application Settings under **Storage Providers** as planned integrations (Epics 54, 55, and a future authenticated server). Selecting **Connect** on any of these explains that the integration is not yet available; ART remains fully usable with local files in the meantime.
+**Dropbox** and **ART Server** appear in Application Settings under **Storage Providers** as planned integrations (Epic 55 and a future authenticated server). Selecting **Connect** on any of these explains that the integration is not yet available; ART remains fully usable with local files in the meantime.
+
+### Cloud Providers Are Opt-In
+Google Drive and Microsoft OneDrive are entirely optional. Until you connect one of them in Application Settings, its Dashboard buttons, File menu entries, Command Palette entries, and Keyboard Shortcut Manager rows all stay hidden. Disconnecting a provider hides its controls again. No other ART functionality is affected by which cloud providers you choose to connect.
 
 ### Connecting Google Drive
 Google Drive is the first cloud storage provider ART supports.
 
 1. An ART administrator configures a Google Drive OAuth Client ID once, under **Google Drive Connection** in Application Settings. ART does not include a Client ID by default.
 2. Select **Connect Google Drive**. A Google sign-in popup opens; allow popups for the ART site if your browser blocks it.
-3. After authorizing, ART shows Google Drive as connected for the current browser session.
-4. Select **Disconnect Google Drive** at any time. Disconnecting does not delete anything in your Google Drive.
+3. After authorizing, ART shows Google Drive as connected for the current browser session, and its Dashboard buttons, menu entries, and shortcut rows appear.
+4. Select **Disconnect Google Drive** at any time. Disconnecting does not delete anything in your Google Drive, and hides those controls again.
 
-ART requests only the `drive.file` OAuth scope: access to files ART creates or that you explicitly open, never your entire Google Drive. Connections are per browser session; reloading the page requires reconnecting.
+ART requests only the `drive.file` OAuth scope: access to files ART creates or that you explicitly open, never your entire Google Drive. Connections are per browser session; closing the browser tab requires reconnecting.
 
 ### Opening and Saving Projects with Google Drive
 Once connected, use these Dashboard buttons (also available from the File menu and Command Palette):
@@ -550,6 +553,16 @@ Once connected, use these Dashboard buttons (also available from the File menu a
 - **Save to Google Drive** — the first time, asks for a filename and creates a new file; after that, it updates the same file.
 
 Both actions are registered in the Keyboard Shortcut Manager without a default binding, so you can assign your own shortcut if desired. Browsing Google Drive subfolders, choosing a dedicated ART folder, and merge-conflict integration for Google Drive files are not yet available.
+
+### Connecting Microsoft OneDrive
+Microsoft OneDrive works the same way as Google Drive.
+
+1. An ART administrator configures a Microsoft Azure AD Application (Client) ID once, under **Microsoft OneDrive Connection** in Application Settings.
+2. Select **Connect OneDrive**. A Microsoft sign-in popup opens; allow popups for the ART site if your browser blocks it.
+3. After authorizing, ART shows OneDrive as connected, and its Dashboard buttons, menu entries, and shortcut rows appear.
+4. Select **Disconnect OneDrive** at any time. Disconnecting does not delete anything in your OneDrive, and hides those controls again.
+
+ART requests only the `Files.ReadWrite.AppFolder` scope: access to ART's own dedicated App Folder, never your entire OneDrive. Once connected, use **Open from OneDrive...** and **Save to OneDrive** the same way as their Google Drive equivalents. Both actions are registered in the Keyboard Shortcut Manager without a default binding. Browsing additional OneDrive folders and merge-conflict integration for OneDrive files are not yet available.
 
 ### Choosing a Default Provider
 Select a **Default storage provider** in Application Settings to record your preference. No storage provider is ever required for ART's core reporting, Tasks, or Progress Log functionality, and existing local `.art` files continue to open normally.

@@ -109,12 +109,15 @@ import {
     openConfigureDashboardFromCommand,
     openDashboardProjectFromCommand,
     openDashboardProjectFromGoogleDriveFromCommand,
+    openDashboardProjectFromOneDriveFromCommand,
     saveDashboardProjectAsFromCommand,
     saveDashboardProjectFromCommand,
     saveDashboardProjectToGoogleDriveFromCommand,
+    saveDashboardProjectToOneDriveFromCommand,
     startDashboardImportReportFromCommand,
     startDashboardImportTemplateFromCommand
 } from './dashboard.js';
+import { isStorageProviderConnected } from './storageProviderFramework.js';
 import {
     clearUniversalSearchHighlights,
     findInCurrentResource,
@@ -2849,6 +2852,7 @@ const BASE_COMMAND_DEFINITIONS = [
         id: 'File.OpenProjectFromGoogleDrive',
         category: 'File',
         description: 'Open an ART project stored in Google Drive.',
+        visible: () => isStorageProviderConnected('google-drive'),
         handler: () => openDashboardProjectFromGoogleDriveFromCommand()
     },
     {
@@ -2856,7 +2860,24 @@ const BASE_COMMAND_DEFINITIONS = [
         id: 'File.SaveProjectToGoogleDrive',
         category: 'File',
         description: 'Save the current ART project to Google Drive.',
+        visible: () => isStorageProviderConnected('google-drive'),
         handler: () => saveDashboardProjectToGoogleDriveFromCommand()
+    },
+    {
+        action: 'openProjectFromOneDrive',
+        id: 'File.OpenProjectFromOneDrive',
+        category: 'File',
+        description: 'Open an ART project stored in Microsoft OneDrive.',
+        visible: () => isStorageProviderConnected('onedrive'),
+        handler: () => openDashboardProjectFromOneDriveFromCommand()
+    },
+    {
+        action: 'saveProjectToOneDrive',
+        id: 'File.SaveProjectToOneDrive',
+        category: 'File',
+        description: 'Save the current ART project to Microsoft OneDrive.',
+        visible: () => isStorageProviderConnected('onedrive'),
+        handler: () => saveDashboardProjectToOneDriveFromCommand()
     },
     {
         action: 'importData',

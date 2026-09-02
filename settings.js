@@ -90,6 +90,7 @@ import {
     getStorageConfig,
     getStorageProviders,
     refreshGoogleDriveProviderStatus,
+    refreshOneDriveProviderStatus,
     updateStorageConfig
 } from './storageProviderFramework.js';
 import {
@@ -99,6 +100,13 @@ import {
     getGoogleDriveConnectionStatus,
     setGoogleDriveClientId
 } from './googleDriveStorageProvider.js';
+import {
+    connectOneDrive,
+    disconnectOneDrive,
+    getOneDriveClientId,
+    getOneDriveConnectionStatus,
+    setOneDriveClientId
+} from './oneDriveStorageProvider.js';
 import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
@@ -568,6 +576,18 @@ function renderStorageProviderSettings() {
                 ? 'A Client ID is configured. Select Connect Google Drive to authorize this session.'
                 : 'No Google Drive OAuth Client ID is configured yet.';
     }
+
+    const oneDriveStatus = document.getElementById('settings-onedrive-status');
+    if (oneDriveStatus) {
+        const clientIdInput = document.getElementById('settings-onedrive-client-id');
+        if (clientIdInput && document.activeElement !== clientIdInput) clientIdInput.value = getOneDriveClientId();
+        const connection = getOneDriveConnectionStatus();
+        oneDriveStatus.textContent = connection.connected
+            ? 'Microsoft OneDrive is connected for this browser session.'
+            : getOneDriveClientId()
+                ? 'An Application (Client) ID is configured. Select Connect OneDrive to authorize this session.'
+                : 'No Microsoft OneDrive Application (Client) ID is configured yet.';
+    }
 }
 
 function bindStorageProviderSettings() {
@@ -594,6 +614,29 @@ function bindStorageProviderSettings() {
     document.getElementById('btn-settings-google-drive-disconnect')?.addEventListener('click', () => {
         const result = disconnectGoogleDrive();
         refreshGoogleDriveProviderStatus();
+        writeStatus(result.message);
+        announce(result.message);
+        renderStorageProviderSettings();
+    });
+    document.getElementById('btn-settings-onedrive-save-client-id')?.addEventListener('click', () => {
+        const input = document.getElementById('settings-onedrive-client-id');
+        setOneDriveClientId(input?.value);
+        refreshOneDriveProviderStatus();
+        writeStatus('Saved Microsoft OneDrive Application (Client) ID.');
+        announce('Saved Microsoft OneDrive Application (Client) ID.');
+        renderStorageProviderSettings();
+    });
+    document.getElementById('btn-settings-onedrive-connect')?.addEventListener('click', () => {
+        Promise.resolve(connectOneDrive()).then((result) => {
+            refreshOneDriveProviderStatus();
+            writeStatus(result.message);
+            announce(result.message);
+            renderStorageProviderSettings();
+        });
+    });
+    document.getElementById('btn-settings-onedrive-disconnect')?.addEventListener('click', () => {
+        const result = disconnectOneDrive();
+        refreshOneDriveProviderStatus();
         writeStatus(result.message);
         announce(result.message);
         renderStorageProviderSettings();
@@ -3735,6 +3778,7 @@ export function initSettings() {
     window.addEventListener('art-authentication-state-changed', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-local-user-profile-updated', refreshSettingsViewIfDialogOpen);
     window.addEventListener('art-plugin-framework-event', refreshSettingsViewIfDialogOpen);
+    window.addEventListener('art-storage-providers-updated', refreshSettingsViewIfDialogOpen);
 
     maybeAutoConnectLiveCollaboration();
 

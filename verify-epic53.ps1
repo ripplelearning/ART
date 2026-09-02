@@ -39,7 +39,12 @@ $checks += [pscustomobject]@{ Name = 'Open/Save Google Drive project commands'; 
 $checks += [pscustomobject]@{ Name = 'Help and User Guide coverage'; Script = {
     Assert-All 'HELP.md' $help @('### Google Drive', 'drive.file') 'Google Drive Help coverage is incomplete.'
     Assert-All 'USER-GUIDE.md' $userGuide @('Connecting Google Drive', 'OAuth Client ID') 'Google Drive User Guide coverage is incomplete.'
-    Assert-All 'help.js' $inAppHelp @('Google Drive is the first cloud provider') 'Google Drive in-app Help is missing.'
+    Assert-All 'help.js' $inAppHelp @('Google Drive and Microsoft OneDrive are optional cloud providers') 'Google Drive in-app Help is missing.'
+} }
+$checks += [pscustomobject]@{ Name = 'Google Drive is opt-in (hidden until connected)'; Script = {
+    Assert-All 'index.html' $indexHtml @('id="btn-open-project-google-drive" type="button" hidden', 'id="btn-save-project-google-drive" type="button" hidden') 'Google Drive Dashboard buttons must start hidden until connected.'
+    Assert-All 'commandCatalog.js' $commandCatalog @("visible:\s*\(\)\s*=>\s*isStorageProviderConnected\('google-drive'\)") 'Google Drive commands must stay hidden from menus until connected.'
+    Assert-All 'storageProviderFramework.js' $storage @('isStorageProviderConnected') 'Storage provider connection-status helper is missing.'
 } }
 Write-Host 'Epic 53 Verification'
 Write-Host '--------------------'

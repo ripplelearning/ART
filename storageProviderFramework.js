@@ -1,10 +1,12 @@
 // Epic 52 foundation: a provider-independent storage interface so ART's core reporting,
 // collaboration, and merge-conflict logic never depends on a specific storage provider's API.
-// Google Drive (Epic 53) has a real OAuth/API implementation that requires a configured Client ID;
-// OneDrive, Dropbox, and a future ART Server remain unimplemented placeholders (Epics 54-56). Only
-// Local Computer and Network/Shared Folder are usable today with no extra configuration, both
-// backed by the operating system's normal filesystem access that ART already uses for `.art` files.
+// Google Drive (Epic 53) and OneDrive (Epic 54) have real OAuth/API implementations that require a
+// configured Client ID; Dropbox and a future ART Server remain unimplemented placeholders (Epics
+// 55-56). Only Local Computer and Network/Shared Folder are usable today with no extra
+// configuration, both backed by the operating system's normal filesystem access that ART already
+// uses for `.art` files.
 import { connectGoogleDrive, disconnectGoogleDrive, getGoogleDriveClientId, getGoogleDriveConnectionStatus } from './googleDriveStorageProvider.js';
+import { connectOneDrive, disconnectOneDrive, getOneDriveClientId, getOneDriveConnectionStatus } from './oneDriveStorageProvider.js';
 
 const providerRegistry = new Map();
 const CONFIG_KEY = 'art-storage-provider-config-v1';
@@ -66,6 +68,14 @@ export function getStorageProvider(providerId) {
     return provider ? { ...provider } : null;
 }
 
+// Optional cloud providers (Google Drive, OneDrive, Dropbox, ART Server) are opt-in: their
+// dedicated UI controls, menu entries, and keyboard shortcuts should only appear once the user has
+// connected that provider. Local Computer and Network/Shared Folder are always considered connected.
+export function isStorageProviderConnected(providerId) {
+    const provider = getStorageProvider(providerId);
+    return provider ? provider.status === 'available' : false;
+}
+
 function normalizeStorageConfig(input = {}) {
     const source = input && typeof input === 'object' ? input : {};
     const defaultProviderId = normalizeText(source.defaultProviderId) || 'local';
@@ -83,10 +93,14 @@ export function updateStorageConfig(updates = {}) {
     return config;
 }
 
-export function connectStorageProvider(providerId) {
+export async function connectStorageProvider(providerId) {
     const provider = getStorageProvider(providerId);
     if (!provider) return { ok: false, message: 'Unknown storage provider.' };
-    if (typeof provider.connect === 'function') return provider.connect();
+    if (typeof provider.connect === 'function') {
+        const result = await provider.connect();
+        refreshProviderStatus(provider.id);
+        return result;
+    }
     if (provider.status === 'coming-soon') {
         return { ok: false, message: `${provider.name} integration is not yet available in this release. ART remains fully usable with local files in the meantime.` };
     }
@@ -96,8 +110,17 @@ export function connectStorageProvider(providerId) {
 export function disconnectStorageProvider(providerId) {
     const provider = getStorageProvider(providerId);
     if (!provider) return { ok: false, message: 'Unknown storage provider.' };
-    if (typeof provider.disconnect === 'function') return provider.disconnect();
+    if (typeof provider.disconnect === 'function') {
+        const result = provider.disconnect();
+        refreshProviderStatus(provider.id);
+        return result;
+    }
     return { ok: false, message: `${provider.name} does not require disconnecting.` };
+}
+
+function refreshProviderStatus(providerId) {
+    if (providerId === 'google-drive') refreshGoogleDriveProviderStatus();
+    else if (providerId === 'onedrive') refreshOneDriveProviderStatus();
 }
 
 function registerBaselineProviders() {
@@ -118,14 +141,7 @@ function registerBaselineProviders() {
         capabilities: { browse: true, versionHistory: false, offline: true, sync: true }
     });
     registerGoogleDriveProvider();
-    registerStorageProvider({
-        id: 'onedrive',
-        name: 'Microsoft OneDrive',
-        description: 'Planned in Epic 54.',
-        status: 'coming-soon',
-        priority: 30,
-        capabilities: { browse: true, versionHistory: true, offline: false, sync: true }
-    });
+    registerOneDriveProvider();
     registerStorageProvider({
         id: 'dropbox',
         name: 'Dropbox',
@@ -165,8 +181,29 @@ function registerGoogleDriveProvider() {
     });
 }
 
+function registerOneDriveProvider() {
+    registerStorageProvider({
+        id: 'onedrive',
+        name: 'Microsoft OneDrive',
+        description: getOneDriveClientId()
+            ? 'Connect your Microsoft account to open and save .art files. ART only requests access to its own App Folder (the Files.ReadWrite.AppFolder scope), never your entire OneDrive.'
+            : 'Requires a Microsoft Azure AD Application (Client) ID, configured by an ART administrator, before it can be connected.',
+        status: getOneDriveConnectionStatus().connected ? 'available' : 'not-connected',
+        priority: 30,
+        capabilities: { browse: true, versionHistory: true, offline: false, sync: true },
+        connect: connectOneDrive,
+        disconnect: disconnectOneDrive
+    });
+}
+
 // Call after configuring a Client ID, or after connecting/disconnecting, so Settings reflects
 // current state without needing a full page reload.
 export function refreshGoogleDriveProviderStatus() {
     registerGoogleDriveProvider();
+    window.dispatchEvent(new CustomEvent('art-storage-providers-updated'));
+}
+
+export function refreshOneDriveProviderStatus() {
+    registerOneDriveProvider();
+    window.dispatchEvent(new CustomEvent('art-storage-providers-updated'));
 }

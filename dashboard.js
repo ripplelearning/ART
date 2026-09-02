@@ -82,6 +82,15 @@ import {
     listArtFiles,
     updateArtFile
 } from './googleDriveStorageProvider.js';
+import {
+    connectOneDrive,
+    createArtFile as createOneDriveArtFile,
+    downloadArtFileContent as downloadOneDriveArtFileContent,
+    getOneDriveConnectionStatus,
+    listArtFiles as listOneDriveArtFiles,
+    updateArtFile as updateOneDriveArtFile
+} from './oneDriveStorageProvider.js';
+import { isStorageProviderConnected } from './storageProviderFramework.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -103,6 +112,8 @@ let runDashboardSaveProjectWorkflow = null;
 let runDashboardSaveProjectAsWorkflow = null;
 let runDashboardOpenGoogleDriveWorkflow = null;
 let runDashboardSaveGoogleDriveWorkflow = null;
+let runDashboardOpenOneDriveWorkflow = null;
+let runDashboardSaveOneDriveWorkflow = null;
 let runDashboardImportReportPickerWorkflow = null;
 let runDashboardImportTemplatePickerWorkflow = null;
 let runDashboardConfigureWorkflow = null;
@@ -131,6 +142,16 @@ export async function openDashboardProjectFromGoogleDriveFromCommand() {
 export async function saveDashboardProjectToGoogleDriveFromCommand() {
     if (typeof runDashboardSaveGoogleDriveWorkflow !== 'function') return false;
     return runDashboardSaveGoogleDriveWorkflow();
+}
+
+export async function openDashboardProjectFromOneDriveFromCommand() {
+    if (typeof runDashboardOpenOneDriveWorkflow !== 'function') return false;
+    return runDashboardOpenOneDriveWorkflow();
+}
+
+export async function saveDashboardProjectToOneDriveFromCommand() {
+    if (typeof runDashboardSaveOneDriveWorkflow !== 'function') return false;
+    return runDashboardSaveOneDriveWorkflow();
 }
 
 export function startDashboardImportReportFromCommand() {
@@ -1218,6 +1239,8 @@ export function renderDashboard() {
     const btnSaveProjectAs = document.getElementById('btn-save-project-as');
     const btnOpenProjectGoogleDrive = document.getElementById('btn-open-project-google-drive');
     const btnSaveProjectGoogleDrive = document.getElementById('btn-save-project-google-drive');
+    const btnOpenProjectOneDrive = document.getElementById('btn-open-project-onedrive');
+    const btnSaveProjectOneDrive = document.getElementById('btn-save-project-onedrive');
     const btnImportData = document.getElementById('btn-import-data');
     const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
     const collaborationToolbar = document.getElementById('collaboration-toolbar');
@@ -1760,11 +1783,132 @@ export function renderDashboard() {
         }
     };
 
+    const ensureOneDriveConnected = async () => {
+        if (getOneDriveConnectionStatus().connected) return { ok: true };
+        return connectOneDrive();
+    };
+
+    const oneDriveOpenDialog = document.getElementById('onedrive-open-dialog');
+    const oneDriveOpenSelect = document.getElementById('onedrive-open-select');
+    const oneDriveOpenStatus = document.getElementById('onedrive-open-status');
+    const btnOneDriveOpenConfirm = document.getElementById('btn-onedrive-open-confirm');
+    const btnOneDriveOpenCancel = document.getElementById('btn-onedrive-open-cancel');
+
+    const closeOneDriveOpenDialog = () => {
+        if (oneDriveOpenDialog) oneDriveOpenDialog.hidden = true;
+    };
+
+    const runOpenProjectFromOneDrive = async () => {
+        const proceed = await confirmProceedWithUnsavedChanges();
+        if (!proceed) return false;
+
+        const connection = await ensureOneDriveConnected();
+        if (!connection.ok) {
+            reportPrecheckStatus(connection.message);
+            return false;
+        }
+
+        if (!oneDriveOpenDialog || !oneDriveOpenSelect) return false;
+        oneDriveOpenStatus.textContent = 'Loading .art files from OneDrive…';
+        oneDriveOpenDialog.hidden = false;
+        announce('Open from OneDrive dialog opened.');
+
+        try {
+            const files = await listOneDriveArtFiles();
+            oneDriveOpenSelect.innerHTML = files.length
+                ? files.map((file) => `<option value="${file.id}">${file.name}</option>`).join('')
+                : '';
+            oneDriveOpenStatus.textContent = files.length
+                ? `${files.length} .art file${files.length === 1 ? '' : 's'} found in your OneDrive App Folder.`
+                : 'No .art files were found in your OneDrive App Folder.';
+            oneDriveOpenSelect.focus();
+        } catch (error) {
+            oneDriveOpenStatus.textContent = error.message || 'Could not list OneDrive files.';
+        }
+        return true;
+    };
+
+    btnOneDriveOpenConfirm?.addEventListener('click', async () => {
+        const option = oneDriveOpenSelect?.selectedOptions?.[0];
+        if (!option) {
+            oneDriveOpenStatus.textContent = 'Select a file to open.';
+            return;
+        }
+        try {
+            const text = await downloadOneDriveArtFileContent(option.value);
+            const opened = openProjectFromText(text, option.textContent);
+            if (opened) {
+                updateProjectDocumentInfo({ storageProviderId: 'onedrive', storageFileId: option.value }, { action: 'Opened ART project from OneDrive' });
+                closeOneDriveOpenDialog();
+            }
+        } catch (error) {
+            oneDriveOpenStatus.textContent = error.message || 'Could not open the selected OneDrive file.';
+        }
+    });
+    btnOneDriveOpenCancel?.addEventListener('click', () => {
+        closeOneDriveOpenDialog();
+        announce('Open from OneDrive cancelled.');
+    });
+    oneDriveOpenDialog?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeOneDriveOpenDialog();
+        }
+    });
+
+    const runSaveProjectToOneDrive = async () => {
+        const connection = await ensureOneDriveConnected();
+        if (!connection.ok) {
+            reportPrecheckStatus(connection.message);
+            return false;
+        }
+
+        const payloadText = serializeArtProjectPayload();
+        const now = new Date().toISOString();
+        const currentProject = getProjectDocumentInfo();
+
+        if (currentProject.storageProviderId === 'onedrive' && currentProject.storageFileId) {
+            try {
+                await updateOneDriveArtFile(currentProject.storageFileId, payloadText);
+                updateProjectDocumentInfo({ lastModifiedAt: now }, { action: 'Saved ART project to OneDrive' });
+                saveState({ action: 'Saved ART project to OneDrive', markProjectSaved: true, recordHistory: false });
+                announce('Project saved to OneDrive.');
+                return true;
+            } catch (error) {
+                reportPrecheckStatus(error.message || 'Could not save to OneDrive.');
+                return false;
+            }
+        }
+
+        const suggestedName = buildProjectFileName();
+        const fileName = window.prompt('Save to OneDrive as:', suggestedName);
+        if (!fileName) return false;
+        try {
+            const created = await createOneDriveArtFile(fileName, payloadText);
+            updateProjectDocumentInfo({
+                fileName: created.name || fileName,
+                filePath: '',
+                createdAt: currentProject.createdAt || now,
+                lastModifiedAt: now,
+                storageProviderId: 'onedrive',
+                storageFileId: created.id
+            }, { action: 'Saved ART project to OneDrive' });
+            saveState({ action: 'Saved ART project to OneDrive', markProjectSaved: true, recordHistory: false });
+            announce(`Project saved to OneDrive as ${created.name || fileName}.`);
+            return true;
+        } catch (error) {
+            reportPrecheckStatus(error.message || 'Could not save to OneDrive.');
+            return false;
+        }
+    };
+
     runDashboardSaveProjectWorkflow = runSaveProject;
     runDashboardSaveProjectAsWorkflow = runSaveProjectAs;
     runDashboardOpenProjectWorkflow = runOpenProjectPicker;
     runDashboardOpenGoogleDriveWorkflow = runOpenProjectFromGoogleDrive;
     runDashboardSaveGoogleDriveWorkflow = runSaveProjectToGoogleDrive;
+    runDashboardOpenOneDriveWorkflow = runOpenProjectFromOneDrive;
+    runDashboardSaveOneDriveWorkflow = runSaveProjectToOneDrive;
     runDashboardImportReportPickerWorkflow = () => {
         importReportInput.value = '';
         importReportInput.click();
@@ -1822,6 +1966,25 @@ export function renderDashboard() {
     btnSaveProjectGoogleDrive?.addEventListener('click', async () => {
         await executeDashboardAction('saveProjectToGoogleDrive');
     });
+
+    btnOpenProjectOneDrive?.addEventListener('click', async () => {
+        await executeDashboardAction('openProjectFromOneDrive');
+    });
+
+    btnSaveProjectOneDrive?.addEventListener('click', async () => {
+        await executeDashboardAction('saveProjectToOneDrive');
+    });
+
+    const refreshStorageProviderButtonVisibility = () => {
+        const googleDriveConnected = isStorageProviderConnected('google-drive');
+        const oneDriveConnected = isStorageProviderConnected('onedrive');
+        if (btnOpenProjectGoogleDrive) btnOpenProjectGoogleDrive.hidden = !googleDriveConnected;
+        if (btnSaveProjectGoogleDrive) btnSaveProjectGoogleDrive.hidden = !googleDriveConnected;
+        if (btnOpenProjectOneDrive) btnOpenProjectOneDrive.hidden = !oneDriveConnected;
+        if (btnSaveProjectOneDrive) btnSaveProjectOneDrive.hidden = !oneDriveConnected;
+    };
+    refreshStorageProviderButtonVisibility();
+    window.addEventListener('art-storage-providers-updated', refreshStorageProviderButtonVisibility);
 
     openProjectInput.addEventListener('change', async () => {
         const selectedFile = openProjectInput.files && openProjectInput.files[0];
