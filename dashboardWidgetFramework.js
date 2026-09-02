@@ -478,8 +478,34 @@ function getVisibleWidgets(config) {
     return allWidgets.filter((widget) => visibleSet.has(widget.id));
 }
 
+function captureDashboardFocus() {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement) || !runtime?.layoutRoot?.contains(active)) return null;
+    if (active.id) return { id: active.id };
+
+    const taskRow = active.closest('[data-task-id]');
+    if (taskRow?.getAttribute('data-task-id')) {
+        return {
+            taskId: taskRow.getAttribute('data-task-id'),
+            tagName: active.tagName.toLowerCase(),
+            type: active instanceof HTMLInputElement ? active.type : ''
+        };
+    }
+    return null;
+}
+
+function restoreDashboardFocus(focusState) {
+    if (!focusState) return;
+    const target = focusState.id
+        ? document.getElementById(focusState.id)
+        : [...runtime.layoutRoot.querySelectorAll(`[data-task-id="${CSS.escape(focusState.taskId)}"] ${focusState.tagName}`)]
+            .find((element) => !focusState.type || element.type === focusState.type);
+    if (target instanceof HTMLElement) target.focus({ preventScroll: true });
+}
+
 function renderDashboard() {
     if (!runtime?.layoutRoot) return;
+    const focusState = captureDashboardFocus();
     const config = loadConfig();
     runtime.layoutRoot.innerHTML = '';
 
@@ -489,20 +515,24 @@ function renderDashboard() {
         empty.className = 'dashboard-widget__status';
         empty.textContent = 'No dashboard widgets are visible. Use Configure Dashboard to show widgets.';
         runtime.layoutRoot.appendChild(empty);
+        restoreDashboardFocus(focusState);
         return;
     }
 
     if (config.layout === 'tabs') {
         renderTabsLayout(runtime.layoutRoot, visibleWidgets, config);
+        restoreDashboardFocus(focusState);
         return;
     }
 
     if (config.layout === 'compact') {
         renderCardsLayout(runtime.layoutRoot, visibleWidgets, config, true);
+        restoreDashboardFocus(focusState);
         return;
     }
 
     renderCardsLayout(runtime.layoutRoot, visibleWidgets, config, false);
+    restoreDashboardFocus(focusState);
 }
 
 function getFocusableElements(container) {

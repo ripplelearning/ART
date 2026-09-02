@@ -125,6 +125,20 @@ function renderTaskRow(task, tabId) {
 
 function renderDialog() {
     const state = ensureDialog();
+    const activeElement = document.activeElement;
+    const focusState = activeElement instanceof HTMLElement && state.dialog.contains(activeElement)
+        ? {
+            id: activeElement.id,
+            taskId: activeElement.closest('[data-task-id]')?.getAttribute('data-task-id') || '',
+            attribute: activeElement.getAttribute('data-task-status') !== null
+                ? 'data-task-status'
+                : activeElement.getAttribute('data-task-complete') !== null
+                    ? 'data-task-complete'
+                    : activeElement.getAttribute('data-task-edit') !== null
+                        ? 'data-task-edit'
+                        : ''
+        }
+        : null;
     const config = getTaskManagerConfig();
     const tabs = getVisibleTabs();
     const activeTab = tabs.some((tab) => tab.id === config.activeTab) ? config.activeTab : 'personal';
@@ -138,6 +152,12 @@ function renderDialog() {
     `;
     state.dialog.querySelector('#tasks-sort').value = config.sortBy;
     bindRenderedEvents(state.dialog);
+    const restored = focusState?.id
+        ? document.getElementById(focusState.id)
+        : focusState?.taskId && focusState.attribute
+            ? state.dialog.querySelector(`[data-task-id="${CSS.escape(focusState.taskId)}"] [${focusState.attribute}]`)
+            : null;
+    if (restored instanceof HTMLElement) restored.focus({ preventScroll: true });
 }
 
 function buildTaskForm(task = {}, prefix = 'new-task') {
@@ -357,6 +377,9 @@ function bindRenderedEvents(dialog) {
         card.querySelector('[data-task-complete]')?.addEventListener('change', (event) => {
             setTaskCompleted(taskId, event.target.checked);
             renderDialog();
+            if (event.target.checked) {
+                state.dialog.querySelector('[data-task-complete]')?.focus({ preventScroll: true });
+            }
             announce(event.target.checked ? 'Task completed and moved to Completed Tasks.' : 'Task reopened.');
         });
         card.querySelector('[data-task-status]')?.addEventListener('change', (event) => { updateTask(taskId, { status: event.target.value }); renderDialog(); announce(`Task status updated to ${event.target.value}.`); });

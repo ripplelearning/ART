@@ -1089,6 +1089,10 @@ function renderTasksWidget(container) {
         item.querySelector('[data-dashboard-task-complete]')?.addEventListener('change', (event) => {
             setTaskCompleted(taskId, event.target.checked);
             renderTasksWidget(container);
+            const nextTask = event.target.checked
+                ? container.querySelector('[data-dashboard-task-complete]')
+                : container.querySelector(`[data-task-id="${CSS.escape(taskId)}"] [data-dashboard-task-complete]`);
+            (nextTask || container.querySelector('#btn-dashboard-open-tasks'))?.focus({ preventScroll: true });
             announce(event.target.checked ? 'Task completed and moved to Completed Tasks.' : 'Task reopened.');
         });
     });

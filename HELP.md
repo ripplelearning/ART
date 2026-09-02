@@ -338,6 +338,9 @@ All analytics are presented as text and accessible data tables rather than chart
 
 Use the checkbox to stop collecting analytics and Clear Search Analytics to remove stored totals. Clearing analytics does not affect reports, saved searches, favorites, bookmarks, or history.
 
+## Keyboard Focus
+ART preserves focus when a checkbox, select, button, or other control updates data and causes a view to refresh. Dashboard To-Do updates restore focus to the same task control when it remains available, or to the next task control when a completed task leaves the active list. Tasks and Working Views use the same rule for rerendered controls. Focus moves to a heading or dialog control only for an intentional navigation or dialog-opening workflow.
+
 ## Organization Statistics
 Organization Statistics are optional and aggregate accessibility data across multiple reports belonging to the same organization. Enable them in Application Settings. When enabled, ART adds an Organization menu and an optional Dashboard section; when disabled, both are removed and ART behaves as before.
 
@@ -413,7 +416,7 @@ Status controls use native selects and are keyboard and screen-reader accessible
 Shared Progress Logs currently support local/file-based records only. ART does not yet provide authenticated accounts, organization membership, role-based permissions, server synchronization, email, or personalized notifications. Those server-dependent capabilities remain deferred until the identity, authentication, file-based collaboration, and authorization foundations in Epics 45, 49, 50, and 51 are implemented.
 
 ## Account and Identity
-ART can always be used locally without signing in. Application Settings > Account and Identity lets you save a local profile and view this installation's stable device identity. The profile is separate from authentication and does not grant access to server-based features. ART Role is an accessible dropdown with these options: Accessibility Tester, Developer, Designer, Reviewer, Auditor, Project Manager, Contributor, Stakeholder, Administrator, and Other.
+ART can always be used locally without signing in. Application Settings > Account and Identity lets you save a local profile and view this installation's stable device identity. The profile is separate from authentication and does not grant access to server-based features. ART Role is an accessible permission-tier dropdown with these options: Owner, Administrator, Project Manager, Reviewer, Contributor, Viewer, and Other. Organization membership roles remain a separate scope and can narrow effective access.
 
 ART's centralized identity service represents Not signed in, Authentication in progress, Signed in, Session expired, Signed out, and Authentication service unavailable. Local reports and local work remain available in every state.
 

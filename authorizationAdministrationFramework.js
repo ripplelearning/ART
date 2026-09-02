@@ -52,7 +52,7 @@ function saveOrganizationRecord(record) {
     return record;
 }
 
-function getOrganizationAdministration(organizationId) {
+export function getOrganizationAdministration(organizationId) {
     const membership = getOrganizationMemberships().find((entry) => entry.organizationId === normalizeText(organizationId));
     if (!membership || !canPerformAction(membership.organizationId, 'manageOrganization')) return null;
     const record = getOrganizationRecord(membership.organizationId);
