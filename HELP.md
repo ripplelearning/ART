@@ -482,6 +482,15 @@ The Windows packaging configuration creates `ART-Setup.exe`, Start Menu/Desktop 
 
 Building the installer requires the Node/Electron development dependencies. Production code signing, GitHub Actions release automation, website download hosting, automatic updates, macOS/Linux packaging, and full desktop accessibility/performance testing are not configured in this release.
 
+## Privacy and User Data
+ART is local-first and does not require an account, sign-in, email address, external storage provider, or ART server for fundamental reporting work. Application Settings includes **Privacy and User Data**, which lists the categories stored in this browser: ART state, local profile/device identity, provider and integration preferences, and session-only credentials.
+
+Optional telemetry is disabled by default and has no collection pipeline in this release. The setting records the user's preference for a future deployment; it does not enable hidden collection.
+
+Select **Export My ART Data** to download a credential-free JSON export containing the local profile, ART project data, application information, and data inventory. Authentication and provider session tokens are intentionally excluded. Select **Clear Local ART Data** only after exporting anything needed; after confirmation, ART clears local application data and browser session credentials and restores its default state.
+
+Server-hosted retention, account deletion, organization data ownership, backup expiration, and third-party provider retention depend on the deployment and provider policies. ART does not claim to delete data it does not control.
+
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
 

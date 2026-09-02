@@ -596,6 +596,15 @@ The Windows package is configured as `ART-Setup.exe`. It creates standard Start 
 
 The source includes the desktop startup and packaging configuration, but production signing, release automation, website distribution, automatic updates, macOS/Linux packages, and full desktop assistive-technology testing remain deferred. Building locally requires the Node/Electron dependencies described in `package.json`.
 
+## Privacy and User Data
+ART's fundamental local workflows do not require an account, sign-in, email address, cloud provider, or ART server. In Application Settings, **Privacy and User Data** lists the local data categories used by ART and the browser storage locations where they reside.
+
+Optional telemetry is disabled by default. No telemetry collection pipeline is enabled by this release; the setting records an explicit future-deployment preference only.
+
+Use **Export My ART Data** to download a JSON copy of your local profile, ART project data, application information, and data inventory. Authentication and provider session credentials are excluded. Use **Clear Local ART Data** only after exporting anything you need. The action requires confirmation, clears local ART data and browser session credentials, and restores the default application state.
+
+Server-hosted retention, account deletion, organization-owned data, backups, and third-party provider retention depend on the relevant deployment and provider policies. The local application cannot delete data it does not control.
+
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
 

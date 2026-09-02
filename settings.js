@@ -115,6 +115,13 @@ import {
     setDropboxClientId
 } from './dropboxStorageProvider.js';
 import {
+    clearLocalUserData,
+    createUserDataExport,
+    getLocalDataInventory,
+    getPrivacyConfig,
+    updatePrivacyConfig
+} from './privacyFramework.js';
+import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
     createCollaborationDiscoverySnapshot,
@@ -752,6 +759,52 @@ function renderExternalIntegrationSettings() {
 
 function bindExternalIntegrationSettings() {
     window.addEventListener('art-external-integrations-updated', refreshSettingsViewIfDialogOpen);
+}
+
+function renderPrivacySettings() {
+    const config = getPrivacyConfig();
+    const telemetry = document.getElementById('settings-privacy-telemetry');
+    if (telemetry && document.activeElement !== telemetry) telemetry.checked = config.telemetryEnabled;
+    const inventory = document.getElementById('settings-privacy-inventory');
+    if (inventory) {
+        inventory.innerHTML = getLocalDataInventory().map((entry) => `<li><strong>${escapeHtml(entry.label)}:</strong> ${escapeHtml(entry.location)}. User controlled: ${entry.userControlled ? 'Yes' : 'No'}.</li>`).join('');
+    }
+    const status = document.getElementById('settings-privacy-status');
+    if (status) status.textContent = config.lastExportedAt
+        ? `Last user data export: ${new Date(config.lastExportedAt).toLocaleString()}.`
+        : 'No user data export has been created in this browser.';
+}
+
+function downloadUserDataExport() {
+    const payload = createUserDataExport();
+    const objectUrl = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = `ART-user-data-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+    announce('ART user data export created. Session credentials were excluded.');
+    renderPrivacySettings();
+}
+
+function bindPrivacySettings() {
+    document.getElementById('btn-settings-privacy-save')?.addEventListener('click', () => {
+        const telemetry = document.getElementById('settings-privacy-telemetry');
+        updatePrivacyConfig({ telemetryEnabled: Boolean(telemetry?.checked) });
+        writeStatus(`Optional telemetry ${telemetry?.checked ? 'enabled' : 'disabled'}.`);
+        announce(`Optional telemetry ${telemetry?.checked ? 'enabled' : 'disabled'}.`);
+        renderPrivacySettings();
+    });
+    document.getElementById('btn-settings-privacy-export')?.addEventListener('click', downloadUserDataExport);
+    document.getElementById('btn-settings-privacy-clear')?.addEventListener('click', () => {
+        if (!window.confirm('Clear local ART data and session credentials from this browser? Export your data first if you need a copy.')) return;
+        const result = clearLocalUserData();
+        writeStatus(result.message);
+        announce(result.message);
+        renderPrivacySettings();
+    });
 }
 
 const ORGANIZATION_SECTION_TOGGLES = [
@@ -2356,6 +2409,7 @@ function refreshSettingsView() {
         renderSearchSettings();
         renderSearchAnalytics();
         renderAccountIdentitySettings();
+        renderPrivacySettings();
         renderIdentityCodeSettings();
         renderOrganizationRolesSettings();
         renderStorageProviderSettings();
@@ -3859,6 +3913,7 @@ export function initSettings() {
     bindSettingsSearch();
     bindSearchAnalyticsSettings();
     bindAccountIdentitySettings();
+    bindPrivacySettings();
     bindIdentityCodeSettings();
     bindOrganizationRolesSettings();
     bindStorageProviderSettings();

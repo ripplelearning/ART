@@ -330,6 +330,19 @@
                 <ul id="settings-linked-devices-list" class="dashboard-widget__list" aria-label="Linked devices"></ul>
             </section>
 
+            <section aria-labelledby="settings-privacy-heading">
+                <h4 id="settings-privacy-heading">Privacy and User Data</h4>
+                <p id="settings-privacy-help">ART is local-first. Review what is stored in this browser, export your user-controlled data, or clear local ART data and session credentials. Server-hosted retention and account deletion depend on the deployment.</p>
+                <p id="settings-privacy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <ul id="settings-privacy-inventory" aria-label="Local ART data inventory"></ul>
+                <label><input id="settings-privacy-telemetry" type="checkbox"> Allow optional telemetry</label>
+                <div class="viewer-dialog-actions" role="group" aria-label="Privacy and user data actions">
+                    <button id="btn-settings-privacy-save" type="button">Save Privacy Setting</button>
+                    <button id="btn-settings-privacy-export" type="button">Export My ART Data</button>
+                    <button id="btn-settings-privacy-clear" type="button">Clear Local ART Data</button>
+                </div>
+            </section>
+
             <section aria-labelledby="settings-org-roles-heading">
                 <h4 id="settings-org-roles-heading">Organizations and Roles</h4>
                 <p id="settings-org-roles-help">Track the organizations you belong to and your role in each. Roles determine which local Authorization Policy checks (Owner, Admin, Editor, Contributor, Viewer) pass for organization-scoped actions. Server-enforced authorization requires ART's authentication service (Epic 49) and is not yet available.</p>

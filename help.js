@@ -441,6 +441,16 @@ function getHelpSections(rows) {
             `
         },
         {
+            id: 'help-privacy-and-user-data',
+            title: 'Privacy and User Data',
+            content: `
+                <p>ART is local-first. Fundamental reporting workflows do not require an account, sign-in, email address, cloud provider, or ART server.</p>
+                <p>Application Settings lists the local data categories ART uses. Optional telemetry is disabled by default, and this release has no telemetry collection pipeline.</p>
+                <p>Export My ART Data downloads a credential-free JSON copy of your local profile, ART project data, application information, and data inventory. Authentication and provider session credentials are excluded.</p>
+                <p>Clear Local ART Data requires confirmation and clears local ART data plus browser session credentials. Export anything needed first. Server-hosted retention and account deletion depend on the deployment and provider policies.</p>
+            `
+        },
+        {
             id: 'help-merge-conflicts',
             title: 'Merge Conflict Resolution',
             content: `
