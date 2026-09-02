@@ -9,11 +9,13 @@ export const METRIC_AVAILABILITY = {
 };
 
 const metricDefinitions = new Map();
+const METRIC_CACHE_LIMIT = 100;
 const runtimeCache = {
     index: null,
     metrics: new Map(),
     hits: 0,
-    misses: 0
+    misses: 0,
+    evictions: 0
 };
 const HISTORICAL_SNAPSHOT_KEY = 'art-organization-metrics-snapshots-v1';
 
@@ -46,7 +48,23 @@ export function clearOrganizationMetricsCache() {
 }
 
 export function getOrganizationMetricsCacheStats() {
-    return { hits: runtimeCache.hits, misses: runtimeCache.misses, metricEntries: runtimeCache.metrics.size };
+    return {
+        hits: runtimeCache.hits,
+        misses: runtimeCache.misses,
+        evictions: runtimeCache.evictions,
+        metricEntries: runtimeCache.metrics.size,
+        metricCacheLimit: METRIC_CACHE_LIMIT
+    };
+}
+
+function cacheMetricResult(cacheKey, result) {
+    if (runtimeCache.metrics.has(cacheKey)) runtimeCache.metrics.delete(cacheKey);
+    runtimeCache.metrics.set(cacheKey, result);
+    while (runtimeCache.metrics.size > METRIC_CACHE_LIMIT) {
+        const oldestKey = runtimeCache.metrics.keys().next().value;
+        runtimeCache.metrics.delete(oldestKey);
+        runtimeCache.evictions += 1;
+    }
 }
 
 function readHistoricalSnapshots() {
@@ -797,7 +815,10 @@ export function calculateOrganizationMetrics(scope = {}, options = {}) {
         : '';
     if (cacheKey && runtimeCache.metrics.has(cacheKey)) {
         runtimeCache.hits += 1;
-        return runtimeCache.metrics.get(cacheKey);
+        const cached = runtimeCache.metrics.get(cacheKey);
+        runtimeCache.metrics.delete(cacheKey);
+        runtimeCache.metrics.set(cacheKey, cached);
+        return cached;
     }
     runtimeCache.misses += 1;
 
@@ -834,7 +855,7 @@ export function calculateOrganizationMetrics(scope = {}, options = {}) {
         }
     };
 
-    if (cacheKey) runtimeCache.metrics.set(cacheKey, result);
+    if (cacheKey) cacheMetricResult(cacheKey, result);
     return result;
 }
 

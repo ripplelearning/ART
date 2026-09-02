@@ -371,6 +371,11 @@ The current release provides local-first report and task metrics, saved views, s
 
 Local metrics never claim inaccessible or unavailable data is zero. Callers with an authorization policy can provide report and task predicates before aggregation; organization membership permissions remain a separate scope that can narrow effective access. Server deployment must still enforce those boundaries authoritatively.
 
+## Performance and Scalability
+ART keeps local-first workflows responsive by rendering only the Dashboard widgets selected in Dashboard Configuration and reusing derived organization metrics when the report state and scope are unchanged. The organization metrics cache is bounded to the 100 most recent calculated scopes; state updates clear derived results so changed reports and tasks are not served from stale cache entries.
+
+Large imports, exports, cloud synchronization, collaboration, server APIs, database indexes, and desktop resource usage still depend on their provider or deployment environment. Formal large-dataset, load, concurrency, and assistive-technology-under-load testing remains deferred until representative organizational infrastructure is available.
+
 ## Usability Reports
 Usability Reports provide a flexible reporting format for documenting usability issues that affect users but may fall outside typical accessibility standards or WCAG Success Criteria.
 

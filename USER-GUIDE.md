@@ -526,6 +526,11 @@ Under **Organizations and Roles**, record the organizations you belong to and se
 
 ART's local **Authorization Policy Service** checks your recorded role before allowing organization-scoped actions — for example, clearing Organization Statistics snapshots requires a role with the manageOrganization permission (Owner or Admin) for that organization, if you have recorded a role for it. This is a client-side, local-first foundation for the authorization model described in Epic 51; it does not yet enforce permissions on a server, and full authenticated multi-user authorization requires Epic 49's authentication service.
 
+## Performance and Scalability
+ART preserves responsiveness by rendering only Dashboard widgets selected in Dashboard Configuration and reusing organization metric calculations for an unchanged report state and scope. Derived organization metric results are kept in a bounded cache of the 100 most recent scopes. Editing reports or tasks clears derived results so later calculations use current data. This cache stores calculated values only and does not transmit report content.
+
+Very large imports, exports, cloud operations, collaboration sessions, and server-backed workloads remain dependent on the available provider and deployment. Large-dataset, load, concurrency, desktop resource, and assistive-technology-under-load acceptance testing are deferred until representative infrastructure is available.
+
 ## Storage Providers
 ART uses a provider-independent storage architecture so its core reporting, task, and collaboration functionality never depends on a specific storage service.
 
