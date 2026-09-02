@@ -413,7 +413,8 @@ function getHelpSections(rows) {
             title: 'Storage Providers',
             content: `
                 <p>ART uses a provider-independent storage architecture, so its core reporting, task, and collaboration features never depend on a specific storage service.</p>
-                <p>Application Settings under Storage Providers lists Local Computer and Network or Shared Folder as available today, both using the same file dialogs ART already relies on. Google Drive, Microsoft OneDrive, Dropbox, and ART Server are listed as planned providers; selecting Connect explains that the integration is not yet available.</p>
+                <p>Application Settings under Storage Providers lists Local Computer and Network or Shared Folder as available today, both using the same file dialogs ART already relies on. Microsoft OneDrive, Dropbox, and ART Server are listed as planned providers; selecting Connect explains that the integration is not yet available.</p>
+                <p>Google Drive is the first cloud provider. An administrator configures an OAuth Client ID under Google Drive Connection, then Connect Google Drive opens a Google sign-in popup (allow popups if blocked). ART requests only the drive.file scope: files it creates or you open, never your entire Drive. The connection lasts for the current browser session; Disconnect Google Drive ends it without deleting anything in Google Drive.</p>
                 <p>Choose a Default storage provider to record your preference. No storage provider is required for ART's core local functionality.</p>
             `
         },

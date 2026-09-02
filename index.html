@@ -341,6 +341,17 @@
                 <label for="settings-storage-default-provider">Default storage provider</label>
                 <select id="settings-storage-default-provider"></select>
                 <ul id="settings-storage-provider-list" aria-label="Available storage providers"></ul>
+
+                <h5 id="settings-google-drive-heading">Google Drive Connection</h5>
+                <p id="settings-google-drive-help">Connecting requires a Google Drive OAuth Client ID configured by an ART administrator. ART requests access only to files it creates or you open, never your entire Google Drive. Connecting opens a Google sign-in popup; allow popups for this site if the browser blocks it.</p>
+                <label for="settings-google-drive-client-id">Google Drive OAuth Client ID</label>
+                <input id="settings-google-drive-client-id" type="text" autocomplete="off" spellcheck="false">
+                <p id="settings-google-drive-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Google Drive actions">
+                    <button id="btn-settings-google-drive-save-client-id" type="button">Save Client ID</button>
+                    <button id="btn-settings-google-drive-connect" type="button">Connect Google Drive</button>
+                    <button id="btn-settings-google-drive-disconnect" type="button">Disconnect Google Drive</button>
+                </div>
             </section>
 
             <section aria-labelledby="settings-organization-heading">

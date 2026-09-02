@@ -1,9 +1,11 @@
 // Epic 52 foundation: a provider-independent storage interface so ART's core reporting,
 // collaboration, and merge-conflict logic never depends on a specific storage provider's API.
-// Cloud providers (Google Drive, OneDrive, Dropbox) and a future ART Server are registered here
-// as placeholders; their real connections are implemented in Epics 53-56. Only the Local Computer
-// and Network/Shared Folder providers are actually usable today, both backed by the operating
-// system's normal filesystem access that ART already uses for opening/saving `.art` files.
+// Google Drive (Epic 53) has a real OAuth/API implementation that requires a configured Client ID;
+// OneDrive, Dropbox, and a future ART Server remain unimplemented placeholders (Epics 54-56). Only
+// Local Computer and Network/Shared Folder are usable today with no extra configuration, both
+// backed by the operating system's normal filesystem access that ART already uses for `.art` files.
+import { connectGoogleDrive, disconnectGoogleDrive, getGoogleDriveClientId, getGoogleDriveConnectionStatus } from './googleDriveStorageProvider.js';
+
 const providerRegistry = new Map();
 const CONFIG_KEY = 'art-storage-provider-config-v1';
 
@@ -84,10 +86,10 @@ export function updateStorageConfig(updates = {}) {
 export function connectStorageProvider(providerId) {
     const provider = getStorageProvider(providerId);
     if (!provider) return { ok: false, message: 'Unknown storage provider.' };
+    if (typeof provider.connect === 'function') return provider.connect();
     if (provider.status === 'coming-soon') {
         return { ok: false, message: `${provider.name} integration is not yet available in this release. ART remains fully usable with local files in the meantime.` };
     }
-    if (typeof provider.connect === 'function') return provider.connect();
     return { ok: true, message: `${provider.name} is already available through the operating system's file access.` };
 }
 
@@ -115,14 +117,7 @@ function registerBaselineProviders() {
         priority: 10,
         capabilities: { browse: true, versionHistory: false, offline: true, sync: true }
     });
-    registerStorageProvider({
-        id: 'google-drive',
-        name: 'Google Drive',
-        description: 'Planned in Epic 53. Will support connecting a Google account, browsing folders, and opening/saving .art files with minimum necessary permissions.',
-        status: 'coming-soon',
-        priority: 20,
-        capabilities: { browse: true, versionHistory: true, offline: false, sync: true }
-    });
+    registerGoogleDriveProvider();
     registerStorageProvider({
         id: 'onedrive',
         name: 'Microsoft OneDrive',
@@ -153,4 +148,25 @@ export function initializeStorageProviderFramework() {
     if (providerRegistry.size === 0) registerBaselineProviders();
     getStorageConfig();
     return true;
+}
+
+function registerGoogleDriveProvider() {
+    registerStorageProvider({
+        id: 'google-drive',
+        name: 'Google Drive',
+        description: getGoogleDriveClientId()
+            ? 'Connect your Google account to open and save .art files in a folder you choose. ART only requests access to files it creates or you open with Google\u2019s file picker (the drive.file scope), never your entire Drive.'
+            : 'Requires a Google Drive OAuth Client ID, configured by an ART administrator, before it can be connected.',
+        status: getGoogleDriveConnectionStatus().connected ? 'available' : 'not-connected',
+        priority: 20,
+        capabilities: { browse: true, versionHistory: true, offline: false, sync: true },
+        connect: connectGoogleDrive,
+        disconnect: disconnectGoogleDrive
+    });
+}
+
+// Call after configuring a Client ID, or after connecting/disconnecting, so Settings reflects
+// current state without needing a full page reload.
+export function refreshGoogleDriveProviderStatus() {
+    registerGoogleDriveProvider();
 }

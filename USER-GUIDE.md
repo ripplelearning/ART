@@ -531,7 +531,17 @@ ART uses a provider-independent storage architecture so its core reporting, task
 - **Network or Shared Folder** — any folder the operating system already exposes for file access, including network drives, shared folders, and synchronized cloud-drive folders. ART uses the same local file access as Local Computer and does not need to know how the folder is synchronized.
 
 ### Planned Providers
-**Google Drive**, **Microsoft OneDrive**, **Dropbox**, and **ART Server** appear in Application Settings under **Storage Providers** as planned integrations (Epics 53, 54, 55, and a future authenticated server). Selecting **Connect** on any of these explains that the integration is not yet available; ART remains fully usable with local files in the meantime.
+**Microsoft OneDrive**, **Dropbox**, and **ART Server** appear in Application Settings under **Storage Providers** as planned integrations (Epics 54, 55, and a future authenticated server). Selecting **Connect** on any of these explains that the integration is not yet available; ART remains fully usable with local files in the meantime.
+
+### Connecting Google Drive
+Google Drive is the first cloud storage provider ART supports.
+
+1. An ART administrator configures a Google Drive OAuth Client ID once, under **Google Drive Connection** in Application Settings. ART does not include a Client ID by default.
+2. Select **Connect Google Drive**. A Google sign-in popup opens; allow popups for the ART site if your browser blocks it.
+3. After authorizing, ART shows Google Drive as connected for the current browser session.
+4. Select **Disconnect Google Drive** at any time. Disconnecting does not delete anything in your Google Drive.
+
+ART requests only the `drive.file` OAuth scope: access to files ART creates or that you explicitly open, never your entire Google Drive. Connections are per browser session; reloading the page requires reconnecting. Browsing Google Drive folders and opening/saving `.art` files directly through the Storage Providers UI are not yet available.
 
 ### Choosing a Default Provider
 Select a **Default storage provider** in Application Settings to record your preference. No storage provider is ever required for ART's core reporting, Tasks, or Progress Log functionality, and existing local `.art` files continue to open normally.

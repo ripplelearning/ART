@@ -89,8 +89,16 @@ import {
     connectStorageProvider,
     getStorageConfig,
     getStorageProviders,
+    refreshGoogleDriveProviderStatus,
     updateStorageConfig
 } from './storageProviderFramework.js';
+import {
+    connectGoogleDrive,
+    disconnectGoogleDrive,
+    getGoogleDriveClientId,
+    getGoogleDriveConnectionStatus,
+    setGoogleDriveClientId
+} from './googleDriveStorageProvider.js';
 import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
@@ -533,18 +541,32 @@ function renderStorageProviderSettings() {
     if (list) {
         list.innerHTML = providers.map((provider) => {
             const statusLabel = provider.status === 'available' ? 'Available' : provider.status === 'coming-soon' ? 'Not yet available' : 'Not connected';
-            const action = provider.status === 'coming-soon'
+            const action = provider.status !== 'available'
                 ? `<button type="button" data-storage-connect="${escapeHtml(provider.id)}">Connect</button>`
                 : '';
             return `<li><strong>${escapeHtml(provider.name)}:</strong> ${escapeHtml(statusLabel)}. ${escapeHtml(provider.description)} ${action}</li>`;
         }).join('');
         list.querySelectorAll('[data-storage-connect]').forEach((button) => {
             button.addEventListener('click', () => {
-                const result = connectStorageProvider(button.getAttribute('data-storage-connect'));
-                writeStatus(result.message);
-                announce(result.message);
+                Promise.resolve(connectStorageProvider(button.getAttribute('data-storage-connect'))).then((result) => {
+                    writeStatus(result.message);
+                    announce(result.message);
+                    renderStorageProviderSettings();
+                });
             });
         });
+    }
+
+    const googleDriveStatus = document.getElementById('settings-google-drive-status');
+    if (googleDriveStatus) {
+        const clientIdInput = document.getElementById('settings-google-drive-client-id');
+        if (clientIdInput && document.activeElement !== clientIdInput) clientIdInput.value = getGoogleDriveClientId();
+        const connection = getGoogleDriveConnectionStatus();
+        googleDriveStatus.textContent = connection.connected
+            ? 'Google Drive is connected for this browser session.'
+            : getGoogleDriveClientId()
+                ? 'A Client ID is configured. Select Connect Google Drive to authorize this session.'
+                : 'No Google Drive OAuth Client ID is configured yet.';
     }
 }
 
@@ -552,6 +574,29 @@ function bindStorageProviderSettings() {
     document.getElementById('settings-storage-default-provider')?.addEventListener('change', (event) => {
         updateStorageConfig({ defaultProviderId: event.target.value });
         announce(`Default storage provider set to ${getStorageProviders().find((provider) => provider.id === event.target.value)?.name || event.target.value}.`);
+    });
+    document.getElementById('btn-settings-google-drive-save-client-id')?.addEventListener('click', () => {
+        const input = document.getElementById('settings-google-drive-client-id');
+        setGoogleDriveClientId(input?.value);
+        refreshGoogleDriveProviderStatus();
+        writeStatus('Saved Google Drive OAuth Client ID.');
+        announce('Saved Google Drive OAuth Client ID.');
+        renderStorageProviderSettings();
+    });
+    document.getElementById('btn-settings-google-drive-connect')?.addEventListener('click', () => {
+        Promise.resolve(connectGoogleDrive()).then((result) => {
+            refreshGoogleDriveProviderStatus();
+            writeStatus(result.message);
+            announce(result.message);
+            renderStorageProviderSettings();
+        });
+    });
+    document.getElementById('btn-settings-google-drive-disconnect')?.addEventListener('click', () => {
+        const result = disconnectGoogleDrive();
+        refreshGoogleDriveProviderStatus();
+        writeStatus(result.message);
+        announce(result.message);
+        renderStorageProviderSettings();
     });
 }
 
