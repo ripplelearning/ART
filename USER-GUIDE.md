@@ -521,7 +521,7 @@ Under **Organizations and Roles**, record the organizations you belong to and se
 - **Contributor** — edit reports and manage tasks.
 - **Viewer** — view-only access.
 
-ART's local **Authorization Policy Service** checks your recorded role before allowing organization-scoped actions. This is a client-side, local-first foundation for the authorization model described in Epic 51; it does not yet enforce permissions on a server, and full authenticated multi-user authorization requires Epic 49's authentication service.
+ART's local **Authorization Policy Service** checks your recorded role before allowing organization-scoped actions — for example, clearing Organization Statistics snapshots requires a role with the manageOrganization permission (Owner or Admin) for that organization, if you have recorded a role for it. This is a client-side, local-first foundation for the authorization model described in Epic 51; it does not yet enforce permissions on a server, and full authenticated multi-user authorization requires Epic 49's authentication service.
 
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.

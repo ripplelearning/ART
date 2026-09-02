@@ -6,6 +6,7 @@ $auth = Read-Text 'authorizationFramework.js'
 $settings = Read-Text 'settings.js'
 $indexHtml = Read-Text 'index.html'
 $loader = Read-Text 'loader.js'
+$orgDashboard = Read-Text 'organizationDashboard.js'
 $help = Read-Text 'HELP.md'
 $userGuide = Read-Text 'USER-GUIDE.md'
 $inAppHelp = Read-Text 'help.js'
@@ -22,6 +23,9 @@ $checks += [pscustomobject]@{ Name = 'Settings UI integration'; Script = {
 } }
 $checks += [pscustomobject]@{ Name = 'Startup initialization'; Script = {
     Assert-All 'loader.js' $loader @('initializeAuthorizationFramework') 'Authorization framework is not initialized at startup.'
+} }
+$checks += [pscustomobject]@{ Name = 'Authorization Policy Service gates a real workflow'; Script = {
+    Assert-All 'organizationDashboard.js' $orgDashboard @('canManageSelectedOrganization', 'getOrganizationMemberships', 'getRolePermissions', "includes\('manageOrganization'\)") 'Organization Statistics does not enforce recorded organization roles.'
 } }
 $checks += [pscustomobject]@{ Name = 'Help and User Guide coverage'; Script = {
     Assert-All 'HELP.md' $help @('## Organizations, Roles, and Device Identity', 'Authorization Policy Service') 'Organizations/Roles Help coverage is incomplete.'

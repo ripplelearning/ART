@@ -13,6 +13,7 @@ import {
     recordOrganizationMetricSnapshot,
     resolveDateRange
 } from './organizationMetricsFramework.js';
+import { getOrganizationMemberships, getRolePermissions } from './authorizationFramework.js';
 
 // `requires` names an Application Settings toggle; a tab is hidden when its section is turned off.
 const ORGANIZATION_TABS = [
@@ -43,6 +44,19 @@ let dialogState = null;
 
 function normalizeText(value) {
     return String(value ?? '').trim();
+}
+
+// Only restricts an action when the user has explicitly recorded a role for this organization in
+// Application Settings; unrestricted (returns true) otherwise, so local-only use is never blocked.
+function canManageSelectedOrganization() {
+    const config = getOrganizationMetricsConfig();
+    const summaries = getOrganizationSummaries();
+    const selectedKey = normalizeText(config.selectedOrganization) || summaries[0]?.key || '';
+    const selected = summaries.find((entry) => entry.key === selectedKey) || summaries[0] || null;
+    if (!selected) return true;
+    const membership = getOrganizationMemberships().find((entry) => entry.organizationName === selected.displayName);
+    if (!membership) return true;
+    return getRolePermissions(membership.role).includes('manageOrganization');
 }
 
 function getOrganizationSavedViews() {
@@ -676,6 +690,10 @@ function ensureDialog() {
             announce(`Metric snapshot recorded at ${new Date(snapshot.recordedAt).toLocaleString()}.`);
         });
         dialog.querySelector('#btn-organization-clear-snapshots')?.addEventListener('click', () => {
+            if (!canManageSelectedOrganization()) {
+                announce('Your recorded role for this organization does not permit managing organization statistics.');
+                return;
+            }
             clearOrganizationMetricSnapshots();
             renderDialog();
             announce('Organization metric snapshots cleared. Reports were not changed.');
@@ -817,6 +835,11 @@ export function clearOrganizationStatisticsSnapshotsFromCommand(context = {}) {
     if (!state) return false;
     if (context.triggerElement) state.lastTrigger = context.triggerElement;
     state.dialog.hidden = false;
+    if (!canManageSelectedOrganization()) {
+        renderDialog();
+        announce('Your recorded role for this organization does not permit managing organization statistics.');
+        return false;
+    }
     clearOrganizationMetricSnapshots();
     renderDialog();
     announce('Organization metric snapshots cleared. Reports were not changed.');
