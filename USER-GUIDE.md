@@ -541,7 +541,15 @@ Google Drive is the first cloud storage provider ART supports.
 3. After authorizing, ART shows Google Drive as connected for the current browser session.
 4. Select **Disconnect Google Drive** at any time. Disconnecting does not delete anything in your Google Drive.
 
-ART requests only the `drive.file` OAuth scope: access to files ART creates or that you explicitly open, never your entire Google Drive. Connections are per browser session; reloading the page requires reconnecting. Browsing Google Drive folders and opening/saving `.art` files directly through the Storage Providers UI are not yet available.
+ART requests only the `drive.file` OAuth scope: access to files ART creates or that you explicitly open, never your entire Google Drive. Connections are per browser session; reloading the page requires reconnecting.
+
+### Opening and Saving Projects with Google Drive
+Once connected, use these Dashboard buttons (also available from the File menu and Command Palette):
+
+- **Open from Google Drive...** — lists `.art` files found in the root of your Google Drive and opens the one you choose.
+- **Save to Google Drive** — the first time, asks for a filename and creates a new file; after that, it updates the same file.
+
+Both actions are registered in the Keyboard Shortcut Manager without a default binding, so you can assign your own shortcut if desired. Browsing Google Drive subfolders, choosing a dedicated ART folder, and merge-conflict integration for Google Drive files are not yet available.
 
 ### Choosing a Default Provider
 Select a **Default storage provider** in Application Settings to record your preference. No storage provider is ever required for ART's core reporting, Tasks, or Progress Log functionality, and existing local `.art` files continue to open normally.

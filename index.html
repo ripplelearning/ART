@@ -32,6 +32,8 @@
             <button id="btn-open-report">Open ART Project...</button>
             <button id="btn-save-project">Save Project</button>
             <button id="btn-save-project-as">Save Project As...</button>
+            <button id="btn-open-project-google-drive" type="button">Open from Google Drive...</button>
+            <button id="btn-save-project-google-drive" type="button">Save to Google Drive</button>
             <button id="btn-import-data">Import...</button>
             <button id="btn-configure-dashboard" type="button">Configure Dashboard</button>
             <button id="btn-app-settings" type="button">Application Settings</button>
@@ -798,6 +800,16 @@
                 <p id="template-delete-message"></p>
                 <button id="btn-template-delete-yes" type="button">Delete</button>
                 <button id="btn-template-delete-no" type="button">Cancel</button>
+            </div>
+            <div id="google-drive-open-dialog" role="dialog" aria-modal="true" aria-labelledby="google-drive-open-heading" class="command-palette-dialog" hidden>
+                <div class="command-palette-header"><h2 id="google-drive-open-heading">Open from Google Drive</h2></div>
+                <p id="google-drive-open-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <label for="google-drive-open-select">.art files in your Google Drive</label>
+                <select id="google-drive-open-select" size="8"></select>
+                <div class="viewer-dialog-actions" role="group" aria-label="Google Drive open actions">
+                    <button id="btn-google-drive-open-confirm" type="button">Open</button>
+                    <button id="btn-google-drive-open-cancel" type="button">Cancel</button>
+                </div>
             </div>
             <div id="template-edit-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-edit-confirm-heading" aria-describedby="template-edit-confirm-message" hidden>
                 <h3 id="template-edit-confirm-heading">Edit Template?</h3>

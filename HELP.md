@@ -447,7 +447,9 @@ Choose a **Default storage provider** to record your preference for future stora
 ### Google Drive
 Google Drive is the first cloud storage provider. Connecting requires a Google Drive OAuth Client ID, configured once by an ART administrator under **Google Drive Connection** in Application Settings; ART does not ship with a Client ID built in. Once a Client ID is saved, select **Connect Google Drive** to authorize this browser session through a Google sign-in popup; allow popups for the ART site if the browser blocks it. ART requests only the `drive.file` scope, limiting access to files ART creates or you open, never your entire Google Drive. Select **Disconnect Google Drive** to end the session; this does not delete any Google Drive files.
 
-Google Drive connections are per-browser-session only in this release; reloading the page requires reconnecting. Browsing Google Drive folders, opening and saving `.art` files directly from Google Drive, and merge-conflict integration for Google Drive files are not yet available in the user interface.
+Google Drive connections are per-browser-session only in this release; reloading the page requires reconnecting.
+
+Once connected, use **Open from Google Drive...** and **Save to Google Drive** on the Dashboard, or the equivalent File menu and Command Palette entries, to open and save `.art` files. Open from Google Drive lists `.art` files found in the root of your Google Drive and lets you choose one to open. Saving asks for a filename the first time; after that, Save to Google Drive updates the same file. Browsing Google Drive subfolders, choosing a dedicated ART folder, and merge-conflict integration for Google Drive files are not yet available.
 
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.

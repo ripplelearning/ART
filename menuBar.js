@@ -97,6 +97,8 @@ function getMenuItemLabel(command, parentPath = '') {
         case 'newWorkingView': return 'New Working View';
         case 'openProject': return 'Open ART Project...';
         case 'openReport': return 'Open Report...';
+        case 'openProjectFromGoogleDrive': return 'Open from Google Drive...';
+        case 'saveProjectToGoogleDrive': return 'Save to Google Drive';
         case 'openProjectWorkspace': return 'Open Project Workspace...';
         case 'openWorkingView': return 'Open Working View...';
         case 'saveProject': return 'Save Report';
@@ -293,6 +295,8 @@ function getMenuLocation(command) {
         case 'openProject': return 'File>Open>Project';
         case 'openReport':
         case 'importData': return 'File>Open>Report';
+        case 'openProjectFromGoogleDrive': return 'File>Open>Google Drive';
+        case 'saveProjectToGoogleDrive': return 'File>Save>Google Drive';
         case 'openProjectWorkspace':
         case 'openRecentProjectWorkspace': return 'File>Open>Project Workspace';
         case 'openWorkingView': return 'File>Open>Working View';

@@ -208,6 +208,8 @@ const defaultState = {
         openProject: 'Ctrl+O',
         saveProject: 'Ctrl+S',
         saveProjectAs: 'Ctrl+Shift+S',
+        openProjectFromGoogleDrive: '',
+        saveProjectToGoogleDrive: '',
         importData: 'Ctrl+Shift+I',
         newProjectWorkspace: 'Ctrl+Alt+N',
         openProjectWorkspace: 'Ctrl+Alt+O',
@@ -1095,7 +1097,9 @@ function normalizeProjectDocumentConfig(config) {
         createdAt: String(source.createdAt || ''),
         lastModifiedAt: String(source.lastModifiedAt || ''),
         recoveryLabel: String(source.recoveryLabel || ''),
-        hasRecoveredChanges: Boolean(source.hasRecoveredChanges)
+        hasRecoveredChanges: Boolean(source.hasRecoveredChanges),
+        storageProviderId: String(source.storageProviderId || 'local'),
+        storageFileId: String(source.storageFileId || '')
     };
 }
 
@@ -2015,6 +2019,8 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'openProject', label: 'Open ART Project', defaultShortcut: defaultState.shortcuts.openProject },
     { action: 'saveProject', label: 'Save ART Project', defaultShortcut: defaultState.shortcuts.saveProject },
     { action: 'saveProjectAs', label: 'Save ART Project As', defaultShortcut: defaultState.shortcuts.saveProjectAs },
+    { action: 'openProjectFromGoogleDrive', label: 'Open Project from Google Drive', defaultShortcut: defaultState.shortcuts.openProjectFromGoogleDrive },
+    { action: 'saveProjectToGoogleDrive', label: 'Save Project to Google Drive', defaultShortcut: defaultState.shortcuts.saveProjectToGoogleDrive },
     { action: 'importData', label: 'Import Data', defaultShortcut: defaultState.shortcuts.importData },
     { action: 'newProjectWorkspace', label: 'Create new Project Workspace', defaultShortcut: defaultState.shortcuts.newProjectWorkspace },
     { action: 'openProjectWorkspace', label: 'Open Project Workspace', defaultShortcut: defaultState.shortcuts.openProjectWorkspace },
@@ -2358,6 +2364,8 @@ export function getAssignableActions() {
         { action: 'openProject', label: 'Open ART Project' },
         { action: 'saveProject', label: 'Save ART Project' },
         { action: 'saveProjectAs', label: 'Save ART Project As' },
+        { action: 'openProjectFromGoogleDrive', label: 'Open Project from Google Drive' },
+        { action: 'saveProjectToGoogleDrive', label: 'Save Project to Google Drive' },
         { action: 'importData', label: 'Import Data' },
         { action: 'newProjectWorkspace', label: 'Create new Project Workspace' },
         { action: 'openProjectWorkspace', label: 'Open Project Workspace' },

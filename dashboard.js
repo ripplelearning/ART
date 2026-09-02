@@ -74,6 +74,14 @@ import { openSettingsCollaborationSectionFromCommand } from './settings.js';
 import { calculateOrganizationMetrics, getOrganizationSummaries } from './organizationMetricsFramework.js';
 import { openOrganizationStatistics } from './organizationDashboard.js';
 import { openTasksDialog } from './taskFramework.js';
+import {
+    connectGoogleDrive,
+    createArtFile,
+    downloadArtFileContent,
+    getGoogleDriveConnectionStatus,
+    listArtFiles,
+    updateArtFile
+} from './googleDriveStorageProvider.js';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -93,6 +101,8 @@ let activeProjectFileHandle = null;
 let runDashboardOpenProjectWorkflow = null;
 let runDashboardSaveProjectWorkflow = null;
 let runDashboardSaveProjectAsWorkflow = null;
+let runDashboardOpenGoogleDriveWorkflow = null;
+let runDashboardSaveGoogleDriveWorkflow = null;
 let runDashboardImportReportPickerWorkflow = null;
 let runDashboardImportTemplatePickerWorkflow = null;
 let runDashboardConfigureWorkflow = null;
@@ -111,6 +121,16 @@ export async function saveDashboardProjectFromCommand() {
 export async function saveDashboardProjectAsFromCommand() {
     if (typeof runDashboardSaveProjectAsWorkflow !== 'function') return false;
     return runDashboardSaveProjectAsWorkflow();
+}
+
+export async function openDashboardProjectFromGoogleDriveFromCommand() {
+    if (typeof runDashboardOpenGoogleDriveWorkflow !== 'function') return false;
+    return runDashboardOpenGoogleDriveWorkflow();
+}
+
+export async function saveDashboardProjectToGoogleDriveFromCommand() {
+    if (typeof runDashboardSaveGoogleDriveWorkflow !== 'function') return false;
+    return runDashboardSaveGoogleDriveWorkflow();
 }
 
 export function startDashboardImportReportFromCommand() {
@@ -1196,6 +1216,8 @@ export function renderDashboard() {
     const btnOpenReport = document.getElementById('btn-open-report');
     const btnSaveProject = document.getElementById('btn-save-project');
     const btnSaveProjectAs = document.getElementById('btn-save-project-as');
+    const btnOpenProjectGoogleDrive = document.getElementById('btn-open-project-google-drive');
+    const btnSaveProjectGoogleDrive = document.getElementById('btn-save-project-google-drive');
     const btnImportData = document.getElementById('btn-import-data');
     const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
     const collaborationToolbar = document.getElementById('collaboration-toolbar');
@@ -1619,9 +1641,130 @@ export function renderDashboard() {
         return true;
     };
 
+    const ensureGoogleDriveConnected = async () => {
+        if (getGoogleDriveConnectionStatus().connected) return { ok: true };
+        return connectGoogleDrive();
+    };
+
+    const googleDriveOpenDialog = document.getElementById('google-drive-open-dialog');
+    const googleDriveOpenSelect = document.getElementById('google-drive-open-select');
+    const googleDriveOpenStatus = document.getElementById('google-drive-open-status');
+    const btnGoogleDriveOpenConfirm = document.getElementById('btn-google-drive-open-confirm');
+    const btnGoogleDriveOpenCancel = document.getElementById('btn-google-drive-open-cancel');
+
+    const closeGoogleDriveOpenDialog = () => {
+        if (googleDriveOpenDialog) googleDriveOpenDialog.hidden = true;
+    };
+
+    const runOpenProjectFromGoogleDrive = async () => {
+        const proceed = await confirmProceedWithUnsavedChanges();
+        if (!proceed) return false;
+
+        const connection = await ensureGoogleDriveConnected();
+        if (!connection.ok) {
+            reportPrecheckStatus(connection.message);
+            return false;
+        }
+
+        if (!googleDriveOpenDialog || !googleDriveOpenSelect) return false;
+        googleDriveOpenStatus.textContent = 'Loading .art files from Google Drive…';
+        googleDriveOpenDialog.hidden = false;
+        announce('Open from Google Drive dialog opened.');
+
+        try {
+            const files = await listArtFiles('root');
+            googleDriveOpenSelect.innerHTML = files.length
+                ? files.map((file) => `<option value="${file.id}">${file.name}</option>`).join('')
+                : '';
+            googleDriveOpenStatus.textContent = files.length
+                ? `${files.length} .art file${files.length === 1 ? '' : 's'} found in the root of Google Drive.`
+                : 'No .art files were found in the root of Google Drive.';
+            googleDriveOpenSelect.focus();
+        } catch (error) {
+            googleDriveOpenStatus.textContent = error.message || 'Could not list Google Drive files.';
+        }
+        return true;
+    };
+
+    btnGoogleDriveOpenConfirm?.addEventListener('click', async () => {
+        const option = googleDriveOpenSelect?.selectedOptions?.[0];
+        if (!option) {
+            googleDriveOpenStatus.textContent = 'Select a file to open.';
+            return;
+        }
+        try {
+            const text = await downloadArtFileContent(option.value);
+            const opened = openProjectFromText(text, option.textContent);
+            if (opened) {
+                updateProjectDocumentInfo({ storageProviderId: 'google-drive', storageFileId: option.value }, { action: 'Opened ART project from Google Drive' });
+                closeGoogleDriveOpenDialog();
+            }
+        } catch (error) {
+            googleDriveOpenStatus.textContent = error.message || 'Could not open the selected Google Drive file.';
+        }
+    });
+    btnGoogleDriveOpenCancel?.addEventListener('click', () => {
+        closeGoogleDriveOpenDialog();
+        announce('Open from Google Drive cancelled.');
+    });
+    googleDriveOpenDialog?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeGoogleDriveOpenDialog();
+        }
+    });
+
+    const runSaveProjectToGoogleDrive = async () => {
+        const connection = await ensureGoogleDriveConnected();
+        if (!connection.ok) {
+            reportPrecheckStatus(connection.message);
+            return false;
+        }
+
+        const payloadText = serializeArtProjectPayload();
+        const now = new Date().toISOString();
+        const currentProject = getProjectDocumentInfo();
+
+        if (currentProject.storageProviderId === 'google-drive' && currentProject.storageFileId) {
+            try {
+                await updateArtFile(currentProject.storageFileId, payloadText);
+                updateProjectDocumentInfo({ lastModifiedAt: now }, { action: 'Saved ART project to Google Drive' });
+                saveState({ action: 'Saved ART project to Google Drive', markProjectSaved: true, recordHistory: false });
+                announce('Project saved to Google Drive.');
+                return true;
+            } catch (error) {
+                reportPrecheckStatus(error.message || 'Could not save to Google Drive.');
+                return false;
+            }
+        }
+
+        const suggestedName = buildProjectFileName();
+        const fileName = window.prompt('Save to Google Drive as:', suggestedName);
+        if (!fileName) return false;
+        try {
+            const created = await createArtFile(fileName, 'root', payloadText);
+            updateProjectDocumentInfo({
+                fileName: created.name || fileName,
+                filePath: '',
+                createdAt: currentProject.createdAt || now,
+                lastModifiedAt: now,
+                storageProviderId: 'google-drive',
+                storageFileId: created.id
+            }, { action: 'Saved ART project to Google Drive' });
+            saveState({ action: 'Saved ART project to Google Drive', markProjectSaved: true, recordHistory: false });
+            announce(`Project saved to Google Drive as ${created.name || fileName}.`);
+            return true;
+        } catch (error) {
+            reportPrecheckStatus(error.message || 'Could not save to Google Drive.');
+            return false;
+        }
+    };
+
     runDashboardSaveProjectWorkflow = runSaveProject;
     runDashboardSaveProjectAsWorkflow = runSaveProjectAs;
     runDashboardOpenProjectWorkflow = runOpenProjectPicker;
+    runDashboardOpenGoogleDriveWorkflow = runOpenProjectFromGoogleDrive;
+    runDashboardSaveGoogleDriveWorkflow = runSaveProjectToGoogleDrive;
     runDashboardImportReportPickerWorkflow = () => {
         importReportInput.value = '';
         importReportInput.click();
@@ -1670,6 +1813,14 @@ export function renderDashboard() {
 
     btnOpenReport.addEventListener('click', async () => {
         await executeDashboardAction('openProject');
+    });
+
+    btnOpenProjectGoogleDrive?.addEventListener('click', async () => {
+        await executeDashboardAction('openProjectFromGoogleDrive');
+    });
+
+    btnSaveProjectGoogleDrive?.addEventListener('click', async () => {
+        await executeDashboardAction('saveProjectToGoogleDrive');
     });
 
     openProjectInput.addEventListener('change', async () => {

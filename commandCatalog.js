@@ -108,8 +108,10 @@ import { getPresentationValidation, updatePresentationPreviewMode, updatePresent
 import {
     openConfigureDashboardFromCommand,
     openDashboardProjectFromCommand,
+    openDashboardProjectFromGoogleDriveFromCommand,
     saveDashboardProjectAsFromCommand,
     saveDashboardProjectFromCommand,
+    saveDashboardProjectToGoogleDriveFromCommand,
     startDashboardImportReportFromCommand,
     startDashboardImportTemplateFromCommand
 } from './dashboard.js';
@@ -2841,6 +2843,20 @@ const BASE_COMMAND_DEFINITIONS = [
         category: 'File',
         description: 'Save the current ART project under a new name.',
         handler: () => saveDashboardProjectAsFromCommand()
+    },
+    {
+        action: 'openProjectFromGoogleDrive',
+        id: 'File.OpenProjectFromGoogleDrive',
+        category: 'File',
+        description: 'Open an ART project stored in Google Drive.',
+        handler: () => openDashboardProjectFromGoogleDriveFromCommand()
+    },
+    {
+        action: 'saveProjectToGoogleDrive',
+        id: 'File.SaveProjectToGoogleDrive',
+        category: 'File',
+        description: 'Save the current ART project to Google Drive.',
+        handler: () => saveDashboardProjectToGoogleDriveFromCommand()
     },
     {
         action: 'importData',

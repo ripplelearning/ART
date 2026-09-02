@@ -6,6 +6,9 @@ $googleDrive = Read-Text 'googleDriveStorageProvider.js'
 $storage = Read-Text 'storageProviderFramework.js'
 $settings = Read-Text 'settings.js'
 $indexHtml = Read-Text 'index.html'
+$dashboard = Read-Text 'dashboard.js'
+$commandCatalog = Read-Text 'commandCatalog.js'
+$state = Read-Text 'state.js'
 $help = Read-Text 'HELP.md'
 $userGuide = Read-Text 'USER-GUIDE.md'
 $inAppHelp = Read-Text 'help.js'
@@ -26,6 +29,12 @@ $checks += [pscustomobject]@{ Name = 'Wired into Storage Provider Architecture (
 $checks += [pscustomobject]@{ Name = 'Settings UI integration'; Script = {
     Assert-All 'index.html' $indexHtml @('settings-google-drive-client-id', 'btn-settings-google-drive-connect', 'btn-settings-google-drive-disconnect') 'Google Drive Settings UI is missing.'
     Assert-All 'settings.js' $settings @('renderStorageProviderSettings', 'connectGoogleDrive', 'disconnectGoogleDrive', 'setGoogleDriveClientId') 'Settings wiring for Google Drive is incomplete.'
+} }
+$checks += [pscustomobject]@{ Name = 'Open/Save Google Drive project commands'; Script = {
+    Assert-All 'dashboard.js' $dashboard @('openDashboardProjectFromGoogleDriveFromCommand', 'saveDashboardProjectToGoogleDriveFromCommand', 'listArtFiles', 'downloadArtFileContent', 'createArtFile', 'updateArtFile') 'Google Drive open/save workflow is not wired into the Dashboard.'
+    Assert-All 'index.html' $indexHtml @('btn-open-project-google-drive', 'btn-save-project-google-drive', 'google-drive-open-dialog') 'Google Drive open/save Dashboard controls are missing.'
+    Assert-All 'commandCatalog.js' $commandCatalog @("action:\s*'openProjectFromGoogleDrive'", "action:\s*'saveProjectToGoogleDrive'") 'Google Drive open/save commands are not registered.'
+    Assert-All 'state.js' $state @('openProjectFromGoogleDrive', 'saveProjectToGoogleDrive') 'Google Drive open/save actions are missing from the Keyboard Shortcut Manager.'
 } }
 $checks += [pscustomobject]@{ Name = 'Help and User Guide coverage'; Script = {
     Assert-All 'HELP.md' $help @('### Google Drive', 'drive.file') 'Google Drive Help coverage is incomplete.'
