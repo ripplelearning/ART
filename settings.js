@@ -108,6 +108,13 @@ import {
     setOneDriveClientId
 } from './oneDriveStorageProvider.js';
 import {
+    connectDropbox,
+    disconnectDropbox,
+    getDropboxClientId,
+    getDropboxConnectionStatus,
+    setDropboxClientId
+} from './dropboxStorageProvider.js';
+import {
     clearCollaborationSessions,
     connectCollaborationLiveServer,
     createCollaborationDiscoverySnapshot,
@@ -588,6 +595,18 @@ function renderStorageProviderSettings() {
                 ? 'An Application (Client) ID is configured. Select Connect OneDrive to authorize this session.'
                 : 'No Microsoft OneDrive Application (Client) ID is configured yet.';
     }
+
+    const dropboxStatus = document.getElementById('settings-dropbox-status');
+    if (dropboxStatus) {
+        const clientIdInput = document.getElementById('settings-dropbox-client-id');
+        if (clientIdInput && document.activeElement !== clientIdInput) clientIdInput.value = getDropboxClientId();
+        const connection = getDropboxConnectionStatus();
+        dropboxStatus.textContent = connection.connected
+            ? 'Dropbox is connected for this browser session.'
+            : getDropboxClientId()
+                ? 'An App Key is configured. Select Connect Dropbox to authorize this session.'
+                : 'No Dropbox App Key is configured yet.';
+    }
 }
 
 function bindStorageProviderSettings() {
@@ -637,6 +656,29 @@ function bindStorageProviderSettings() {
     document.getElementById('btn-settings-onedrive-disconnect')?.addEventListener('click', () => {
         const result = disconnectOneDrive();
         refreshOneDriveProviderStatus();
+        writeStatus(result.message);
+        announce(result.message);
+        renderStorageProviderSettings();
+    });
+    document.getElementById('btn-settings-dropbox-save-client-id')?.addEventListener('click', () => {
+        const input = document.getElementById('settings-dropbox-client-id');
+        setDropboxClientId(input?.value);
+        refreshDropboxProviderStatus();
+        writeStatus('Saved Dropbox App Key.');
+        announce('Saved Dropbox App Key.');
+        renderStorageProviderSettings();
+    });
+    document.getElementById('btn-settings-dropbox-connect')?.addEventListener('click', () => {
+        Promise.resolve(connectDropbox()).then((result) => {
+            refreshDropboxProviderStatus();
+            writeStatus(result.message);
+            announce(result.message);
+            renderStorageProviderSettings();
+        });
+    });
+    document.getElementById('btn-settings-dropbox-disconnect')?.addEventListener('click', () => {
+        const result = disconnectDropbox();
+        refreshDropboxProviderStatus();
         writeStatus(result.message);
         announce(result.message);
         renderStorageProviderSettings();

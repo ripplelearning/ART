@@ -36,6 +36,8 @@
             <button id="btn-save-project-google-drive" type="button" hidden>Save to Google Drive</button>
             <button id="btn-open-project-onedrive" type="button" hidden>Open from OneDrive...</button>
             <button id="btn-save-project-onedrive" type="button" hidden>Save to OneDrive</button>
+            <button id="btn-open-project-dropbox" type="button" hidden>Open from Dropbox...</button>
+            <button id="btn-save-project-dropbox" type="button" hidden>Save to Dropbox</button>
             <button id="btn-import-data">Import...</button>
             <button id="btn-configure-dashboard" type="button">Configure Dashboard</button>
             <button id="btn-app-settings" type="button">Application Settings</button>
@@ -366,6 +368,17 @@
                     <button id="btn-settings-onedrive-save-client-id" type="button">Save Client ID</button>
                     <button id="btn-settings-onedrive-connect" type="button">Connect OneDrive</button>
                     <button id="btn-settings-onedrive-disconnect" type="button">Disconnect OneDrive</button>
+                </div>
+
+                <h5 id="settings-dropbox-heading">Dropbox Connection</h5>
+                <p id="settings-dropbox-help">Connecting requires a Dropbox App Key (registered with "App folder" access) configured by an ART administrator. ART only ever accesses its own dedicated App Folder, never your entire Dropbox. Connecting opens a Dropbox sign-in popup; allow popups for this site if the browser blocks it.</p>
+                <label for="settings-dropbox-client-id">Dropbox App Key</label>
+                <input id="settings-dropbox-client-id" type="text" autocomplete="off" spellcheck="false">
+                <p id="settings-dropbox-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <div class="viewer-dialog-actions" role="group" aria-label="Dropbox actions">
+                    <button id="btn-settings-dropbox-save-client-id" type="button">Save App Key</button>
+                    <button id="btn-settings-dropbox-connect" type="button">Connect Dropbox</button>
+                    <button id="btn-settings-dropbox-disconnect" type="button">Disconnect Dropbox</button>
                 </div>
             </section>
 
@@ -832,6 +845,16 @@
                 <div class="viewer-dialog-actions" role="group" aria-label="OneDrive open actions">
                     <button id="btn-onedrive-open-confirm" type="button">Open</button>
                     <button id="btn-onedrive-open-cancel" type="button">Cancel</button>
+                </div>
+            </div>
+            <div id="dropbox-open-dialog" role="dialog" aria-modal="true" aria-labelledby="dropbox-open-heading" class="command-palette-dialog" hidden>
+                <div class="command-palette-header"><h2 id="dropbox-open-heading">Open from Dropbox</h2></div>
+                <p id="dropbox-open-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                <label for="dropbox-open-select">.art files in your Dropbox App Folder</label>
+                <select id="dropbox-open-select" size="8"></select>
+                <div class="viewer-dialog-actions" role="group" aria-label="Dropbox open actions">
+                    <button id="btn-dropbox-open-confirm" type="button">Open</button>
+                    <button id="btn-dropbox-open-cancel" type="button">Cancel</button>
                 </div>
             </div>
             <div id="template-edit-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="template-edit-confirm-heading" aria-describedby="template-edit-confirm-message" hidden>

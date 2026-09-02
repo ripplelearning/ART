@@ -101,6 +101,8 @@ function getMenuItemLabel(command, parentPath = '') {
         case 'saveProjectToGoogleDrive': return 'Save to Google Drive';
         case 'openProjectFromOneDrive': return 'Open from OneDrive...';
         case 'saveProjectToOneDrive': return 'Save to OneDrive';
+        case 'openProjectFromDropbox': return 'Open from Dropbox...';
+        case 'saveProjectToDropbox': return 'Save to Dropbox';
         case 'openProjectFromOneDrive': return 'Open from OneDrive...';
         case 'saveProjectToOneDrive': return 'Save to OneDrive';
         case 'openProjectWorkspace': return 'Open Project Workspace...';
@@ -303,6 +305,8 @@ function getMenuLocation(command) {
         case 'saveProjectToGoogleDrive': return 'File>Save>Google Drive';
         case 'openProjectFromOneDrive': return 'File>Open>OneDrive';
         case 'saveProjectToOneDrive': return 'File>Save>OneDrive';
+        case 'openProjectFromDropbox': return 'File>Open>Dropbox';
+        case 'saveProjectToDropbox': return 'File>Save>Dropbox';
         case 'openProjectFromOneDrive': return 'File>Open>OneDrive';
         case 'saveProjectToOneDrive': return 'File>Save>OneDrive';
         case 'openProjectWorkspace':

@@ -1,12 +1,13 @@
 // Epic 52 foundation: a provider-independent storage interface so ART's core reporting,
 // collaboration, and merge-conflict logic never depends on a specific storage provider's API.
-// Google Drive (Epic 53) and OneDrive (Epic 54) have real OAuth/API implementations that require a
-// configured Client ID; Dropbox and a future ART Server remain unimplemented placeholders (Epics
-// 55-56). Only Local Computer and Network/Shared Folder are usable today with no extra
-// configuration, both backed by the operating system's normal filesystem access that ART already
-// uses for `.art` files.
+// Google Drive (Epic 53), OneDrive (Epic 54), and Dropbox (Epic 55) have real OAuth/API
+// implementations that require a configured app credential; a future ART Server remains an
+// unimplemented placeholder (Epic 56). Only Local Computer and Network/Shared Folder are usable
+// today with no extra configuration, both backed by the operating system's normal filesystem
+// access that ART already uses for `.art` files.
 import { connectGoogleDrive, disconnectGoogleDrive, getGoogleDriveClientId, getGoogleDriveConnectionStatus } from './googleDriveStorageProvider.js';
 import { connectOneDrive, disconnectOneDrive, getOneDriveClientId, getOneDriveConnectionStatus } from './oneDriveStorageProvider.js';
+import { connectDropbox, disconnectDropbox, getDropboxClientId, getDropboxConnectionStatus } from './dropboxStorageProvider.js';
 
 const providerRegistry = new Map();
 const CONFIG_KEY = 'art-storage-provider-config-v1';
@@ -121,6 +122,7 @@ export function disconnectStorageProvider(providerId) {
 function refreshProviderStatus(providerId) {
     if (providerId === 'google-drive') refreshGoogleDriveProviderStatus();
     else if (providerId === 'onedrive') refreshOneDriveProviderStatus();
+    else if (providerId === 'dropbox') refreshDropboxProviderStatus();
 }
 
 function registerBaselineProviders() {
@@ -142,14 +144,7 @@ function registerBaselineProviders() {
     });
     registerGoogleDriveProvider();
     registerOneDriveProvider();
-    registerStorageProvider({
-        id: 'dropbox',
-        name: 'Dropbox',
-        description: 'Planned in Epic 55.',
-        status: 'coming-soon',
-        priority: 40,
-        capabilities: { browse: true, versionHistory: true, offline: false, sync: true }
-    });
+    registerDropboxProvider();
     registerStorageProvider({
         id: 'art-server',
         name: 'ART Server',
@@ -205,5 +200,25 @@ export function refreshGoogleDriveProviderStatus() {
 
 export function refreshOneDriveProviderStatus() {
     registerOneDriveProvider();
+    window.dispatchEvent(new CustomEvent('art-storage-providers-updated'));
+}
+
+function registerDropboxProvider() {
+    registerStorageProvider({
+        id: 'dropbox',
+        name: 'Dropbox',
+        description: getDropboxClientId()
+            ? 'Connect your Dropbox account to open and save .art files. ART only requests access to its own dedicated App Folder, never your entire Dropbox.'
+            : 'Requires a Dropbox App Key (registered with "App folder" access), configured by an ART administrator, before it can be connected.',
+        status: getDropboxConnectionStatus().connected ? 'available' : 'not-connected',
+        priority: 40,
+        capabilities: { browse: true, versionHistory: true, offline: false, sync: true },
+        connect: connectDropbox,
+        disconnect: disconnectDropbox
+    });
+}
+
+export function refreshDropboxProviderStatus() {
+    registerDropboxProvider();
     window.dispatchEvent(new CustomEvent('art-storage-providers-updated'));
 }

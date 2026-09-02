@@ -110,10 +110,12 @@ import {
     openDashboardProjectFromCommand,
     openDashboardProjectFromGoogleDriveFromCommand,
     openDashboardProjectFromOneDriveFromCommand,
+    openDashboardProjectFromDropboxFromCommand,
     saveDashboardProjectAsFromCommand,
     saveDashboardProjectFromCommand,
     saveDashboardProjectToGoogleDriveFromCommand,
     saveDashboardProjectToOneDriveFromCommand,
+    saveDashboardProjectToDropboxFromCommand,
     startDashboardImportReportFromCommand,
     startDashboardImportTemplateFromCommand
 } from './dashboard.js';
@@ -2878,6 +2880,22 @@ const BASE_COMMAND_DEFINITIONS = [
         description: 'Save the current ART project to Microsoft OneDrive.',
         visible: () => isStorageProviderConnected('onedrive'),
         handler: () => saveDashboardProjectToOneDriveFromCommand()
+    },
+    {
+        action: 'openProjectFromDropbox',
+        id: 'File.OpenProjectFromDropbox',
+        category: 'File',
+        description: 'Open an ART project stored in Dropbox.',
+        visible: () => isStorageProviderConnected('dropbox'),
+        handler: () => openDashboardProjectFromDropboxFromCommand()
+    },
+    {
+        action: 'saveProjectToDropbox',
+        id: 'File.SaveProjectToDropbox',
+        category: 'File',
+        description: 'Save the current ART project to Dropbox.',
+        visible: () => isStorageProviderConnected('dropbox'),
+        handler: () => saveDashboardProjectToDropboxFromCommand()
     },
     {
         action: 'importData',

@@ -90,6 +90,14 @@ import {
     listArtFiles as listOneDriveArtFiles,
     updateArtFile as updateOneDriveArtFile
 } from './oneDriveStorageProvider.js';
+import {
+    connectDropbox,
+    createArtFile as createDropboxArtFile,
+    downloadArtFileContent as downloadDropboxArtFileContent,
+    getDropboxConnectionStatus,
+    listArtFiles as listDropboxArtFiles,
+    updateArtFile as updateDropboxArtFile
+} from './dropboxStorageProvider.js';
 import { isStorageProviderConnected } from './storageProviderFramework.js';
 
 function escapeHtml(value) {
@@ -114,6 +122,8 @@ let runDashboardOpenGoogleDriveWorkflow = null;
 let runDashboardSaveGoogleDriveWorkflow = null;
 let runDashboardOpenOneDriveWorkflow = null;
 let runDashboardSaveOneDriveWorkflow = null;
+let runDashboardOpenDropboxWorkflow = null;
+let runDashboardSaveDropboxWorkflow = null;
 let runDashboardImportReportPickerWorkflow = null;
 let runDashboardImportTemplatePickerWorkflow = null;
 let runDashboardConfigureWorkflow = null;
@@ -152,6 +162,16 @@ export async function openDashboardProjectFromOneDriveFromCommand() {
 export async function saveDashboardProjectToOneDriveFromCommand() {
     if (typeof runDashboardSaveOneDriveWorkflow !== 'function') return false;
     return runDashboardSaveOneDriveWorkflow();
+}
+
+export async function openDashboardProjectFromDropboxFromCommand() {
+    if (typeof runDashboardOpenDropboxWorkflow !== 'function') return false;
+    return runDashboardOpenDropboxWorkflow();
+}
+
+export async function saveDashboardProjectToDropboxFromCommand() {
+    if (typeof runDashboardSaveDropboxWorkflow !== 'function') return false;
+    return runDashboardSaveDropboxWorkflow();
 }
 
 export function startDashboardImportReportFromCommand() {
@@ -1241,6 +1261,8 @@ export function renderDashboard() {
     const btnSaveProjectGoogleDrive = document.getElementById('btn-save-project-google-drive');
     const btnOpenProjectOneDrive = document.getElementById('btn-open-project-onedrive');
     const btnSaveProjectOneDrive = document.getElementById('btn-save-project-onedrive');
+    const btnOpenProjectDropbox = document.getElementById('btn-open-project-dropbox');
+    const btnSaveProjectDropbox = document.getElementById('btn-save-project-dropbox');
     const btnImportData = document.getElementById('btn-import-data');
     const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
     const collaborationToolbar = document.getElementById('collaboration-toolbar');
@@ -1902,6 +1924,125 @@ export function renderDashboard() {
         }
     };
 
+    const ensureDropboxConnected = async () => {
+        if (getDropboxConnectionStatus().connected) return { ok: true };
+        return connectDropbox();
+    };
+
+    const dropboxOpenDialog = document.getElementById('dropbox-open-dialog');
+    const dropboxOpenSelect = document.getElementById('dropbox-open-select');
+    const dropboxOpenStatus = document.getElementById('dropbox-open-status');
+    const btnDropboxOpenConfirm = document.getElementById('btn-dropbox-open-confirm');
+    const btnDropboxOpenCancel = document.getElementById('btn-dropbox-open-cancel');
+
+    const closeDropboxOpenDialog = () => {
+        if (dropboxOpenDialog) dropboxOpenDialog.hidden = true;
+    };
+
+    const runOpenProjectFromDropbox = async () => {
+        const proceed = await confirmProceedWithUnsavedChanges();
+        if (!proceed) return false;
+
+        const connection = await ensureDropboxConnected();
+        if (!connection.ok) {
+            reportPrecheckStatus(connection.message);
+            return false;
+        }
+
+        if (!dropboxOpenDialog || !dropboxOpenSelect) return false;
+        dropboxOpenStatus.textContent = 'Loading .art files from Dropbox…';
+        dropboxOpenDialog.hidden = false;
+        announce('Open from Dropbox dialog opened.');
+
+        try {
+            const files = await listDropboxArtFiles();
+            dropboxOpenSelect.innerHTML = files.length
+                ? files.map((file) => `<option value="${file.id}">${file.name}</option>`).join('')
+                : '';
+            dropboxOpenStatus.textContent = files.length
+                ? `${files.length} .art file${files.length === 1 ? '' : 's'} found in your Dropbox App Folder.`
+                : 'No .art files were found in your Dropbox App Folder.';
+            dropboxOpenSelect.focus();
+        } catch (error) {
+            dropboxOpenStatus.textContent = error.message || 'Could not list Dropbox files.';
+        }
+        return true;
+    };
+
+    btnDropboxOpenConfirm?.addEventListener('click', async () => {
+        const option = dropboxOpenSelect?.selectedOptions?.[0];
+        if (!option) {
+            dropboxOpenStatus.textContent = 'Select a file to open.';
+            return;
+        }
+        try {
+            const text = await downloadDropboxArtFileContent(option.value);
+            const opened = openProjectFromText(text, option.textContent);
+            if (opened) {
+                updateProjectDocumentInfo({ storageProviderId: 'dropbox', storageFileId: option.value }, { action: 'Opened ART project from Dropbox' });
+                closeDropboxOpenDialog();
+            }
+        } catch (error) {
+            dropboxOpenStatus.textContent = error.message || 'Could not open the selected Dropbox file.';
+        }
+    });
+    btnDropboxOpenCancel?.addEventListener('click', () => {
+        closeDropboxOpenDialog();
+        announce('Open from Dropbox cancelled.');
+    });
+    dropboxOpenDialog?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDropboxOpenDialog();
+        }
+    });
+
+    const runSaveProjectToDropbox = async () => {
+        const connection = await ensureDropboxConnected();
+        if (!connection.ok) {
+            reportPrecheckStatus(connection.message);
+            return false;
+        }
+
+        const payloadText = serializeArtProjectPayload();
+        const now = new Date().toISOString();
+        const currentProject = getProjectDocumentInfo();
+
+        if (currentProject.storageProviderId === 'dropbox' && currentProject.storageFileId) {
+            try {
+                await updateDropboxArtFile(currentProject.storageFileId, payloadText);
+                updateProjectDocumentInfo({ lastModifiedAt: now }, { action: 'Saved ART project to Dropbox' });
+                saveState({ action: 'Saved ART project to Dropbox', markProjectSaved: true, recordHistory: false });
+                announce('Project saved to Dropbox.');
+                return true;
+            } catch (error) {
+                reportPrecheckStatus(error.message || 'Could not save to Dropbox.');
+                return false;
+            }
+        }
+
+        const suggestedName = buildProjectFileName();
+        const fileName = window.prompt('Save to Dropbox as:', suggestedName);
+        if (!fileName) return false;
+        try {
+            const created = await createDropboxArtFile(fileName, payloadText);
+            updateProjectDocumentInfo({
+                fileName: created.name || fileName,
+                filePath: '',
+                createdAt: currentProject.createdAt || now,
+                lastModifiedAt: now,
+                storageProviderId: 'dropbox',
+                storageFileId: created.id
+            }, { action: 'Saved ART project to Dropbox' });
+            saveState({ action: 'Saved ART project to Dropbox', markProjectSaved: true, recordHistory: false });
+            announce(`Project saved to Dropbox as ${created.name || fileName}.`);
+            return true;
+        } catch (error) {
+            reportPrecheckStatus(error.message || 'Could not save to Dropbox.');
+            return false;
+        }
+    };
+
     runDashboardSaveProjectWorkflow = runSaveProject;
     runDashboardSaveProjectAsWorkflow = runSaveProjectAs;
     runDashboardOpenProjectWorkflow = runOpenProjectPicker;
@@ -1909,6 +2050,8 @@ export function renderDashboard() {
     runDashboardSaveGoogleDriveWorkflow = runSaveProjectToGoogleDrive;
     runDashboardOpenOneDriveWorkflow = runOpenProjectFromOneDrive;
     runDashboardSaveOneDriveWorkflow = runSaveProjectToOneDrive;
+    runDashboardOpenDropboxWorkflow = runOpenProjectFromDropbox;
+    runDashboardSaveDropboxWorkflow = runSaveProjectToDropbox;
     runDashboardImportReportPickerWorkflow = () => {
         importReportInput.value = '';
         importReportInput.click();
@@ -1975,13 +2118,24 @@ export function renderDashboard() {
         await executeDashboardAction('saveProjectToOneDrive');
     });
 
+    btnOpenProjectDropbox?.addEventListener('click', async () => {
+        await executeDashboardAction('openProjectFromDropbox');
+    });
+
+    btnSaveProjectDropbox?.addEventListener('click', async () => {
+        await executeDashboardAction('saveProjectToDropbox');
+    });
+
     const refreshStorageProviderButtonVisibility = () => {
         const googleDriveConnected = isStorageProviderConnected('google-drive');
         const oneDriveConnected = isStorageProviderConnected('onedrive');
+        const dropboxConnected = isStorageProviderConnected('dropbox');
         if (btnOpenProjectGoogleDrive) btnOpenProjectGoogleDrive.hidden = !googleDriveConnected;
         if (btnSaveProjectGoogleDrive) btnSaveProjectGoogleDrive.hidden = !googleDriveConnected;
         if (btnOpenProjectOneDrive) btnOpenProjectOneDrive.hidden = !oneDriveConnected;
         if (btnSaveProjectOneDrive) btnSaveProjectOneDrive.hidden = !oneDriveConnected;
+        if (btnOpenProjectDropbox) btnOpenProjectDropbox.hidden = !dropboxConnected;
+        if (btnSaveProjectDropbox) btnSaveProjectDropbox.hidden = !dropboxConnected;
     };
     refreshStorageProviderButtonVisibility();
     window.addEventListener('art-storage-providers-updated', refreshStorageProviderButtonVisibility);

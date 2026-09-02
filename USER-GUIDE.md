@@ -564,6 +564,16 @@ Microsoft OneDrive works the same way as Google Drive.
 
 ART requests only the `Files.ReadWrite.AppFolder` scope: access to ART's own dedicated App Folder, never your entire OneDrive. Once connected, use **Open from OneDrive...** and **Save to OneDrive** the same way as their Google Drive equivalents. Both actions are registered in the Keyboard Shortcut Manager without a default binding. Browsing additional OneDrive folders and merge-conflict integration for OneDrive files are not yet available.
 
+### Connecting Dropbox
+Dropbox is an optional provider and uses an app registered with Dropbox's **App folder** access type.
+
+1. An ART administrator configures the Dropbox App Key under **Dropbox Connection** in Application Settings.
+2. Select **Connect Dropbox** and complete the Dropbox sign-in popup. Allow popups for the ART site if the browser blocks it.
+3. After authorization, Dropbox controls appear in the Dashboard, File menu, Command Palette, and Keyboard Shortcut Manager.
+4. Select **Disconnect Dropbox** to end the session. Existing local files and Dropbox files are not deleted.
+
+ART requests only file-content read/write scopes and Dropbox confines access to the app's dedicated folder. Use **Open from Dropbox...** to list `.art` files there, or **Save to Dropbox** to create a file the first time and update it afterward. Both commands have no default keyboard shortcut. Folder browsing beyond the app folder and merge-conflict integration remain deferred.
+
 ### Choosing a Default Provider
 Select a **Default storage provider** in Application Settings to record your preference. No storage provider is ever required for ART's core reporting, Tasks, or Progress Log functionality, and existing local `.art` files continue to open normally.
 

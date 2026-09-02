@@ -213,6 +213,8 @@ const defaultState = {
         saveProjectToGoogleDrive: '',
         openProjectFromOneDrive: '',
         saveProjectToOneDrive: '',
+        openProjectFromDropbox: '',
+        saveProjectToDropbox: '',
         importData: 'Ctrl+Shift+I',
         newProjectWorkspace: 'Ctrl+Alt+N',
         openProjectWorkspace: 'Ctrl+Alt+O',
@@ -2026,6 +2028,8 @@ const SHORTCUT_DEFINITIONS = [
     { action: 'saveProjectToGoogleDrive', label: 'Save Project to Google Drive', defaultShortcut: defaultState.shortcuts.saveProjectToGoogleDrive },
     { action: 'openProjectFromOneDrive', label: 'Open Project from OneDrive', defaultShortcut: defaultState.shortcuts.openProjectFromOneDrive },
     { action: 'saveProjectToOneDrive', label: 'Save Project to OneDrive', defaultShortcut: defaultState.shortcuts.saveProjectToOneDrive },
+    { action: 'openProjectFromDropbox', label: 'Open Project from Dropbox', defaultShortcut: defaultState.shortcuts.openProjectFromDropbox },
+    { action: 'saveProjectToDropbox', label: 'Save Project to Dropbox', defaultShortcut: defaultState.shortcuts.saveProjectToDropbox },
     { action: 'importData', label: 'Import Data', defaultShortcut: defaultState.shortcuts.importData },
     { action: 'newProjectWorkspace', label: 'Create new Project Workspace', defaultShortcut: defaultState.shortcuts.newProjectWorkspace },
     { action: 'openProjectWorkspace', label: 'Open Project Workspace', defaultShortcut: defaultState.shortcuts.openProjectWorkspace },
@@ -2254,7 +2258,9 @@ const STORAGE_PROVIDER_GATED_ACTIONS = {
     openProjectFromGoogleDrive: 'google-drive',
     saveProjectToGoogleDrive: 'google-drive',
     openProjectFromOneDrive: 'onedrive',
-    saveProjectToOneDrive: 'onedrive'
+    saveProjectToOneDrive: 'onedrive',
+    openProjectFromDropbox: 'dropbox',
+    saveProjectToDropbox: 'dropbox'
 };
 
 export function getAssignableActions() {
@@ -2383,6 +2389,8 @@ export function getAssignableActions() {
         { action: 'saveProjectToGoogleDrive', label: 'Save Project to Google Drive' },
         { action: 'openProjectFromOneDrive', label: 'Open Project from OneDrive' },
         { action: 'saveProjectToOneDrive', label: 'Save Project to OneDrive' },
+        { action: 'openProjectFromDropbox', label: 'Open Project from Dropbox' },
+        { action: 'saveProjectToDropbox', label: 'Save Project to Dropbox' },
         { action: 'importData', label: 'Import Data' },
         { action: 'newProjectWorkspace', label: 'Create new Project Workspace' },
         { action: 'openProjectWorkspace', label: 'Open Project Workspace' },

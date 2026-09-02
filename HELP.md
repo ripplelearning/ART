@@ -458,6 +458,11 @@ Microsoft OneDrive works the same way as Google Drive. Connecting requires a Mic
 
 Once connected, use **Open from OneDrive...** and **Save to OneDrive** on the Dashboard, File menu, or Command Palette. Open from OneDrive lists `.art` files found in ART's App Folder; Save to OneDrive creates that file the first time and updates it afterward. Browsing additional OneDrive folders and merge-conflict integration for OneDrive files are not yet available.
 
+### Dropbox
+Dropbox is an optional cloud storage provider. Connecting requires a Dropbox App Key for an app registered with **App folder** access, configured under **Dropbox Connection** in Application Settings. Select **Connect Dropbox** to authorize through a Dropbox sign-in popup; allow popups for the ART site if the browser blocks it. ART requests only read/write file-content scopes and is restricted by Dropbox to the app's dedicated folder, not the user's entire Dropbox. Select **Disconnect Dropbox** to end the session without deleting Dropbox files.
+
+After connection, **Open from Dropbox...** and **Save to Dropbox** appear on the Dashboard, in the File menu, Command Palette, and Keyboard Shortcut Manager. Open lists `.art` files in the Dropbox app folder; Save creates a file the first time and updates that file afterward. Dropbox controls are hidden again after disconnecting. Folder browsing beyond the app folder and merge-conflict integration remain deferred.
+
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
 
