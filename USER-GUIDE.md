@@ -589,6 +589,13 @@ For each integration, use **Connect**, **Disconnect**, or **Test Connection** wh
 
 The common management layer is available now, but live provider adapters, OAuth setup, importing external issues, creating external work items, field mappings, external links, and synchronization require provider-specific credentials and implementation. Unconfigured integrations display **Configuration incomplete** and leave ART's local workflows unchanged.
 
+## ART Desktop Application
+ART's Electron desktop shell uses the same web application and shared core modules as the browser version, so reports, Tasks, Progress Logs, storage, integrations, accessibility settings, and keyboard shortcuts remain consistent.
+
+The Windows package is configured as `ART-Setup.exe`. It creates standard Start Menu/Desktop shortcuts and associates `.art` files with ART. Opening an `.art` file from Windows launches ART and sends the file through ART's normal validation and import workflow. The desktop shell does not require an ART server for local-first work.
+
+The source includes the desktop startup and packaging configuration, but production signing, release automation, website distribution, automatic updates, macOS/Linux packages, and full desktop assistive-technology testing remain deferred. Building locally requires the Node/Electron dependencies described in `package.json`.
+
 ## Merge Conflict Resolution
 ART includes a local, provider-neutral three-way merge foundation for safely comparing a common base version with your version and another version. This supports future file-based collaboration and server synchronization without silently choosing a winner when two versions change the same field differently.
 

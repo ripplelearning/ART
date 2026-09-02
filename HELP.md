@@ -475,6 +475,13 @@ Each integration records its connection state, account label, synchronization st
 
 The current release provides the common integration-management architecture only. Live OAuth/API adapters, importing external issues, creating Jira/GitHub/Azure work items, field mappings, external links, and bidirectional synchronization require provider credentials, service configuration, and additional provider-specific implementation.
 
+## ART Desktop Application
+ART includes an Electron desktop shell that loads the same ART web application and shared core modules. The desktop package uses isolated renderer settings (`contextIsolation`, `sandbox`, and `nodeIntegration: false`), blocks unapproved navigation, and opens external HTTP links through the operating system browser.
+
+The Windows packaging configuration creates `ART-Setup.exe`, Start Menu/Desktop shortcuts, and an `.art` file association. Double-clicking an `.art` file launches ART and loads it through the same validation and import pipeline used by the web application's Open workflow. Local-first reporting, Tasks, Progress Logs, storage providers, and external integrations remain shared functionality rather than a second desktop implementation.
+
+Building the installer requires the Node/Electron development dependencies. Production code signing, GitHub Actions release automation, website download hosting, automatic updates, macOS/Linux packaging, and full desktop accessibility/performance testing are not configured in this release.
+
 ## Merge Conflict Resolution
 ART's provider-neutral three-way merge foundation compares a common base version, your version, and another version. Independent changes to different fields can merge automatically. Competing edits to the same field remain preserved as a conflict until a user chooses Keep my version or Keep other version in the accessible Merge Conflict Resolution dialog.
 

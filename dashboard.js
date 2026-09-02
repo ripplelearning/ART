@@ -1603,6 +1603,23 @@ export function renderDashboard() {
         return true;
     };
 
+    if (globalThis.artDesktop?.isDesktop) {
+        const desktopOpenedPaths = new Set();
+        const openDesktopArtifact = async (filePath) => {
+            if (!filePath || desktopOpenedPaths.has(filePath)) return;
+            desktopOpenedPaths.add(filePath);
+            try {
+                const fileText = await globalThis.artDesktop.readArtFile(filePath);
+                activeProjectFileHandle = null;
+                openProjectFromText(fileText, filePath.split(/[\\/]/).pop() || 'project.art');
+            } catch (error) {
+                reportPrecheckStatus(`Open failed for ${filePath || 'project'}. Could not read file.`);
+            }
+        };
+        globalThis.artDesktop.onOpenArtFile(openDesktopArtifact);
+        globalThis.artDesktop.getOpenFilePath().then(openDesktopArtifact);
+    }
+
     const runSaveProjectAs = async () => {
         const payloadText = serializeArtProjectPayload();
         const suggestedName = buildProjectFileName();
