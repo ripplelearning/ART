@@ -1,7 +1,11 @@
 import { announce } from './state.js';
+import { getLocalUserProfile } from './identityFramework.js';
+import { getOrganizationMemberships } from './authorizationFramework.js';
 
 const FEEDBACK_KEY = 'art-community-feedback-v1';
 const FEEDBACK_CATEGORIES = ['Accessibility', 'Usability', 'Bug', 'Feature Request', 'Performance', 'Documentation', 'Security and Privacy'];
+const ISSUE_STATUSES = ['New', 'Triaged', 'In Progress', 'Needs Review', 'Resolved', 'Closed'];
+const ISSUES_KEY = 'art-community-feedback-issues-v1';
 let feedbackDialog = null;
 let lastTrigger = null;
 
@@ -25,6 +29,124 @@ function readFeedback() {
 
 function writeFeedback(entries) {
     localStorage.setItem(FEEDBACK_KEY, JSON.stringify(entries.slice(-100)));
+}
+
+function readIssues() {
+    try {
+        const value = JSON.parse(localStorage.getItem(ISSUES_KEY) || '[]');
+        return Array.isArray(value) ? value : [];
+    } catch {
+        return [];
+    }
+}
+
+function writeIssues(issues) {
+    localStorage.setItem(ISSUES_KEY, JSON.stringify(issues.slice(-500)));
+}
+
+function getCurrentUserId() {
+    return getLocalUserProfile().localUserId;
+}
+
+function canUpdateIssues() {
+    const profile = getLocalUserProfile();
+    if (['Owner', 'Administrator'].includes(profile.artRole)) return true;
+    return getOrganizationMemberships().some((membership) => ['Owner', 'Admin', 'Contributor'].includes(membership.role));
+}
+
+function canUpdateIssue(issue) {
+    return canUpdateIssues() || issue?.reporterUserId === getCurrentUserId();
+}
+
+function createIssueFromFeedback(entry) {
+    return {
+        id: `feedback-issue-${Date.now()}`,
+        feedbackId: entry.id,
+        category: entry.category,
+        summary: entry.summary,
+        details: entry.details,
+        contact: entry.contact,
+        status: 'New',
+        comments: [],
+        reporterUserId: getCurrentUserId(),
+        createdAt: entry.createdAt,
+        updatedAt: entry.createdAt
+    };
+}
+
+function getIssuesNewestFirst() {
+    return readIssues().sort((left, right) => String(right.updatedAt || right.createdAt).localeCompare(String(left.updatedAt || left.createdAt)));
+}
+
+function exportIssuesFile() {
+    const blob = new Blob([JSON.stringify({ artFeedbackIssuesVersion: '1.0', exportedAt: new Date().toISOString(), issues: getIssuesNewestFirst() }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'art-feedback-issues.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    announce('Feedback issues exported to an ART feedback issues file.');
+}
+
+function renderIssueTracker() {
+    const tracker = document.getElementById('community-feedback-issues');
+    if (!tracker) return;
+    tracker.innerHTML = `
+        <div class="command-palette-header"><h2 id="community-feedback-issues-heading">Feedback Issues</h2><button type="button" data-issues-close>Close</button></div>
+        <p id="community-feedback-issues-description">Issues from the feedback form are separate from Tasks and To-Do. Most recent issues appear first.</p>
+        <button type="button" data-issues-export>Export Feedback Issues File</button>
+        <div role="status" aria-live="polite" data-issues-status></div>
+        <section aria-labelledby="community-feedback-issues-heading"><ol>${getIssuesNewestFirst().map((issue) => `
+            <li data-issue-id="${escapeHtml(issue.id)}">
+                <h3>${escapeHtml(issue.summary)}</h3>
+                <p>${escapeHtml(issue.category)}. Created ${escapeHtml(new Date(issue.createdAt).toLocaleString())}.</p>
+                <p>${escapeHtml(issue.details)}</p>
+                <label for="feedback-issue-status-${escapeHtml(issue.id)}">Status</label>
+                <select id="feedback-issue-status-${escapeHtml(issue.id)}" data-issue-status ${canUpdateIssue(issue) ? '' : 'disabled'}>${ISSUE_STATUSES.map((status) => `<option value="${escapeHtml(status)}" ${issue.status === status ? 'selected' : ''}>${escapeHtml(status)}</option>`).join('')}</select>
+                <label for="feedback-issue-comment-${escapeHtml(issue.id)}">Notes</label>
+                <textarea id="feedback-issue-comment-${escapeHtml(issue.id)}" data-issue-comment rows="3" ${canUpdateIssue(issue) ? '' : 'disabled'} placeholder="Add a note"></textarea>
+                <button type="button" data-issue-save ${canUpdateIssue(issue) ? '' : 'disabled'}>Save Issue Update</button>
+                <ul aria-label="Notes for ${escapeHtml(issue.summary)}">${(issue.comments || []).map((comment) => `<li>${escapeHtml(comment.text)} (${escapeHtml(new Date(comment.createdAt).toLocaleString())})</li>`).join('')}</ul>
+            </li>`).join('') || '<li>No feedback issues have been submitted.</li>'}</ol></section>`;
+    tracker.querySelector('[data-issues-close]')?.addEventListener('click', () => { tracker.hidden = true; });
+    tracker.querySelector('[data-issues-export]')?.addEventListener('click', exportIssuesFile);
+    tracker.querySelectorAll('[data-issue-save]').forEach((button) => button.addEventListener('click', () => {
+        const item = button.closest('[data-issue-id]');
+        const issueId = item?.getAttribute('data-issue-id');
+        if (!issueId) return;
+        const issues = readIssues();
+        const issue = issues.find((entry) => entry.id === issueId);
+        if (!issue || !canUpdateIssue(issue)) return;
+        const commentInput = item.querySelector('[data-issue-comment]');
+        const text = commentInput.value.trim();
+        issue.status = item.querySelector('[data-issue-status]').value;
+        if (text) issue.comments = [...(issue.comments || []), { id: `comment-${Date.now()}`, text, createdAt: new Date().toISOString(), authorUserId: getCurrentUserId() }];
+        issue.updatedAt = new Date().toISOString();
+        writeIssues(issues);
+        renderIssueTracker();
+        announce(`Feedback issue ${issue.summary} updated.`);
+    }));
+}
+
+export function openCommunityFeedbackIssues(trigger = null) {
+    if (feedbackDialog) feedbackDialog.hidden = true;
+    const tracker = document.getElementById('community-feedback-issues') || document.createElement('div');
+    if (!tracker.id) {
+        tracker.id = 'community-feedback-issues';
+        tracker.className = 'command-palette-dialog';
+        tracker.setAttribute('role', 'dialog');
+        tracker.setAttribute('aria-modal', 'true');
+        tracker.setAttribute('aria-labelledby', 'community-feedback-issues-heading');
+        tracker.setAttribute('aria-describedby', 'community-feedback-issues-description');
+        document.body.appendChild(tracker);
+    }
+    tracker.hidden = false;
+    tracker.dataset.lastTriggerId = trigger?.id || '';
+    renderIssueTracker();
+    tracker.querySelector('[data-issue-status]')?.focus();
+    announce('Feedback Issues opened.');
+    return true;
 }
 
 function getFocusable(dialog) {
@@ -84,6 +206,8 @@ function ensureFeedbackDialog() {
             createdAt: new Date().toISOString()
         };
         writeFeedback([...readFeedback(), entry]);
+        const issue = createIssueFromFeedback(entry);
+        writeIssues([...readIssues(), issue]);
         status.textContent = 'Feedback saved locally on this device. Nothing was transmitted.';
         announce(status.textContent);
         feedbackDialog.querySelector('#community-feedback-summary').value = '';

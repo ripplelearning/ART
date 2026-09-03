@@ -1,5 +1,10 @@
 # ART User Guide: Plugins and Packages
 
+## Community Beta Feedback and Issues
+Choose **Help > Share Community Feedback** to record categorized accessibility, usability, bug, feature, performance, documentation, or security and privacy feedback. Each submission becomes its own issue in **Help > Open Feedback Issues**. The tracker resembles Tasks and To-Do but uses a completely separate record system.
+
+Issues are displayed with the most recently updated first. Authorized Owners, invited Contributors, and community testers can update the Status and add Notes. Changes save automatically and persist locally until changed again. Select **Export Feedback Issues File** to create `art-feedback-issues.json`; the browser requires you to choose or move that file into the repository or a shared folder. Do not place credentials or private report content in feedback, and report undisclosed security vulnerabilities through [SECURITY.md](SECURITY.md).
+
 ## Overview
 ART Version 1.5 includes a Plugin Framework that supports extensibility without changing core ART workflows.
 

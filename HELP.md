@@ -11,6 +11,8 @@ For startup or partial-load problems, reload ART and check the visible status me
 ## Community Beta Feedback
 ART is being evaluated through a voluntary community beta. Use **Help > Share Community Feedback** or the feedback link in Help to record accessibility, usability, bug, feature, performance, documentation, or security and privacy feedback. Entries are saved locally on this device and are not transmitted automatically. Include the workflow, expected result, actual result, and reproduction steps where relevant. Do not include passwords, tokens, private report content, or unnecessary personal information. Undisclosed security vulnerabilities must use the private security reporting process in [SECURITY.md](SECURITY.md), not the general feedback form.
 
+Each submission also creates a separate issue in **Help > Open Feedback Issues**. Issues are shown with the most recently updated first. The issue manager is independent from Tasks and To-Do, and authorized Owner, invited Contributor, and community tester users can change an issue's Status and add Notes; each update saves automatically on this device. Use **Export Feedback Issues File** to create `art-feedback-issues.json` for repository or shared-folder storage. Browser security requires the user to choose or move the exported file; ART cannot silently write into the repository folder.
+
 ## What Are Plugins?
 Plugins are executable ART extensions that register capabilities through approved extension points. Plugins do not modify core source files at runtime and do not bypass ART frameworks.
 

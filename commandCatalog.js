@@ -44,7 +44,7 @@ import { focusMenuBarFromCommand, focusMenuSearchFromCommand, openTopLevelMenuFr
 import { getTopLevelMenuShortcutDescriptor, mergeTopLevelMenuLabels } from './menuShortcuts.js';
 import { openHelpDialog } from './help.js';
 import { openOnboardingWizard } from './onboardingWizard.js';
-import { openCommunityFeedback } from './feedbackFramework.js';
+import { openCommunityFeedback, openCommunityFeedbackIssues } from './feedbackFramework.js';
 import {
     applySoloCollaborationPresetFromCommand,
     applyTeamCollaborationPresetFromCommand,
@@ -1544,6 +1544,14 @@ const BASE_COMMAND_DEFINITIONS = [
         description: 'Open the local ART community feedback form.',
         menuLocation: 'Help',
         handler: (context) => openCommunityFeedback(context?.triggerElement || context?.activeElement || null)
+    },
+    {
+        action: 'openCommunityFeedbackIssues',
+        id: 'Help.OpenCommunityFeedbackIssues',
+        category: 'Help',
+        description: 'Open the separate community feedback issue tracker.',
+        menuLocation: 'Help',
+        handler: (context) => openCommunityFeedbackIssues(context?.triggerElement || context?.activeElement || null)
     },
     {
         action: 'openCommandPalette',

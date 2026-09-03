@@ -1,7 +1,7 @@
 import { announce, getAssignableActions, getShortcutDefinitions, getShortcutForAction } from './state.js';
 import { resolveFocusTarget, restoreFocus } from './focusManagement.js';
 import { openOnboardingWizard } from './onboardingWizard.js';
-import { openCommunityFeedback } from './feedbackFramework.js';
+import { openCommunityFeedback, openCommunityFeedbackIssues } from './feedbackFramework.js';
 
 const reservedShortcutSet = new Set([
     'Ctrl+L',
@@ -103,6 +103,7 @@ function getHelpSections(rows) {
                 <p><button id="help-open-setup-wizard" type="button">Open Optional ART Setup Wizard</button></p>
                 <p>The setup wizard is also available from the <strong>Help</strong> menu. It provides guided links to existing Settings sections for identity, storage providers, integrations, accessibility and appearance, organization metrics, and collaboration. It does not duplicate those controls and can be closed at any time.</p>
                 <p><button id="help-open-community-feedback" type="button">Share Community Feedback</button></p>
+                <p><button id="help-open-feedback-issues" type="button">Open Feedback Issues</button></p>
             `
         },
         {
@@ -860,7 +861,12 @@ function bindHelpOnboardingWizard() {
 
 function bindHelpCommunityFeedback() {
     document.getElementById('help-open-community-feedback')?.addEventListener('click', (event) => {
+        closeHelpDialog(false);
         openCommunityFeedback(event.currentTarget);
+    });
+    document.getElementById('help-open-feedback-issues')?.addEventListener('click', (event) => {
+        closeHelpDialog(false);
+        openCommunityFeedbackIssues(event.currentTarget);
     });
 }
 
