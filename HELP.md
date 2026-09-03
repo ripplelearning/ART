@@ -8,6 +8,9 @@ Version 1.5 includes the current reporting, task, collaboration, organization, m
 ## Troubleshooting
 For startup or partial-load problems, reload ART and check the visible status message before retrying. For focus problems, confirm that the control remains in the current view after the update; ART should preserve focus unless the workflow intentionally opens a dialog or navigates to a new destination.
 
+## Community Beta Feedback
+ART is being evaluated through a voluntary community beta. Use **Help > Share Community Feedback** or the feedback link in Help to record accessibility, usability, bug, feature, performance, documentation, or security and privacy feedback. Entries are saved locally on this device and are not transmitted automatically. Include the workflow, expected result, actual result, and reproduction steps where relevant. Do not include passwords, tokens, private report content, or unnecessary personal information. Undisclosed security vulnerabilities must use the private security reporting process in [SECURITY.md](SECURITY.md), not the general feedback form.
+
 ## What Are Plugins?
 Plugins are executable ART extensions that register capabilities through approved extension points. Plugins do not modify core source files at runtime and do not bypass ART frameworks.
 

@@ -44,6 +44,7 @@ import { focusMenuBarFromCommand, focusMenuSearchFromCommand, openTopLevelMenuFr
 import { getTopLevelMenuShortcutDescriptor, mergeTopLevelMenuLabels } from './menuShortcuts.js';
 import { openHelpDialog } from './help.js';
 import { openOnboardingWizard } from './onboardingWizard.js';
+import { openCommunityFeedback } from './feedbackFramework.js';
 import {
     applySoloCollaborationPresetFromCommand,
     applyTeamCollaborationPresetFromCommand,
@@ -1535,6 +1536,14 @@ const BASE_COMMAND_DEFINITIONS = [
         description: 'Open the optional ART Setup Wizard.',
         menuLocation: 'Help',
         handler: (context) => openOnboardingWizard(context?.triggerElement || context?.activeElement || null)
+    },
+    {
+        action: 'openCommunityFeedback',
+        id: 'Help.OpenCommunityFeedback',
+        category: 'Help',
+        description: 'Open the local ART community feedback form.',
+        menuLocation: 'Help',
+        handler: (context) => openCommunityFeedback(context?.triggerElement || context?.activeElement || null)
     },
     {
         action: 'openCommandPalette',
