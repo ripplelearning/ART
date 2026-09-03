@@ -27,8 +27,8 @@ $checks += [pscustomobject]@{ Name = 'Local-first and platform boundaries'; Scri
     Assert-All 'USER-GUIDE.md' $userGuide @('without an account', 'Electron', 'server', 'shared') 'USER-GUIDE.md platform boundary guidance is incomplete.'
 } }
 $checks += [pscustomobject]@{ Name = 'Version and maintenance guidance'; Script = {
-    Assert-All 'help.js' $help @('Version 1.5') 'In-app Help version label is missing.'
-    Assert-All 'HELP.md' $helpDoc @('Version 1.5', 'Release Notes', 'Troubleshooting') 'HELP.md maintenance guidance is incomplete.'
+    Assert-All 'help.js' $help @('Version 2.0') 'In-app Help version label is missing.'
+    Assert-All 'HELP.md' $helpDoc @('Version 2.0', 'Release Notes', 'Troubleshooting') 'HELP.md maintenance guidance is incomplete.'
 } }
 Write-Host 'Epic 68 Verification'
 Write-Host '--------------------'
