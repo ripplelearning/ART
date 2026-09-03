@@ -109,6 +109,7 @@ See:
 - [Plugin Developer Guide](PLUGIN-DEVELOPER-GUIDE.md)
 - [Package Authoring Guide](PACKAGE-AUTHORING-GUIDE.md)
 - [Collaboration Server Guide](collaboration-server/README.md)
+- [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md)
 
 ## Publishing Presentation Framework
 ART Version 1.5 now includes a reusable Publishing Presentation Framework for report output.

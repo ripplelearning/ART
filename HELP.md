@@ -28,6 +28,8 @@ Each submission also creates a separate issue in **Help > Open Feedback Issues**
 
 The feedback issue tracker is separate from Tasks and To-Do. It does not create, update, or share task records.
 
+See [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md) for the consolidated deferred epic work and desktop build, installation, download, distribution, and readiness runbook.
+
 ## What Are Plugins?
 Plugins are executable ART extensions that register capabilities through approved extension points. Plugins do not modify core source files at runtime and do not bypass ART frameworks.
 

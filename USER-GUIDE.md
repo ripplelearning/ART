@@ -13,6 +13,8 @@ Choose **Help > Share Community Feedback** to record categorized accessibility, 
 
 Issues are displayed with the most recently updated first. Authorized Owners, invited Contributors, and community testers can update the Status and add Notes. Changes save automatically and persist locally until changed again. Select **Export Feedback Issues File** to create `art-feedback-issues.json`; the browser requires you to choose or move that file into the repository or a shared folder. Do not place credentials or private report content in feedback, and report undisclosed security vulnerabilities through [SECURITY.md](SECURITY.md).
 
+See the [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md) for deferred epic work and detailed desktop download, build, installation, and readiness instructions.
+
 ## Overview
 ART Version 1.5 includes a Plugin Framework that supports extensibility without changing core ART workflows.
 
