@@ -1,9 +1,9 @@
 # ART Help: Plugin and Package Framework
 
-Applies to ART Version 1.5.
+Applies to ART Version 2.0.
 
 ## Release Notes
-Version 1.5 includes the current reporting, task, collaboration, organization, metrics, accessibility, and onboarding workflows described in this Help document. Review the repository CHANGELOG.md for the detailed release history.
+Version 2.0 includes the current reporting, task, collaboration, organization, metrics, accessibility, and onboarding workflows described in this Help document. Review the repository CHANGELOG.md for the detailed release history.
 
 ## Troubleshooting
 For startup or partial-load problems, reload ART and check the visible status message before retrying. For focus problems, confirm that the control remains in the current view after the update; ART should preserve focus unless the workflow intentionally opens a dialog or navigates to a new destination.

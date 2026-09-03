@@ -102,7 +102,7 @@ Provider and validator guidance:
 - publish diagnostics through framework failures rather than direct UI changes
 
 ## Resource Organization Providers and Validators
-ART Version 1.5 includes a Resource Organization Framework with provider and validator extension points.
+ART Version 2.0 includes a Resource Organization Framework with provider and validator extension points.
 
 Supported organization extension points:
 

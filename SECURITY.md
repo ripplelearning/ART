@@ -2,7 +2,7 @@
 
 ## Scope
 
-ART Version 1.5 is a local-first browser application. By default, report, project, task, Progress Log, and configuration data is stored in the browser on the user's device. ART does not automatically upload, synchronize, or share this data.
+ART Version 2.0 is a local-first browser application. By default, report, project, task, Progress Log, and configuration data is stored in the browser on the user's device. ART does not automatically upload, synchronize, or share this data.
 
 This document describes the current local application boundary and the requirements for future hosted or self-hosted deployments. It does not claim security certification, SOC 2 compliance, ISO/IEC 27001 certification, FedRAMP authorization, or production hosted-service controls.
 

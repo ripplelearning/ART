@@ -1,6 +1,6 @@
 # ART Deferred Work and Desktop Readiness Guide
 
-Applies to ART Version 1.5. This guide consolidates the deferred work recorded while implementing Epics 41 through 73. It distinguishes completed foundations from work that is still incomplete, explains why work was deferred, and gives the prerequisites and recommended actions needed to finish it.
+Applies to ART Version 2.0. This guide consolidates the deferred work recorded while implementing Epics 41 through 73. It distinguishes completed foundations from work that is still incomplete, explains why work was deferred, and gives the prerequisites and recommended actions needed to finish it.
 
 ## How To Use This Guide
 
@@ -330,14 +330,14 @@ npm run desktop:dist
 The configured electron-builder target is Windows NSIS. The expected artifact name is:
 
 ```text
-ART-Setup-1.5.0.exe
+ART-Setup-2.0.0.exe
 ```
 
 The generated installer is normally placed in the project `dist` directory. Confirm the actual path and hash after the build:
 
 ```powershell
 Get-ChildItem .\dist
-Get-FileHash .\dist\ART-Setup-1.5.0.exe -Algorithm SHA256
+Get-FileHash .\dist\ART-Setup-2.0.0.exe -Algorithm SHA256
 ```
 
 The installer metadata requests:
@@ -354,7 +354,7 @@ The installer metadata requests:
 Before publishing an installer:
 
 1. Install on a clean Windows test account or virtual machine.
-2. Confirm the installer identifies ART Version 1.5 accurately.
+2. Confirm the installer identifies ART Version 2.0 accurately.
 3. Confirm installation directory selection works.
 4. Confirm Start Menu and Desktop shortcuts launch ART.
 5. Double-click a `.art` file and confirm ART opens it through validation/import.
@@ -401,7 +401,7 @@ The current repository does not provide an official hosted download URL or autom
 3. Open PowerShell in the repository root.
 4. Run `npm install`.
 5. Run `npm run desktop:start` for a local unpackaged desktop build, or `npm run desktop:dist` to produce the Windows NSIS installer.
-6. Install the generated `dist\ART-Setup-1.5.0.exe` only after reviewing its build/test provenance.
+6. Install the generated `dist\ART-Setup-2.0.0.exe` only after reviewing its build/test provenance.
 
 **Official production download:**
 

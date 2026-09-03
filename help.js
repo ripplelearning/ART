@@ -97,7 +97,7 @@ function getHelpSections(rows) {
             id: 'help-getting-started',
             title: 'Getting Started',
             content: `
-                <p>ART (the Accessibility Reporting Tool) Version 1.5 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
+                <p>ART (the Accessibility Reporting Tool) Version 2.0 is an accessibility-first reporting workspace for building accessibility audits, managing report data, and exporting documentation in multiple formats.</p>
                 <p>Use Dashboard actions to create or open a Project Workspace, then use the panel tabs for Builder, Editor, Viewer, and Help tasks.</p>
                 <p>On the Welcome screen, use the existing Dashboard controls for New Report, Open ART Project..., Builder, and Help. These actions are optional and do not require an account.</p>
                 <p><button id="help-open-setup-wizard" type="button">Open Optional ART Setup Wizard</button></p>
@@ -352,7 +352,7 @@ function getHelpSections(rows) {
             id: 'help-plugin-package-framework',
             title: 'Plugin and Package Framework',
             content: `
-                <p>ART Version 1.5 includes a Plugin Framework and Plugin &amp; Package Manager in Application Settings under Administrator Tools.</p>
+                <p>ART Version 2.0 includes a Plugin Framework and Plugin &amp; Package Manager in Application Settings under Administrator Tools.</p>
                 <p>Use Plugin &amp; Package Manager to install or update plugin manifests, enable or disable plugins, uninstall external plugins, validate extensions, and inspect package metadata.</p>
                 <p>Plugins can declare dependencies and permissions. ART blocks enable when required dependencies are missing or incompatible, and blocks disable/uninstall when enabled dependent plugins still require a plugin.</p>
                 <p>You can export and import Plugin Framework configuration to preserve plugin and package registration across environments.</p>
@@ -941,7 +941,7 @@ export function openHelpDialog(trigger = null) {
     if (resolvedTrigger) lastHelpTrigger = resolvedTrigger;
     renderHelpDocumentation();
     if (!previousDocumentTitle) previousDocumentTitle = document.title;
-    document.title = 'User Guide | ART Version 1.5';
+    document.title = 'User Guide | ART Version 2.0';
     dialog.hidden = false;
 
     window.setTimeout(() => {

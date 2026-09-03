@@ -1,4 +1,4 @@
-# ART (the Accessibility Reporting Tool) Version 1.5
+# ART (the Accessibility Reporting Tool) Version 2.0
 
 ART is an accessibility-first reporting workspace for documenting accessibility findings, managing standards-based criteria, and exporting reports.
 
@@ -63,7 +63,7 @@ Current capabilities include:
 - Search navigation commands for next/previous result, in-resource matching, and highlight/history clearing.
 
 ## Plugin Framework
-ART Version 1.5 includes a centralized Plugin Framework for installable extensions and non-executable packages.
+ART Version 2.0 includes a centralized Plugin Framework for installable extensions and non-executable packages.
 
 Current capabilities include:
 
@@ -77,7 +77,7 @@ The Plugin Framework does not replace existing import/export or integration work
 It registers metadata and compatibility data after those workflows complete.
 
 ## Collaboration Server (Live and Asynchronous)
-ART Version 1.5 includes an optional collaboration server under [collaboration-server](collaboration-server) for:
+ART Version 2.0 includes an optional collaboration server under [collaboration-server](collaboration-server) for:
 
 - live multi-user collaboration sessions
 - asynchronous collaboration using shared snapshot storage (for example a shared drive/folder mounted on the server)
@@ -112,7 +112,7 @@ See:
 - [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md)
 
 ## Publishing Presentation Framework
-ART Version 1.5 now includes a reusable Publishing Presentation Framework for report output.
+ART Version 2.0 now includes a reusable Publishing Presentation Framework for report output.
 
 Current capabilities include:
 

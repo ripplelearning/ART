@@ -8,13 +8,13 @@ ART 2.0 also introduces a Dashboard Widget Framework that renders Dashboard as a
 ART 2.0 now also introduces a Project Workspace Framework that provides project-level lifecycle, storage, resource management, workspace restoration, and extensibility points.
 ART 2.0 now also introduces a Universal Search Framework that standardizes provider search, result aggregation, and search UI behavior.
 ART 2.0 now also introduces a Global Context Menu Framework that generates context-sensitive menus from context providers and registered commands.
-ART Version 1.5 now also introduces a Plugin Framework that provides centralized lifecycle management and extension-point registration for plugins and packages.
-ART Version 1.5 now also introduces a Resource Relationship Framework that centralizes relationship registration, derivation, validation, navigation, and impact analysis across workspace resources.
-ART Version 1.5 now also introduces a Resource Organization Framework that centralizes non-destructive tags, collections, saved views, favorites, and metadata portability for workspace resources.
-ART Version 1.5 now also introduces a History, Undo/Redo, and Resource Versioning Framework that centralizes change tracking, transaction grouping, undo/redo, version history, restore, and comparison operations.
-ART Version 1.5 now also introduces a Collaboration Framework that centralizes provider capability mapping, collaboration metadata, session tracking, conflict handling, discovery snapshots, and live/asynchronous synchronization commands.
-ART Version 1.5 now also introduces an optional Collaboration Server coordination layer for multi-user live sessions and asynchronous shared-folder synchronization.
-ART Version 1.5 now also introduces an Identity and Session Framework that centralizes local profile/device identity and non-secret authenticated-session state while preserving anonymous local use.
+ART Version 2.0 now also introduces a Plugin Framework that provides centralized lifecycle management and extension-point registration for plugins and packages.
+ART Version 2.0 now also introduces a Resource Relationship Framework that centralizes relationship registration, derivation, validation, navigation, and impact analysis across workspace resources.
+ART Version 2.0 now also introduces a Resource Organization Framework that centralizes non-destructive tags, collections, saved views, favorites, and metadata portability for workspace resources.
+ART Version 2.0 now also introduces a History, Undo/Redo, and Resource Versioning Framework that centralizes change tracking, transaction grouping, undo/redo, version history, restore, and comparison operations.
+ART Version 2.0 now also introduces a Collaboration Framework that centralizes provider capability mapping, collaboration metadata, session tracking, conflict handling, discovery snapshots, and live/asynchronous synchronization commands.
+ART Version 2.0 now also introduces an optional Collaboration Server coordination layer for multi-user live sessions and asynchronous shared-folder synchronization.
+ART Version 2.0 now also introduces an Identity and Session Framework that centralizes local profile/device identity and non-secret authenticated-session state while preserving anonymous local use.
 
 ## Core Layers
 

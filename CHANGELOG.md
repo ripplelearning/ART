@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 2.0.0
+
+ART Version 2.0 packages the current accessibility reporting workspace, command framework, dashboard and settings customization, collaboration foundations, organization administration and metrics, privacy controls, desktop shell, onboarding, beta feedback tracker, and locale foundation. The release remains local-first; hosted authentication, provider services, production distribution, and formal manual release evidence remain documented prerequisites rather than claims of completion.
+
 ## Unreleased
 
 ### Added

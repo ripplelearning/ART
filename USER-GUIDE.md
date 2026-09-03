@@ -21,7 +21,7 @@ See the [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-RE
 In Application Settings > Visual Accessibility, use **Language and regional format** to store a locale preference on this device. The current foundation supports English United States, English United Kingdom, German, Spanish, French, and Arabic locale metadata and formatting helpers. The interface remains reviewed English until translations are available, and planned locales are labeled accordingly.
 
 ## Overview
-ART Version 1.5 includes a Plugin Framework that supports extensibility without changing core ART workflows.
+ART Version 2.0 includes a Plugin Framework that supports extensibility without changing core ART workflows.
 
 ## Plugin Installation
 1. Open Application Settings.
@@ -203,7 +203,7 @@ Workspace default branding:
 - Existing reports keep their current Branding selection unless you change them manually.
 
 ## Resource Relationships
-ART Version 1.5 includes a Resource Relationship Framework that keeps track of how workspace resources relate to one another.
+ART Version 2.0 includes a Resource Relationship Framework that keeps track of how workspace resources relate to one another.
 
 Examples:
 
@@ -293,7 +293,7 @@ Use replace when you want ART to move workspace and report references to a diffe
 Template replacement updates report template references and workspace template relationships. Report replacement updates workspace report relationships and linked resource references.
 
 ## Resource Organization
-ART Version 1.5 includes Resource Organization features for workspace resources:
+ART Version 2.0 includes Resource Organization features for workspace resources:
 
 - Tags
 - Collections

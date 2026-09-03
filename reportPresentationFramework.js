@@ -403,7 +403,7 @@ const BUILT_IN_BRANDINGS = Object.freeze([
         enabled: true,
         headerText: 'Accessibility Reporting Tool',
         headerHtml: '<p><strong>Accessibility Reporting Tool</strong></p>',
-        footerHtml: '<p>Generated using ART Version 1.5.</p>',
+        footerHtml: '<p>Generated using ART Version 2.0.</p>',
         headerImages: [],
         footerImages: [],
         primaryColor: '#0b5cab',

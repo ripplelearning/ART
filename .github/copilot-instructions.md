@@ -69,7 +69,7 @@ The codebase is driven by a shared state store, command registry, and UI modules
 ## Versioning Rules
 
 * Use the current active version label for forward-facing UI and documentation.
-* At present, the active release label is Version 1.5.
+* At present, the active release label is Version 2.0.
 * Do not change historical epic documentation unless the user explicitly asks.
 * Keep the shared version source and visible title strings consistent.
 
