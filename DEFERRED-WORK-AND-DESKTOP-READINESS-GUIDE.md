@@ -249,16 +249,16 @@ Before closing a deferred item:
 
 ### Epic 73 — Internationalization and Global Accessibility
 
-**Done:** Existing data paths use JavaScript/JSON/HTML text handling capable of carrying Unicode, and architecture opportunities are identified.
+**Done:** Existing data paths use JavaScript/JSON/HTML text handling capable of carrying Unicode. A local locale catalog, persisted language/region preference, browser-language fallback, Intl date/number formatting helpers, document language/direction metadata, and accessible Settings selector are implemented in the local foundation.
 
-**Still deferred:** Translation resources, language selection, fallback, locale formatting, RTL/bidi layout, localized Help/reports/standards, translation licensing/review, multilingual AT testing, regional privacy, and international test matrices.
+**Still deferred:** Reviewed translation resources/keys, localized Help/reports/standards, full RTL/bidi layout, pluralization, font review, translation licensing/review, Unicode security testing, multilingual AT testing, regional privacy, and international test matrices. The current selector exposes planned locales but the interface remains reviewed English.
 
 **Action steps:**
 
 1. Inventory user-visible strings and create stable translation keys with English fallback.
-2. Add persisted accessible language selection and document support levels.
+2. Extend the implemented persisted locale selector and document support levels as reviewed translations are added.
 3. Centralize locale-aware date/time/number/sort formatting while keeping IDs language-independent.
-4. Add document `lang`/direction handling, RTL layout tests, and font fallback.
+4. Extend the implemented document `lang`/direction handling with RTL layout tests and font fallback.
 5. Obtain permission and human review for translated standards/accessibility terminology.
 6. Add pseudo-localization, Unicode security, pluralization, and text-expansion tests.
 7. Test localized web/desktop reports, exports, search, collaboration, focus, live regions, and AT workflows.
