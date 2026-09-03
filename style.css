@@ -1313,6 +1313,28 @@ a {
     background: #fafafa;
 }
 
+#settings-tablist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 16px;
+    border-bottom: 1px solid var(--border-color, #b8c2cc);
+}
+
+#settings-tablist [role='tab'] {
+    margin: 0;
+    border-bottom: 3px solid transparent;
+}
+
+#settings-tablist [role='tab'][aria-selected='true'] {
+    border-bottom-color: currentColor;
+}
+
+#settings-tabpanels,
+#settings-tabpanels > [role='tabpanel'] {
+    min-width: 0;
+}
+
 #app-settings-dialog h4 {
     margin-top: 0;
 }

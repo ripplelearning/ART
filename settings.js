@@ -176,6 +176,30 @@ import {
 
 let isInitialized = false;
 let activeSubDialog = null;
+let settingsTabsInitialized = false;
+let activeSettingsTabId = 'settings-account-heading';
+
+const SETTINGS_TAB_ORDER = [
+    'settings-account-heading',
+    'settings-visual-heading',
+    'settings-security-heading',
+    'settings-workspace-view-heading',
+    'settings-storage-heading',
+    'settings-organization-heading',
+    'settings-collaboration-heading',
+    'settings-search-heading',
+    'settings-external-integrations-heading',
+    'settings-integrations-heading',
+    'settings-standards-heading',
+    'settings-privacy-heading',
+    'settings-analytics-heading',
+    'settings-organization-folders-heading',
+    'settings-org-roles-heading',
+    'settings-org-admin-heading',
+    'settings-search-analytics-heading',
+    'settings-about-heading',
+    'settings-admin-tools-summary'
+];
 let pendingShortcutUpdate = null;
 let pendingImportedStandard = null;
 let pendingImportedStandards = null;
@@ -2897,6 +2921,104 @@ function bindIntegrationSettings() {
     });
 }
 
+function initializeSettingsTabs() {
+    if (settingsTabsInitialized) return;
+    const dialog = document.getElementById('app-settings-dialog');
+    if (!dialog) return;
+
+    const sections = new Map();
+    [...dialog.children].forEach((child) => {
+        if (!(child instanceof HTMLElement)) return;
+        if (child.tagName !== 'SECTION' && child.tagName !== 'DETAILS') return;
+        const heading = child.querySelector(':scope > h4, :scope > summary');
+        if (!heading?.id) return;
+        sections.set(heading.id, child);
+    });
+
+    const ordered = SETTINGS_TAB_ORDER
+        .map((headingId) => sections.get(headingId))
+        .filter(Boolean);
+    if (!ordered.length) return;
+
+    const tablist = document.createElement('div');
+    tablist.id = 'settings-tablist';
+    tablist.setAttribute('role', 'tablist');
+    tablist.setAttribute('aria-label', 'Application Settings sections');
+
+    const panels = document.createElement('div');
+    panels.id = 'settings-tabpanels';
+
+    ordered.forEach((section, index) => {
+        const heading = section.querySelector(':scope > h4, :scope > summary');
+        const tabId = `settings-tab-${heading.id.replace(/-heading$|-summary$/, '')}`;
+        const panelId = `settings-panel-${heading.id.replace(/-heading$|-summary$/, '')}`;
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.id = tabId;
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-controls', panelId);
+        tab.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+        tab.tabIndex = index === 0 ? 0 : -1;
+        tab.textContent = heading.textContent.trim();
+
+        const panel = document.createElement('div');
+        panel.id = panelId;
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', tabId);
+        panel.hidden = index !== 0;
+        section.removeAttribute('aria-labelledby');
+        panel.appendChild(section);
+        tablist.appendChild(tab);
+        panels.appendChild(panel);
+
+        tab.addEventListener('click', () => activateSettingsTab(tabId));
+    });
+
+    const searchStatus = document.getElementById('settings-search-filter-status');
+    searchStatus?.after(tablist, panels);
+    tablist.addEventListener('keydown', handleSettingsTabKeydown);
+
+    const storedTab = localStorage.getItem('art-settings-active-tab-v1');
+    activeSettingsTabId = ordered.some((section) => {
+        const heading = section.querySelector(':scope > h4, :scope > summary');
+        return `settings-tab-${heading.id.replace(/-heading$|-summary$/, '')}` === storedTab;
+    }) ? storedTab : tablist.querySelector('[role="tab"]')?.id || activeSettingsTabId;
+    activateSettingsTab(activeSettingsTabId, false);
+    settingsTabsInitialized = true;
+}
+
+function activateSettingsTab(tabId, moveFocus = true) {
+    const tablist = document.getElementById('settings-tablist');
+    const tab = document.getElementById(tabId);
+    if (!tablist || !tab) return false;
+    const panelId = tab.getAttribute('aria-controls');
+    tablist.querySelectorAll('[role="tab"]').forEach((candidate) => {
+        const selected = candidate === tab;
+        candidate.setAttribute('aria-selected', selected ? 'true' : 'false');
+        candidate.tabIndex = selected ? 0 : -1;
+        const panel = document.getElementById(candidate.getAttribute('aria-controls'));
+        if (panel) panel.hidden = !selected;
+    });
+    activeSettingsTabId = tab.id;
+    localStorage.setItem('art-settings-active-tab-v1', tab.id);
+    if (moveFocus) tab.focus();
+    return Boolean(panelId);
+}
+
+function handleSettingsTabKeydown(event) {
+    const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+    const currentIndex = tabs.indexOf(event.target);
+    if (currentIndex < 0) return;
+    let nextIndex = -1;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % tabs.length;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = tabs.length - 1;
+    if (nextIndex < 0) return;
+    event.preventDefault();
+    activateSettingsTab(tabs[nextIndex].id);
+}
+
 function trapSettingsFocus(event) {
     const dialog = document.getElementById('app-settings-dialog');
     if (!dialog || dialog.hidden) return;
@@ -2979,6 +3101,8 @@ function focusSettingsSectionByHeadingId(headingId = '') {
     window.setTimeout(() => {
         const heading = document.getElementById(String(headingId || '').trim());
         if (!heading) return;
+        const tab = document.querySelector(`[role="tab"][aria-controls$="${heading.id.replace(/-heading$|-summary$/, '')}"]`);
+        if (tab) activateSettingsTab(tab.id, false);
         heading.scrollIntoView({ block: 'start' });
         if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
         heading.focus();
@@ -4000,6 +4124,8 @@ export function initSettings() {
     const restoreShortcutsButton = document.getElementById('btn-settings-shortcuts-reset');
 
     if (!openButton || !closeButton) return;
+
+    initializeSettingsTabs();
 
     openButton.addEventListener('click', () => {
         void executeSettingsAction('openSettings').then((result) => {

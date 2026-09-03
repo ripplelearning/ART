@@ -5,6 +5,9 @@ Choose **Help > Open Feedback Issues** to review feedback submissions as separat
 
 Owners and invited Admins can change an issue's Status and add Notes, then select **Save Issue Update**. Updates save automatically and persist locally until changed again. Select **Export Feedback Issues File**, place the downloaded `art-feedback-issues.json` in the repository's agreed tracker location, review it, and use the normal `git add`, `git commit`, and `git push` process. A browser cannot silently write into a repository folder, and an authenticated shared import workflow remains future work.
 
+## Application Settings Tabs
+Application Settings uses an accessible tab list. Frequently used Account and Identity, Visual Accessibility, Security and Privacy, Workspace View, Storage Providers, Organization, Collaboration, and Search tabs appear first. Integration, standards, privacy, analytics, administration, diagnostics, and About tabs follow. Use Arrow Right/Down and Arrow Left/Up to move between tabs, Home and End for the first and last tab, and Enter or Space to activate a tab. ART remembers the active Settings tab locally, and section-opening commands activate the correct tab before focusing the requested section.
+
 ## Community Beta Feedback and Issues
 Choose **Help > Share Community Feedback** to record categorized accessibility, usability, bug, feature, performance, documentation, or security and privacy feedback. Each submission becomes its own issue in **Help > Open Feedback Issues**. The tracker resembles Tasks and To-Do but uses a completely separate record system.
 
