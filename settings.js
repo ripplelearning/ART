@@ -74,6 +74,7 @@ import {
     signOutAuthenticatedSession,
     updateLocalUserProfile
 } from './identityFramework.js';
+import { SUPPORTED_LOCALES, getLocalePreference, updateLocalePreference } from './internationalizationFramework.js';
 import {
     ORGANIZATION_ROLES,
     addOrganizationMembership,
@@ -1592,6 +1593,11 @@ function resetVisualAccessibilityPreviewToDefaults() {
 
 function renderVisualAccessibilitySettings() {
     setVisualAccessibilityFormValues(getVisualAccessibilityConfig());
+    const localeSelect = document.getElementById('settings-locale');
+    if (localeSelect) {
+        localeSelect.innerHTML = SUPPORTED_LOCALES.map((locale) => `<option value="${escapeHtml(locale.id)}">${escapeHtml(locale.label)}${locale.interfaceAvailable ? '' : ' (interface translation planned)'}</option>`).join('');
+        localeSelect.value = getLocalePreference().locale;
+    }
 }
 
 function getWorkspaceViewControls() {
@@ -3797,6 +3803,7 @@ function bindVisualAccessibilitySettings() {
     const applyButton = document.getElementById('btn-settings-visual-apply');
     const cancelButton = document.getElementById('btn-settings-visual-cancel');
     const defaultsButton = document.getElementById('btn-settings-visual-defaults');
+    const localeSelect = document.getElementById('settings-locale');
 
     if (!themeSelect || !zoomSelect || !fontSizeSelect || !densitySelect || !enhancedFocus || !reducedMotion || !borderVisibility || !followSystemTheme || !applyButton || !cancelButton || !defaultsButton) return;
 
@@ -3820,6 +3827,11 @@ function bindVisualAccessibilitySettings() {
 
     defaultsButton.addEventListener('click', () => {
         resetVisualAccessibilityPreviewToDefaults();
+    });
+
+    localeSelect?.addEventListener('change', () => {
+        const preference = updateLocalePreference(localeSelect.value);
+        writeStatus(`Locale preference saved as ${preference.locale}. The interface remains in English until reviewed translations are available.`);
     });
 }
 

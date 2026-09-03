@@ -32,6 +32,7 @@ import { initializeExternalIntegrationFramework } from './externalIntegrationFra
 import { initializePrivacyFramework } from './privacyFramework.js';
 import { initializeAdvancedCollaborationFramework } from './advancedCollaborationFramework.js';
 import { initializeAuthorizationAdministrationFramework } from './authorizationAdministrationFramework.js';
+import { initializeInternationalizationFramework } from './internationalizationFramework.js';
 
 /**
  * The orchestrator: ensures all modules are initialized 
@@ -221,6 +222,7 @@ function initializeApp() {
     runStartupStage('initializePrivacyFramework', () => initializePrivacyFramework());
     runStartupStage('initializeAdvancedCollaborationFramework', () => initializeAdvancedCollaborationFramework());
     runStartupStage('initializeAuthorizationAdministrationFramework', () => initializeAuthorizationAdministrationFramework());
+    runStartupStage('initializeInternationalizationFramework', () => initializeInternationalizationFramework());
     runStartupStage('bindExternalNavigationGuard', () => bindExternalNavigationGuard());
     runStartupStage('initMenuBar', () => initMenuBar());
     runStartupStage('initGlobalContextMenuFramework', () => initGlobalContextMenuFramework());

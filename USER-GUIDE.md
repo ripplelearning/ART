@@ -17,6 +17,9 @@ Select **Import Feedback Issues File** to load the repository tracker copy. Impo
 
 See the [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md) for deferred epic work and detailed desktop download, build, installation, and readiness instructions.
 
+## Language and Regional Format
+In Application Settings > Visual Accessibility, use **Language and regional format** to store a locale preference on this device. The current foundation supports English United States, English United Kingdom, German, Spanish, French, and Arabic locale metadata and formatting helpers. The interface remains reviewed English until translations are available, and planned locales are labeled accordingly.
+
 ## Overview
 ART Version 1.5 includes a Plugin Framework that supports extensibility without changing core ART workflows.
 

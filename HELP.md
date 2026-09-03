@@ -32,6 +32,9 @@ The feedback issue tracker is separate from Tasks and To-Do. It does not create,
 
 See [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md) for the consolidated deferred epic work and desktop build, installation, download, distribution, and readiness runbook.
 
+## Language and Regional Format
+Application Settings > Visual Accessibility includes a persisted **Language and regional format** selector. The current locale foundation supports English United States, English United Kingdom, German, Spanish, French, and Arabic locale metadata and locale-aware date/number formatting helpers. The interface remains in reviewed English until translated resources are available; selecting a planned locale does not display untranslated keys or claim translation coverage.
+
 ## What Are Plugins?
 Plugins are executable ART extensions that register capabilities through approved extension points. Plugins do not modify core source files at runtime and do not bypass ART frameworks.
 
