@@ -18,6 +18,8 @@ ART is being evaluated through a voluntary community beta. Use **Help > Share Co
 
 Each submission also creates a separate issue in **Help > Open Feedback Issues**. Issues are shown with the most recently updated first. The issue manager is independent from Tasks and To-Do, and authorized Owner, invited Contributor, and community tester users can change an issue's Status and add Notes; each update saves automatically on this device. Use **Export Feedback Issues File** to create `art-feedback-issues.json` for repository or shared-folder storage. Browser security requires the user to choose or move the exported file; ART cannot silently write into the repository folder.
 
+Use **Import Feedback Issues File** to load the repository copy after an Owner or maintainer has updated it. Imported deferred-work issues retain the **Deferred** status and include a **Documented deferred work** link to the relevant section of the consolidated guide. Import merges issues by stable issue ID and saves the result to the local tracker.
+
 ### Feedback Issue Repository Workflow
 1. The Owner or an invited organization Admin opens ART and selects **Help > Open Feedback Issues**.
 2. Each issue displays its **Created** date, **Last updated** date, category, details, status, and notes.

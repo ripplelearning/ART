@@ -4,7 +4,7 @@ import { getOrganizationMemberships } from './authorizationFramework.js';
 
 const FEEDBACK_KEY = 'art-community-feedback-v1';
 const FEEDBACK_CATEGORIES = ['Accessibility', 'Usability', 'Bug', 'Feature Request', 'Performance', 'Documentation', 'Security and Privacy'];
-const ISSUE_STATUSES = ['New', 'Triaged', 'In Progress', 'Needs Review', 'Resolved', 'Closed'];
+const ISSUE_STATUSES = ['Not Started', 'Deferred', 'New', 'Triaged', 'In Progress', 'Needs Review', 'Resolved', 'Closed'];
 const ISSUES_KEY = 'art-community-feedback-issues-v1';
 let feedbackDialog = null;
 let lastTrigger = null;
@@ -94,13 +94,41 @@ function exportIssuesFile() {
     announce('Feedback issues exported to an ART feedback issues file.');
 }
 
+async function importIssuesFile(file) {
+    const status = document.querySelector('#community-feedback-issues [data-issues-status]');
+    try {
+        const payload = JSON.parse(await file.text());
+        const imported = Array.isArray(payload?.issues) ? payload.issues.filter((issue) => issue && issue.id && issue.summary) : [];
+        if (!imported.length) throw new Error('No issues found.');
+        const issuesById = new Map(readIssues().map((issue) => [issue.id, issue]));
+        imported.forEach((issue) => issuesById.set(issue.id, {
+            ...issue,
+            status: ISSUE_STATUSES.includes(issue.status) ? issue.status : 'Deferred',
+            comments: Array.isArray(issue.comments) ? issue.comments : [],
+            updatedAt: issue.updatedAt || issue.createdAt || new Date().toISOString()
+        }));
+        writeIssues([...issuesById.values()]);
+        renderIssueTracker();
+        const message = `${imported.length} feedback issue${imported.length === 1 ? '' : 's'} imported and saved locally.`;
+        if (status) status.textContent = message;
+        announce(message);
+    } catch {
+        if (status) status.textContent = 'Feedback issue import failed. Choose a valid ART feedback issues JSON file.';
+        announce('Feedback issue import failed.');
+    }
+}
+
 function renderIssueTracker() {
     const tracker = document.getElementById('community-feedback-issues');
     if (!tracker) return;
     tracker.innerHTML = `
         <div class="command-palette-header"><h2 id="community-feedback-issues-heading">Feedback Issues</h2><button type="button" data-issues-close>Close</button></div>
         <p id="community-feedback-issues-description">Issues from the feedback form are separate from Tasks and To-Do. Most recent issues appear first.</p>
-        <button type="button" data-issues-export>Export Feedback Issues File</button>
+        <div class="viewer-dialog-actions" role="group" aria-label="Feedback issue file actions">
+            <button type="button" data-issues-import>Import Feedback Issues File</button>
+            <input type="file" data-issues-import-file accept=".json,application/json" hidden>
+            <button type="button" data-issues-export>Export Feedback Issues File</button>
+        </div>
         <div role="status" aria-live="polite" data-issues-status></div>
         <section aria-labelledby="community-feedback-issues-heading"><ol>${getIssuesNewestFirst().map((issue) => `
             <li data-issue-id="${escapeHtml(issue.id)}">
@@ -110,6 +138,7 @@ function renderIssueTracker() {
                     <div><dt>Created</dt><dd>${escapeHtml(formatIssueDate(issue.createdAt))}</dd></div>
                     <div><dt>Last updated</dt><dd>${escapeHtml(formatIssueDate(issue.updatedAt))}</dd></div>
                 </dl>
+                ${issue.documentationUrl ? `<p><a href="${escapeHtml(issue.documentationUrl)}">Documented deferred work</a></p>` : ''}
                 <p>${escapeHtml(issue.details)}</p>
                 <label for="feedback-issue-status-${escapeHtml(issue.id)}">Status</label>
                 <select id="feedback-issue-status-${escapeHtml(issue.id)}" data-issue-status ${canUpdateIssue(issue) ? '' : 'disabled'}>${ISSUE_STATUSES.map((status) => `<option value="${escapeHtml(status)}" ${issue.status === status ? 'selected' : ''}>${escapeHtml(status)}</option>`).join('')}</select>
@@ -120,6 +149,13 @@ function renderIssueTracker() {
             </li>`).join('') || '<li>No feedback issues have been submitted.</li>'}</ol></section>`;
     tracker.querySelector('[data-issues-close]')?.addEventListener('click', () => { tracker.hidden = true; });
     tracker.querySelector('[data-issues-export]')?.addEventListener('click', exportIssuesFile);
+    const importInput = tracker.querySelector('[data-issues-import-file]');
+    tracker.querySelector('[data-issues-import]')?.addEventListener('click', () => importInput?.click());
+    importInput?.addEventListener('change', () => {
+        const file = importInput.files?.[0];
+        if (file) void importIssuesFile(file);
+        importInput.value = '';
+    });
     tracker.querySelectorAll('[data-issue-save]').forEach((button) => button.addEventListener('click', () => {
         const item = button.closest('[data-issue-id]');
         const issueId = item?.getAttribute('data-issue-id');

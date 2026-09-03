@@ -13,6 +13,8 @@ Choose **Help > Share Community Feedback** to record categorized accessibility, 
 
 Issues are displayed with the most recently updated first. Authorized Owners, invited Contributors, and community testers can update the Status and add Notes. Changes save automatically and persist locally until changed again. Select **Export Feedback Issues File** to create `art-feedback-issues.json`; the browser requires you to choose or move that file into the repository or a shared folder. Do not place credentials or private report content in feedback, and report undisclosed security vulnerabilities through [SECURITY.md](SECURITY.md).
 
+Select **Import Feedback Issues File** to load the repository tracker copy. Imported deferred-work issues retain their **Deferred** status and include a **Documented deferred work** link to the consolidated guide. Import merges issues using stable IDs and saves them to the local tracker.
+
 See the [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md) for deferred epic work and detailed desktop download, build, installation, and readiness instructions.
 
 ## Overview
