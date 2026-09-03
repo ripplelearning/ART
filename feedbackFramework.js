@@ -78,6 +78,11 @@ function getIssuesNewestFirst() {
     return readIssues().sort((left, right) => String(right.updatedAt || right.createdAt).localeCompare(String(left.updatedAt || left.createdAt)));
 }
 
+function formatIssueDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleString();
+}
+
 function exportIssuesFile() {
     const blob = new Blob([JSON.stringify({ artFeedbackIssuesVersion: '1.0', exportedAt: new Date().toISOString(), issues: getIssuesNewestFirst() }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -100,7 +105,11 @@ function renderIssueTracker() {
         <section aria-labelledby="community-feedback-issues-heading"><ol>${getIssuesNewestFirst().map((issue) => `
             <li data-issue-id="${escapeHtml(issue.id)}">
                 <h3>${escapeHtml(issue.summary)}</h3>
-                <p>${escapeHtml(issue.category)}. Created ${escapeHtml(new Date(issue.createdAt).toLocaleString())}.</p>
+                <dl class="feedback-issue-metadata">
+                    <div><dt>Category</dt><dd>${escapeHtml(issue.category)}</dd></div>
+                    <div><dt>Created</dt><dd>${escapeHtml(formatIssueDate(issue.createdAt))}</dd></div>
+                    <div><dt>Last updated</dt><dd>${escapeHtml(formatIssueDate(issue.updatedAt))}</dd></div>
+                </dl>
                 <p>${escapeHtml(issue.details)}</p>
                 <label for="feedback-issue-status-${escapeHtml(issue.id)}">Status</label>
                 <select id="feedback-issue-status-${escapeHtml(issue.id)}" data-issue-status ${canUpdateIssue(issue) ? '' : 'disabled'}>${ISSUE_STATUSES.map((status) => `<option value="${escapeHtml(status)}" ${issue.status === status ? 'selected' : ''}>${escapeHtml(status)}</option>`).join('')}</select>

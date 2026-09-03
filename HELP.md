@@ -13,6 +13,16 @@ ART is being evaluated through a voluntary community beta. Use **Help > Share Co
 
 Each submission also creates a separate issue in **Help > Open Feedback Issues**. Issues are shown with the most recently updated first. The issue manager is independent from Tasks and To-Do, and authorized Owner, invited Contributor, and community tester users can change an issue's Status and add Notes; each update saves automatically on this device. Use **Export Feedback Issues File** to create `art-feedback-issues.json` for repository or shared-folder storage. Browser security requires the user to choose or move the exported file; ART cannot silently write into the repository folder.
 
+### Feedback Issue Repository Workflow
+1. The Owner or an invited organization Admin opens ART and selects **Help > Open Feedback Issues**.
+2. Each issue displays its **Created** date, **Last updated** date, category, details, status, and notes.
+3. An authorized user changes Status or enters Notes and selects **Save Issue Update**. The update is immediately saved to ART's local issue store and persists until changed again.
+4. Select **Export Feedback Issues File** to download the current newest-first list as `art-feedback-issues.json`.
+5. Place or replace that file in the repository's agreed feedback-tracker location. Browser security requires this explicit file operation; ART cannot silently write into the repository folder.
+6. Review the file, then run `git add art-feedback-issues.json`, `git commit`, and `git push` using the normal repository review and branch process.
+
+The feedback issue tracker is separate from Tasks and To-Do. It does not create, update, or share task records.
+
 ## What Are Plugins?
 Plugins are executable ART extensions that register capabilities through approved extension points. Plugins do not modify core source files at runtime and do not bypass ART frameworks.
 

@@ -104,6 +104,7 @@ function getHelpSections(rows) {
                 <p>The setup wizard is also available from the <strong>Help</strong> menu. It provides guided links to existing Settings sections for identity, storage providers, integrations, accessibility and appearance, organization metrics, and collaboration. It does not duplicate those controls and can be closed at any time.</p>
                 <p><button id="help-open-community-feedback" type="button">Share Community Feedback</button></p>
                 <p><button id="help-open-feedback-issues" type="button">Open Feedback Issues</button></p>
+                <p>Owners and invited Admins can review each issue's Created and Last updated dates, change Status, add Notes, and save updates. Export art-feedback-issues.json, place it in the repository's agreed tracker location, then review and push it through the normal repository process. Browser security prevents ART from writing directly into the repository.</p>
             `
         },
         {

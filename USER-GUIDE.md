@@ -1,5 +1,10 @@
 # ART User Guide: Plugins and Packages
 
+## Feedback Issue Tracker
+Choose **Help > Open Feedback Issues** to review feedback submissions as separate issues. Each issue displays its **Created** date and **Last updated** date, and issues are ordered with the most recently updated first. The tracker is independent from Tasks and To-Do.
+
+Owners and invited Admins can change an issue's Status and add Notes, then select **Save Issue Update**. Updates save automatically and persist locally until changed again. Select **Export Feedback Issues File**, place the downloaded `art-feedback-issues.json` in the repository's agreed tracker location, review it, and use the normal `git add`, `git commit`, and `git push` process. A browser cannot silently write into a repository folder, and an authenticated shared import workflow remains future work.
+
 ## Community Beta Feedback and Issues
 Choose **Help > Share Community Feedback** to record categorized accessibility, usability, bug, feature, performance, documentation, or security and privacy feedback. Each submission becomes its own issue in **Help > Open Feedback Issues**. The tracker resembles Tasks and To-Do but uses a completely separate record system.
 

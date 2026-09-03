@@ -16,7 +16,7 @@ $checks += [pscustomobject]@{ Name = 'Categorized local feedback intake'; Script
     Assert-All 'feedbackFramework.js' $feedback @('FEEDBACK_CATEGORIES', 'openCommunityFeedback', 'Save Feedback Locally', 'localStorage', 'Nothing was transmitted') 'Community feedback intake is incomplete.'
 } }
 $checks += [pscustomobject]@{ Name = 'Separate persistent issue tracker'; Script = {
-    Assert-All 'feedbackFramework.js' $feedback @('ISSUES_KEY', 'createIssueFromFeedback', 'ISSUE_STATUSES', 'updatedAt', 'Export Feedback Issues File', 'Save Issue Update', 'Tasks and To-Do') 'Feedback issue tracking is incomplete.'
+    Assert-All 'feedbackFramework.js' $feedback @('ISSUES_KEY', 'createIssueFromFeedback', 'ISSUE_STATUSES', 'feedback-issue-metadata', 'Created', 'updatedAt', 'Export Feedback Issues File', 'Save Issue Update', 'Tasks and To-Do') 'Feedback issue tracking is incomplete.'
 } }
 $checks += [pscustomobject]@{ Name = 'Accessible feedback dialog'; Script = {
     Assert-All 'feedbackFramework.js' $feedback @('community-feedback-heading', 'aria-modal', 'aria-live', 'Escape', "event.key !== 'Tab'") 'Feedback dialog accessibility is incomplete.'
