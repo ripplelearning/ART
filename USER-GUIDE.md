@@ -58,6 +58,14 @@ Examples:
 - Keyboard profile metadata from Shortcut Manager
 - Saved search metadata from Universal Search
 
+## Optional Section 508 Standards
+
+Section 508 is available as an optional package and is intentionally separate from ART's built-in WCAG catalog. In **Settings > Standards**, use **Import Accessibility Standard** and select `packages/accessibility-standards/section-508.package.json`. The imported criteria become available to report workflows through the same standard import and lookup behavior as other imported standards.
+
+This package contains concise, original implementation summaries for the Revised Section 508 chapter structure, ICT scope, functional performance criteria, software and support documentation, and a testing lifecycle. Its metadata links to the official U.S. Access Board, Section508.gov, and DHS Trusted Tester sources.
+
+Importing the package does not establish that a product is legally covered, conformant, or certified. Teams must determine applicability, perform appropriate automated and manual testing, include assistive-technology and code-inspection checks where relevant, retain evidence, and obtain qualified human review. ART does not provide Trusted Tester training or certification.
+
 ## Validation and Troubleshooting
 Use Validate Extensions to run metadata and compatibility checks.
 

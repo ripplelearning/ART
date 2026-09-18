@@ -4,20 +4,86 @@
     "packageId": "standard-package-section-508",
     "packageType": "accessibility-standards",
     "displayName": "Section 508",
-    "description": "Section 508 requirements package for ART using WCAG-aligned references.",
-    "version": "2018-refresh",
+    "description": "Optional Revised Section 508 Standards package for ART. This package is not part of ART built-in standards.",
+    "version": "2017-final-rule-2026-verified",
     "author": "U.S. Access Board",
     "publisher": "U.S. Access Board",
-    "license": "Public Domain",
-    "supportedArtVersion": "1.5",
-    "sourceWorkflow": "settingsImportStandard"
+    "license": "Public Domain / official government source summaries",
+    "supportedArtVersion": "2.0",
+    "sourceWorkflow": "settingsImportStandard",
+    "optional": true,
+    "includedInCoreStandards": false,
+    "legalScope": "Implementation aid only; this package does not determine legal applicability or compliance.",
+    "contentPolicy": "Original summaries and links are provided instead of reproducing the official standard text.",
+    "officialSource": "https://www.access-board.gov/ict/",
+    "testingSource": "https://www.section508.gov/test/",
+    "trustedTesterSource": "https://www.section508.gov/test/trusted-tester/",
+    "reviewedAt": "2026-09-18",
+    "packageReleaseDate": "2026-09-18",
+    "status": "optional-foundation",
+    "notes": "Requirement summaries are intentionally concise and link to the official source. Full official regulatory text and copyrighted/incorporated materials are not reproduced. Human Section 508 and Trusted Tester review remains required before production claims."
   },
   "standards": [
     {
       "internalId": "section-508",
       "displayName": "Section 508",
-      "version": "2018-refresh",
+      "version": "Revised 508 Standards",
       "source": "U.S. Access Board",
+      "authority": "U.S. Access Board",
+      "officialSource": "https://www.access-board.gov/ict/",
+      "scopeSummary": "The Revised 508 Standards apply to covered information and communication technology procured, developed, maintained, or used by covered U.S. federal agencies, subject to the rule's scope and exceptions.",
+      "incorporatedStandards": [
+        {
+          "name": "WCAG 2.0",
+          "scope": "Web content, software, and electronic documents are addressed through the incorporated accessibility requirements identified by the Revised 508 Standards.",
+          "source": "https://www.w3.org/TR/WCAG20/"
+        }
+      ],
+      "chapters": [
+        {"id":"chapter-1","title":"Application and Administration","summary":"Defines how the standards are organized and administered, including application and referenced terms."},
+        {"id":"chapter-2","title":"Scoping Requirements","summary":"Describes covered ICT, exclusions, exceptions, and how requirements apply to ICT components and support documentation."},
+        {"id":"chapter-3","title":"Functional Performance Criteria","summary":"Provides technology-independent outcomes for users with different functional limitations when detailed technical provisions do not fully address a situation."},
+        {"id":"chapter-4","title":"Hardware","summary":"Addresses hardware features, controls, indicators, ports, and interoperability with assistive technology."},
+        {"id":"chapter-5","title":"Software","summary":"Addresses software accessibility, user controls, interoperability, keyboard operation, and user interface behavior."},
+        {"id":"chapter-6","title":"Support Documentation and Services","summary":"Addresses accessible product documentation, support services, and communication channels."},
+        {"id":"chapter-7","title":"Referenced Standards","summary":"Identifies external technical standards incorporated by reference and their relationship to the Revised 508 requirements."}
+      ],
+      "testingLifecycle": [
+        {"id":"plan","label":"Plan","summary":"Define the ICT scope, users, environments, applicable provisions, and evidence needed."},
+        {"id":"test","label":"Test","summary":"Use appropriate automated, manual, assistive-technology, and code-inspection techniques."},
+        {"id":"remediate","label":"Remediate","summary":"Record failures, prioritize risk, assign owners, and verify fixes."},
+        {"id":"monitor","label":"Monitor","summary":"Retest changes and maintain accessibility evidence across the ICT lifecycle."}
+      ],
+      "trustedTester": {
+        "methodology": "Trusted Tester is a repeatable manual web accessibility test process that uses code inspection and browser/assistive-technology checks to complement automated testing.",
+        "currentWebVersion": "5.1.3",
+        "trainingAndCertification": "Training, tester qualification, and any certification or program requirements are maintained by the responsible program and are not provided by ART.",
+        "sources": [
+          "https://www.section508.gov/test/trusted-tester/",
+          "https://www.dhs.gov/trusted-tester"
+        ]
+      },
+      "testingResources": [
+        "https://www.section508.gov/test/",
+        "https://www.section508.gov/test/ict-testing-baseline-portfolio/",
+        "https://www.section508.gov/test/trusted-tester/",
+        "https://www.dhs.gov/trusted-tester"
+      ],
+      "ictTypes": [
+        {"id":"hardware","label":"Hardware"},
+        {"id":"software","label":"Software"},
+        {"id":"web","label":"Web Page or Web Application"},
+        {"id":"mobile","label":"Mobile Application"},
+        {"id":"document","label":"Electronic Document or Content"},
+        {"id":"support","label":"Support Documentation or Services"}
+      ],
+      "resultOptions": [
+        {"id":"pass","label":"Pass","meaning":"The applicable test was performed and the requirement was satisfied."},
+        {"id":"fail","label":"Fail","meaning":"The applicable test was performed and the requirement was not satisfied."},
+        {"id":"not-applicable","label":"Not Applicable","meaning":"The requirement does not apply under the documented scope."},
+        {"id":"not-tested","label":"Not Tested","meaning":"The applicable test has not yet been performed."}
+      ],
+      "applicabilityRules": "Structured applicability metadata is provided for the package foundation; authoritative scoping review is required before production use.",
       "criteria": [
         {
           "number": "302.1",
@@ -70,6 +136,45 @@
           "disabilitie": "Motor disabilities",
           "categories": "Functional Performance Criteria",
           "tags": ["motor", "keyboard", "targets"]
+        },
+        {
+          "number": "302.9",
+          "title": "Without Speech",
+          "level": "Required",
+          "desc": "ICT should provide an effective mode of operation that does not require speech when speech is not available or cannot be used.",
+          "understandingUrl": "https://www.access-board.gov/ict/",
+          "recommendationUrl": "",
+          "failures": "A workflow requires spoken input or output with no effective non-speech alternative.",
+          "fixes": "Provide equivalent text, visual, keyboard, or other non-speech interaction where the workflow requires it.",
+          "disabilitie": "Speech disabilities",
+          "categories": "Functional Performance Criteria",
+          "tags": ["speech", "communication", "alternative input"]
+        },
+        {
+          "number": "software-interoperability",
+          "title": "Software and Assistive Technology Interoperability",
+          "level": "Required",
+          "desc": "Software should expose information, relationships, states, and operations through platform accessibility services or other supported interoperability mechanisms.",
+          "understandingUrl": "https://www.access-board.gov/ict/",
+          "recommendationUrl": "",
+          "failures": "Assistive technology cannot obtain or operate important user interface information.",
+          "fixes": "Use platform accessibility APIs and preserve programmatic names, roles, states, values, and relationships.",
+          "disabilitie": "Multiple disabilities",
+          "categories": "Software",
+          "tags": ["software", "assistive technology", "accessibility API"]
+        },
+        {
+          "number": "support-documentation",
+          "title": "Support Documentation and Services",
+          "level": "Required",
+          "desc": "Product documentation and support services should be available in accessible formats and through accessible communication channels.",
+          "understandingUrl": "https://www.access-board.gov/ict/",
+          "recommendationUrl": "",
+          "failures": "Users cannot obtain accessible documentation or use the support channel with assistive technology.",
+          "fixes": "Provide accessible documentation, contact methods, and alternate formats appropriate to the ICT and its users.",
+          "disabilitie": "Multiple disabilities",
+          "categories": "Support Documentation and Services",
+          "tags": ["documentation", "support", "alternate formats"]
         }
       ]
     }

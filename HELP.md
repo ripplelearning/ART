@@ -73,6 +73,14 @@ Continue using:
 - Working View Framework
 - Dashboard Framework
 
+## Optional Section 508 Package
+
+ART does not include Section 508 requirements in its built-in WCAG catalog. To use the optional Revised Section 508 foundation, open **Settings > Standards**, choose **Import Accessibility Standard**, and select `packages/accessibility-standards/section-508.package.json` (or an approved copy of that package).
+
+The package provides original summaries for Revised 508 Chapters 1 through 7, functional performance criteria, ICT scope, software and support-documentation considerations, and a plan/test/remediate/monitor lifecycle. It links to the U.S. Access Board, Section508.gov, and DHS Trusted Tester resources rather than reproducing official standard text.
+
+The package is an implementation aid, not a legal applicability decision, conformance determination, or certification. Section 508 review still requires documented scope, appropriate manual and assistive-technology testing, remediation evidence, and qualified human review. Trusted Tester training, qualification, and certification are separate from ART.
+
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
 ## Publishing Presentation in Report Builder
