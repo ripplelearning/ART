@@ -5975,7 +5975,7 @@ export function validateAccessibilityStandardPayload(input) {
         return { isValid: false, reason: 'missing-criteria' };
     }
 
-    const internalId = String(standardNode.id || standardNode.identifier || '').trim();
+    const internalId = String(standardNode.id || standardNode.identifier || standardNode.internalId || '').trim();
     const version = String(standardNode.version || payload?.version || '').trim();
     const source = String(standardNode.source || payload?.source || '').trim();
     const provisionalDisplayName = String(standardNode.displayName || internalId || version || 'Imported Standard').trim();

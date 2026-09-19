@@ -1270,12 +1270,17 @@ function renderImportedStandards() {
     if (clearButton) {
         clearButton.disabled = imported.length === 0;
     }
-    if (imported.length === 0) {
-        list.innerHTML = '<li>No imported accessibility standards.</li>';
-        return;
-    }
 
-    list.innerHTML = imported.map((standard) => `
+    const section508 = imported.find((standard) => String(standard.internalId || '').trim().toLowerCase() === 'section-508');
+    list.innerHTML = `
+        <li>
+            <label>
+                <input type="checkbox" id="settings-standard-section-508"${section508 ? ' checked' : ''}>
+                <strong>Section 508 Accessibility Standard</strong>
+            </label>
+            <div>Optional Revised Section 508 foundation from the U.S. Access Board. Enable it for use in reports and the Accessibility Lookup Tool.</div>
+        </li>
+        ${imported.map((standard) => `
         <li>
             <strong>${standard.displayName}</strong>
             <span> (${standard.version || 'No version'})</span>
@@ -1285,7 +1290,38 @@ function renderImportedStandards() {
             <button type="button" data-export-standard-id="${standard.id}">Export</button>
             <button type="button" data-remove-standard-id="${standard.id}">Remove</button>
         </li>
-    `).join('');
+        `).join('')}`;
+
+    const section508Checkbox = document.getElementById('settings-standard-section-508');
+    section508Checkbox?.addEventListener('change', async () => {
+        section508Checkbox.disabled = true;
+        if (!section508Checkbox.checked) {
+            const enabledSection508 = getImportedAccessibilityStandards()
+                .find((standard) => String(standard.internalId || '').trim().toLowerCase() === 'section-508');
+            if (enabledSection508) {
+                removeImportedAccessibilityStandard(enabledSection508.id);
+                writeStatus('Removed Section 508 Accessibility Standard.');
+            }
+            renderImportedStandards();
+            return;
+        }
+
+        try {
+            const packageUrl = new URL('./packages/accessibility-standards/section-508.package.json', import.meta.url);
+            const response = await fetch(packageUrl, { cache: 'no-cache' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const validation = validateAccessibilityStandardPayload(await response.json());
+            const standard = validation.isBundle ? validation.standards[0] : validation.standard;
+            if (!validation.isValid || !standard) throw new Error('Invalid Section 508 package.');
+
+            const result = addImportedAccessibilityStandard(standard, 'Section 508 Accessibility Standard');
+            if (!result.ok && result.reason !== 'conflict') throw new Error('Section 508 could not be enabled.');
+            writeStatus('Enabled Section 508 Accessibility Standard.');
+        } catch (error) {
+            writeStatus('Section 508 could not be enabled. Check that the optional package is available.');
+        }
+        renderImportedStandards();
+    });
 
     list.querySelectorAll('[data-edit-standard-id]').forEach((button) => {
         button.addEventListener('click', () => {

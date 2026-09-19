@@ -60,7 +60,7 @@ Examples:
 
 ## Optional Section 508 Standards
 
-Section 508 is available as an optional package and is intentionally separate from ART's built-in WCAG catalog. In **Settings > Standards**, use **Import Accessibility Standard** and select `packages/accessibility-standards/section-508.package.json`. The imported criteria become available to report workflows through the same standard import and lookup behavior as other imported standards.
+Section 508 is available as an optional package and is intentionally separate from ART's built-in WCAG catalog. In **Settings > Standards**, check **Section 508 Accessibility Standard** to enable it. Uncheck the same option to remove it. The enabled criteria become available to report workflows through the same standard import and lookup behavior as other imported standards. File import remains available for approved copies of the package.
 
 This package contains concise, original implementation summaries for the Revised Section 508 chapter structure, ICT scope, functional performance criteria, software and support documentation, and a testing lifecycle. Its metadata links to the official U.S. Access Board, Section508.gov, and DHS Trusted Tester sources.
 

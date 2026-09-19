@@ -75,7 +75,7 @@ Continue using:
 
 ## Optional Section 508 Package
 
-ART does not include Section 508 requirements in its built-in WCAG catalog. To use the optional Revised Section 508 foundation, open **Settings > Standards**, choose **Import Accessibility Standard**, and select `packages/accessibility-standards/section-508.package.json` (or an approved copy of that package).
+ART does not include Section 508 requirements in its built-in WCAG catalog. To use the optional Revised Section 508 foundation, open **Settings > Standards** and check **Section 508 Accessibility Standard**. Uncheck the same option to remove it. File import remains available for approved copies of the package.
 
 The package provides original summaries for Revised 508 Chapters 1 through 7, functional performance criteria, ICT scope, software and support-documentation considerations, and a plan/test/remediate/monitor lifecycle. It links to the U.S. Access Board, Section508.gov, and DHS Trusted Tester resources rather than reproducing official standard text.
 

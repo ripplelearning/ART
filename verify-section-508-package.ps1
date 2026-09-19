@@ -2,6 +2,9 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $packagePath = Join-Path $root 'packages/accessibility-standards/section-508.package.json'
 $defaultStandardsPath = Join-Path $root 'defaultStandards.js'
+$indexPath = Join-Path $root 'index.html'
+$settingsPath = Join-Path $root 'settings.js'
+$statePath = Join-Path $root 'state.js'
 
 if (-not (Test-Path $packagePath)) { throw 'FAIL: Missing Section 508 package.' }
 $package = Get-Content $packagePath -Raw | ConvertFrom-Json
@@ -32,6 +35,15 @@ Assert-True ($package.package.legalScope -match 'not.*legal|legal.*not') 'Legal 
 Assert-True ($package.package.notes -match 'Human') 'Human review limitation is missing.'
 $defaultStandards = Get-Content $defaultStandardsPath -Raw
 Assert-True ($defaultStandards -notmatch 'section-508|Section 508') 'Section 508 was merged into default standards.'
+$index = Get-Content $indexPath -Raw
+$settings = Get-Content $settingsPath -Raw
+$state = Get-Content $statePath -Raw
+Assert-True ($index -match 'settings-standards-list.*Available accessibility standards') 'Available standards list is missing.'
+Assert-True ($settings -match 'settings-standard-section-508') 'Section 508 Settings checkbox is missing.'
+Assert-True ($settings -match 'section-508\.package\.json') 'Section 508 checkbox does not load the optional package.'
+Assert-True ($settings -match 'addImportedAccessibilityStandard\(standard') 'Section 508 checkbox does not enable the standard.'
+Assert-True ($settings -match 'removeImportedAccessibilityStandard\(enabledSection508\.id\)') 'Section 508 checkbox does not remove the standard.'
+Assert-True ($state -match 'standardNode\.internalId') 'Standard validation does not preserve internalId values.'
 
 Write-Host 'Section 508 Package Verification'
 Write-Host '-------------------------------'
