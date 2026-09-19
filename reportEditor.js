@@ -1676,6 +1676,69 @@ function getSection508ResultOptions() {
         ];
 }
 
+function renderSection508AcrSections() {
+    const acr = appState.section508Acr || {};
+    const field = (key, label, inputType = 'text') => inputType === 'textarea'
+        ? `<label for="section-508-acr-${key}">${label}<textarea id="section-508-acr-${key}" data-section-508-acr-field="${key}">${escapeHtml(acr[key] || '')}</textarea></label>`
+        : `<label for="section-508-acr-${key}">${label}<input id="section-508-acr-${key}" type="${inputType}" data-section-508-acr-field="${key}" value="${escapeHtml(acr[key] || '')}"></label>`;
+
+    return `
+        <section class="section-508-acr-information" aria-labelledby="section-508-acr-heading">
+            <h3 id="section-508-acr-heading">OpenACR Section 508 Accessibility Conformance Report</h3>
+            <p id="section-508-acr-intro">This ART template follows the open ACR structure used by the GSA OpenACR Editor. Complete the fillable report information and criterion results, then review the informative guidance before publishing.</p>
+            <details open>
+                <summary>About OpenACR and this report</summary>
+                <p>OpenACR is a machine-readable format for documenting accessibility conformance claims. This ART implementation provides an editable local report structure and does not make a legal compliance or certification determination.</p>
+                <p>Section 508 applicability, product scope, test evidence, and conformance statements require qualified human review.</p>
+            </details>
+            <details>
+                <summary>How to complete the ACR</summary>
+                <ol>
+                    <li>Identify the product, version, vendor, report owner, and evaluation scope.</li>
+                    <li>Describe the methods, environments, technologies, and evidence used for evaluation.</li>
+                    <li>Record a result and optional comments for every applicable criterion/test.</li>
+                    <li>Use Add Issue when more than one issue applies to the same criterion/test.</li>
+                    <li>Review the report, references, limitations, and additional information before sharing it.</li>
+                </ol>
+            </details>
+            <details>
+                <summary>Conformance result guidance</summary>
+                <p><strong>Pass</strong> indicates that the applicable test was performed and the requirement was satisfied. <strong>Fail</strong> indicates an identified unmet requirement. <strong>Not Applicable</strong> requires a documented scope rationale. <strong>Not Tested</strong> identifies work that remains incomplete.</p>
+            </details>
+            <fieldset aria-labelledby="section-508-acr-report-information-heading">
+                <legend id="section-508-acr-report-information-heading">Fillable Report Information</legend>
+                <div class="section-508-acr-fields">
+                    ${field('productName', 'Product or service name')}
+                    ${field('productVersion', 'Product version or release')}
+                    ${field('vendorName', 'Vendor or organization')}
+                    ${field('reportDate', 'Report date', 'date')}
+                    <label for="section-508-acr-reportStatus">Report status<select id="section-508-acr-reportStatus" data-section-508-acr-field="reportStatus"><option>Draft</option><option>Review</option><option>Final</option></select></label>
+                    ${field('contactName', 'ACR contact name')}
+                    ${field('contactEmail', 'ACR contact email', 'email')}
+                    ${field('contactPhone', 'ACR contact phone')}
+                    ${field('evaluationScope', 'Evaluation scope and exclusions', 'textarea')}
+                    ${field('evaluationMethods', 'Evaluation methods and evidence', 'textarea')}
+                    ${field('testEnvironments', 'Test environments and assistive technologies', 'textarea')}
+                    ${field('technologies', 'Technologies, platforms, and configurations', 'textarea')}
+                    ${field('priorReport', 'Previous report or revision history', 'textarea')}
+                    ${field('remarks', 'Remarks and limitations', 'textarea')}
+                    ${field('additionalInformation', 'Additional information for buyers and reviewers', 'textarea')}
+                </div>
+            </fieldset>
+            <section aria-labelledby="section-508-acr-informative-heading">
+                <h4 id="section-508-acr-informative-heading">Informative Sections and Sources</h4>
+                <dl>
+                    <dt>Official ACR Editor</dt><dd><a href="https://acreditor.section508.gov/" target="_blank" rel="noopener noreferrer">Open the GSA OpenACR Editor</a></dd>
+                    <dt>OpenACR format</dt><dd><a href="https://github.com/GSA/openacr" target="_blank" rel="noopener noreferrer">OpenACR source and format documentation</a></dd>
+                    <dt>Revised Section 508 Standards</dt><dd><a href="https://www.access-board.gov/ict/" target="_blank" rel="noopener noreferrer">U.S. Access Board ICT standards</a></dd>
+                    <dt>Testing resources</dt><dd><a href="https://www.section508.gov/test/" target="_blank" rel="noopener noreferrer">Section508.gov testing guidance</a></dd>
+                </dl>
+                <p>ART stores this report locally. Exported ART reports remain ART project data; ART does not claim that an exported report is an official OpenACR YAML submission.</p>
+            </section>
+        </section>
+    `;
+}
+
 function getSection508CriterionKey(criterion) {
     return String(criterion?.identifier || criterion?.number || criterion?.title || '').trim().toLowerCase();
 }
@@ -1764,6 +1827,16 @@ function renderSection508AuditTable(criteria) {
 function bindSection508AuditEvents(criteria) {
     const container = document.getElementById('main-inner');
     if (!container) return;
+
+    container.querySelectorAll('[data-section-508-acr-field]').forEach((control) => {
+        if (control instanceof HTMLSelectElement) control.value = appState.section508Acr?.[control.getAttribute('data-section-508-acr-field')] || '';
+        control.addEventListener(control.tagName.toLowerCase() === 'select' ? 'change' : 'input', (event) => {
+            const key = event.target.getAttribute('data-section-508-acr-field');
+            if (!key) return;
+            appState.section508Acr = { ...(appState.section508Acr || {}), [key]: event.target.value };
+            saveState({ action: 'Updated Section 508 ACR information' });
+        });
+    });
 
     container.querySelectorAll('[data-section-508-field]').forEach((control) => {
         control.addEventListener(control.tagName.toLowerCase() === 'select' ? 'change' : 'input', (event) => {
@@ -2128,7 +2201,7 @@ export async function renderEditor() {
             <p id="editor-select-help" class="sr-only">Use arrow keys to review select options.</p>
             ${renderMetadataPlainText()}
             <button id="btn-edit-metadata" type="button">Edit Metadata...</button>
-            ${section508Report ? renderSection508AuditTable(section508Criteria) : isAuditLog ? renderAuditTable(wcagCriteria) : renderSingleEntryEditor()}
+            ${section508Report ? `${renderSection508AcrSections()}${renderSection508AuditTable(section508Criteria)}` : isAuditLog ? renderAuditTable(wcagCriteria) : renderSingleEntryEditor()}
             ${renderEditorActionBar()}
             <button id="btn-clear-report-data" type="button">Clear Report Data...</button>
             ${renderMetadataEditDialog()}

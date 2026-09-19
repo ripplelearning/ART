@@ -89,6 +89,8 @@ When Section 508 is enabled in Settings, select **Section 508 Accessibility Stan
 
 When a Section 508 report is active in the Report Editor, ART displays the Section 508 official report template with one row for every available performance criterion/test. Each row includes a **Test Result** dropdown using **Pass**, **Fail**, **Not Applicable**, and **Not Tested**, an **Optional Comments** textarea, and an **Add Issue** button. Add Issue creates another editable row for that same criterion/test so multiple issues can be documented independently.
 
+The report format follows the open ACR structure used by the [GSA OpenACR Editor](https://acreditor.section508.gov/). Its fillable sections cover product/service identity, version, vendor, report status/date, contact details, evaluation scope, methods and evidence, test environments and assistive technologies, technologies/platforms, revision history, remarks, and additional buyer information. Informative sections explain OpenACR, the completion workflow, result meanings, Section 508 limitations, and official sources. The Report Viewer includes this ACR information and the criteria result table. ART exports remain ART report data and are not claimed to be official OpenACR YAML submissions.
+
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
 ## Publishing Presentation in Report Builder

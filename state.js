@@ -45,6 +45,23 @@ const defaultState = {
     templateOption: "",
     templateName: "",
     templateDescription: "",
+    section508Acr: {
+        productName: "",
+        productVersion: "",
+        vendorName: "",
+        reportDate: "",
+        reportStatus: "Draft",
+        contactName: "",
+        contactEmail: "",
+        contactPhone: "",
+        evaluationScope: "",
+        evaluationMethods: "",
+        testEnvironments: "",
+        technologies: "",
+        priorReport: "",
+        remarks: "",
+        additionalInformation: ""
+    },
     progressLogEnabled: false,
     progressLogAppendixEnabled: false,
     progressItems: [],
@@ -698,6 +715,7 @@ const reportDefaults = {
     templateOption: defaultState.templateOption,
     templateName: defaultState.templateName,
     templateDescription: defaultState.templateDescription,
+    section508Acr: defaultState.section508Acr,
     progressLogEnabled: defaultState.progressLogEnabled,
     progressLogAppendixEnabled: defaultState.progressLogAppendixEnabled,
     progressItems: defaultState.progressItems,
@@ -739,6 +757,14 @@ function normalizeProgressLogEnabled(value, reportType) {
 function normalizeProgressLogAppendixEnabled(value, reportType) {
     if (String(reportType || '').trim() !== 'Audit Log') return false;
     return value !== false;
+}
+
+function normalizeSection508Acr(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return Object.fromEntries(Object.keys(defaultState.section508Acr).map((key) => [
+        key,
+        String(source[key] ?? defaultState.section508Acr[key] ?? '').trim()
+    ]));
 }
 
 function normalizeProgressItemType(value) {
@@ -2643,7 +2669,7 @@ const builtInTemplates = [
             reportTitle: 'Section 508 Accessibility Review',
             reportType: 'Audit Log',
             reportLayout: 'Tabular',
-            standard: 'Section 508',
+            standard: 'Section 508 Accessibility Standard',
             fields: [
                 { label: 'ICT Scope and Applicability', type: 'textarea', dropdownOptions: [] },
                 { label: 'Section 508 Requirement or Criterion', type: 'text', dropdownOptions: [] },
@@ -2878,6 +2904,7 @@ export let appState = {
         : defaultState.presentation,
     progressLogEnabled: normalizeProgressLogEnabled(storedState.progressLogEnabled, storedState.reportType),
     progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(storedState.progressLogAppendixEnabled, storedState.reportType),
+        section508Acr: normalizeSection508Acr(storedState.section508Acr),
     progressItems: normalizeProgressItems(storedState.progressItems),
     sharedProgressLogs: normalizeSharedProgressLogs(storedState.sharedProgressLogs),
     taskManager: normalizeTaskManager(storedState.taskManager),
@@ -3131,6 +3158,7 @@ function getCurrentReportSnapshotData() {
         templateOption: appState.templateOption,
         templateName: appState.templateName,
         templateDescription: appState.templateDescription,
+            section508Acr: normalizeSection508Acr(appState.section508Acr),
         progressLogEnabled: appState.progressLogEnabled,
         progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
         progressItems: normalizeProgressItems(appState.progressItems),
@@ -3402,6 +3430,7 @@ function applyReportData(data) {
         progressLogEnabled: normalizeProgressLogEnabled(data?.progressLogEnabled, reportType),
         progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(data?.progressLogAppendixEnabled, reportType),
         progressItems: normalizeProgressItems(data?.progressItems),
+        section508Acr: normalizeSection508Acr(data?.section508Acr),
         fields,
         editorFieldValues,
         auditEntries: normalizeAuditEntries(data?.auditEntries, fields, editorFieldValues),

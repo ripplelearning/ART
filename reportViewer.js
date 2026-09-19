@@ -426,6 +426,97 @@ function getMetadataRows() {
     ].filter(([, value]) => String(value || '').trim() !== '');
 }
 
+function isSection508Report() {
+    return String(appState.standard || '').trim().toLowerCase().includes('section 508');
+}
+
+function renderSection508AcrReportBlock() {
+    if (!isSection508Report()) return '';
+    const acr = appState.section508Acr || {};
+    const rows = [
+        ['Product or service name', acr.productName],
+        ['Product version or release', acr.productVersion],
+        ['Vendor or organization', acr.vendorName],
+        ['Report date', acr.reportDate],
+        ['Report status', acr.reportStatus],
+        ['ACR contact name', acr.contactName],
+        ['ACR contact email', acr.contactEmail],
+        ['ACR contact phone', acr.contactPhone],
+        ['Evaluation scope and exclusions', acr.evaluationScope],
+        ['Evaluation methods and evidence', acr.evaluationMethods],
+        ['Test environments and assistive technologies', acr.testEnvironments],
+        ['Technologies, platforms, and configurations', acr.technologies],
+        ['Previous report or revision history', acr.priorReport],
+        ['Remarks and limitations', acr.remarks],
+        ['Additional information for buyers and reviewers', acr.additionalInformation]
+    ].filter(([, value]) => String(value || '').trim() !== '');
+
+    return `
+        <section class="viewer-section-508-acr" aria-labelledby="viewer-section-508-acr-heading">
+            <h3 id="viewer-section-508-acr-heading">OpenACR Section 508 Report Information</h3>
+            ${rows.length > 0 ? `<dl class="viewer-metadata-list">${rows.map(([label, value]) => `<div class="viewer-metadata-item"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl>` : '<p>No ACR report information has been entered.</p>'}
+            <h4>Informative Sections and Sources</h4>
+            <p>OpenACR is a machine-readable format for documenting accessibility conformance claims. This report is an ART implementation aid and does not determine legal applicability, conformance, or certification.</p>
+            <ul>
+                <li><a href="https://acreditor.section508.gov/" target="_blank" rel="noopener noreferrer">GSA OpenACR Editor</a></li>
+                <li><a href="https://github.com/GSA/openacr" target="_blank" rel="noopener noreferrer">OpenACR format documentation</a></li>
+                <li><a href="https://www.access-board.gov/ict/" target="_blank" rel="noopener noreferrer">U.S. Access Board Revised 508 Standards</a></li>
+                <li><a href="https://www.section508.gov/test/" target="_blank" rel="noopener noreferrer">Section508.gov testing guidance</a></li>
+            </ul>
+        </section>
+    `;
+}
+
+function renderSection508CriteriaReportBlock() {
+    if (!isSection508Report()) return '';
+    const entries = Array.isArray(appState.auditEntries) ? appState.auditEntries : [];
+    return `
+        <section class="viewer-section-508-criteria" aria-labelledby="viewer-section-508-criteria-heading">
+            <h3 id="viewer-section-508-criteria-heading">Section 508 Performance Criteria and Test Results</h3>
+            <div class="viewer-table-wrapper" tabindex="0" aria-label="Section 508 criteria results table">
+                <table class="viewer-layout-table">
+                    <caption class="sr-only">Section 508 performance criteria, results, comments, and issues</caption>
+                    <thead><tr><th scope="col">Performance Criterion / Test</th><th scope="col">Test Result</th><th scope="col">Optional Comments</th></tr></thead>
+                    <tbody>${entries.map((entry) => {
+            const criterion = entry.fieldValues?.[0] || {};
+            return `<tr><th scope="row">${escapeHtml(`${criterion.number || ''} ${criterion.title || ''}`.trim())}</th><td>${escapeHtml(entry.fieldValues?.[1] || 'Not Tested')}</td><td>${escapeHtml(entry.fieldValues?.[2] || '')}</td></tr>`;
+                    }).join('')}</tbody>
+                </table>
+            </div>
+        </section>
+    `;
+}
+
+function getSection508AcrTextLines() {
+    if (!isSection508Report()) return [];
+    const acr = appState.section508Acr || {};
+    return [
+        ['Product or service name', acr.productName],
+        ['Product version or release', acr.productVersion],
+        ['Vendor or organization', acr.vendorName],
+        ['Report date', acr.reportDate],
+        ['Report status', acr.reportStatus],
+        ['ACR contact name', acr.contactName],
+        ['ACR contact email', acr.contactEmail],
+        ['ACR contact phone', acr.contactPhone],
+        ['Evaluation scope and exclusions', acr.evaluationScope],
+        ['Evaluation methods and evidence', acr.evaluationMethods],
+        ['Test environments and assistive technologies', acr.testEnvironments],
+        ['Technologies, platforms, and configurations', acr.technologies],
+        ['Previous report or revision history', acr.priorReport],
+        ['Remarks and limitations', acr.remarks],
+        ['Additional information for buyers and reviewers', acr.additionalInformation]
+    ].filter(([, value]) => String(value || '').trim() !== '').map(([label, value]) => `${label}: ${value}`);
+}
+
+function getSection508CriteriaTextLines() {
+    if (!isSection508Report()) return [];
+    return (Array.isArray(appState.auditEntries) ? appState.auditEntries : []).map((entry) => {
+        const criterion = entry.fieldValues?.[0] || {};
+        return `${criterion.number || ''} ${criterion.title || ''}: ${entry.fieldValues?.[1] || 'Not Tested'}${entry.fieldValues?.[2] ? ` - ${entry.fieldValues[2]}` : ''}`.trim();
+    });
+}
+
 function getFieldRows() {
     return getResolvedFieldEntries(false).map((entry) => [entry.label, entry.type === 'attachment' ? renderAttachmentExportText(entry) : entry.exportText]);
 }
@@ -788,12 +879,15 @@ function buildPresentationSectionModels() {
                         if (entry.url) return `${entry.label}: ${entry.displayText} (${entry.url})`;
                         return `${entry.label}: ${entry.exportText}`;
                     });
+                if (isSection508Report()) {
+                    textLines.unshift(...getSection508AcrTextLines(), ...getSection508CriteriaTextLines());
+                }
                 pushModel({
                     id: section.id,
                     title,
                     textLines,
                     markdown: `## ${title}\n${textLines.map((line) => `- ${line}`).join('\n')}`,
-                    html: `<section aria-labelledby="viewer-findings-heading"><h2 id="viewer-findings-heading" tabindex="-1">${escapeHtml(title)}</h2>${html}</section>`,
+                    html: `<section aria-labelledby="viewer-findings-heading"><h2 id="viewer-findings-heading" tabindex="-1">${escapeHtml(title)}</h2>${renderSection508AcrReportBlock()}${renderSection508CriteriaReportBlock()}${html}</section>`,
                     paragraphs: [{ style: 'Heading1', text: title }, ...textLines.map((line) => ({ style: 'Normal', text: line }))]
                 });
                 break;
