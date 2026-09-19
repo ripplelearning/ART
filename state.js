@@ -2558,6 +2558,13 @@ function normalizeImportedStandard(standard) {
         displayName: displayName || internalId || 'Imported Standard',
         version,
         source,
+        resultOptions: Array.isArray(standard?.resultOptions)
+            ? standard.resultOptions.map((option) => ({
+                id: String(option?.id || '').trim(),
+                label: String(option?.label || '').trim(),
+                meaning: String(option?.meaning || '').trim()
+            })).filter((option) => option.id && option.label)
+            : [],
         importedAt: String(standard?.importedAt || new Date().toISOString()),
         criteria: criteria.map((criterion) => normalizeImportedCriterion(criterion, displayName || internalId || 'Imported Standard'))
     };

@@ -72,6 +72,8 @@ Section 508 audit fields in the Report Editor show visible field names beside th
 
 After enabling Section 508, choose **Section 508 Accessibility Standard** in the Accessibility Lookup Tool's **Standard** filter. The Section 508 criteria appear immediately, and the lookup catalog updates when optional standards are enabled or removed.
 
+With a Section 508 report active, the Report Editor displays every available performance criterion/test in the official report template. Each row provides a **Test Result** dropdown with **Pass**, **Fail**, **Not Applicable**, and **Not Tested**, an **Optional Comments** textarea, and an **Add Issue** button. Add Issue duplicates that criterion/test row with blank result and comments fields for another issue.
+
 ## Validation and Troubleshooting
 Use Validate Extensions to run metadata and compatibility checks.
 

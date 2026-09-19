@@ -87,6 +87,8 @@ In the Report Editor, each Section 508 audit field displays its field name visib
 
 When Section 508 is enabled in Settings, select **Section 508 Accessibility Standard** in the Accessibility Lookup Tool's Standard filter to display its available criteria. The Lookup Tool refreshes its criteria catalog when an optional standard is enabled or removed.
 
+When a Section 508 report is active in the Report Editor, ART displays the Section 508 official report template with one row for every available performance criterion/test. Each row includes a **Test Result** dropdown using **Pass**, **Fail**, **Not Applicable**, and **Not Tested**, an **Optional Comments** textarea, and an **Add Issue** button. Add Issue creates another editable row for that same criterion/test so multiple issues can be documented independently.
+
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
 ## Publishing Presentation in Report Builder

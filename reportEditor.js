@@ -15,8 +15,10 @@ import {
     getCurrentReportMetrics,
     DEFAULT_USABILITY_HEURISTICS,
     getProgressItemNames,
+    getImportedAccessibilityStandards,
     isProgressLogEnabled,
     getShortcutForAction,
+    saveState,
     getSpellUserDictionary,
     addSpellUserDictionaryWord,
     getMetadataDescriptors,
@@ -39,6 +41,7 @@ let areModalListenersBound = false;
 let pendingEditorFocusTargetId = '';
 let spellSession = null;
 let runSpellDialogAction = null;
+let pendingSection508FocusId = '';
 
 function editorEventToShortcut(event) {
     const key = String(event.key || '');
@@ -1644,6 +1647,154 @@ function renderSingleEntryEditor() {
     `;
 }
 
+function getSection508Standard() {
+    return getImportedAccessibilityStandards().find((standard) => {
+        const internalId = String(standard?.internalId || '').trim().toLowerCase();
+        const displayName = String(standard?.displayName || '').trim().toLowerCase();
+        return internalId === 'section-508' || displayName.includes('section 508');
+    }) || null;
+}
+
+function isSection508Report() {
+    const selectedStandard = String(appState.standard || '').trim().toLowerCase();
+    return selectedStandard.includes('section 508') || selectedStandard === 'section-508';
+}
+
+function getSection508Criteria() {
+    return getSection508Standard()?.criteria || [];
+}
+
+function getSection508ResultOptions() {
+    const options = getSection508Standard()?.resultOptions || [];
+    return options.length > 0
+        ? options
+        : [
+            { id: 'pass', label: 'Pass' },
+            { id: 'fail', label: 'Fail' },
+            { id: 'not-applicable', label: 'Not Applicable' },
+            { id: 'not-tested', label: 'Not Tested' }
+        ];
+}
+
+function getSection508CriterionKey(criterion) {
+    return String(criterion?.identifier || criterion?.number || criterion?.title || '').trim().toLowerCase();
+}
+
+function ensureSection508AuditEntries(criteria) {
+    const criterionKeys = new Set(criteria.map(getSection508CriterionKey).filter(Boolean));
+    const existingEntries = Array.isArray(appState.auditEntries) ? appState.auditEntries : [];
+    const section508Entries = existingEntries.filter((entry) => criterionKeys.has(getSection508CriterionKey(entry?.fieldValues?.[0])));
+    const entries = [];
+
+    criteria.forEach((criterion) => {
+        const key = getSection508CriterionKey(criterion);
+        const matches = section508Entries.filter((entry) => getSection508CriterionKey(entry?.fieldValues?.[0]) === key);
+        if (matches.length > 0) {
+            entries.push(...matches);
+            return;
+        }
+        entries.push({
+            id: `section-508-${key || Date.now()}`,
+            fieldValues: [criterion, '', '']
+        });
+    });
+
+    appState.auditEntries = entries;
+    appState.activeAuditEntryIndex = Math.max(0, Math.min(appState.activeAuditEntryIndex || 0, entries.length - 1));
+    return entries;
+}
+
+function renderSection508AuditTable(criteria) {
+    const resultOptions = getSection508ResultOptions();
+    const entries = ensureSection508AuditEntries(criteria);
+    if (criteria.length === 0) {
+        return '<p>No Section 508 criteria are available. Enable the optional Section 508 standard in Application Settings first.</p>';
+    }
+
+    return `
+        <section aria-labelledby="section-508-template-heading">
+            <h3 id="section-508-template-heading">Section 508 Official Report Template</h3>
+            <p id="section-508-template-instructions">Review each functional performance criterion and test. Record the approved test result, optional comments, and any issues discovered.</p>
+            <div class="section-508-audit-table-wrapper">
+                <table class="section-508-audit-table">
+                    <caption class="sr-only">Section 508 performance criteria and test results</caption>
+                    <thead>
+                        <tr><th scope="col">Performance Criterion / Test</th><th scope="col">Test Result</th><th scope="col">Optional Comments</th><th scope="col">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        ${entries.map((entry, entryIndex) => {
+                            const criterion = entry.fieldValues?.[0] || {};
+                            const criterionKey = getSection508CriterionKey(criterion);
+                            const criterionLabelId = `section-508-criterion-${entryIndex}`;
+                            const resultId = `section-508-result-${entryIndex}`;
+                            const commentsId = `section-508-comments-${entryIndex}`;
+                            const resultValue = String(entry.fieldValues?.[1] || '');
+                            const commentsValue = String(entry.fieldValues?.[2] || '');
+                            const criterionName = `${criterion.number || ''} ${criterion.title || ''}`.trim();
+                            return `
+                                <tr data-section-508-entry-index="${entryIndex}" data-section-508-criterion-key="${escapeHtml(criterionKey)}">
+                                    <th scope="row" id="${criterionLabelId}">
+                                        <strong>${escapeHtml(criterionName)}</strong>
+                                        <span class="section-508-criterion-description">${escapeHtml(criterion.desc || '')}</span>
+                                    </th>
+                                    <td>
+                                        <label id="section-508-result-label-${entryIndex}" for="${resultId}">Test Result</label>
+                                        <select id="${resultId}" data-section-508-field="result" data-entry-index="${entryIndex}" aria-describedby="section-508-template-instructions" aria-labelledby="${criterionLabelId} section-508-result-label-${entryIndex}">
+                                            <option value="">Select a result</option>
+                                            ${resultOptions.map((option) => `<option value="${escapeHtml(option.id)}" ${resultValue === option.id ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <label id="section-508-comments-label-${entryIndex}" for="${commentsId}">Optional Comments</label>
+                                        <textarea id="${commentsId}" data-section-508-field="comments" data-entry-index="${entryIndex}" aria-labelledby="${criterionLabelId} section-508-comments-label-${entryIndex}">${escapeHtml(commentsValue)}</textarea>
+                                    </td>
+                                    <td>
+                                        <button type="button" data-section-508-add-issue="${entryIndex}" aria-labelledby="${criterionLabelId}">Add Issue</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    `;
+}
+
+function bindSection508AuditEvents(criteria) {
+    const container = document.getElementById('main-inner');
+    if (!container) return;
+
+    container.querySelectorAll('[data-section-508-field]').forEach((control) => {
+        control.addEventListener(control.tagName.toLowerCase() === 'select' ? 'change' : 'input', (event) => {
+            const entryIndex = Number(event.target.getAttribute('data-entry-index'));
+            const fieldIndex = event.target.getAttribute('data-section-508-field') === 'result' ? 1 : 2;
+            updateAuditEntryFieldValue(entryIndex, fieldIndex, event.target.value);
+        });
+    });
+
+    container.querySelectorAll('[data-section-508-add-issue]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const sourceIndex = Number(button.getAttribute('data-section-508-add-issue'));
+            const sourceEntry = appState.auditEntries[sourceIndex];
+            if (!sourceEntry) return;
+            const newEntry = {
+                id: `section-508-issue-${Date.now()}-${sourceIndex}`,
+                fieldValues: [sourceEntry.fieldValues?.[0], '', '']
+            };
+            const insertIndex = appState.auditEntries
+                .map((entry, index) => ({ entry, index }))
+                .filter(({ entry }) => getSection508CriterionKey(entry?.fieldValues?.[0]) === getSection508CriterionKey(sourceEntry.fieldValues?.[0]))
+                .pop()?.index;
+            appState.auditEntries.splice(Number.isInteger(insertIndex) ? insertIndex + 1 : sourceIndex + 1, 0, newEntry);
+            appState.activeAuditEntryIndex = sourceIndex + 1;
+            saveState({ action: 'Added Section 508 issue row' });
+            pendingSection508FocusId = `section-508-comments-${Number.isInteger(insertIndex) ? insertIndex + 1 : sourceIndex + 1}`;
+            renderEditor();
+        });
+    });
+}
+
 function focusPendingEntryControl() {
     if (!pendingEntryFocus) return false;
     const { entryIndex, fieldIndex } = pendingEntryFocus;
@@ -1960,8 +2111,10 @@ export async function renderEditor() {
         : '';
     const editorHeading = getEditorHeadingText();
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
+    const section508Report = isSection508Report();
+    const section508Criteria = section508Report ? getSection508Criteria() : [];
 
-    const isAuditLog = currentReportSupportsAuditEntries();
+    const isAuditLog = currentReportSupportsAuditEntries() || section508Report;
     if (isAuditLog) ensureAuditEntries();
 
     container.innerHTML = `
@@ -1975,7 +2128,7 @@ export async function renderEditor() {
             <p id="editor-select-help" class="sr-only">Use arrow keys to review select options.</p>
             ${renderMetadataPlainText()}
             <button id="btn-edit-metadata" type="button">Edit Metadata...</button>
-            ${isAuditLog ? renderAuditTable(wcagCriteria) : renderSingleEntryEditor()}
+            ${section508Report ? renderSection508AuditTable(section508Criteria) : isAuditLog ? renderAuditTable(wcagCriteria) : renderSingleEntryEditor()}
             ${renderEditorActionBar()}
             <button id="btn-clear-report-data" type="button">Clear Report Data...</button>
             ${renderMetadataEditDialog()}
@@ -1990,7 +2143,14 @@ export async function renderEditor() {
 
     let didApplyPendingEntryFocus = false;
 
-    if (isAuditLog) {
+    if (section508Report) {
+        bindSection508AuditEvents(section508Criteria);
+        if (pendingSection508FocusId) {
+            const target = document.getElementById(pendingSection508FocusId);
+            pendingSection508FocusId = '';
+            target?.focus();
+        }
+    } else if (isAuditLog) {
         bindAuditTableEvents(wcagCriteria);
         didApplyPendingEntryFocus = focusPendingEntryControl();
     } else {
