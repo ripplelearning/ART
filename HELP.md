@@ -81,6 +81,8 @@ The package provides original summaries for Revised 508 Chapters 1 through 7, fu
 
 The package is an implementation aid, not a legal applicability decision, conformance determination, or certification. Section 508 review still requires documented scope, appropriate manual and assistive-technology testing, remediation evidence, and qualified human review. Trusted Tester training, qualification, and certification are separate from ART.
 
+ART also provides a built-in **Section 508 Accessibility Review** template. It is available in the File > New > Report > New Report From Template menu, Dashboard template selection, and Report Builder's template selection. The template provides a starting structure for scope, criteria, test method, findings, results, and remediation evidence.
+
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
 ## Publishing Presentation in Report Builder

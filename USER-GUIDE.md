@@ -66,6 +66,8 @@ This package contains concise, original implementation summaries for the Revised
 
 Importing the package does not establish that a product is legally covered, conformant, or certified. Teams must determine applicability, perform appropriate automated and manual testing, include assistive-technology and code-inspection checks where relevant, retain evidence, and obtain qualified human review. ART does not provide Trusted Tester training or certification.
 
+The built-in **Section 508 Accessibility Review** template is available anywhere ART offers template selection: **File > New > Report > New Report From Template**, Dashboard, and Report Builder. It provides fields for scope, requirements, testing, findings, results, and remediation evidence; it does not replace applicability analysis or qualified testing.
+
 ## Validation and Troubleshooting
 Use Validate Extensions to run metadata and compatibility checks.
 

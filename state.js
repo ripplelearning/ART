@@ -2627,6 +2627,26 @@ const builtInTemplates = [
             reportLayout: 'Paragraphs',
             fields: []
         }
+    },
+    {
+        id: 'builtin-section-508-review',
+        name: 'Section 508 Accessibility Review',
+        data: {
+            ...reportDefaults,
+            reportTitle: 'Section 508 Accessibility Review',
+            reportType: 'Audit Log',
+            reportLayout: 'Tabular',
+            standard: 'Section 508',
+            fields: [
+                { label: 'ICT Scope and Applicability', type: 'textarea', dropdownOptions: [] },
+                { label: 'Section 508 Requirement or Criterion', type: 'text', dropdownOptions: [] },
+                { label: 'Test Method and Assistive Technology', type: 'textarea', dropdownOptions: [] },
+                { label: 'Finding', type: 'textarea', dropdownOptions: [] },
+                { label: 'Severity', type: 'dropdown', dropdownOptions: ['Low', 'Medium', 'High', 'Critical'] },
+                { label: 'Result', type: 'dropdown', dropdownOptions: ['Pass', 'Fail', 'Not Applicable', 'Not Tested'] },
+                { label: 'Remediation and Evidence', type: 'textarea', dropdownOptions: [] }
+            ]
+        }
     }
 ];
 
