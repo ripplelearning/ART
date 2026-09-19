@@ -83,6 +83,8 @@ The package is an implementation aid, not a legal applicability decision, confor
 
 ART also provides a built-in **Section 508 Accessibility Review** template. It is available in the File > New > Report > New Report From Template menu, Dashboard template selection, and Report Builder's template selection. The template provides a starting structure for scope, criteria, test method, findings, results, and remediation evidence.
 
+In the Report Editor, each Section 508 audit field displays its field name visibly beside the control. The control is also programmatically associated with that visible label for screen reader and other assistive-technology users.
+
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
 ## Publishing Presentation in Report Builder

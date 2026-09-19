@@ -1413,6 +1413,7 @@ th { background-color: #f4f4f4; }
 .editor-table-wrapper { overflow-x: auto; }
 .editor-audit-table { table-layout: fixed; width: 100%; }
 .editor-audit-table td { vertical-align: top; }
+.editor-field-cell-label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
 .entry-actions-menu { display: grid; gap: 6px; margin-top: 6px; }
 .editor-action-bar { display: flex; flex-wrap: wrap; gap: 8px; }
 .editor-validation-list,

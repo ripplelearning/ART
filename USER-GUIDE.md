@@ -68,6 +68,8 @@ Importing the package does not establish that a product is legally covered, conf
 
 The built-in **Section 508 Accessibility Review** template is available anywhere ART offers template selection: **File > New > Report > New Report From Template**, Dashboard, and Report Builder. It provides fields for scope, requirements, testing, findings, results, and remediation evidence; it does not replace applicability analysis or qualified testing.
 
+Section 508 audit fields in the Report Editor show visible field names beside their controls and preserve programmatic associations to those labels.
+
 ## Validation and Troubleshooting
 Use Validate Extensions to run metadata and compatibility checks.
 

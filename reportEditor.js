@@ -1594,7 +1594,8 @@ function renderAuditTable(criteria) {
                                 <tr>
                                     ${fields.map((field, fieldIndex) => `
                                         <td headers="audit-col-${fieldIndex}">
-                                            ${renderFieldControl(field, entryIndex, fieldIndex, getEntryFieldValue(entry, fieldIndex), appState.editorReadOnly, `audit-col-${fieldIndex}`)}
+                                            <span id="editor-field-cell-label-${entryIndex}-${fieldIndex}" class="editor-field-cell-label">${escapeHtml(field.label)}</span>
+                                            ${renderFieldControl(field, entryIndex, fieldIndex, getEntryFieldValue(entry, fieldIndex), appState.editorReadOnly, `audit-col-${fieldIndex} editor-field-cell-label-${entryIndex}-${fieldIndex}`)}
                                         </td>
                                     `).join('')}
                                     <td>
@@ -1633,9 +1634,7 @@ function renderSingleEntryEditor() {
         <div class="editor-fields-grid">
             ${appState.fields.map((field, index) => {
                 const labelId = `editor-field-label-${index}`;
-                const labelAttrs = isWcagCriterionFieldType(field.type)
-                    ? `id="${labelId}"`
-                    : `id="${labelId}" for="editor-field-0-${index}"`;
+                const labelAttrs = `id="${labelId}" for="editor-field-0-${index}"`;
                 return `
                     <label ${labelAttrs}>${escapeHtml(field.label)}</label>
                     ${renderFieldControl(field, 0, index, appState.editorFieldValues[index] ?? '', appState.editorReadOnly, labelId)}
