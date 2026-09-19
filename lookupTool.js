@@ -114,7 +114,7 @@ export async function initLookupTool() {
     };
 
     try {
-        const data = await loadWcagCatalog();
+        let data = await loadWcagCatalog();
         const standards = await getAvailableWcagStandards();
 
         const resetLookupShortcut = getShortcutForAction('resetLookup') || 'Alt+Shift+D';
@@ -250,6 +250,7 @@ export async function initLookupTool() {
         });
 
         window.addEventListener('art-accessibility-standards-updated', async () => {
+            data = await loadWcagCatalog().catch(() => data);
             const refreshed = await getAvailableWcagStandards().catch(() => []);
             const standardFilter = document.getElementById('ver-f');
             if (!standardFilter) return;

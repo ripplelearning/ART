@@ -70,6 +70,8 @@ The built-in **Section 508 Accessibility Review** template is available anywhere
 
 Section 508 audit fields in the Report Editor show visible field names beside their controls and preserve programmatic associations to those labels.
 
+After enabling Section 508, choose **Section 508 Accessibility Standard** in the Accessibility Lookup Tool's **Standard** filter. The Section 508 criteria appear immediately, and the lookup catalog updates when optional standards are enabled or removed.
+
 ## Validation and Troubleshooting
 Use Validate Extensions to run metadata and compatibility checks.
 

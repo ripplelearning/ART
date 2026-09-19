@@ -85,6 +85,8 @@ ART also provides a built-in **Section 508 Accessibility Review** template. It i
 
 In the Report Editor, each Section 508 audit field displays its field name visibly beside the control. The control is also programmatically associated with that visible label for screen reader and other assistive-technology users.
 
+When Section 508 is enabled in Settings, select **Section 508 Accessibility Standard** in the Accessibility Lookup Tool's Standard filter to display its available criteria. The Lookup Tool refreshes its criteria catalog when an optional standard is enabled or removed.
+
 After those workflows complete, ART registers package/plugin metadata through the Plugin Framework.
 
 ## Publishing Presentation in Report Builder
