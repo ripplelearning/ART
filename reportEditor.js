@@ -1704,7 +1704,6 @@ function renderSection508AcrSections() {
                     ${field('productName', 'Product or service name')}
                     ${field('productVersion', 'Product version or release')}
                     ${field('vendorName', 'Vendor or organization')}
-                    ${field('reportDate', 'Report date', 'date')}
                     <label for="section-508-acr-reportStatus">Report status<select id="section-508-acr-reportStatus" data-section-508-acr-field="reportStatus"><option>Draft</option><option>Review</option><option>Final</option></select></label>
                     ${field('contactName', 'ACR contact name')}
                     ${field('contactEmail', 'ACR contact email', 'email')}
@@ -1716,6 +1715,7 @@ function renderSection508AcrSections() {
                     ${field('priorReport', 'Previous report or revision history', 'textarea')}
                     ${field('remarks', 'Remarks and limitations', 'textarea')}
                     ${field('additionalInformation', 'Additional information for buyers and reviewers', 'textarea')}
+                    <label for="section-508-report-notes">Report Notes<textarea id="section-508-report-notes">${escapeHtml(appState.section508ReportNotes || '')}</textarea></label>
                 </div>
             </fieldset>
             <section aria-labelledby="section-508-acr-informative-heading">
@@ -1752,12 +1752,15 @@ function ensureSection508AuditEntries(criteria) {
         const key = getSection508CriterionKey(criterion);
         const matches = section508Entries.filter((entry) => getSection508CriterionKey(entry?.fieldValues?.[0]) === key);
         if (matches.length > 0) {
+            matches.forEach((entry) => {
+                if (criterion.fixedResult) entry.fieldValues[1] = criterion.fixedResult;
+            });
             entries.push(...matches);
             return;
         }
         entries.push({
             id: `section-508-${key || Date.now()}`,
-            fieldValues: [criterion, '', '']
+            fieldValues: [criterion, criterion.fixedResult || '', '']
         });
     });
 
@@ -1797,15 +1800,16 @@ function renderSection508AuditTable(criteria) {
                             const resultValue = String(entry.fieldValues?.[1] || '');
                             const commentsValue = String(entry.fieldValues?.[2] || '');
                             const criterionName = `${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim();
+                            const fixedResult = String(criterion.fixedResult || '').trim();
                             return `
                                 <tr data-section-508-entry-index="${entryIndex}" data-section-508-criterion-key="${escapeHtml(criterionKey)}">
                                     <th scope="row" id="${criterionLabelId}">
                                         <strong>${escapeHtml(criterionName)}</strong>
-                                        <span class="section-508-criterion-description">${escapeHtml(criterion.desc || '')}</span>
+                                        <span class="section-508-criterion-description">${escapeHtml(criterion.testCondition || criterion.desc || '')}</span>
                                     </th>
                                     <td>
                                         <label id="section-508-result-label-${entryIndex}" for="${resultId}">Test Result</label>
-                                        <select id="${resultId}" data-section-508-field="result" data-entry-index="${entryIndex}" aria-describedby="section-508-template-instructions" aria-labelledby="${criterionLabelId} section-508-result-label-${entryIndex}">
+                                        <select id="${resultId}" data-section-508-field="result" data-entry-index="${entryIndex}" aria-describedby="section-508-template-instructions${fixedResult ? ` section-508-fixed-result-${entryIndex}` : ''}" aria-labelledby="${criterionLabelId} section-508-result-label-${entryIndex}" ${fixedResult ? 'disabled aria-disabled="true"' : ''}>
                                             <option value="">Select a result</option>
                                             ${resultOptions.map((option) => `<option value="${escapeHtml(option.id)}" ${resultValue === option.id ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
                                         </select>
@@ -1815,7 +1819,8 @@ function renderSection508AuditTable(criteria) {
                                         <textarea id="${commentsId}" data-section-508-field="comments" data-entry-index="${entryIndex}" aria-labelledby="${criterionLabelId} section-508-comments-label-${entryIndex}">${escapeHtml(commentsValue)}</textarea>
                                     </td>
                                     <td>
-                                        <button type="button" data-section-508-add-issue="${entryIndex}" aria-labelledby="${criterionLabelId}">Add Issue</button>
+                                        ${fixedResult ? `<span id="section-508-fixed-result-${entryIndex}" class="sr-only">This result is predetermined by the supplied Section 508 procedure and cannot be changed.</span>` : ''}
+                                        <button type="button" data-section-508-add-issue="${entryIndex}" aria-label="Add a row for ${escapeHtml(criterionName)}">Add a row for ${escapeHtml(criterionName)}</button>
                                     </td>
                                 </tr>
                             `;
@@ -1841,6 +1846,12 @@ function bindSection508AuditEvents(criteria) {
         });
     });
 
+    const reportNotes = document.getElementById('section-508-report-notes');
+    reportNotes?.addEventListener('input', (event) => {
+        appState.section508ReportNotes = event.target.value;
+        saveState({ action: 'Updated Section 508 report notes' });
+    });
+
     container.querySelectorAll('[data-section-508-field]').forEach((control) => {
         control.addEventListener(control.tagName.toLowerCase() === 'select' ? 'change' : 'input', (event) => {
             const entryIndex = Number(event.target.getAttribute('data-entry-index'));
@@ -1861,7 +1872,7 @@ function bindSection508AuditEvents(criteria) {
             if (!sourceEntry) return;
             const newEntry = {
                 id: `section-508-issue-${Date.now()}-${sourceIndex}`,
-                fieldValues: [sourceEntry.fieldValues?.[0], '', '']
+                fieldValues: [sourceEntry.fieldValues?.[0], sourceEntry.fieldValues?.[0]?.fixedResult || '', '']
             };
             const insertIndex = appState.auditEntries
                 .map((entry, index) => ({ entry, index }))

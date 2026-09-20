@@ -11,6 +11,12 @@ function Assert-Contains([string]$name, [string]$content, [string]$pattern, [str
     }
 }
 
+function Assert-NotContains([string]$name, [string]$content, [string]$pattern, [string]$message) {
+    if ($content -match $pattern) {
+        throw "FAIL: [$name] $message Unexpected pattern: $pattern"
+    }
+}
+
 Assert-Contains 'reportEditor.js' $editor 'isSection508Report\(\)' 'Section 508 editor mode is missing.'
 Assert-Contains 'reportEditor.js' $editor 'OpenACR Section 508 Accessibility Conformance Report' 'OpenACR report heading is missing.'
 Assert-Contains 'reportEditor.js' $editor 'Fillable Report Information' 'Fillable ACR information section is missing.'
@@ -21,11 +27,16 @@ Assert-Contains 'reportEditor.js' $editor 'Section 508 Official Report Template'
 Assert-Contains 'reportEditor.js' $editor 'data-section-508-field="result"' 'Section 508 result controls are missing.'
 Assert-Contains 'reportEditor.js' $editor 'data-section-508-field="comments"' 'Section 508 comments controls are missing.'
 Assert-Contains 'reportEditor.js' $editor 'data-section-508-add-issue' 'Section 508 Add Issue controls are missing.'
+Assert-Contains 'reportEditor.js' $editor 'Add a row for \$\{escapeHtml\(criterionName\)\}' 'Section 508 Add Issue labels are not criterion-specific.'
+Assert-Contains 'reportEditor.js' $editor 'fixedResult.*disabled aria-disabled' 'Fixed Section 508 results are not locked.'
+Assert-Contains 'reportEditor.js' $editor 'section-508-report-notes' 'Report Notes is not in the Section 508 Editor.'
+Assert-NotContains 'reportEditor.js' $editor "field\('reportDate'" 'The duplicate Editor Report Date field must be removed.'
 Assert-Contains 'reportEditor.js' $editor 'aria-labelledby="\$\{criterionLabelId\} section-508-result-label' 'Result controls are not associated with criterion and visible result labels.'
 Assert-Contains 'reportEditor.js' $editor 'aria-labelledby="\$\{criterionLabelId\} section-508-comments-label' 'Comments controls are not associated with criterion and visible comments labels.'
-Assert-Contains 'reportEditor.js' $editor 'fieldValues: \[sourceEntry\.fieldValues\?\.\[0\], '''', ''''\]' 'Add Issue does not duplicate the criterion with blank result and comments.'
+Assert-Contains 'reportEditor.js' $editor 'fieldValues: \[sourceEntry\.fieldValues\?\.\[0\], sourceEntry\.fieldValues\?\.\[0\]\?\.fixedResult \|\| '''', ''''\]' 'Add Issue does not preserve fixed results while blanking optional comments.'
 Assert-Contains 'state.js' $state 'resultOptions: Array\.isArray\(standard\?\.resultOptions\)' 'Approved Section 508 result options are not preserved in state.'
-Assert-Contains 'state.js' $state 'section508Acr: normalizeSection508Acr' 'ACR information is not normalized in report state.'
+Assert-Contains 'state.js' $state 'auditDateStart.*Audit Start is required' 'Section 508 Audit Start validation is missing.'
+Assert-Contains 'state.js' $state 'auditDateEnd.*Audit End is required' 'Section 508 Audit End validation is missing.'
 Assert-Contains 'reportViewer.js' $viewer 'renderSection508AcrReportBlock' 'ACR information is missing from report output.'
 Assert-Contains 'reportViewer.js' $viewer 'renderSection508CriteriaReportBlock' 'Section 508 criteria results are missing from report output.'
 

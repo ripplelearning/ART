@@ -20,7 +20,8 @@ function text(value) {
 }
 
 function normalizeCriterion(criterion, productType) {
-    const fixedResult = text(criterion.Result || criterion.TestResult || criterion.FixedResult || criterion.RequiredResult);
+    const fixedResult = text(criterion.Result || criterion.TestResult || criterion.FixedResult || criterion.RequiredResult)
+        || (/should be recorded as NOT TESTED/i.test(text(criterion.TestCondition)) ? 'not-evaluated' : '');
     const levelText = text(criterion.Guideline);
     const level = /AAA/i.test(levelText) ? 'Level AAA' : /AA/i.test(levelText) ? 'Level AA' : 'Level A';
     return {

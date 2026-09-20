@@ -6778,7 +6778,8 @@ export function validateCurrentReport() {
         [
             ['section508ProductType', 'Product Type is required.', 'section-508-product-type'],
             ['section508ConformanceLevel', 'Conformance Level is required.', 'section-508-conformance-level'],
-            ['section508TestingDates', 'Testing Date(s) is required.', 'section-508-testing-dates'],
+            ['auditDateStart', appState.auditDateStart, 'Audit Start is required.', 'date-start'],
+            ['auditDateEnd', appState.auditDateEnd, 'Audit End is required.', 'date-end'],
             ['section508Acr.productName', section508Acr.productName, 'Product Name is required.', 'section-508-acr-productName'],
             ['section508Acr.productVersion', section508Acr.productVersion, 'Product Version is required.', 'section-508-acr-productVersion'],
             ['section508Acr.vendorName', section508Acr.vendorName, 'Product Owner is required.', 'section-508-acr-vendorName'],

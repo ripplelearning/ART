@@ -428,7 +428,6 @@ function getMetadataRows() {
         rows.push(
             ['Product Type', appState.section508ProductType],
             ['Conformance Level', appState.section508ConformanceLevel],
-            ['Testing Date(s)', appState.section508TestingDates],
             ['Report Notes', appState.section508ReportNotes]
         );
     }
@@ -495,7 +494,7 @@ function renderSection508CriteriaReportBlock() {
                             'not-applicable': 'Not Applicable',
                             'not-evaluated': 'Not Evaluated'
                         };
-                        const result = resultLabels[String(entry.fieldValues?.[1] || '').trim()] || 'Not Evaluated';
+                        const result = resultLabels[String(entry.fieldValues?.[1] || criterion.fixedResult || '').trim()] || 'Not Evaluated';
                         return `<tr><th scope="row">${escapeHtml(`${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim())}</th><td>${escapeHtml(result)}</td><td>${escapeHtml(entry.fieldValues?.[2] || '')}</td></tr>`;
                     }).join('')}</tbody>
                 </table>

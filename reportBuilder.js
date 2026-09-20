@@ -1227,12 +1227,6 @@ export async function renderBuilder() {
                             ${getSection508ConformanceLevels().map((level) => `<option value="${escapeHtml(level)}" ${appState.section508ConformanceLevel === level ? 'selected' : ''}>${escapeHtml(level)}</option>`).join('')}
                         </select>
                     </label>
-                    <label for="section-508-testing-dates">Testing Date(s)
-                        <input id="section-508-testing-dates" type="text" value="${escapeHtml(appState.section508TestingDates)}" placeholder="YYYY-MM-DD or date range" required>
-                    </label>
-                    <label for="section-508-report-notes">Report Notes
-                        <textarea id="section-508-report-notes">${escapeHtml(appState.section508ReportNotes)}</textarea>
-                    </label>
                 ` : ''}
                 <label>Testing Instructions: <textarea id="testing-instructions">${appState.testingInstructions || ''}</textarea></label>
                 <div>
@@ -1628,7 +1622,7 @@ export async function renderBuilder() {
         });
     }
 
-    [['section-508-conformance-level', 'section508ConformanceLevel'], ['section-508-testing-dates', 'section508TestingDates'], ['section-508-report-notes', 'section508ReportNotes']].forEach(([id, key]) => {
+    [['section-508-conformance-level', 'section508ConformanceLevel']].forEach(([id, key]) => {
         document.getElementById(id)?.addEventListener('input', (event) => updateHeader(key, event.target.value));
         document.getElementById(id)?.addEventListener('change', (event) => updateHeader(key, event.target.value));
     });

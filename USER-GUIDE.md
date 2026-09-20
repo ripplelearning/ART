@@ -72,9 +72,11 @@ Section 508 audit fields in the Report Editor show visible field names beside th
 
 After enabling Section 508, choose **Section 508 Accessibility Standard** in the Accessibility Lookup Tool's **Standard** filter. The Section 508 criteria appear immediately, and the lookup catalog updates when optional standards are enabled or removed.
 
-Section 508 Report Builder configuration requires a **Product Type** of **Web**, **Electronic Document**, **Software**, or **Hardware**, and a **Conformance Level** of **Level A**, **Level AA**, or **Level AAA**. Web and Software use separate supplied template resources. Testing Date(s) are required for Section 508 validation, while report-level Notes are available for overall observations.
+Section 508 Report Builder configuration requires a **Product Type** of **Web**, **Electronic Document**, **Software**, or **Hardware**, and a **Conformance Level** of **Level A**, **Level AA**, or **Level AAA**. Web and Software use separate supplied template resources. The shared **Audit Start** and **Audit End** fields provide the testing date range for Section 508 reports.
 
 With a Section 508 report active, the Report Editor loads the supplied Web or Software template selected by Product Type and filters tests by Conformance Level. Each row provides a **Test Result** dropdown with **Supports**, **Supports with Exceptions**, **Does Not Support**, **Not Applicable**, and **Not Evaluated**, an **Optional Comments** textarea, and an **Add Issue** button.
+
+Section 508 **Report Notes** are entered in the Report Editor. The Editor uses the shared Audit Start and Audit End dates and does not show a duplicate Report Date field. Add Issue buttons identify their criterion/test, and authoritative fixed results are locked, including Web test **20.A 4.1.1-parsing**, which is pre-filled as **Not Evaluated**.
 
 The source Web and Software templates are preserved in the optional Section 508 package. ART retains their test IDs, test names, test conditions, product/system/tester structures, grouping, risk, and disability-impact metadata while adapting the controls to ART's saved report model.
 

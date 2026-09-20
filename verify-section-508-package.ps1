@@ -39,6 +39,9 @@ Assert-True (@($standard.conformanceLevels) -join '|' -eq 'Level A|Level AA|Leve
 Assert-True ((@($standard.resultOptions | ForEach-Object { $_.label }) -join '|') -eq 'Supports|Supports with Exceptions|Does Not Support|Not Applicable|Not Evaluated') 'Section 508 result values are incorrect.'
 Assert-True (Test-Path (Join-Path $templateDirectory 'section-508-web-audit-report-template.json')) 'Supplied Web template is missing.'
 Assert-True (Test-Path (Join-Path $templateDirectory 'section-508-software-audit-report-template.json')) 'Supplied Software template is missing.'
+$webTemplate = Get-Content (Join-Path $templateDirectory 'section-508-web-audit-report-template.json') -Raw | ConvertFrom-Json
+$fixedParsing = @($webTemplate[0].Criteria | Where-Object { $_.TestID -eq '20.A' -and $_.TestCondition -match 'NOT TESTED' })
+Assert-True ($fixedParsing.Count -eq 1) 'Authoritative fixed-result test 20.A is missing from the supplied Web template.'
 $defaultStandards = Get-Content $defaultStandardsPath -Raw
 Assert-True ($defaultStandards -notmatch 'section-508|Section 508') 'Section 508 was merged into default standards.'
 $index = Get-Content $indexPath -Raw
