@@ -3,6 +3,7 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { announce, appState, createUserTemplate, DEFAULT_USABILITY_HEURISTICS, getActiveProjectWorkspace, getBuiltInTemplates, getUserTemplates, setActiveWorkspaceDefaultBranding, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { formatWcagCriterionDisplay, getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { getSection508ConformanceLevels, getSection508ProductTypes } from './section508TemplateCatalog.js';
 import { restoreFocus } from './focusManagement.js';
 import {
     applyPresentationPublishingProfile,
@@ -1153,6 +1154,7 @@ export async function renderBuilder() {
     const editType = normalizeFieldType(editField?.type);
     const availableStandards = await getAvailableWcagStandards().catch(() => ['WCAG 2.2', 'WCAG 2.1']);
     const standardOptions = availableStandards.length > 0 ? availableStandards : ['WCAG 2.2', 'WCAG 2.1'];
+    const isSection508 = String(appState.standard || '').toLowerCase().includes('section 508');
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
     const reportLayouts = {
         'Audit Log': ['Paragraphs', 'Tabular', 'Template'],
@@ -1212,6 +1214,26 @@ export async function renderBuilder() {
                         ${standardOptions.map((standard) => `<option value="${escapeHtml(standard)}" ${appState.standard === standard ? 'selected' : ''}>${escapeHtml(standard)}</option>`).join('')}
                     </select>
                 </label>
+                ${isSection508 ? `
+                    <label for="section-508-product-type">Product Type
+                        <select id="section-508-product-type" aria-describedby="builder-select-help" required>
+                            <option value="">Select Product Type</option>
+                            ${getSection508ProductTypes().map((type) => `<option value="${escapeHtml(type)}" ${appState.section508ProductType === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label for="section-508-conformance-level">Conformance Level
+                        <select id="section-508-conformance-level" aria-describedby="builder-select-help" required>
+                            <option value="">Select Conformance Level</option>
+                            ${getSection508ConformanceLevels().map((level) => `<option value="${escapeHtml(level)}" ${appState.section508ConformanceLevel === level ? 'selected' : ''}>${escapeHtml(level)}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label for="section-508-testing-dates">Testing Date(s)
+                        <input id="section-508-testing-dates" type="text" value="${escapeHtml(appState.section508TestingDates)}" placeholder="YYYY-MM-DD or date range" required>
+                    </label>
+                    <label for="section-508-report-notes">Report Notes
+                        <textarea id="section-508-report-notes">${escapeHtml(appState.section508ReportNotes)}</textarea>
+                    </label>
+                ` : ''}
                 <label>Testing Instructions: <textarea id="testing-instructions">${appState.testingInstructions || ''}</textarea></label>
                 <div>
                     <label for="report-type-select">Report Type</label>
@@ -1600,11 +1622,25 @@ export async function renderBuilder() {
             window.dispatchEvent(new CustomEvent('art-standard-changed', {
                 detail: { standard: e.target.value }
             }));
-            if (isWcagCriterionFieldType(document.getElementById('field-type-input')?.value)) {
+            if (isWcagCriterionFieldType(document.getElementById('field-type-input')?.value) || String(e.target.value || '').toLowerCase().includes('section 508')) {
                 renderBuilder();
             }
         });
     }
+
+    [['section-508-conformance-level', 'section508ConformanceLevel'], ['section-508-testing-dates', 'section508TestingDates'], ['section-508-report-notes', 'section508ReportNotes']].forEach(([id, key]) => {
+        document.getElementById(id)?.addEventListener('input', (event) => updateHeader(key, event.target.value));
+        document.getElementById(id)?.addEventListener('change', (event) => updateHeader(key, event.target.value));
+    });
+
+    document.getElementById('section-508-product-type')?.addEventListener('change', (event) => {
+        const previousType = String(appState.section508ProductType || '').trim() || 'Unspecified';
+        appState.section508EntriesByProductType = {
+            ...(appState.section508EntriesByProductType || {}),
+            [previousType]: appState.auditEntries
+        };
+        updateHeader('section508ProductType', event.target.value);
+    });
 
     const refreshPresentationRegion = () => {
         const summary = document.getElementById('presentation-summary');

@@ -62,6 +62,11 @@ const defaultState = {
         remarks: "",
         additionalInformation: ""
     },
+    section508ProductType: "",
+    section508ConformanceLevel: "",
+    section508TestingDates: "",
+    section508ReportNotes: "",
+    section508EntriesByProductType: {},
     progressLogEnabled: false,
     progressLogAppendixEnabled: false,
     progressItems: [],
@@ -716,6 +721,11 @@ const reportDefaults = {
     templateName: defaultState.templateName,
     templateDescription: defaultState.templateDescription,
     section508Acr: defaultState.section508Acr,
+    section508ProductType: defaultState.section508ProductType,
+    section508ConformanceLevel: defaultState.section508ConformanceLevel,
+    section508TestingDates: defaultState.section508TestingDates,
+    section508ReportNotes: defaultState.section508ReportNotes,
+    section508EntriesByProductType: defaultState.section508EntriesByProductType,
     progressLogEnabled: defaultState.progressLogEnabled,
     progressLogAppendixEnabled: defaultState.progressLogAppendixEnabled,
     progressItems: defaultState.progressItems,
@@ -2904,7 +2914,12 @@ export let appState = {
         : defaultState.presentation,
     progressLogEnabled: normalizeProgressLogEnabled(storedState.progressLogEnabled, storedState.reportType),
     progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(storedState.progressLogAppendixEnabled, storedState.reportType),
-        section508Acr: normalizeSection508Acr(storedState.section508Acr),
+    section508Acr: normalizeSection508Acr(storedState.section508Acr),
+    section508ProductType: String(storedState.section508ProductType || ''),
+    section508ConformanceLevel: String(storedState.section508ConformanceLevel || ''),
+    section508TestingDates: String(storedState.section508TestingDates || ''),
+    section508ReportNotes: String(storedState.section508ReportNotes || ''),
+    section508EntriesByProductType: storedState.section508EntriesByProductType && typeof storedState.section508EntriesByProductType === 'object' ? storedState.section508EntriesByProductType : {},
     progressItems: normalizeProgressItems(storedState.progressItems),
     sharedProgressLogs: normalizeSharedProgressLogs(storedState.sharedProgressLogs),
     taskManager: normalizeTaskManager(storedState.taskManager),
@@ -3159,6 +3174,11 @@ function getCurrentReportSnapshotData() {
         templateName: appState.templateName,
         templateDescription: appState.templateDescription,
             section508Acr: normalizeSection508Acr(appState.section508Acr),
+            section508ProductType: appState.section508ProductType,
+            section508ConformanceLevel: appState.section508ConformanceLevel,
+            section508TestingDates: appState.section508TestingDates,
+            section508ReportNotes: appState.section508ReportNotes,
+            section508EntriesByProductType: appState.section508EntriesByProductType,
         progressLogEnabled: appState.progressLogEnabled,
         progressLogAppendixEnabled: appState.progressLogAppendixEnabled,
         progressItems: normalizeProgressItems(appState.progressItems),
@@ -3431,6 +3451,11 @@ function applyReportData(data) {
         progressLogAppendixEnabled: normalizeProgressLogAppendixEnabled(data?.progressLogAppendixEnabled, reportType),
         progressItems: normalizeProgressItems(data?.progressItems),
         section508Acr: normalizeSection508Acr(data?.section508Acr),
+        section508ProductType: String(data?.section508ProductType || ''),
+        section508ConformanceLevel: String(data?.section508ConformanceLevel || ''),
+        section508TestingDates: String(data?.section508TestingDates || ''),
+        section508ReportNotes: String(data?.section508ReportNotes || ''),
+        section508EntriesByProductType: data?.section508EntriesByProductType && typeof data.section508EntriesByProductType === 'object' ? data.section508EntriesByProductType : {},
         fields,
         editorFieldValues,
         auditEntries: normalizeAuditEntries(data?.auditEntries, fields, editorFieldValues),
@@ -6747,6 +6772,41 @@ export function validateCurrentReport() {
             });
         }
     });
+
+    if (String(appState.standard || '').toLowerCase().includes('section 508')) {
+        const section508Acr = appState.section508Acr || {};
+        [
+            ['section508ProductType', 'Product Type is required.', 'section-508-product-type'],
+            ['section508ConformanceLevel', 'Conformance Level is required.', 'section-508-conformance-level'],
+            ['section508TestingDates', 'Testing Date(s) is required.', 'section-508-testing-dates'],
+            ['section508Acr.productName', section508Acr.productName, 'Product Name is required.', 'section-508-acr-productName'],
+            ['section508Acr.productVersion', section508Acr.productVersion, 'Product Version is required.', 'section-508-acr-productVersion'],
+            ['section508Acr.vendorName', section508Acr.vendorName, 'Product Owner is required.', 'section-508-acr-vendorName'],
+            ['section508Acr.contactName', section508Acr.contactName, 'Tester Name is required.', 'section-508-acr-contactName']
+        ].forEach((check) => {
+            const key = check[0];
+            const value = key.startsWith('section508Acr.') ? check[1] : appState[key];
+            const message = key.startsWith('section508Acr.') ? check[2] : check[1];
+            const target = key.startsWith('section508Acr.') ? check[3] : check[2];
+            if (!String(value || '').trim()) {
+                issues.push({ code: `section-508-${key.replace('.', '-')}-missing`, message, targetType: 'builder', target });
+            }
+        });
+
+        const validResults = new Set(['supports', 'supports-with-exceptions', 'does-not-support', 'not-applicable', 'not-evaluated']);
+        (appState.auditEntries || []).forEach((entry) => {
+            const criterion = entry.fieldValues?.[0] || {};
+            const result = String(entry.fieldValues?.[1] || '').trim();
+            if (!validResults.has(result)) {
+                issues.push({
+                    code: `section-508-result-${criterion.testId || criterion.testName || 'criterion'}`,
+                    message: `Test Result is required for ${criterion.testId || criterion.testName || criterion.criterionId || 'this criterion'}.`,
+                    targetType: 'editor',
+                    target: `section-508-result-${(appState.auditEntries || []).indexOf(entry)}`
+                });
+            }
+        });
+    }
 
     if (!Array.isArray(appState.fields) || appState.fields.length === 0) {
         issues.push({

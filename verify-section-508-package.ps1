@@ -5,6 +5,7 @@ $defaultStandardsPath = Join-Path $root 'defaultStandards.js'
 $indexPath = Join-Path $root 'index.html'
 $settingsPath = Join-Path $root 'settings.js'
 $statePath = Join-Path $root 'state.js'
+$templateDirectory = Join-Path $root 'packages/accessibility-standards/section-508-templates'
 
 if (-not (Test-Path $packagePath)) { throw 'FAIL: Missing Section 508 package.' }
 $package = Get-Content $packagePath -Raw | ConvertFrom-Json
@@ -33,6 +34,11 @@ Assert-True (@($standard.criteria | Where-Object { $_.number -eq 'software-inter
 Assert-True (@($standard.criteria | Where-Object { $_.number -eq 'support-documentation' }).Count -eq 1) 'Support documentation criterion is missing.'
 Assert-True ($package.package.legalScope -match 'not.*legal|legal.*not') 'Legal applicability limitation is missing.'
 Assert-True ($package.package.notes -match 'Human') 'Human review limitation is missing.'
+Assert-True (@($standard.productTypes) -join '|' -eq 'Web|Electronic Document|Software|Hardware') 'Section 508 product types are incomplete.'
+Assert-True (@($standard.conformanceLevels) -join '|' -eq 'Level A|Level AA|Level AAA') 'Section 508 conformance levels are incomplete.'
+Assert-True ((@($standard.resultOptions | ForEach-Object { $_.label }) -join '|') -eq 'Supports|Supports with Exceptions|Does Not Support|Not Applicable|Not Evaluated') 'Section 508 result values are incorrect.'
+Assert-True (Test-Path (Join-Path $templateDirectory 'section-508-web-audit-report-template.json')) 'Supplied Web template is missing.'
+Assert-True (Test-Path (Join-Path $templateDirectory 'section-508-software-audit-report-template.json')) 'Supplied Software template is missing.'
 $defaultStandards = Get-Content $defaultStandardsPath -Raw
 Assert-True ($defaultStandards -notmatch 'section-508|Section 508') 'Section 508 was merged into default standards.'
 $index = Get-Content $indexPath -Raw

@@ -32,6 +32,7 @@ import {
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { formatWcagCriterionDisplay, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
+import { filterSection508Criteria, getSection508Template, getSection508TestResults } from './section508TemplateCatalog.js';
 import { openProgressLogDialog } from './progressLog.js';
 
 let pendingEntryFocus = null;
@@ -1660,20 +1661,12 @@ function isSection508Report() {
     return selectedStandard.includes('section 508') || selectedStandard === 'section-508';
 }
 
-function getSection508Criteria() {
-    return getSection508Standard()?.criteria || [];
+function getSection508Criteria(template = null) {
+    return template?.criteria || getSection508Standard()?.criteria || [];
 }
 
 function getSection508ResultOptions() {
-    const options = getSection508Standard()?.resultOptions || [];
-    return options.length > 0
-        ? options
-        : [
-            { id: 'pass', label: 'Pass' },
-            { id: 'fail', label: 'Fail' },
-            { id: 'not-applicable', label: 'Not Applicable' },
-            { id: 'not-tested', label: 'Not Tested' }
-        ];
+    return getSection508TestResults();
 }
 
 function renderSection508AcrSections() {
@@ -1703,7 +1696,7 @@ function renderSection508AcrSections() {
             </details>
             <details>
                 <summary>Conformance result guidance</summary>
-                <p><strong>Pass</strong> indicates that the applicable test was performed and the requirement was satisfied. <strong>Fail</strong> indicates an identified unmet requirement. <strong>Not Applicable</strong> requires a documented scope rationale. <strong>Not Tested</strong> identifies work that remains incomplete.</p>
+                <p><strong>Supports</strong>, <strong>Supports with Exceptions</strong>, <strong>Does Not Support</strong>, <strong>Not Applicable</strong>, and <strong>Not Evaluated</strong> are the standard Section 508 report results. Use comments to document exceptions, scope rationale, or incomplete evaluation work.</p>
             </details>
             <fieldset aria-labelledby="section-508-acr-report-information-heading">
                 <legend id="section-508-acr-report-information-heading">Fillable Report Information</legend>
@@ -1740,12 +1733,18 @@ function renderSection508AcrSections() {
 }
 
 function getSection508CriterionKey(criterion) {
-    return String(criterion?.identifier || criterion?.number || criterion?.title || '').trim().toLowerCase();
+    return String(criterion?.identifier || criterion?.testId || criterion?.number || criterion?.testName || criterion?.title || '').trim().toLowerCase();
 }
 
 function ensureSection508AuditEntries(criteria) {
     const criterionKeys = new Set(criteria.map(getSection508CriterionKey).filter(Boolean));
-    const existingEntries = Array.isArray(appState.auditEntries) ? appState.auditEntries : [];
+    const productType = String(appState.section508ProductType || '').trim() || 'Unspecified';
+    const archivedEntries = Array.isArray(appState.section508EntriesByProductType?.[productType])
+        ? appState.section508EntriesByProductType[productType]
+        : [];
+    const existingEntries = archivedEntries.length > 0
+        ? archivedEntries
+        : (Array.isArray(appState.auditEntries) ? appState.auditEntries : []);
     const section508Entries = existingEntries.filter((entry) => criterionKeys.has(getSection508CriterionKey(entry?.fieldValues?.[0])));
     const entries = [];
 
@@ -1762,6 +1761,10 @@ function ensureSection508AuditEntries(criteria) {
         });
     });
 
+    appState.section508EntriesByProductType = {
+        ...(appState.section508EntriesByProductType || {}),
+        [productType]: existingEntries
+    };
     appState.auditEntries = entries;
     appState.activeAuditEntryIndex = Math.max(0, Math.min(appState.activeAuditEntryIndex || 0, entries.length - 1));
     return entries;
@@ -1793,7 +1796,7 @@ function renderSection508AuditTable(criteria) {
                             const commentsId = `section-508-comments-${entryIndex}`;
                             const resultValue = String(entry.fieldValues?.[1] || '');
                             const commentsValue = String(entry.fieldValues?.[2] || '');
-                            const criterionName = `${criterion.number || ''} ${criterion.title || ''}`.trim();
+                            const criterionName = `${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim();
                             return `
                                 <tr data-section-508-entry-index="${entryIndex}" data-section-508-criterion-key="${escapeHtml(criterionKey)}">
                                     <th scope="row" id="${criterionLabelId}">
@@ -1843,6 +1846,11 @@ function bindSection508AuditEvents(criteria) {
             const entryIndex = Number(event.target.getAttribute('data-entry-index'));
             const fieldIndex = event.target.getAttribute('data-section-508-field') === 'result' ? 1 : 2;
             updateAuditEntryFieldValue(entryIndex, fieldIndex, event.target.value);
+            const productType = String(appState.section508ProductType || '').trim() || 'Unspecified';
+            appState.section508EntriesByProductType = {
+                ...(appState.section508EntriesByProductType || {}),
+                [productType]: appState.auditEntries
+            };
         });
     });
 
@@ -1861,6 +1869,11 @@ function bindSection508AuditEvents(criteria) {
                 .pop()?.index;
             appState.auditEntries.splice(Number.isInteger(insertIndex) ? insertIndex + 1 : sourceIndex + 1, 0, newEntry);
             appState.activeAuditEntryIndex = sourceIndex + 1;
+            const productType = String(appState.section508ProductType || '').trim() || 'Unspecified';
+            appState.section508EntriesByProductType = {
+                ...(appState.section508EntriesByProductType || {}),
+                [productType]: appState.auditEntries
+            };
             saveState({ action: 'Added Section 508 issue row' });
             pendingSection508FocusId = `section-508-comments-${Number.isInteger(insertIndex) ? insertIndex + 1 : sourceIndex + 1}`;
             renderEditor();
@@ -2185,7 +2198,12 @@ export async function renderEditor() {
     const editorHeading = getEditorHeadingText();
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
     const section508Report = isSection508Report();
-    const section508Criteria = section508Report ? getSection508Criteria() : [];
+    const section508Template = section508Report && appState.section508ProductType
+        ? await getSection508Template(appState.section508ProductType).catch(() => null)
+        : null;
+    const section508Criteria = section508Report
+        ? filterSection508Criteria(getSection508Criteria(section508Template), appState.section508ProductType, appState.section508ConformanceLevel)
+        : [];
 
     const isAuditLog = currentReportSupportsAuditEntries() || section508Report;
     if (isAuditLog) ensureAuditEntries();

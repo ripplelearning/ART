@@ -408,7 +408,7 @@ function getBrandingTextLines() {
 }
 
 function getMetadataRows() {
-    return [
+    const rows = [
         ['Report Title', appState.reportTitle],
         ['Organization/Client', appState.orgClient],
         ['Project Name', appState.projectName],
@@ -423,7 +423,16 @@ function getMetadataRows() {
         ['Template Option', appState.templateOption],
         ['Template Name', appState.templateName],
         ['Template Description', appState.templateDescription]
-    ].filter(([, value]) => String(value || '').trim() !== '');
+    ];
+    if (String(appState.standard || '').toLowerCase().includes('section 508')) {
+        rows.push(
+            ['Product Type', appState.section508ProductType],
+            ['Conformance Level', appState.section508ConformanceLevel],
+            ['Testing Date(s)', appState.section508TestingDates],
+            ['Report Notes', appState.section508ReportNotes]
+        );
+    }
+    return rows.filter(([, value]) => String(value || '').trim() !== '');
 }
 
 function isSection508Report() {
@@ -479,7 +488,15 @@ function renderSection508CriteriaReportBlock() {
                     <thead><tr><th scope="col">Performance Criterion / Test</th><th scope="col">Test Result</th><th scope="col">Optional Comments</th></tr></thead>
                     <tbody>${entries.map((entry) => {
             const criterion = entry.fieldValues?.[0] || {};
-            return `<tr><th scope="row">${escapeHtml(`${criterion.number || ''} ${criterion.title || ''}`.trim())}</th><td>${escapeHtml(entry.fieldValues?.[1] || 'Not Tested')}</td><td>${escapeHtml(entry.fieldValues?.[2] || '')}</td></tr>`;
+                        const resultLabels = {
+                            supports: 'Supports',
+                            'supports-with-exceptions': 'Supports with Exceptions',
+                            'does-not-support': 'Does Not Support',
+                            'not-applicable': 'Not Applicable',
+                            'not-evaluated': 'Not Evaluated'
+                        };
+                        const result = resultLabels[String(entry.fieldValues?.[1] || '').trim()] || 'Not Evaluated';
+                        return `<tr><th scope="row">${escapeHtml(`${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim())}</th><td>${escapeHtml(result)}</td><td>${escapeHtml(entry.fieldValues?.[2] || '')}</td></tr>`;
                     }).join('')}</tbody>
                 </table>
             </div>
@@ -513,7 +530,7 @@ function getSection508CriteriaTextLines() {
     if (!isSection508Report()) return [];
     return (Array.isArray(appState.auditEntries) ? appState.auditEntries : []).map((entry) => {
         const criterion = entry.fieldValues?.[0] || {};
-        return `${criterion.number || ''} ${criterion.title || ''}: ${entry.fieldValues?.[1] || 'Not Tested'}${entry.fieldValues?.[2] ? ` - ${entry.fieldValues[2]}` : ''}`.trim();
+        return `${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}: ${entry.fieldValues?.[1] || 'Not Evaluated'}${entry.fieldValues?.[2] ? ` - ${entry.fieldValues[2]}` : ''}`.trim();
     });
 }
 

@@ -69,6 +69,12 @@
         "https://www.section508.gov/test/trusted-tester/",
         "https://www.dhs.gov/trusted-tester"
       ],
+      "templateResources": {
+        "Web": "./section-508-templates/section-508-web-audit-report-template.json",
+        "Software": "./section-508-templates/section-508-software-audit-report-template.json"
+      },
+      "productTypes": ["Web", "Electronic Document", "Software", "Hardware"],
+      "conformanceLevels": ["Level A", "Level AA", "Level AAA"],
       "ictTypes": [
         {"id":"hardware","label":"Hardware"},
         {"id":"software","label":"Software"},
@@ -78,10 +84,11 @@
         {"id":"support","label":"Support Documentation or Services"}
       ],
       "resultOptions": [
-        {"id":"pass","label":"Pass","meaning":"The applicable test was performed and the requirement was satisfied."},
-        {"id":"fail","label":"Fail","meaning":"The applicable test was performed and the requirement was not satisfied."},
+        {"id":"supports","label":"Supports","meaning":"The product supports the applicable requirement."},
+        {"id":"supports-with-exceptions","label":"Supports with Exceptions","meaning":"The product supports the requirement with documented exceptions."},
+        {"id":"does-not-support","label":"Does Not Support","meaning":"The product does not support the applicable requirement."},
         {"id":"not-applicable","label":"Not Applicable","meaning":"The requirement does not apply under the documented scope."},
-        {"id":"not-tested","label":"Not Tested","meaning":"The applicable test has not yet been performed."}
+        {"id":"not-evaluated","label":"Not Evaluated","meaning":"The applicable test has not yet been evaluated."}
       ],
       "applicabilityRules": "Structured applicability metadata is provided for the package foundation; authoritative scoping review is required before production use.",
       "criteria": [

@@ -29,7 +29,7 @@ Assert-Contains 'state.js' $state 'section508Acr: normalizeSection508Acr' 'ACR i
 Assert-Contains 'reportViewer.js' $viewer 'renderSection508AcrReportBlock' 'ACR information is missing from report output.'
 Assert-Contains 'reportViewer.js' $viewer 'renderSection508CriteriaReportBlock' 'Section 508 criteria results are missing from report output.'
 
-$expectedResults = @('Pass', 'Fail', 'Not Applicable', 'Not Tested')
+$expectedResults = @('Supports', 'Supports with Exceptions', 'Does Not Support', 'Not Applicable', 'Not Evaluated')
 $actualResults = @($package.standards[0].resultOptions | ForEach-Object { $_.label })
 if ((@($actualResults) -join '|') -ne (@($expectedResults) -join '|')) {
     throw "FAIL: Package result options do not match the approved Section 508 values."
