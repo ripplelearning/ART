@@ -78,6 +78,8 @@ With a Section 508 report active, the Report Editor loads the supplied Web or So
 
 Section 508 **Report Notes** are entered in the Report Editor. The Editor uses the shared Audit Start and Audit End dates and does not show a duplicate Report Date field. Add Issue buttons identify their criterion/test, and authoritative fixed results are locked, including Web test **20.A 4.1.1-parsing**, which is pre-filled as **Not Evaluated**.
 
+Repeated issue rows are numbered per criterion/test: the first row has the base label, followed by `(2)`, `(3)`, and later occurrence numbers.
+
 The source Web and Software templates are preserved in the optional Section 508 package. ART retains their test IDs, test names, test conditions, product/system/tester structures, grouping, risk, and disability-impact metadata while adapting the controls to ART's saved report model.
 
 The Section 508 report format follows the open ACR structure used by the [GSA OpenACR Editor](https://acreditor.section508.gov/). Complete the fillable product, vendor, report, contact, evaluation scope, methods, environments, technologies, revision history, remarks, and additional-information sections. Review the informative OpenACR guidance and official source links before publishing. The Report Viewer includes the ACR information and criteria results; ART does not claim to generate an official OpenACR YAML submission.

@@ -1799,7 +1799,12 @@ function renderSection508AuditTable(criteria) {
                             const commentsId = `section-508-comments-${entryIndex}`;
                             const resultValue = String(entry.fieldValues?.[1] || '');
                             const commentsValue = String(entry.fieldValues?.[2] || '');
-                            const criterionName = `${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim();
+                            const baseCriterionName = `${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim();
+                            const occurrence = entries
+                                .slice(0, entryIndex + 1)
+                                .filter((candidate) => getSection508CriterionKey(candidate.fieldValues?.[0]) === criterionKey)
+                                .length;
+                            const criterionName = occurrence > 1 ? `${baseCriterionName} (${occurrence})` : baseCriterionName;
                             const fixedResult = String(criterion.fixedResult || '').trim();
                             return `
                                 <tr data-section-508-entry-index="${entryIndex}" data-section-508-criterion-key="${escapeHtml(criterionKey)}">
@@ -1820,7 +1825,7 @@ function renderSection508AuditTable(criteria) {
                                     </td>
                                     <td>
                                         ${fixedResult ? `<span id="section-508-fixed-result-${entryIndex}" class="sr-only">This result is predetermined by the supplied Section 508 procedure and cannot be changed.</span>` : ''}
-                                        <button type="button" data-section-508-add-issue="${entryIndex}" aria-label="Add a row for ${escapeHtml(criterionName)}">Add a row for ${escapeHtml(criterionName)}</button>
+                                        <button type="button" data-section-508-add-issue="${entryIndex}" aria-label="Add a row for ${escapeHtml(baseCriterionName)}">Add a row for ${escapeHtml(baseCriterionName)}</button>
                                     </td>
                                 </tr>
                             `;
