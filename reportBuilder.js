@@ -3,7 +3,7 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { announce, appState, createUserTemplate, DEFAULT_USABILITY_HEURISTICS, getActiveProjectWorkspace, getBuiltInTemplates, getUserTemplates, setActiveWorkspaceDefaultBranding, updateHeader, addOrUpdateField, setEditMode, deleteField, moveField, saveCurrentReportToUserTemplate, saveState, upsertCurrentReport, addProgressItem, getDefaultProgressItemTypes, getProgressItemNames, getProgressItems, getProgressStatuses, removeProgressItem, updateProgressItem, updateProgressLogSettings } from './state.js';
 import { formatWcagCriterionDisplay, getAvailableWcagStandards, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
-import { getSection508ConformanceLevels, getSection508ProductTypes } from './section508TemplateCatalog.js';
+import { getSection508ProductTypes } from './section508TemplateCatalog.js';
 import { restoreFocus } from './focusManagement.js';
 import {
     applyPresentationPublishingProfile,
@@ -1221,12 +1221,6 @@ export async function renderBuilder() {
                             ${getSection508ProductTypes().map((type) => `<option value="${escapeHtml(type)}" ${appState.section508ProductType === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}
                         </select>
                     </label>
-                    <label for="section-508-conformance-level">Conformance Level
-                        <select id="section-508-conformance-level" aria-describedby="builder-select-help" required>
-                            <option value="">Select Conformance Level</option>
-                            ${getSection508ConformanceLevels().map((level) => `<option value="${escapeHtml(level)}" ${appState.section508ConformanceLevel === level ? 'selected' : ''}>${escapeHtml(level)}</option>`).join('')}
-                        </select>
-                    </label>
                 ` : ''}
                 <label>Testing Instructions: <textarea id="testing-instructions">${appState.testingInstructions || ''}</textarea></label>
                 <div>
@@ -1622,10 +1616,6 @@ export async function renderBuilder() {
         });
     }
 
-    [['section-508-conformance-level', 'section508ConformanceLevel']].forEach(([id, key]) => {
-        document.getElementById(id)?.addEventListener('input', (event) => updateHeader(key, event.target.value));
-        document.getElementById(id)?.addEventListener('change', (event) => updateHeader(key, event.target.value));
-    });
 
     document.getElementById('section-508-product-type')?.addEventListener('change', (event) => {
         const previousType = String(appState.section508ProductType || '').trim() || 'Unspecified';

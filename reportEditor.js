@@ -1664,7 +1664,13 @@ function isSection508Report() {
 function getSection508Criteria(template = null) {
     const fpc = getSection508Standard()?.criteria || [];
     const tests = template?.criteria || [];
-    return [...fpc, ...tests];
+    const productType = String(appState.section508ProductType || '').trim();
+    return [...fpc, ...tests].filter((criterion) => {
+        const key = String(criterion.number || criterion.identifier || '').toLowerCase();
+        if (key.includes('software-interoperability') && productType !== 'Software') return false;
+        if (key.includes('support-documentation') && !['Electronic Document', 'Software', 'Hardware'].includes(productType)) return false;
+        return !Array.isArray(criterion.productTypes) || !productType || criterion.productTypes.includes(productType);
+    });
 }
 
 function getSection508ResultOptions() {

@@ -118,12 +118,15 @@ export function getSection508LookupCategories() {
 }
 
 export function filterSection508Criteria(criteria, productType, conformanceLevel) {
-    const maxLevel = CONFORMANCE_LEVELS.indexOf(conformanceLevel || 'Level A');
+    const maxLevel = conformanceLevel ? CONFORMANCE_LEVELS.indexOf(conformanceLevel) : Number.POSITIVE_INFINITY;
     const levelRank = (value) => {
         const normalized = text(value).toUpperCase().replace(/^LEVEL\s+/, '');
         return normalized === 'AAA' ? 2 : normalized === 'AA' ? 1 : 0;
     };
     return (Array.isArray(criteria) ? criteria : []).filter((criterion) => {
+        const criterionNumber = text(criterion.number || criterion.identifier).toLowerCase();
+        if (criterionNumber.includes('software-interoperability') && productType !== 'Software') return false;
+        if (criterionNumber.includes('support-documentation') && !['Electronic Document', 'Software', 'Hardware'].includes(productType)) return false;
         if (Array.isArray(criterion.productTypes) && productType && !criterion.productTypes.includes(productType)) return false;
         if (criterion.productType && criterion.productType !== productType) return false;
         return levelRank(criterion.level || 'Level A') <= maxLevel;
@@ -132,12 +135,25 @@ export function filterSection508Criteria(criteria, productType, conformanceLevel
 
 export async function getSection508Wcag20Criteria() {
     if (!wcag20Promise) {
-        wcag20Promise = fetch(new URL('./packages/accessibility-standards/wcag-2.0.package.json', import.meta.url), { cache: 'no-cache' })
+        const wcag21Only = new Set(['1.3.5', '1.3.6', '1.4.10', '1.4.11', '1.4.12', '1.4.13', '2.1.4', '2.2.6', '2.3.3', '2.5.1', '2.5.2', '2.5.3', '2.5.4', '2.5.5', '2.5.6']);
+        wcag20Promise = fetch(new URL('./wcag_data.js', import.meta.url), { cache: 'no-cache' })
             .then((response) => {
-                if (!response.ok) throw new Error(`Unable to load bundled WCAG 2.0 package: HTTP ${response.status}`);
-                return response.json();
+                if (!response.ok) throw new Error(`Unable to load WCAG catalog: HTTP ${response.status}`);
+                return response.text();
             })
-            .then((payload) => payload?.standards?.find((standard) => standard.displayName === 'WCAG 2.0')?.criteria || []);
+            .then((source) => Function(`"use strict"; return (${source.trim().replace(/;\s*$/, '')});`)())
+            .then((entries) => entries
+                .filter((entry) => String(entry.ver) === '2.1' && !wcag21Only.has(String(entry.name || '').split(' ')[0]))
+                .map((entry) => ({
+                    number: String(entry.name || '').split(' ')[0],
+                    title: String(entry.name || '').replace(/^\S+\s+/, ''),
+                    level: String(entry.level || ''),
+                    desc: String(entry.desc || ''),
+                    failures: String(entry.failures || ''),
+                    fixes: String(entry.fixes || ''),
+                    understandingUrl: String(entry.Link || ''),
+                    tags: Array.isArray(entry.tags) ? entry.tags : []
+                })));
     }
     return wcag20Promise;
 }

@@ -6777,7 +6777,6 @@ export function validateCurrentReport() {
         const section508Acr = appState.section508Acr || {};
         [
             ['section508ProductType', 'Product Type is required.', 'section-508-product-type'],
-            ['section508ConformanceLevel', 'Conformance Level is required.', 'section-508-conformance-level'],
             ['auditDateStart', appState.auditDateStart, 'Audit Start is required.', 'date-start'],
             ['auditDateEnd', appState.auditDateEnd, 'Audit End is required.', 'date-end'],
             ['section508Acr.productName', section508Acr.productName, 'Product Name is required.', 'section-508-acr-productName'],
