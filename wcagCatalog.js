@@ -1,5 +1,6 @@
 import defaultStandards from './defaultStandards.js';
 import { getImportedAccessibilityStandards } from './state.js';
+import { getSection508LookupCategory } from './section508TemplateCatalog.js';
 
 let builtInCatalogPromise = null;
 
@@ -76,6 +77,10 @@ function normalizeImportedCatalogEntry(criterion, standardName) {
         || `${slugify(standardName)}-${slugify(number || title || Math.random().toString(36).slice(2))}`
     );
 
+    const isSection508 = standardName.toLowerCase().includes('section 508');
+    const section508Category = isSection508
+        ? getSection508LookupCategory(criterion)
+        : '';
     return {
         ...criterion,
         standard: standardName,
@@ -91,7 +96,9 @@ function normalizeImportedCatalogEntry(criterion, standardName) {
         failures: String(criterion?.failures || '').trim(),
         fixes: String(criterion?.fixes || '').trim(),
         disabilitie: String(criterion?.disabilitie || criterion?.disabilities || '').trim(),
-        categories: String(criterion?.categories || '').trim(),
+        categories: isSection508
+            ? String(section508Category || '').trim()
+            : String(criterion?.categories || '').trim(),
         tags: Array.isArray(criterion?.tags)
             ? criterion.tags
             : String(criterion?.tags || '').split('|').map((tag) => tag.trim()).filter(Boolean)
@@ -141,6 +148,31 @@ export async function getWcagCriteriaForStandard(standard) {
 export async function getAvailableWcagStandards() {
     const catalog = await loadWcagCatalog();
     return [...new Set(catalog.map((item) => item.standard))];
+}
+
+export async function getSection508LookupCriteria() {
+    const imported = getImportedAccessibilityStandards().find((standard) => String(standard.internalId || '').trim().toLowerCase() === 'section-508');
+    if (!imported) return [];
+    const { getSection508Template } = await import('./section508TemplateCatalog.js');
+    const templates = await Promise.all(['Web', 'Software'].map((productType) => getSection508Template(productType).catch(() => null)));
+    return templates.flatMap((template) => (template?.criteria || []).map((criterion) => ({
+        ...criterion,
+        standard: imported.displayName || 'Section 508',
+        identifier: `section-508-${String(criterion.testId || criterion.testName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        number: criterion.testId,
+        title: criterion.testName,
+        level: criterion.level,
+        desc: criterion.requirement || criterion.testCondition,
+        failures: criterion.failures,
+        fixes: criterion.documentationGuidance,
+        categories: criterion.category,
+        tags: [criterion.category, criterion.test, criterion.testName, criterion.testCondition].filter(Boolean),
+        understandingUrl: criterion.officialDocumentationUrl,
+        testProcedure: criterion.testProcedure,
+        resultGuidance: criterion.resultGuidance,
+        documentationGuidance: criterion.documentationGuidance,
+        searchText: `${criterion.testId} ${criterion.testName} ${criterion.testCondition}`.toLowerCase()
+    })));
 }
 
 export function isWcagCriterionFieldType(type) {

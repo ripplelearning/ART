@@ -72,6 +72,8 @@ Section 508 audit fields in the Report Editor show visible field names beside th
 
 After enabling Section 508, choose **Section 508 Accessibility Standard** in the Accessibility Lookup Tool's **Standard** filter. The Section 508 criteria appear immediately, and the lookup catalog updates when optional standards are enabled or removed.
 
+Section 508 Lookup results include the supplied Web and Software criterion/tests, sorted into seven categories: **ARIA & Live Regions**, **Audio & Video**, **Buttons & Navigation**, **Color & Contrast**, **Focus & Keyboard**, **Forms & Inputs**, and **Images & Graphics**. Each test includes requirement, test procedure, failures, result guidance, documentation guidance, and an official source link.
+
 Section 508 Report Builder configuration requires a **Product Type** of **Web**, **Electronic Document**, **Software**, or **Hardware**, and a **Conformance Level** of **Level A**, **Level AA**, or **Level AAA**. Web and Software use separate supplied template resources. The shared **Audit Start** and **Audit End** fields provide the testing date range for Section 508 reports.
 
 With a Section 508 report active, the Report Editor loads the supplied Web or Software template selected by Product Type and filters tests by Conformance Level. Each row provides a **Test Result** dropdown with **Supports**, **Supports with Exceptions**, **Does Not Support**, **Not Applicable**, and **Not Evaluated**, an **Optional Comments** textarea, and an **Add Issue** button.

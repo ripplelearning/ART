@@ -2,7 +2,8 @@
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { appState, getShortcutForAction } from './state.js';
-import { getAvailableWcagStandards, loadWcagCatalog } from './wcagCatalog.js';
+import { getAvailableWcagStandards, getSection508LookupCriteria, loadWcagCatalog } from './wcagCatalog.js';
+import { getSection508LookupCategories } from './section508TemplateCatalog.js';
 
 let runLookupResetWorkflow = null;
 
@@ -115,6 +116,8 @@ export async function initLookupTool() {
 
     try {
         let data = await loadWcagCatalog();
+        const section508LookupCriteria = await getSection508LookupCriteria().catch(() => []);
+        data = [...data, ...section508LookupCriteria];
         const standards = await getAvailableWcagStandards();
 
         const resetLookupShortcut = getShortcutForAction('resetLookup') || 'Alt+Shift+D';
@@ -155,7 +158,9 @@ export async function initLookupTool() {
             listContainer.innerHTML = '';
             const presentStandards = [...new Set(list.map((item) => item.standard))];
             presentStandards.forEach((standardName) => {
-                const filteredStandard = list.filter((item) => item.standard === standardName);
+                const filteredStandard = list
+                    .filter((item) => item.standard === standardName)
+                    .sort((left, right) => String(left.categories || left.category || '').localeCompare(String(right.categories || right.category || '')) || String(left.number || '').localeCompare(String(right.number || '')));
                 if (filteredStandard.length === 0) return;
                 const h3 = document.createElement('h3');
                 h3.textContent = `${standardName} Success Criteria`;
@@ -163,8 +168,15 @@ export async function initLookupTool() {
                 
                 filteredStandard.forEach(i => {
                     const displayName = `${i.number} ${i.title}`;
+                    const categoryName = i.categories || i.category || '';
+                    if (String(standardName).toLowerCase().includes('section 508') && categoryName && !listContainer.querySelector(`[data-lookup-category="${categoryName}"]`)) {
+                        const categoryHeading = document.createElement('h4');
+                        categoryHeading.dataset.lookupCategory = categoryName;
+                        categoryHeading.textContent = categoryName;
+                        listContainer.appendChild(categoryHeading);
+                    }
                     const div = document.createElement('div');
-                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName} (Level ${i.level})</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Description:</dt><dd>${formatParagraphs(i.desc)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Fixes:</dt><dd>${formatAsList(i.fixes)}</dd><dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>References:</dt><dd><a href="${i.understandingUrl || '#'}" target="_blank" rel="noopener noreferrer">Open official documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-copy-action="copyEntry" data-text="${displayName}\n\nDescription:\n${(i.desc || '').replace(/\|/g, ' ')}\n\nFailures:\n${(i.failures || '').replace(/\|/g, '\n')}\n\nFixes:\n${(i.fixes || '').replace(/\|/g, '\n')}\n\nDisabilities: ${formatAsCommaList(i.disabilitie)}\n\nReferences: ${i.understandingUrl || 'N/A'}">Copy Full Entry</button></li><li><button class="copy-btn" data-copy-action="copyName" data-text="${cleanForCopy(displayName)}">Copy Name</button></li><li><button class="copy-btn" data-copy-action="copyDescription" data-text="${cleanForCopy(i.desc)}">Copy Description</button></li><li><button class="copy-btn" data-copy-action="copyFailures" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-copy-action="copyFixes" data-text="${cleanForCopy(i.fixes)}">Copy Fixes</button></li><li><button class="copy-btn" data-copy-action="copyLink" data-text="${i.understandingUrl || ''}">Copy References</button></li></ul></fieldset></details>`;
+                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName} (Level ${i.level})${categoryName ? ` - ${categoryName}` : ''}</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Requirement:</dt><dd>${formatParagraphs(i.requirement || i.desc)}</dd><dt>How to test:</dt><dd>${formatParagraphs(i.testProcedure || i.desc)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Result guidance:</dt><dd>${formatParagraphs(i.resultGuidance)}</dd><dt>How to document results:</dt><dd>${formatParagraphs(i.documentationGuidance || i.fixes)}</dd><dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>Official documentation:</dt><dd><a href="${i.understandingUrl || '#'}" target="_blank" rel="noopener noreferrer">Open official documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-copy-action="copyEntry" data-text="${displayName}\n\nRequirement:\n${(i.requirement || i.desc || '').replace(/\|/g, ' ')}\n\nHow to test:\n${(i.testProcedure || '').replace(/\|/g, '\n')}\n\nFailures:\n${(i.failures || '').replace(/\|/g, '\n')}\n\nResult guidance:\n${(i.resultGuidance || '').replace(/\|/g, '\n')}\n\nHow to document results:\n${(i.documentationGuidance || i.fixes || '').replace(/\|/g, '\n')}\n\nReferences: ${i.understandingUrl || 'N/A'}">Copy Full Entry</button></li><li><button class="copy-btn" data-copy-action="copyName" data-text="${cleanForCopy(displayName)}">Copy Name</button></li><li><button class="copy-btn" data-copy-action="copyDescription" data-text="${cleanForCopy(i.desc)}">Copy Description</button></li><li><button class="copy-btn" data-copy-action="copyFailures" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-copy-action="copyFixes" data-text="${cleanForCopy(i.documentationGuidance || i.fixes)}">Copy Documentation Guidance</button></li><li><button class="copy-btn" data-copy-action="copyLink" data-text="${i.understandingUrl || ''}">Copy References</button></li></ul></fieldset></details>`;
                     div.querySelectorAll('.copy-btn').forEach(b => {
                         b.onclick = async () => {
                             const copyAction = String(b.getAttribute('data-copy-action') || '');
@@ -217,6 +229,15 @@ export async function initLookupTool() {
             );
         };
 
+        const updateCategoryOptions = (standard) => {
+            const categoryFilter = document.getElementById('cat-f');
+            if (!categoryFilter) return;
+            const categories = String(standard || '').toLowerCase().includes('section 508')
+                ? getSection508LookupCategories()
+                : Object.keys(categoryMap).sort();
+            categoryFilter.innerHTML = `<option value="">Category: All</option>${categories.map((category) => `<option value="${category}">${category}</option>`).join('')}`;
+        };
+
         const searchInput = document.getElementById('s');
         searchInput?.removeAttribute('aria-haspopup');
         if (searchInput) {
@@ -225,7 +246,10 @@ export async function initLookupTool() {
             searchInput.addEventListener('focus', notifyLookupPanel);
         }
         ['ver-f', 'lvl-f', 'cat-f'].forEach((id) => {
-            document.getElementById(id).onchange = () => applyFilters({ deferAnnouncement: true });
+            document.getElementById(id).onchange = () => {
+                if (id === 'ver-f') updateCategoryOptions(document.getElementById(id).value);
+                applyFilters({ deferAnnouncement: true });
+            };
         });
         document.getElementById('reset-btn').onclick = async () => {
             const result = await executeLookupAction('resetLookup');
@@ -251,6 +275,7 @@ export async function initLookupTool() {
 
         window.addEventListener('art-accessibility-standards-updated', async () => {
             data = await loadWcagCatalog().catch(() => data);
+            data = [...data, ...(await getSection508LookupCriteria().catch(() => []))];
             const refreshed = await getAvailableWcagStandards().catch(() => []);
             const standardFilter = document.getElementById('ver-f');
             if (!standardFilter) return;
