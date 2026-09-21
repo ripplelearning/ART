@@ -24,6 +24,7 @@ const TEMPLATE_URLS = Object.freeze({
 });
 
 let templatePromise = null;
+let wcag20Promise = null;
 
 function text(value) {
     return String(value ?? '').trim();
@@ -118,10 +119,27 @@ export function getSection508LookupCategories() {
 
 export function filterSection508Criteria(criteria, productType, conformanceLevel) {
     const maxLevel = CONFORMANCE_LEVELS.indexOf(conformanceLevel || 'Level A');
+    const levelRank = (value) => {
+        const normalized = text(value).toUpperCase().replace(/^LEVEL\s+/, '');
+        return normalized === 'AAA' ? 2 : normalized === 'AA' ? 1 : 0;
+    };
     return (Array.isArray(criteria) ? criteria : []).filter((criterion) => {
+        if (Array.isArray(criterion.productTypes) && productType && !criterion.productTypes.includes(productType)) return false;
         if (criterion.productType && criterion.productType !== productType) return false;
-        return CONFORMANCE_LEVELS.indexOf(criterion.level || 'Level A') <= maxLevel;
+        return levelRank(criterion.level || 'Level A') <= maxLevel;
     });
+}
+
+export async function getSection508Wcag20Criteria() {
+    if (!wcag20Promise) {
+        wcag20Promise = fetch(new URL('./packages/accessibility-standards/wcag-2.0.package.json', import.meta.url), { cache: 'no-cache' })
+            .then((response) => {
+                if (!response.ok) throw new Error(`Unable to load bundled WCAG 2.0 package: HTTP ${response.status}`);
+                return response.json();
+            })
+            .then((payload) => payload?.standards?.find((standard) => standard.displayName === 'WCAG 2.0')?.criteria || []);
+    }
+    return wcag20Promise;
 }
 
 export async function getSection508Template(productType) {

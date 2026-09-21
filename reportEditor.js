@@ -32,7 +32,7 @@ import {
 import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { formatWcagCriterionDisplay, getWcagCriteriaForStandard, isWcagCriterionFieldType } from './wcagCatalog.js';
-import { filterSection508Criteria, getSection508Template, getSection508TestResults } from './section508TemplateCatalog.js';
+import { filterSection508Criteria, getSection508Template, getSection508TestResults, getSection508Wcag20Criteria } from './section508TemplateCatalog.js';
 import { openProgressLogDialog } from './progressLog.js';
 
 let pendingEntryFocus = null;
@@ -2220,7 +2220,7 @@ export async function renderEditor() {
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
     const section508Report = isSection508Report();
     const section508Wcag20Criteria = section508Report
-        ? await getWcagCriteriaForStandard('WCAG 2.0').catch(() => [])
+        ? await getSection508Wcag20Criteria().catch(() => getWcagCriteriaForStandard('WCAG 2.0').catch(() => []))
         : [];
     const section508Template = section508Report && appState.section508ProductType
         ? await getSection508Template(appState.section508ProductType).catch(() => null)

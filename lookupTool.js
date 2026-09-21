@@ -3,6 +3,7 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { appState, getShortcutForAction } from './state.js';
 import { getAvailableWcagStandards, getSection508LookupCriteria, loadWcagCatalog } from './wcagCatalog.js';
+import { getSection508Wcag20Criteria } from './section508TemplateCatalog.js';
 
 let runLookupResetWorkflow = null;
 
@@ -116,9 +117,9 @@ export async function initLookupTool() {
     try {
         let data = await loadWcagCatalog();
         const section508LookupCriteria = await getSection508LookupCriteria().catch(() => []);
-        const section508Wcag20Criteria = data
-            .filter((item) => item.standard === 'WCAG 2.0')
-            .map((item) => ({ ...item, standard: 'Section 508', section508Type: 'WCAG 2.0 Success Criterion', categories: '' }));
+        const bundledWcag20 = await getSection508Wcag20Criteria().catch(() => data.filter((item) => item.standard === 'WCAG 2.0'));
+        const section508Wcag20Criteria = bundledWcag20
+            .map((item) => ({ ...item, standard: 'Section 508', section508Type: 'WCAG 2.0 Criteria', categories: '', requirement: item.desc, testProcedure: item.desc, understandingUrl: item.understandingUrl }));
         data = [...data, ...section508LookupCriteria, ...section508Wcag20Criteria];
         const standards = await getAvailableWcagStandards();
 
@@ -161,44 +162,33 @@ export async function initLookupTool() {
             const presentStandards = [...new Set(list.map((item) => item.standard))];
             presentStandards.forEach((standardName) => {
                 const isSection508 = String(standardName).toLowerCase().includes('section 508');
-                const filteredStandard = list
-                    .filter((item) => item.standard === standardName)
-                    .sort((left, right) => isSection508
-                        ? String(left.number || '').localeCompare(String(right.number || ''))
-                        : String(left.categories || left.category || '').localeCompare(String(right.categories || right.category || '')) || String(left.number || '').localeCompare(String(right.number || '')));
+                const section508Groups = ['Functional Performance Criteria', 'WCAG 2.0 Criteria', 'Technical Requirements', 'Support Requirements', 'Software Requirements', 'Hardware Requirements'];
+                const filteredStandard = list.filter((item) => item.standard === standardName).sort((left, right) => {
+                    if (!isSection508) return String(left.categories || left.category || '').localeCompare(String(right.categories || right.category || '')) || String(left.number || '').localeCompare(String(right.number || ''));
+                    const leftGroup = section508Groups.indexOf(left.section508Type || (String(left.number || '').startsWith('302.') ? 'Functional Performance Criteria' : 'Technical Requirements'));
+                    const rightGroup = section508Groups.indexOf(right.section508Type || (String(right.number || '').startsWith('302.') ? 'Functional Performance Criteria' : 'Technical Requirements'));
+                    return leftGroup - rightGroup || String(left.number || '').localeCompare(String(right.number || ''));
+                });
                 if (filteredStandard.length === 0) return;
                 const h3 = document.createElement('h3');
                 h3.textContent = `${standardName} Success Criteria`;
                 listContainer.appendChild(h3);
-                
-                filteredStandard.forEach(i => {
-                    const displayName = `${i.number} ${i.title}`;
-                    const categoryName = i.categories || i.category || '';
-                    if (!isSection508 && categoryName && !listContainer.querySelector(`[data-lookup-category="${categoryName}"]`)) {
-                        const categoryHeading = document.createElement('h4');
-                        categoryHeading.dataset.lookupCategory = categoryName;
-                        categoryHeading.textContent = categoryName;
-                        listContainer.appendChild(categoryHeading);
+
+                let currentGroup = '';
+                filteredStandard.forEach((item) => {
+                    const groupName = isSection508 ? (item.section508Type || (String(item.number || '').startsWith('302.') ? 'Functional Performance Criteria' : 'Technical Requirements')) : (item.categories || item.category || '');
+                    if (groupName && groupName !== currentGroup) {
+                        currentGroup = groupName;
+                        const groupHeading = document.createElement('h4');
+                        groupHeading.textContent = groupName;
+                        listContainer.appendChild(groupHeading);
                     }
+                    const displayName = `${item.number} ${item.title}`;
                     const div = document.createElement('div');
-                    const relatedWcag = Array.isArray(i.relatedWcag) && i.relatedWcag.length > 0 ? i.relatedWcag.join(', ') : '';
-                    const applicability = i.productType || i.applicability || 'Covered ICT subject to applicable Section 508 scope and exceptions.';
-                    const scope = i.scope || 'Section 508 requirement scope is determined by the ICT type, applicable provisions, and documented evaluation boundaries.';
-                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName} (Level ${i.level})${categoryName ? ` - ${categoryName}` : ''}</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Requirement:</dt><dd>${formatParagraphs(i.requirement || i.desc)}</dd><dt>Testing Requirements:</dt><dd>${formatParagraphs(i.testingRequirements || i.testProcedure || i.desc)}</dd><dt>How to test:</dt><dd>${formatParagraphs(i.testProcedure || i.testingGuidance || i.desc)}</dd><dt>Expected Result:</dt><dd>${formatParagraphs(i.expectedResult || i.resultGuidance)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Result guidance:</dt><dd>${formatParagraphs(i.resultGuidance || 'Record the applicable Section 508 result and rationale.')}</dd><dt>How to document results:</dt><dd>${formatParagraphs(i.documentationGuidance || i.fixes)}</dd>${relatedWcag ? `<dt>Related WCAG Success Criteria:</dt><dd>${escapeHtml(relatedWcag)}</dd>` : ''}<dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>Official documentation:</dt><dd><a href="${i.understandingUrl || '#'}" target="_blank" rel="noopener noreferrer">Open official documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-copy-action="copyEntry" data-text="${displayName}">Copy Full Entry</button></li><li><button class="copy-btn" data-copy-action="copyName" data-text="${cleanForCopy(displayName)}">Copy Name</button></li><li><button class="copy-btn" data-copy-action="copyDescription" data-text="${cleanForCopy(i.desc)}">Copy Description</button></li><li><button class="copy-btn" data-copy-action="copyFailures" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-copy-action="copyFixes" data-text="${cleanForCopy(i.documentationGuidance || i.fixes)}">Copy Documentation Guidance</button></li><li><button class="copy-btn" data-copy-action="copyLink" data-text="${i.understandingUrl || ''}">Copy References</button></li></ul></fieldset></details>`;
-                    if (String(standardName).toLowerCase().includes('section 508')) {
-                        div.querySelector('dl')?.insertAdjacentHTML('afterbegin', `<dt>Scope:</dt><dd>${formatParagraphs(scope)}</dd><dt>Applicability:</dt><dd>${formatParagraphs(applicability)}</dd>`);
-                    }
-                    div.querySelectorAll('.copy-btn').forEach(b => {
-                        b.onclick = async () => {
-                            const copyAction = String(b.getAttribute('data-copy-action') || '');
-                            const result = await executeLookupAction(copyAction, {
-                                text: b.getAttribute('data-text') || ''
-                            });
-                            if (!result?.ok) {
-                                await executeLookupCopyActionFromCommand(copyAction);
-                            }
-                        };
-                    });
+                    const relatedWcag = Array.isArray(item.relatedWcag) ? item.relatedWcag.join(', ') : '';
+                    const detailMarkup = [`<dt>Requirement:</dt><dd>${formatParagraphs(item.requirement || item.desc)}</dd>`, `<dt>Scope:</dt><dd>${formatParagraphs(item.scope || 'Section 508 scope is determined by the applicable ICT type and evaluation boundary.')}</dd>`, `<dt>Applicability:</dt><dd>${formatParagraphs(item.productType || item.applicability || 'Covered ICT subject to applicable Section 508 scope and exceptions.')}</dd>`, `<dt>Testing Requirements:</dt><dd>${formatParagraphs(item.testingRequirements || item.testProcedure || item.desc)}</dd>`, `<dt>How to test:</dt><dd>${formatParagraphs(item.testProcedure || item.testingGuidance || item.desc)}</dd>`, `<dt>Expected Result:</dt><dd>${formatParagraphs(item.expectedResult || item.resultGuidance)}</dd>`, `<dt>Failures:</dt><dd>${formatAsList(item.failures)}</dd>`, `<dt>Result guidance:</dt><dd>${formatParagraphs(item.resultGuidance || 'Record the applicable Section 508 result and rationale.')}</dd>`, `<dt>How to document results:</dt><dd>${formatParagraphs(item.documentationGuidance || item.fixes)}</dd>`, relatedWcag ? `<dt>Related WCAG Success Criteria:</dt><dd>${escapeHtml(relatedWcag)}</dd>` : '', `<dt>Disabilities:</dt><dd>${formatAsCommaList(item.disabilitie)}</dd>`, `<dt>Official documentation:</dt><dd><a href="${item.understandingUrl || '#'}" target="_blank" rel="noopener noreferrer">Open official documentation</a></dd>`].join('');
+                    const levelLabel = isSection508 && groupName !== 'WCAG 2.0 Criteria' ? '' : ` (Level ${item.level})`;
+                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName}${levelLabel}</summary><fieldset style="border:none; padding:10px; margin:0;"><dl>${detailMarkup}</dl></fieldset></details>`;
                     listContainer.appendChild(div);
                 });
             });
@@ -235,7 +225,7 @@ export async function initLookupTool() {
             const c = document.getElementById('cat-f').value;
             const regex = c ? new RegExp(categoryMap[c], 'i') : null;
             render(
-                data.filter(i => (i.searchText.includes(q) || (i.desc && i.desc.toLowerCase().includes(q))) && (v === "" || i.standard === v) && (l === "" || i.level === l) && (!c || ((Array.isArray(i.tags) ? i.tags : String(i.tags || '').split('|')).some(t => regex.test(t))) || (regex && (regex.test(i.title) || (i.desc && regex.test(i.desc)))))),
+                data.filter(i => (String(i.searchText || `${i.number || ''} ${i.title || ''} ${i.desc || ''}`).toLowerCase().includes(q) || (i.desc && i.desc.toLowerCase().includes(q))) && (v === "" || i.standard === v) && (l === "" || i.level === l) && (!c || ((Array.isArray(i.tags) ? i.tags : String(i.tags || '').split('|')).some(t => regex.test(t))) || (regex && (regex.test(i.title) || (i.desc && regex.test(i.desc)))))),
                 options
             );
         };
@@ -286,7 +276,8 @@ export async function initLookupTool() {
 
         window.addEventListener('art-accessibility-standards-updated', async () => {
             data = await loadWcagCatalog().catch(() => data);
-            data = [...data, ...(await getSection508LookupCriteria().catch(() => [])), ...data.filter((item) => item.standard === 'WCAG 2.0').map((item) => ({ ...item, standard: 'Section 508', section508Type: 'WCAG 2.0 Success Criterion', categories: '' }))];
+            const refreshedWcag20 = await getSection508Wcag20Criteria().catch(() => data.filter((item) => item.standard === 'WCAG 2.0'));
+            data = [...data, ...(await getSection508LookupCriteria().catch(() => [])), ...refreshedWcag20.map((item) => ({ ...item, standard: 'Section 508', section508Type: 'WCAG 2.0 Criteria', categories: '', requirement: item.desc, testProcedure: item.desc, understandingUrl: item.understandingUrl }))];
             const refreshed = await getAvailableWcagStandards().catch(() => []);
             const standardFilter = document.getElementById('ver-f');
             if (!standardFilter) return;

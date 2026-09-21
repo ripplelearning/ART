@@ -81,6 +81,9 @@ function normalizeImportedCatalogEntry(criterion, standardName) {
     const section508Category = isSection508
         ? getSection508LookupCategory(criterion)
         : '';
+    const section508Type = isSection508
+        ? (String(number).startsWith('302.') ? 'Functional Performance Criteria' : section508Category === 'Software' ? 'Software Requirements' : section508Category === 'Support Documentation and Services' ? 'Support Requirements' : 'Technical Requirements')
+        : '';
     return {
         ...criterion,
         standard: standardName,
@@ -99,6 +102,7 @@ function normalizeImportedCatalogEntry(criterion, standardName) {
         categories: isSection508
             ? String(section508Category || '').trim()
             : String(criterion?.categories || '').trim(),
+        section508Type,
         tags: Array.isArray(criterion?.tags)
             ? criterion.tags
             : String(criterion?.tags || '').split('|').map((tag) => tag.trim()).filter(Boolean)
@@ -158,6 +162,7 @@ export async function getSection508LookupCriteria() {
     return templates.flatMap((template) => (template?.criteria || []).map((criterion) => ({
         ...criterion,
         standard: imported.displayName || 'Section 508',
+        section508Type: template.productType === 'Software' ? 'Software Requirements' : template.productType === 'Hardware' ? 'Hardware Requirements' : 'Technical Requirements',
         identifier: `section-508-${String(criterion.testId || criterion.testName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
         number: criterion.testId,
         title: criterion.testName,
