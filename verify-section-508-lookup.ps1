@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $lookup = Get-Content (Join-Path $root 'lookupTool.js') -Raw
 $catalog = Get-Content (Join-Path $root 'wcagCatalog.js') -Raw
-$templateCatalog = Get-Content (Join-Path $root 'section508TemplateCatalog.js') -Raw
+$package = Get-Content (Join-Path $root 'packages/accessibility-standards/section-508.package.json') -Raw | ConvertFrom-Json
 
 function Assert-Contains([string]$name, [string]$content, [string]$pattern, [string]$message) {
     if ($content -notmatch $pattern) {
@@ -17,11 +17,13 @@ Assert-Contains 'lookupTool.js' $lookup 'applyFilters\(\)' 'Lookup Tool does not
 Assert-Contains 'wcagCatalog.js' $catalog 'getImportedAccessibilityStandards' 'Merged catalog does not include imported standards.'
 Assert-Contains 'wcagCatalog.js' $catalog 'normalizeImportedCatalogEntry' 'Imported criteria are not normalized for lookup.'
 Assert-Contains 'lookupTool.js' $lookup 'getSection508LookupCriteria' 'Supplied Section 508 template tests are not merged into lookup.'
-Assert-Contains 'lookupTool.js' $lookup 'data-lookup-category' 'Section 508 tests are not grouped by category.'
+Assert-Contains 'lookupTool.js' $lookup 'const isSection508 = String\(standardName\)' 'Section 508 individual display mode is missing.'
+Assert-Contains 'lookupTool.js' $lookup '!isSection508 && categoryName' 'Generic categories are not excluded for Section 508.'
+Assert-Contains 'lookupTool.js' $lookup 'WCAG 2\.0' 'WCAG 2.0 records are not included in Section 508 Lookup mode.'
 Assert-Contains 'lookupTool.js' $lookup 'How to test:' 'Lookup entries do not display test procedures.'
 Assert-Contains 'lookupTool.js' $lookup 'Result guidance:' 'Lookup entries do not display result guidance.'
 Assert-Contains 'lookupTool.js' $lookup 'How to document results:' 'Lookup entries do not display documentation guidance.'
-Assert-Contains 'section508TemplateCatalog.js' $templateCatalog 'LOOKUP_CATEGORIES' 'Section 508 lookup category list is missing.'
+if ((@($package.standards[0].criteria | Where-Object { $_.number -match '^302\.[1-9]$' }).Count) -ne 9) { throw 'FAIL: Section 508 Lookup package does not contain exactly nine individual FPC records.' }
 
 Write-Host 'Section 508 Lookup Verification'
 Write-Host '-------------------------------'

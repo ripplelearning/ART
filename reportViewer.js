@@ -495,7 +495,11 @@ function renderSection508CriteriaReportBlock() {
                             'not-evaluated': 'Not Evaluated'
                         };
                         const result = resultLabels[String(entry.fieldValues?.[1] || criterion.fixedResult || '').trim()] || 'Not Evaluated';
-                        return `<tr><th scope="row">${escapeHtml(`${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim())}</th><td>${escapeHtml(result)}</td><td>${escapeHtml(entry.fieldValues?.[2] || '')}</td></tr>`;
+                        const requirement = criterion.requirement || criterion.testCondition || criterion.desc || '';
+                        const testing = criterion.testingRequirements || criterion.testProcedure || '';
+                        const guidance = criterion.testingGuidance || '';
+                        const expected = criterion.expectedResult || '';
+                        return `<tr><th scope="row">${escapeHtml(`${criterion.testId || criterion.number || ''} ${criterion.testName || criterion.title || ''}`.trim())}<span class="viewer-section-508-detail">${escapeHtml(requirement)}</span>${testing ? `<span class="viewer-section-508-detail"><strong>Testing Requirements:</strong> ${escapeHtml(testing)}</span>` : ''}${guidance ? `<span class="viewer-section-508-detail"><strong>Testing Guidance:</strong> ${escapeHtml(guidance)}</span>` : ''}${expected ? `<span class="viewer-section-508-detail"><strong>Expected Result:</strong> ${escapeHtml(expected)}</span>` : ''}</th><td>${escapeHtml(result)}</td><td>${escapeHtml(entry.fieldValues?.[2] || '')}</td></tr>`;
                     }).join('')}</tbody>
                 </table>
             </div>

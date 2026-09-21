@@ -1662,7 +1662,9 @@ function isSection508Report() {
 }
 
 function getSection508Criteria(template = null) {
-    return template?.criteria || getSection508Standard()?.criteria || [];
+    const fpc = getSection508Standard()?.criteria || [];
+    const tests = template?.criteria || [];
+    return [...fpc, ...tests];
 }
 
 function getSection508ResultOptions() {
@@ -1810,7 +1812,10 @@ function renderSection508AuditTable(criteria) {
                                 <tr data-section-508-entry-index="${entryIndex}" data-section-508-criterion-key="${escapeHtml(criterionKey)}">
                                     <th scope="row" id="${criterionLabelId}">
                                         <strong>${escapeHtml(criterionName)}</strong>
-                                        <span class="section-508-criterion-description">${escapeHtml(criterion.testCondition || criterion.desc || '')}</span>
+                                        <span class="section-508-criterion-description">${escapeHtml(criterion.requirement || criterion.testCondition || criterion.desc || '')}</span>
+                                        ${criterion.testingRequirements ? `<span class="section-508-criterion-guidance"><strong>Testing Requirements:</strong> ${escapeHtml(criterion.testingRequirements)}</span>` : ''}
+                                        ${criterion.testingGuidance ? `<span class="section-508-criterion-guidance"><strong>Testing Guidance:</strong> ${escapeHtml(criterion.testingGuidance)}</span>` : ''}
+                                        ${criterion.expectedResult ? `<span class="section-508-criterion-guidance"><strong>Expected Result:</strong> ${escapeHtml(criterion.expectedResult)}</span>` : ''}
                                     </th>
                                     <td>
                                         <label id="section-508-result-label-${entryIndex}" for="${resultId}">Test Result</label>
@@ -2214,11 +2219,14 @@ export async function renderEditor() {
     const editorHeading = getEditorHeadingText();
     const wcagCriteria = await getWcagCriteriaForStandard(appState.standard).catch(() => []);
     const section508Report = isSection508Report();
+    const section508Wcag20Criteria = section508Report
+        ? await getWcagCriteriaForStandard('WCAG 2.0').catch(() => [])
+        : [];
     const section508Template = section508Report && appState.section508ProductType
         ? await getSection508Template(appState.section508ProductType).catch(() => null)
         : null;
     const section508Criteria = section508Report
-        ? filterSection508Criteria(getSection508Criteria(section508Template), appState.section508ProductType, appState.section508ConformanceLevel)
+        ? filterSection508Criteria([...getSection508Criteria(section508Template), ...section508Wcag20Criteria.map((criterion) => ({ ...criterion, section508Type: 'WCAG 2.0 Success Criterion' }))], appState.section508ProductType, appState.section508ConformanceLevel)
         : [];
 
     const isAuditLog = currentReportSupportsAuditEntries() || section508Report;

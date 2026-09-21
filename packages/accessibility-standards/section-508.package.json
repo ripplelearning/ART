@@ -4,7 +4,7 @@
     "packageId": "standard-package-section-508",
     "packageType": "accessibility-standards",
     "displayName": "Section 508",
-    "description": "Optional Revised Section 508 Standards package for ART. This package is not part of ART built-in standards.",
+    "description": "Optional Revised Section 508 Standards package for ART.",
     "version": "2017-final-rule-2026-verified",
     "author": "U.S. Access Board",
     "publisher": "U.S. Access Board",
@@ -14,14 +14,12 @@
     "optional": true,
     "includedInCoreStandards": false,
     "legalScope": "Implementation aid only; this package does not determine legal applicability or compliance.",
-    "contentPolicy": "Original summaries and links are provided instead of reproducing the official standard text.",
+    "contentPolicy": "Original summaries and links are provided instead of reproducing official standard text.",
     "officialSource": "https://www.access-board.gov/ict/",
     "testingSource": "https://www.section508.gov/test/",
     "trustedTesterSource": "https://www.section508.gov/test/trusted-tester/",
-    "reviewedAt": "2026-09-18",
-    "packageReleaseDate": "2026-09-18",
     "status": "optional-foundation",
-    "notes": "Requirement summaries are intentionally concise and link to the official source. Full official regulatory text and copyrighted/incorporated materials are not reproduced. Human Section 508 and Trusted Tester review remains required before production claims."
+    "notes": "Human Section 508 and Trusted Tester review remains required before production claims."
   },
   "standards": [
     {
@@ -31,44 +29,6 @@
       "source": "U.S. Access Board",
       "authority": "U.S. Access Board",
       "officialSource": "https://www.access-board.gov/ict/",
-      "scopeSummary": "The Revised 508 Standards apply to covered information and communication technology procured, developed, maintained, or used by covered U.S. federal agencies, subject to the rule's scope and exceptions.",
-      "incorporatedStandards": [
-        {
-          "name": "WCAG 2.0",
-          "scope": "Web content, software, and electronic documents are addressed through the incorporated accessibility requirements identified by the Revised 508 Standards.",
-          "source": "https://www.w3.org/TR/WCAG20/"
-        }
-      ],
-      "chapters": [
-        {"id":"chapter-1","title":"Application and Administration","summary":"Defines how the standards are organized and administered, including application and referenced terms."},
-        {"id":"chapter-2","title":"Scoping Requirements","summary":"Describes covered ICT, exclusions, exceptions, and how requirements apply to ICT components and support documentation."},
-        {"id":"chapter-3","title":"Functional Performance Criteria","summary":"Provides technology-independent outcomes for users with different functional limitations when detailed technical provisions do not fully address a situation."},
-        {"id":"chapter-4","title":"Hardware","summary":"Addresses hardware features, controls, indicators, ports, and interoperability with assistive technology."},
-        {"id":"chapter-5","title":"Software","summary":"Addresses software accessibility, user controls, interoperability, keyboard operation, and user interface behavior."},
-        {"id":"chapter-6","title":"Support Documentation and Services","summary":"Addresses accessible product documentation, support services, and communication channels."},
-        {"id":"chapter-7","title":"Referenced Standards","summary":"Identifies external technical standards incorporated by reference and their relationship to the Revised 508 requirements."}
-      ],
-      "testingLifecycle": [
-        {"id":"plan","label":"Plan","summary":"Define the ICT scope, users, environments, applicable provisions, and evidence needed."},
-        {"id":"test","label":"Test","summary":"Use appropriate automated, manual, assistive-technology, and code-inspection techniques."},
-        {"id":"remediate","label":"Remediate","summary":"Record failures, prioritize risk, assign owners, and verify fixes."},
-        {"id":"monitor","label":"Monitor","summary":"Retest changes and maintain accessibility evidence across the ICT lifecycle."}
-      ],
-      "trustedTester": {
-        "methodology": "Trusted Tester is a repeatable manual web accessibility test process that uses code inspection and browser/assistive-technology checks to complement automated testing.",
-        "currentWebVersion": "5.1.3",
-        "trainingAndCertification": "Training, tester qualification, and any certification or program requirements are maintained by the responsible program and are not provided by ART.",
-        "sources": [
-          "https://www.section508.gov/test/trusted-tester/",
-          "https://www.dhs.gov/trusted-tester"
-        ]
-      },
-      "testingResources": [
-        "https://www.section508.gov/test/",
-        "https://www.section508.gov/test/ict-testing-baseline-portfolio/",
-        "https://www.section508.gov/test/trusted-tester/",
-        "https://www.dhs.gov/trusted-tester"
-      ],
       "templateResources": {
         "Web": "./section-508-templates/section-508-web-audit-report-template.json",
         "Software": "./section-508-templates/section-508-software-audit-report-template.json"
@@ -84,105 +44,54 @@
         {"id":"support","label":"Support Documentation or Services"}
       ],
       "resultOptions": [
-        {"id":"supports","label":"Supports","meaning":"The product supports the applicable requirement."},
-        {"id":"supports-with-exceptions","label":"Supports with Exceptions","meaning":"The product supports the requirement with documented exceptions."},
-        {"id":"does-not-support","label":"Does Not Support","meaning":"The product does not support the applicable requirement."},
-        {"id":"not-applicable","label":"Not Applicable","meaning":"The requirement does not apply under the documented scope."},
-        {"id":"not-evaluated","label":"Not Evaluated","meaning":"The applicable test has not yet been evaluated."}
+        {"id":"supports","label":"Supports"},
+        {"id":"supports-with-exceptions","label":"Supports with Exceptions"},
+        {"id":"does-not-support","label":"Does Not Support"},
+        {"id":"not-applicable","label":"Not Applicable"},
+        {"id":"not-evaluated","label":"Not Evaluated"}
       ],
-      "applicabilityRules": "Structured applicability metadata is provided for the package foundation; authoritative scoping review is required before production use.",
+      "chapters": [
+        {"id":"chapter-1","title":"Application and Administration"},
+        {"id":"chapter-2","title":"Scoping Requirements"},
+        {"id":"chapter-3","title":"Functional Performance Criteria"},
+        {"id":"chapter-4","title":"Hardware"},
+        {"id":"chapter-5","title":"Software"},
+        {"id":"chapter-6","title":"Support Documentation and Services"},
+        {"id":"chapter-7","title":"Referenced Standards"}
+      ],
+      "testingLifecycle": [
+        {"id":"plan","label":"Plan","summary":"Define scope, users, environments, applicable provisions, and evidence."},
+        {"id":"test","label":"Test","summary":"Use appropriate automated, manual, assistive-technology, and code-inspection techniques."},
+        {"id":"remediate","label":"Remediate","summary":"Record failures, prioritize risk, assign owners, and verify fixes."},
+        {"id":"monitor","label":"Monitor","summary":"Retest changes and maintain evidence across the ICT lifecycle."}
+      ],
+      "testingResources": [
+        "https://www.section508.gov/test/",
+        "https://www.section508.gov/test/ict-testing-baseline-portfolio/",
+        "https://www.section508.gov/test/trusted-tester/",
+        "https://www.dhs.gov/trusted-tester"
+      ],
+      "trustedTester": {
+        "methodology": "Trusted Tester is a repeatable manual web accessibility test process using code inspection and browser/assistive-technology checks.",
+        "currentWebVersion": "5.1.3",
+        "sources": ["https://www.section508.gov/test/trusted-tester/", "https://www.dhs.gov/trusted-tester"]
+      },
+      "trustedTester": {
+        "currentWebVersion": "5.1.3",
+        "sources": ["https://www.section508.gov/test/trusted-tester/", "https://www.dhs.gov/trusted-tester"]
+      },
       "criteria": [
-        {
-          "number": "302.1",
-          "title": "Without Vision",
-          "level": "Required",
-          "desc": "ICT must provide at least one mode of operation that does not require user vision.",
-          "understandingUrl": "https://www.access-board.gov/ict/",
-          "recommendationUrl": "",
-          "failures": "Critical workflows require visual-only cues with no non-visual equivalent.",
-          "fixes": "Expose equivalent information and control through programmatic interfaces and assistive technologies.",
-          "disabilitie": "Blindness",
-          "categories": "Functional Performance Criteria",
-          "tags": ["vision", "screen reader", "non-visual"]
-        },
-        {
-          "number": "302.2",
-          "title": "With Limited Vision",
-          "level": "Required",
-          "desc": "ICT must support users with limited vision, including contrast, zoom, and scalable text behaviors.",
-          "understandingUrl": "https://www.access-board.gov/ict/",
-          "recommendationUrl": "",
-          "failures": "Interfaces fail at high zoom or low-vision settings.",
-          "fixes": "Preserve readability, layout integrity, and control operability at high zoom levels.",
-          "disabilitie": "Low vision",
-          "categories": "Functional Performance Criteria",
-          "tags": ["low vision", "zoom", "contrast"]
-        },
-        {
-          "number": "302.3",
-          "title": "Without Perception of Color",
-          "level": "Required",
-          "desc": "Color must not be the only visual means of conveying information.",
-          "understandingUrl": "https://www.access-board.gov/ict/",
-          "recommendationUrl": "",
-          "failures": "Status is conveyed by color alone.",
-          "fixes": "Add text labels, patterns, icons, or equivalent non-color cues.",
-          "disabilitie": "Color blindness, low vision",
-          "categories": "Functional Performance Criteria",
-          "tags": ["color", "status", "perceivable"]
-        },
-        {
-          "number": "302.7",
-          "title": "With Limited Manipulation",
-          "level": "Required",
-          "desc": "ICT must support operation by users with limited fine motor control and reach.",
-          "understandingUrl": "https://www.access-board.gov/ict/",
-          "recommendationUrl": "",
-          "failures": "Controls require precise pointer movement or timing.",
-          "fixes": "Provide keyboard operation, adequate target size, and alternatives to precision gestures.",
-          "disabilitie": "Motor disabilities",
-          "categories": "Functional Performance Criteria",
-          "tags": ["motor", "keyboard", "targets"]
-        },
-        {
-          "number": "302.9",
-          "title": "Without Speech",
-          "level": "Required",
-          "desc": "ICT should provide an effective mode of operation that does not require speech when speech is not available or cannot be used.",
-          "understandingUrl": "https://www.access-board.gov/ict/",
-          "recommendationUrl": "",
-          "failures": "A workflow requires spoken input or output with no effective non-speech alternative.",
-          "fixes": "Provide equivalent text, visual, keyboard, or other non-speech interaction where the workflow requires it.",
-          "disabilitie": "Speech disabilities",
-          "categories": "Functional Performance Criteria",
-          "tags": ["speech", "communication", "alternative input"]
-        },
-        {
-          "number": "software-interoperability",
-          "title": "Software and Assistive Technology Interoperability",
-          "level": "Required",
-          "desc": "Software should expose information, relationships, states, and operations through platform accessibility services or other supported interoperability mechanisms.",
-          "understandingUrl": "https://www.access-board.gov/ict/",
-          "recommendationUrl": "",
-          "failures": "Assistive technology cannot obtain or operate important user interface information.",
-          "fixes": "Use platform accessibility APIs and preserve programmatic names, roles, states, values, and relationships.",
-          "disabilitie": "Multiple disabilities",
-          "categories": "Software",
-          "tags": ["software", "assistive technology", "accessibility API"]
-        },
-        {
-          "number": "support-documentation",
-          "title": "Support Documentation and Services",
-          "level": "Required",
-          "desc": "Product documentation and support services should be available in accessible formats and through accessible communication channels.",
-          "understandingUrl": "https://www.access-board.gov/ict/",
-          "recommendationUrl": "",
-          "failures": "Users cannot obtain accessible documentation or use the support channel with assistive technology.",
-          "fixes": "Provide accessible documentation, contact methods, and alternate formats appropriate to the ICT and its users.",
-          "disabilitie": "Multiple disabilities",
-          "categories": "Support Documentation and Services",
-          "tags": ["documentation", "support", "alternate formats"]
-        }
+        {"number":"302.1","title":"Without Vision","level":"Required","desc":"Where a visual mode of operation is provided, ICT shall provide at least one mode of operation that does not require user vision.","requirement":"Where a visual mode of operation is provided, ICT shall provide at least one mode of operation that does not require user vision.","testingRequirements":"Evaluate each applicable visual function for an equivalent non-visual mode.","testingGuidance":"Use keyboard operation, screen reader output, programmatic inspection, and representative workflow checks.","expectedResult":"Each applicable function has an effective non-visual mode.","relatedWcag":["1.1.1","1.3.1","2.1.1","4.1.2"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"An applicable workflow requires visual-only cues.","fixes":"Provide equivalent non-visual information and operation.","disabilitie":"Without Vision","categories":"Functional Performance Criteria","tags":["vision","screen reader"]},
+        {"number":"302.2","title":"With Limited Vision","level":"Required","desc":"Where a visual mode of operation is provided, ICT shall provide at least one mode of operation that enables users to make use of limited vision.","requirement":"Where a visual mode of operation is provided, ICT shall provide at least one mode of operation that enables users to make use of limited vision.","testingRequirements":"Evaluate visual presentation, resizing, magnification, contrast, focus, and readability.","testingGuidance":"Test with zoom, magnification, low-vision settings, and contrast checks.","expectedResult":"Users with limited vision can perceive and operate applicable functions.","relatedWcag":["1.4.3","1.4.4","1.4.11","2.4.7"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"Interfaces fail at applicable low-vision settings.","fixes":"Preserve readability, layout integrity, and control operability.","disabilitie":"With Limited Vision","categories":"Functional Performance Criteria","tags":["low vision","zoom","contrast"]},
+        {"number":"302.3","title":"Without Perception of Color","level":"Required","desc":"Where a visual mode of operation is provided, ICT shall provide at least one visual mode of operation that does not require user perception of color.","requirement":"Where a visual mode of operation is provided, ICT shall provide at least one visual mode of operation that does not require user perception of color.","testingRequirements":"Evaluate status, state, error, and distinction cues that use color.","testingGuidance":"Inspect workflows with color perception removed and confirm equivalent non-color cues.","expectedResult":"Color is not required to understand or operate an applicable function.","relatedWcag":["1.3.3","1.4.1"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"Status or instructions are conveyed by color alone.","fixes":"Add equivalent non-color cues.","disabilitie":"Without Perception of Color","categories":"Functional Performance Criteria","tags":["color","status"]},
+        {"number":"302.4","title":"Without Hearing","level":"Required","desc":"Where an audible mode of operation is provided, ICT shall provide at least one mode of operation that does not require user hearing.","requirement":"Where an audible mode of operation is provided, ICT shall provide at least one mode of operation that does not require user hearing.","testingRequirements":"Evaluate audible alerts, speech, audio content, and audio-dependent instructions.","testingGuidance":"Perform workflows with audio unavailable and verify equivalent visual, textual, or tactile information.","expectedResult":"An effective non-auditory mode is available.","relatedWcag":["1.2.1","1.2.2","1.2.4","1.2.6"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"Necessary information is communicated through sound only.","fixes":"Provide equivalent visual, textual, or tactile output.","disabilitie":"Without Hearing","categories":"Functional Performance Criteria","tags":["hearing","audio"]},
+        {"number":"302.5","title":"With Limited Hearing","level":"Required","desc":"Where an audible mode of operation is provided, ICT shall provide at least one mode of operation that enables users to make use of limited hearing.","requirement":"Where an audible mode of operation is provided, ICT shall provide at least one mode of operation that enables users to make use of limited hearing.","testingRequirements":"Evaluate volume, clarity, frequency, captions, transcripts, and alternatives.","testingGuidance":"Test with reduced hearing conditions and assistive listening considerations.","expectedResult":"Users with limited hearing can perceive and operate applicable audible functions.","relatedWcag":["1.2.2","1.2.4","1.2.6"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"An audible function cannot be understood with limited hearing.","fixes":"Provide clear adjustable audio and equivalent captions or text.","disabilitie":"With Limited Hearing","categories":"Functional Performance Criteria","tags":["hearing","audio","captions"]},
+        {"number":"302.6","title":"Without Speech","level":"Required","desc":"Where speech is used for input, control, or operation, ICT shall provide at least one mode of operation that does not require user speech.","requirement":"Where speech is used for input, control, or operation, ICT shall provide at least one mode of operation that does not require user speech.","testingRequirements":"Identify speech-dependent input or control and evaluate an equivalent non-speech interaction.","testingGuidance":"Complete workflows without speech using keyboard, pointer, text, or other supported input.","expectedResult":"Speech is not required for applicable operation.","relatedWcag":["2.1.1","2.5.1"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"A required workflow depends on spoken input with no equivalent.","fixes":"Provide equivalent keyboard, pointer, text, or other non-speech interaction.","disabilitie":"Without Speech","categories":"Functional Performance Criteria","tags":["speech","input"]},
+        {"number":"302.7","title":"With Limited Manipulation","level":"Required","desc":"Where a manual mode of operation is provided, ICT shall provide at least one mode of operation that does not require fine motor control or simultaneous manual operations.","requirement":"Where a manual mode of operation is provided, ICT shall provide at least one mode of operation that does not require fine motor control or simultaneous manual operations.","testingRequirements":"Evaluate manual controls, gestures, timing, precision, and simultaneous actions.","testingGuidance":"Test with keyboard access, alternate input, reduced precision, and single-action operation.","expectedResult":"Applicable functions can be operated without fine motor control or simultaneous operations.","relatedWcag":["2.1.1","2.5.1","2.5.2","2.5.8"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"Controls require precise movement or simultaneous action.","fixes":"Provide keyboard operation and alternatives to precision gestures.","disabilitie":"With Limited Manipulation","categories":"Functional Performance Criteria","tags":["motor","keyboard"]},
+        {"number":"302.8","title":"With Limited Reach and Strength","level":"Required","desc":"Where a manual mode of operation is provided, ICT shall provide at least one mode of operation that is operable with limited reach and limited strength.","requirement":"Where a manual mode of operation is provided, ICT shall provide at least one mode of operation that is operable with limited reach and limited strength.","testingRequirements":"Evaluate reach distance, activation force, target placement, and physical or pointer operation.","testingGuidance":"Test with alternate positioning and input methods.","expectedResult":"Applicable functions are operable with limited reach and limited strength.","relatedWcag":["2.5.8","2.1.1"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"A required control demands excessive reach, force, or sustained effort.","fixes":"Provide alternate operation and appropriate target placement.","disabilitie":"With Limited Reach and Strength","categories":"Functional Performance Criteria","tags":["motor","reach","strength"]},
+        {"number":"302.9","title":"With Limited Language, Cognitive, and Learning Abilities","level":"Required","desc":"ICT shall provide features making its use by individuals with limited cognitive, language, and learning abilities simpler and easier.","requirement":"ICT shall provide features making its use by individuals with limited cognitive, language, and learning abilities simpler and easier.","testingRequirements":"Evaluate language, instructions, consistency, error recovery, predictability, and cognitive load.","testingGuidance":"Use representative tasks with clear instructions and observe understanding, learning, completion, and recovery.","expectedResult":"Applicable workflows provide features that make use simpler and easier.","relatedWcag":["3.1.1","3.1.2","3.2.3","3.3.1","3.3.3"],"understandingUrl":"https://www.access-board.gov/ict/","failures":"Instructions, language, consistency, or recovery support make use unnecessarily difficult.","fixes":"Use clear language, predictable structure, helpful instructions, and recovery support.","disabilitie":"With Limited Language, Cognitive, and Learning Abilities","categories":"Functional Performance Criteria","tags":["cognitive","language","learning"]},
+        {"number":"software-interoperability","title":"Software and Assistive Technology Interoperability","level":"Required","desc":"Software should expose information, relationships, states, and operations through platform accessibility services or other supported interoperability mechanisms.","requirement":"Software should expose information, relationships, states, and operations through platform accessibility services or other supported interoperability mechanisms.","testingRequirements":"Inspect software accessibility API exposure and test representative assistive technology workflows.","testingGuidance":"Use platform accessibility inspectors and assistive technology to verify names, roles, states, values, and relationships.","expectedResult":"Assistive technology can obtain and operate important user interface information.","understandingUrl":"https://www.access-board.gov/ict/","failures":"Assistive technology cannot obtain or operate important user interface information.","fixes":"Use platform accessibility APIs and preserve programmatic names, roles, states, values, and relationships.","disabilitie":"Multiple disabilities","categories":"Software","tags":["software","assistive technology","accessibility API"]},
+        {"number":"support-documentation","title":"Support Documentation and Services","level":"Required","desc":"Product documentation and support services should be available in accessible formats and through accessible communication channels.","requirement":"Product documentation and support services should be available in accessible formats and through accessible communication channels.","testingRequirements":"Review product documentation, alternate formats, contact methods, and support communication channels.","testingGuidance":"Test documentation with assistive technology and use support channels through accessible communication methods.","expectedResult":"Users can obtain accessible documentation and use support services.","understandingUrl":"https://www.access-board.gov/ict/","failures":"Users cannot obtain accessible documentation or use the support channel with assistive technology.","fixes":"Provide accessible documentation, contact methods, and alternate formats.","disabilitie":"Multiple disabilities","categories":"Support Documentation and Services","tags":["documentation","support","alternate formats"]}
       ]
     }
   ]

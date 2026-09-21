@@ -3,7 +3,6 @@ import { commandExecutionService } from './commandExecutionService.js';
 import { commandRegistry } from './commandRegistry.js';
 import { appState, getShortcutForAction } from './state.js';
 import { getAvailableWcagStandards, getSection508LookupCriteria, loadWcagCatalog } from './wcagCatalog.js';
-import { getSection508LookupCategories } from './section508TemplateCatalog.js';
 
 let runLookupResetWorkflow = null;
 
@@ -117,7 +116,10 @@ export async function initLookupTool() {
     try {
         let data = await loadWcagCatalog();
         const section508LookupCriteria = await getSection508LookupCriteria().catch(() => []);
-        data = [...data, ...section508LookupCriteria];
+        const section508Wcag20Criteria = data
+            .filter((item) => item.standard === 'WCAG 2.0')
+            .map((item) => ({ ...item, standard: 'Section 508', section508Type: 'WCAG 2.0 Success Criterion', categories: '' }));
+        data = [...data, ...section508LookupCriteria, ...section508Wcag20Criteria];
         const standards = await getAvailableWcagStandards();
 
         const resetLookupShortcut = getShortcutForAction('resetLookup') || 'Alt+Shift+D';
@@ -158,9 +160,12 @@ export async function initLookupTool() {
             listContainer.innerHTML = '';
             const presentStandards = [...new Set(list.map((item) => item.standard))];
             presentStandards.forEach((standardName) => {
+                const isSection508 = String(standardName).toLowerCase().includes('section 508');
                 const filteredStandard = list
                     .filter((item) => item.standard === standardName)
-                    .sort((left, right) => String(left.categories || left.category || '').localeCompare(String(right.categories || right.category || '')) || String(left.number || '').localeCompare(String(right.number || '')));
+                    .sort((left, right) => isSection508
+                        ? String(left.number || '').localeCompare(String(right.number || ''))
+                        : String(left.categories || left.category || '').localeCompare(String(right.categories || right.category || '')) || String(left.number || '').localeCompare(String(right.number || '')));
                 if (filteredStandard.length === 0) return;
                 const h3 = document.createElement('h3');
                 h3.textContent = `${standardName} Success Criteria`;
@@ -169,14 +174,20 @@ export async function initLookupTool() {
                 filteredStandard.forEach(i => {
                     const displayName = `${i.number} ${i.title}`;
                     const categoryName = i.categories || i.category || '';
-                    if (String(standardName).toLowerCase().includes('section 508') && categoryName && !listContainer.querySelector(`[data-lookup-category="${categoryName}"]`)) {
+                    if (!isSection508 && categoryName && !listContainer.querySelector(`[data-lookup-category="${categoryName}"]`)) {
                         const categoryHeading = document.createElement('h4');
                         categoryHeading.dataset.lookupCategory = categoryName;
                         categoryHeading.textContent = categoryName;
                         listContainer.appendChild(categoryHeading);
                     }
                     const div = document.createElement('div');
-                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName} (Level ${i.level})${categoryName ? ` - ${categoryName}` : ''}</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Requirement:</dt><dd>${formatParagraphs(i.requirement || i.desc)}</dd><dt>How to test:</dt><dd>${formatParagraphs(i.testProcedure || i.desc)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Result guidance:</dt><dd>${formatParagraphs(i.resultGuidance)}</dd><dt>How to document results:</dt><dd>${formatParagraphs(i.documentationGuidance || i.fixes)}</dd><dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>Official documentation:</dt><dd><a href="${i.understandingUrl || '#'}" target="_blank" rel="noopener noreferrer">Open official documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-copy-action="copyEntry" data-text="${displayName}\n\nRequirement:\n${(i.requirement || i.desc || '').replace(/\|/g, ' ')}\n\nHow to test:\n${(i.testProcedure || '').replace(/\|/g, '\n')}\n\nFailures:\n${(i.failures || '').replace(/\|/g, '\n')}\n\nResult guidance:\n${(i.resultGuidance || '').replace(/\|/g, '\n')}\n\nHow to document results:\n${(i.documentationGuidance || i.fixes || '').replace(/\|/g, '\n')}\n\nReferences: ${i.understandingUrl || 'N/A'}">Copy Full Entry</button></li><li><button class="copy-btn" data-copy-action="copyName" data-text="${cleanForCopy(displayName)}">Copy Name</button></li><li><button class="copy-btn" data-copy-action="copyDescription" data-text="${cleanForCopy(i.desc)}">Copy Description</button></li><li><button class="copy-btn" data-copy-action="copyFailures" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-copy-action="copyFixes" data-text="${cleanForCopy(i.documentationGuidance || i.fixes)}">Copy Documentation Guidance</button></li><li><button class="copy-btn" data-copy-action="copyLink" data-text="${i.understandingUrl || ''}">Copy References</button></li></ul></fieldset></details>`;
+                    const relatedWcag = Array.isArray(i.relatedWcag) && i.relatedWcag.length > 0 ? i.relatedWcag.join(', ') : '';
+                    const applicability = i.productType || i.applicability || 'Covered ICT subject to applicable Section 508 scope and exceptions.';
+                    const scope = i.scope || 'Section 508 requirement scope is determined by the ICT type, applicable provisions, and documented evaluation boundaries.';
+                    div.innerHTML = `<details style="margin-bottom:10px; border:1px solid #eee;"><summary style="font-weight:bold; cursor:pointer; padding:10px;">${displayName} (Level ${i.level})${categoryName ? ` - ${categoryName}` : ''}</summary><fieldset style="border:none; padding:10px; margin:0;"><dl><dt>Requirement:</dt><dd>${formatParagraphs(i.requirement || i.desc)}</dd><dt>Testing Requirements:</dt><dd>${formatParagraphs(i.testingRequirements || i.testProcedure || i.desc)}</dd><dt>How to test:</dt><dd>${formatParagraphs(i.testProcedure || i.testingGuidance || i.desc)}</dd><dt>Expected Result:</dt><dd>${formatParagraphs(i.expectedResult || i.resultGuidance)}</dd><dt>Failures:</dt><dd>${formatAsList(i.failures)}</dd><dt>Result guidance:</dt><dd>${formatParagraphs(i.resultGuidance || 'Record the applicable Section 508 result and rationale.')}</dd><dt>How to document results:</dt><dd>${formatParagraphs(i.documentationGuidance || i.fixes)}</dd>${relatedWcag ? `<dt>Related WCAG Success Criteria:</dt><dd>${escapeHtml(relatedWcag)}</dd>` : ''}<dt>Disabilities:</dt><dd>${formatAsCommaList(i.disabilitie)}</dd><dt>Official documentation:</dt><dd><a href="${i.understandingUrl || '#'}" target="_blank" rel="noopener noreferrer">Open official documentation</a></dd></dl><ul style="list-style-type:none; padding:0;"><li><button class="copy-btn" data-copy-action="copyEntry" data-text="${displayName}">Copy Full Entry</button></li><li><button class="copy-btn" data-copy-action="copyName" data-text="${cleanForCopy(displayName)}">Copy Name</button></li><li><button class="copy-btn" data-copy-action="copyDescription" data-text="${cleanForCopy(i.desc)}">Copy Description</button></li><li><button class="copy-btn" data-copy-action="copyFailures" data-text="${cleanForCopy(i.failures)}">Copy Failures</button></li><li><button class="copy-btn" data-copy-action="copyFixes" data-text="${cleanForCopy(i.documentationGuidance || i.fixes)}">Copy Documentation Guidance</button></li><li><button class="copy-btn" data-copy-action="copyLink" data-text="${i.understandingUrl || ''}">Copy References</button></li></ul></fieldset></details>`;
+                    if (String(standardName).toLowerCase().includes('section 508')) {
+                        div.querySelector('dl')?.insertAdjacentHTML('afterbegin', `<dt>Scope:</dt><dd>${formatParagraphs(scope)}</dd><dt>Applicability:</dt><dd>${formatParagraphs(applicability)}</dd>`);
+                    }
                     div.querySelectorAll('.copy-btn').forEach(b => {
                         b.onclick = async () => {
                             const copyAction = String(b.getAttribute('data-copy-action') || '');
@@ -233,7 +244,7 @@ export async function initLookupTool() {
             const categoryFilter = document.getElementById('cat-f');
             if (!categoryFilter) return;
             const categories = String(standard || '').toLowerCase().includes('section 508')
-                ? getSection508LookupCategories()
+                ? []
                 : Object.keys(categoryMap).sort();
             categoryFilter.innerHTML = `<option value="">Category: All</option>${categories.map((category) => `<option value="${category}">${category}</option>`).join('')}`;
         };
@@ -275,7 +286,7 @@ export async function initLookupTool() {
 
         window.addEventListener('art-accessibility-standards-updated', async () => {
             data = await loadWcagCatalog().catch(() => data);
-            data = [...data, ...(await getSection508LookupCriteria().catch(() => []))];
+            data = [...data, ...(await getSection508LookupCriteria().catch(() => [])), ...data.filter((item) => item.standard === 'WCAG 2.0').map((item) => ({ ...item, standard: 'Section 508', section508Type: 'WCAG 2.0 Success Criterion', categories: '' }))];
             const refreshed = await getAvailableWcagStandards().catch(() => []);
             const standardFilter = document.getElementById('ver-f');
             if (!standardFilter) return;

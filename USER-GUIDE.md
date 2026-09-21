@@ -72,7 +72,9 @@ Section 508 audit fields in the Report Editor show visible field names beside th
 
 After enabling Section 508, choose **Section 508 Accessibility Standard** in the Accessibility Lookup Tool's **Standard** filter. The Section 508 criteria appear immediately, and the lookup catalog updates when optional standards are enabled or removed.
 
-Section 508 Lookup results include the supplied Web and Software criterion/tests, sorted into seven categories: **ARIA & Live Regions**, **Audio & Video**, **Buttons & Navigation**, **Color & Contrast**, **Focus & Keyboard**, **Forms & Inputs**, and **Images & Graphics**. Each test includes requirement, test procedure, failures, result guidance, documentation guidance, and an official source link.
+Section 508 Lookup results are individual expandable requirements rather than entries under ART's generic categories. They include FPC records, technical requirements, WCAG criteria, support requirements, Software requirements, and Hardware requirements, with requirement, scope/applicability, testing, result/documentation guidance, disability information when available, related WCAG references, and official source links.
+
+The nine FPC are individual requirements, not parent categories: 302.1 Without Vision, 302.2 With Limited Vision, 302.3 Without Perception of Color, 302.4 Without Hearing, 302.5 With Limited Hearing, 302.6 Without Speech, 302.7 With Limited Manipulation, 302.8 With Limited Reach and Strength, and 302.9 With Limited Language, Cognitive, and Learning Abilities.
 
 Section 508 Report Builder configuration requires a **Product Type** of **Web**, **Electronic Document**, **Software**, or **Hardware**, and a **Conformance Level** of **Level A**, **Level AA**, or **Level AAA**. Web and Software use separate supplied template resources. The shared **Audit Start** and **Audit End** fields provide the testing date range for Section 508 reports.
 
