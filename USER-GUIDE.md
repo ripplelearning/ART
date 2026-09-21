@@ -74,6 +74,8 @@ After enabling Section 508, choose **Section 508 Accessibility Standard** in the
 
 Section 508 Lookup results are individual expandable requirements rather than entries under ART's generic categories. They include FPC records, technical requirements, WCAG criteria, support requirements, Software requirements, and Hardware requirements, with requirement, scope/applicability, testing, result/documentation guidance, disability information when available, related WCAG references, and official source links.
 
+For Web Section 508 reports, Software and Support Documentation rows are excluded from the Report Editor because they are not Web tests. The Web Editor also excludes the WCAG 1.1.1 through 4.1.3 range requested for this report workflow.
+
 The nine FPC are individual requirements, not parent categories: 302.1 Without Vision, 302.2 With Limited Vision, 302.3 Without Perception of Color, 302.4 Without Hearing, 302.5 With Limited Hearing, 302.6 Without Speech, 302.7 With Limited Manipulation, 302.8 With Limited Reach and Strength, and 302.9 With Limited Language, Cognitive, and Learning Abilities.
 
 Section 508 Report Builder configuration requires a **Product Type** of **Web**, **Electronic Document**, **Software**, or **Hardware**, and a **Conformance Level** of **Level A**, **Level AA**, or **Level AAA**. Web and Software use separate supplied template resources. The shared **Audit Start** and **Audit End** fields provide the testing date range for Section 508 reports.

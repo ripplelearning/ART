@@ -1673,6 +1673,13 @@ function getSection508Criteria(template = null) {
     });
 }
 
+function isWcagCriterionInRemovedWebRange(criterion) {
+    const match = String(criterion?.number || '').trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+    if (!match) return false;
+    const value = Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]);
+    return value >= 10101 && value <= 40103;
+}
+
 function getSection508ResultOptions() {
     return getSection508TestResults();
 }
@@ -2231,8 +2238,11 @@ export async function renderEditor() {
     const section508Template = section508Report && appState.section508ProductType
         ? await getSection508Template(appState.section508ProductType).catch(() => null)
         : null;
+    const section508Wcag20ForProduct = appState.section508ProductType === 'Web'
+        ? section508Wcag20Criteria.filter((criterion) => !isWcagCriterionInRemovedWebRange(criterion))
+        : section508Wcag20Criteria;
     const section508Criteria = section508Report
-        ? filterSection508Criteria([...getSection508Criteria(section508Template), ...section508Wcag20Criteria.map((criterion) => ({ ...criterion, section508Type: 'WCAG 2.0 Success Criterion' }))], appState.section508ProductType, appState.section508ConformanceLevel)
+        ? filterSection508Criteria([...getSection508Criteria(section508Template), ...section508Wcag20ForProduct.map((criterion) => ({ ...criterion, section508Type: 'WCAG 2.0 Success Criterion' }))], appState.section508ProductType, appState.section508ConformanceLevel)
         : [];
 
     const isAuditLog = currentReportSupportsAuditEntries() || section508Report;
