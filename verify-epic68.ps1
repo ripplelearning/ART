@@ -23,8 +23,8 @@ $checks += [pscustomobject]@{ Name = 'Task-oriented documentation'; Script = {
     Assert-All 'USER-GUIDE.md' $userGuide @('Getting Started', 'Tasks and To-Do', 'Performance and Scalability', 'Keyboard Focus', 'Organization Statistics') 'USER-GUIDE.md task-oriented coverage is incomplete.'
 } }
 $checks += [pscustomobject]@{ Name = 'Local-first and platform boundaries'; Script = {
-    Assert-All 'HELP.md' $helpDoc @('without an account', 'desktop', 'server', 'file-based') 'HELP.md platform boundary guidance is incomplete.'
-    Assert-All 'USER-GUIDE.md' $userGuide @('without an account', 'Electron', 'server', 'shared') 'USER-GUIDE.md platform boundary guidance is incomplete.'
+    Assert-All 'HELP.md' $helpDoc @('without an account', 'browser', 'server', 'file-based') 'HELP.md platform boundary guidance is incomplete.'
+    Assert-All 'USER-GUIDE.md' $userGuide @('without an account', 'browser', 'server', 'shared') 'USER-GUIDE.md platform boundary guidance is incomplete.'
 } }
 $checks += [pscustomobject]@{ Name = 'Version and maintenance guidance'; Script = {
     Assert-All 'help.js' $help @('Version 2.0') 'In-app Help version label is missing.'

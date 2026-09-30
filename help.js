@@ -135,7 +135,6 @@ function getHelpSections(rows) {
             content: `
                 <p>Use keyboard shortcuts, tab navigation, and landmark cycling to move through ART.</p>
                 <p>Landmark navigation cycles continuously through key regions, and Help opens independently without changing your current work state.</p>
-                <p>Architecture note: this integrated Help module is isolated so it can migrate to a desktop Help window in future Electron or Tauri packaging.</p>
             `
         },
         {
@@ -438,17 +437,6 @@ function getHelpSections(rows) {
                 <p>External Integrations are separate from Storage Providers and ART authentication. Jira, GitHub Issues, Microsoft Azure DevOps, and Google Workspace are optional and never required for ART's core reporting, auditing, task, or collaboration features.</p>
                 <p>Application Settings lists each integration with Connect, Disconnect, and Test Connection actions. You can explicitly choose which ART data may be shared: Current report, Selected findings, or Selected tasks. Unconfigured integrations report Configuration incomplete instead of pretending to connect.</p>
                 <p>The common management layer is available now. Live OAuth/API adapters, external issue creation/import, field mappings, external links, and bidirectional synchronization require provider-specific credentials and implementation.</p>
-            `
-        },
-        {
-            id: 'help-desktop-application',
-            title: 'ART Desktop Application',
-            content: `
-                <p>ART's Electron desktop shell loads the same web application and shared core modules as the browser version. Reports, Tasks, Progress Logs, storage, integrations, accessibility settings, and keyboard shortcuts remain shared functionality.</p>
-                <p>The Windows package is configured as ART-Setup.exe with Start Menu/Desktop shortcuts and an .art file association. Opening an .art file from Windows launches ART and sends it through the same validation and import workflow used by the browser.</p>
-                <p>Production signing, release automation, website distribution, automatic updates, macOS/Linux packages, and full desktop assistive-technology testing remain deferred. Building locally requires the Node/Electron dependencies in package.json.</p>
-                <p>The native File, View, and Help menus route into the same ART command registry used by the web application. Window size is persisted in desktop application data, and Windows .art file launches use the shared project validation/import workflow.</p>
-                <p>Native menu accessibility, installer behavior, screen-reader parity, multi-monitor placement, native printing/notifications, update behavior, and macOS/Linux behavior require manual testing on their target platforms.</p>
             `
         },
         {

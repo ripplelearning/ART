@@ -7,9 +7,6 @@
 .vscode/
 node_modules/
 
-# Desktop (Electron) application - not served over the web
-desktop/
-
 # Collaboration server - deployed and operated separately
 collaboration-server/
 

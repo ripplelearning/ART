@@ -30,7 +30,7 @@ Use **Import Feedback Issues File** to load the repository copy after an Owner o
 
 The feedback issue tracker is separate from Tasks and To-Do. It does not create, update, or share task records.
 
-See [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md) for the consolidated deferred epic work and desktop build, installation, download, distribution, and readiness runbook.
+See [Deferred Work Guide](DEFERRED-WORK-GUIDE.md) for the consolidated deferred epic work for the ART web application.
 
 ## Language and Regional Format
 Application Settings > Visual Accessibility includes a persisted **Language and regional format** selector. The current locale foundation supports English United States, English United Kingdom, German, Spanish, French, and Arabic locale metadata and locale-aware date/number formatting helpers. The interface remains in reviewed English until translated resources are available; selecting a planned locale does not display untranslated keys or claim translation coverage.
@@ -548,18 +548,6 @@ Application Settings includes an **External Integrations** section separate from
 Each integration records its connection state, account label, synchronization state, and the ART data-sharing scope selected by the user. The available scope choices in this release are Current report, Selected findings, and Selected tasks. Connect, Disconnect, and Test Connection actions are available for each entry; integrations without a configured provider adapter report **Configuration incomplete** rather than pretending to connect.
 
 The current release provides the common integration-management architecture only. Live OAuth/API adapters, importing external issues, creating Jira/GitHub/Azure work items, field mappings, external links, and bidirectional synchronization require provider credentials, service configuration, and additional provider-specific implementation.
-
-## ART Desktop Application
-ART includes an Electron desktop shell that loads the same ART web application and shared core modules. The desktop package uses isolated renderer settings (`contextIsolation`, `sandbox`, and `nodeIntegration: false`), blocks unapproved navigation, and opens external HTTP links through the operating system browser.
-
-The Windows packaging configuration creates `ART-Setup.exe`, Start Menu/Desktop shortcuts, and an `.art` file association. Double-clicking an `.art` file launches ART and loads it through the same validation and import pipeline used by the web application's Open workflow. Local-first reporting, Tasks, Progress Logs, storage providers, and external integrations remain shared functionality rather than a second desktop implementation.
-
-Building the installer requires the Node/Electron development dependencies. Production code signing, GitHub Actions release automation, website download hosting, automatic updates, macOS/Linux packaging, and full desktop accessibility/performance testing are not configured in this release.
-
-### Desktop Parity and Native Behavior
-The Electron desktop application uses the same ART renderer, command registry, state model, validation, and accessibility implementation as the web application. Its native File, View, and Help menus route commands into that shared application layer rather than duplicating report workflows. The desktop shell also persists its window size in the operating system's application-data directory and delivers `.art` file-association launches through the shared project-open pipeline.
-
-Native OS menu accessibility, installer behavior, screen-reader parity, multi-monitor placement, native printing/notifications, update behavior, and macOS/Linux behavior require validation on the target operating systems. The current source provides the shared shell and Windows packaging foundation but does not claim those manual validations are complete.
 
 ## Privacy and User Data
 ART is local-first and does not require an account, sign-in, email address, external storage provider, or ART server for fundamental reporting work. Application Settings includes **Privacy and User Data**, which lists the categories stored in this browser: ART state, local profile/device identity, provider and integration preferences, and session-only credentials.

@@ -15,7 +15,7 @@ Issues are displayed with the most recently updated first. Authorized Owners, in
 
 Select **Import Feedback Issues File** to load the repository tracker copy. Imported deferred-work issues retain their **Deferred** status and include a **Documented deferred work** link to the consolidated guide. Import merges issues using stable IDs and saves them to the local tracker.
 
-See the [Deferred Work and Desktop Readiness Guide](DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md) for deferred epic work and detailed desktop download, build, installation, and readiness instructions.
+See the [Deferred Work Guide](DEFERRED-WORK-GUIDE.md) for deferred epic work in the ART web application.
 
 ## Language and Regional Format
 In Application Settings > Visual Accessibility, use **Language and regional format** to store a locale preference on this device. The current foundation supports English United States, English United Kingdom, German, Spanish, French, and Arabic locale metadata and formatting helpers. The interface remains reviewed English until translations are available, and planned locales are labeled accordingly.
@@ -659,17 +659,6 @@ Application Settings has a separate **External Integrations** section for option
 For each integration, use **Connect**, **Disconnect**, or **Test Connection** when a provider adapter is configured. Choose the ART data-sharing scope explicitly. This release offers Current report, Selected findings, and Selected tasks. Integration state and sharing choices are stored locally; external credentials are not stored in `.art` files.
 
 The common management layer is available now, but live provider adapters, OAuth setup, importing external issues, creating external work items, field mappings, external links, and synchronization require provider-specific credentials and implementation. Unconfigured integrations display **Configuration incomplete** and leave ART's local workflows unchanged.
-
-## ART Desktop Application
-ART's Electron desktop shell uses the same web application and shared core modules as the browser version, so reports, Tasks, Progress Logs, storage, integrations, accessibility settings, and keyboard shortcuts remain consistent.
-
-The Windows package is configured as `ART-Setup.exe`. It creates standard Start Menu/Desktop shortcuts and associates `.art` files with ART. Opening an `.art` file from Windows launches ART and sends the file through ART's normal validation and import workflow. The desktop shell does not require an ART server for local-first work.
-
-The source includes the desktop startup and packaging configuration, but production signing, release automation, website distribution, automatic updates, macOS/Linux packages, and full desktop assistive-technology testing remain deferred. Building locally requires the Node/Electron dependencies described in `package.json`.
-
-The desktop shell uses the same ART renderer, state model, validation, command registry, and accessibility implementation as the web app. Its native File, View, and Help menus send commands into that shared layer. Window size is persisted in the desktop application-data directory, and opening an `.art` file from Windows uses the same project validation/import workflow as the browser.
-
-Native menu accessibility, installer behavior, screen-reader parity, multi-monitor placement, native printing/notifications, update behavior, and macOS/Linux behavior still require manual validation on their target platforms.
 
 ## Privacy and User Data
 ART's fundamental local workflows do not require an account, sign-in, email address, cloud provider, or ART server. In Application Settings, **Privacy and User Data** lists the local data categories used by ART and the browser storage locations where they reside.

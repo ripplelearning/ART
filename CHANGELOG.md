@@ -6,6 +6,10 @@ ART Version 2.0 packages the current accessibility reporting workspace, command 
 
 ## Unreleased
 
+### Changed
+- Separated the Electron desktop application from the web application. The desktop shell, its packaging configuration, its verification scripts, and its readiness runbook now live on the `desktop-app` branch. The `main` branch is the ART web application only.
+- Renamed `DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md` to `DEFERRED-WORK-GUIDE.md` and scoped it to web application deferred work.
+
 ### Added
 - Centralized Application Command Framework for ART 2.0.
 - Command Registry, Command Execution Service, and application command catalog.

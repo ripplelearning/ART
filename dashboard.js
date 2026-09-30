@@ -138,7 +138,6 @@ let runDashboardImportTemplatePickerWorkflow = null;
 let runDashboardConfigureWorkflow = null;
 let dashboardWidgetsRegistered = false;
 let storageSyncPanelEventBound = false;
-let desktopCommandEventBound = false;
 
 export async function openDashboardProjectFromCommand() {
     if (typeof runDashboardOpenProjectWorkflow !== 'function') return false;
@@ -1315,12 +1314,6 @@ export function renderDashboard() {
     const btnSaveProjectDropbox = document.getElementById('btn-save-project-dropbox');
     const btnImportData = document.getElementById('btn-import-data');
     const btnConfigureDashboard = document.getElementById('btn-configure-dashboard');
-    if (globalThis.artDesktop?.isDesktop && !desktopCommandEventBound) {
-        globalThis.artDesktop.onCommand((action) => {
-            void executeDashboardAction(action);
-        });
-        desktopCommandEventBound = true;
-    }
     const collaborationToolbar = document.getElementById('collaboration-toolbar');
     const collaborationToolbarStatus = document.getElementById('collaboration-toolbar-status');
     const collaborationToolbarDetails = document.getElementById('collaboration-toolbar-details');
@@ -1624,23 +1617,6 @@ export function renderDashboard() {
         rebuildRecentReports();
         return true;
     };
-
-    if (globalThis.artDesktop?.isDesktop) {
-        const desktopOpenedPaths = new Set();
-        const openDesktopArtifact = async (filePath) => {
-            if (!filePath || desktopOpenedPaths.has(filePath)) return;
-            desktopOpenedPaths.add(filePath);
-            try {
-                const fileText = await globalThis.artDesktop.readArtFile(filePath);
-                activeProjectFileHandle = null;
-                openProjectFromText(fileText, filePath.split(/[\\/]/).pop() || 'project.art');
-            } catch (error) {
-                reportPrecheckStatus(`Open failed for ${filePath || 'project'}. Could not read file.`);
-            }
-        };
-        globalThis.artDesktop.onOpenArtFile(openDesktopArtifact);
-        globalThis.artDesktop.getOpenFilePath().then(openDesktopArtifact);
-    }
 
     const runSaveProjectAs = async () => {
         const payloadText = serializeArtProjectPayload();

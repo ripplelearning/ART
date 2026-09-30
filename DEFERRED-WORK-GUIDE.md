@@ -1,6 +1,8 @@
-# ART Deferred Work and Desktop Readiness Guide
+# ART Deferred Work Guide
 
-Applies to ART Version 2.0. This guide consolidates the deferred work recorded while implementing Epics 41 through 73. It distinguishes completed foundations from work that is still incomplete, explains why work was deferred, and gives the prerequisites and recommended actions needed to finish it.
+Applies to ART Version 2.0. This guide consolidates the deferred work recorded while implementing Epics 41 through 73 for the ART web application. It distinguishes completed foundations from work that is still incomplete, explains why work was deferred, and gives the prerequisites and recommended actions needed to finish it.
+
+Desktop application work is tracked separately on the `desktop-app` branch and is not covered here.
 
 ## How To Use This Guide
 
@@ -11,7 +13,7 @@ Before closing a deferred item:
 1. Confirm its prerequisites and dependencies below.
 2. Define the data, authorization, privacy, accessibility, and failure behavior.
 3. Implement through the existing framework named in the item rather than creating a parallel system.
-4. Add focused automated verification and browser/desktop tests.
+4. Add focused automated verification and browser tests.
 5. Perform the required manual, security, accessibility, provider, or release validation.
 6. Update `HELP.md`, `USER-GUIDE.md`, `help.js`, and the relevant epic record.
 7. Record evidence, known limitations, and the release decision.
@@ -37,11 +39,9 @@ Before closing a deferred item:
 | 55 | Dropbox | PKCE/App Folder foundation and open/save wiring | Real-account validation, revisions, merge, broader operations, token lifecycle, AT testing |
 | 56 | Synchronization | Provider-neutral status and offline state model | Remote revision comparison, real sync, automatic merge, backup/copy workflows |
 | 57 | External Integrations | Optional provider registry and local configuration | Live OAuth/API adapters, bidirectional work-item sync, mappings, rate limits |
-| 58 | Desktop Application | Secure Electron shell, preload bridge, Windows packaging metadata | Runtime/build, signing, installers, updates, native parity, cross-platform testing |
 | 59 | Privacy and Data Governance | Local inventory, export, reset, telemetry preference | Server retention/deletion, legal review, regional governance, real telemetry pipeline |
-| 60 | Testing and Release Readiness | Verification bundle and browser smoke checks | Full browser/desktop/AT/provider/security/performance/release evidence |
+| 60 | Testing and Release Readiness | Verification bundle and browser smoke checks | Full browser/AT/provider/security/performance/release evidence |
 | 61 | Advanced Collaboration | Local sessions, attribution, revisions, queues | WebSocket/server collaboration, file watchers, remote revisions, multi-user testing |
-| 62 | Web/Desktop Parity | Native menus, command bridge, shared renderer | Packaged installer QA, native save, notifications, updates, platform parity testing |
 | 63 | Advanced Integrations | Managed integration surface and sharing scopes | Live integrations, imports/updates, mappings, organization restrictions, testing |
 | 64 | Organization Administration | Local administration, invitations, audit records, Settings UI | Authenticated administration, email, status/session control, retention, tamper-proof audit |
 | 65 | Organization Analytics | Authorized report/task metrics, views, snapshots, exports, bounded cache | Server/hybrid metrics, shared views, privacy thresholds, scale testing, richer exports |
@@ -148,23 +148,19 @@ Before closing a deferred item:
 7. Implement provider-specific retry, timeout, rate-limit, expiry, revocation, and partial-failure behavior.
 8. Add live test accounts, sanitized fixtures, provider policy review, and AT/manual testing.
 
-### Epics 56, 61, and 62 — Synchronization, Collaboration, Desktop Parity
+### Epics 56 and 61 — Synchronization and Collaboration
 
-**Done:** Local synchronization status, offline markers, collaboration queues/revisions, secure Electron shell, native command routing, and `.art` file association opening exist.
+**Done:** Local synchronization status, offline markers, and collaboration queues/revisions exist.
 
-**Still deferred:** Real remote synchronization, WebSocket/presence, file watchers, automatic merge invocation, atomic save/recovery across providers, native save IPC, notifications, installer QA, signing, updates, macOS/Linux packaging, and full web/desktop parity.
+**Still deferred:** Real remote synchronization, WebSocket/presence, file watchers, automatic merge invocation, and atomic save/recovery across providers.
 
-**Why:** No deployed collaboration service, provider revision callbacks, Electron runtime/toolchain, signed build pipeline, or cross-platform test environments are available.
+**Why:** No deployed collaboration service or provider revision callbacks are available.
 
 **Action steps:**
 
-1. Install and pin Node.js/npm on a build machine; run the desktop build steps below.
-2. Add provider revision contracts and test remote-change/merge/recovery behavior.
-3. Add native save/write IPC only with strict path validation, confirmation, and atomic temp-file replacement.
-4. Add authenticated collaboration transport, presence, authorization, reconnection, and conflict events.
-5. Build, sign, install, update, uninstall, rollback, and crash-test Windows packages.
-6. Build and test macOS/Linux targets if supported; otherwise document supported platforms.
-7. Test native menus, file associations, screen readers, notifications, window state, and feature parity.
+1. Add provider revision contracts and test remote-change/merge/recovery behavior.
+2. Add authenticated collaboration transport, presence, authorization, reconnection, and conflict events.
+3. Test remote-change detection, offline queues, reconnection, and recovery with real multi-user sessions.
 
 ### Epics 48 and 59 — Security, Privacy, Governance of Data
 
@@ -187,18 +183,18 @@ Before closing a deferred item:
 
 **Done:** Static verification, browser smoke coverage, startup watchdog, bounded metrics cache, Dashboard/Tasks focus preservation, native semantics, live regions, and documentation exist.
 
-**Still deferred:** Full browser matrix, automated axe/Lighthouse/WAVE scans, large-data profiling, load/concurrency/endurance testing, Electron runtime tests, full WCAG audit, JAWS/NVDA/Narrator/VoiceOver/TalkBack/ChromeVox/braille/magnification/switch/voice-control testing, and real user acceptance.
+**Still deferred:** Full browser matrix, automated axe/Lighthouse/WAVE scans, large-data profiling, load/concurrency/endurance testing, full WCAG audit, JAWS/NVDA/Narrator/VoiceOver/TalkBack/ChromeVox/braille/magnification/switch/voice-control testing, and real user acceptance.
 
 **Why:** These require target platforms, representative datasets, assistive technology, human testers, and release evidence unavailable from source inspection alone.
 
 **Action steps:**
 
-1. Define supported browser/OS/desktop/AT matrix and measurable performance budgets.
+1. Define supported browser/OS/AT matrix and measurable performance budgets.
 2. Build sanitized large datasets covering reports, findings, tasks, logs, metrics, history, and collaboration.
 3. Profile startup, render, search, import/export, metrics, memory, CPU, and synchronization before optimizing further.
 4. Run keyboard/focus/zoom/high-contrast/reduced-motion and screen-reader audits.
 5. Add regression tests for every discovered defect, including the focus regressions fixed in Epic 67.
-6. Repeat tests on web and packaged desktop builds and retain evidence per release.
+6. Repeat tests on each supported browser and retain evidence per release.
 
 ### Epics 64–65 — Administration and Analytics
 
@@ -239,9 +235,9 @@ Before closing a deferred item:
 **Action steps:**
 
 1. Name accountable release, security, accessibility, documentation, integration, and community owners.
-2. Complete the desktop readiness runbook below and retain signed artifact evidence.
+2. Complete the hosted deployment runbook and retain release artifact evidence.
 3. Run the Epic 69 beta exit review and classify release blockers.
-4. Perform formal production web/desktop/security/privacy/accessibility/performance/reliability reviews.
+4. Perform formal production web/security/privacy/accessibility/performance/reliability reviews.
 5. Publish supported versions, known issues, download instructions, security contact, accessibility statement, privacy policy, contribution guide, and release notes.
 6. Establish maintenance cadence, incident response, dependency updates, backups, monitoring, and emergency release procedures.
 7. Publish governance, Code of Conduct, issue templates, review requirements, least-privilege access, succession, and funding policies.
@@ -261,132 +257,9 @@ Before closing a deferred item:
 4. Extend the implemented document `lang`/direction handling with RTL layout tests and font fallback.
 5. Obtain permission and human review for translated standards/accessibility terminology.
 6. Add pseudo-localization, Unicode security, pluralization, and text-expansion tests.
-7. Test localized web/desktop reports, exports, search, collaboration, focus, live regions, and AT workflows.
+7. Test localized reports, exports, search, collaboration, focus, live regions, and AT workflows.
 
-## Desktop Application: Full Readiness, Build, Download, and Installation
-
-### Current State
-
-The desktop foundation is in `desktop/main.cjs`, `desktop/preload.cjs`, and `package.json`.
-
-Implemented:
-
-- Electron `BrowserWindow` loads the shared `index.html` renderer.
-- `contextIsolation: true`, `nodeIntegration: false`, and `sandbox: true`.
-- Narrow preload bridge for opening `.art` files and native command delivery.
-- Single-instance behavior, window-state persistence, external-link restrictions, and Windows `.art` association metadata.
-- Windows NSIS packaging metadata with Start Menu/Desktop shortcuts and selectable installation directory.
-
-Not yet proven in this workspace:
-
-- Node/npm/Electron installation and runtime launch.
-- Installer build and installation/uninstallation.
-- Code signing, publication, updates, rollback, crash recovery, native notifications, native save IPC, macOS/Linux packaging, and full desktop accessibility/performance testing.
-
-### Build Prerequisites
-
-Use a Windows build machine with:
-
-- Windows 10 or newer supported by the selected Electron version.
-- Node.js LTS, which provides npm. Verify with `node --version` and `npm --version`.
-- Git, if obtaining source by clone.
-- Sufficient disk space for npm cache, Electron binaries, and the generated installer.
-- A clean checkout of the ART repository.
-- Signing certificate and secure signing credentials only if publishing a trusted production installer.
-
-Do not commit OAuth secrets, signing certificates, private keys, access tokens, or refresh tokens.
-
-### Build From the Repository
-
-From the repository root:
-
-```powershell
-node --version
-npm --version
-npm install
-npm run desktop:start
-```
-
-`npm run desktop:start` launches the unpackaged Electron application. In development, the current shell opens DevTools because `main.cjs` treats the app as development mode. Confirm:
-
-- ART starts without renderer or preload errors.
-- Welcome, Dashboard, Builder, Editor, Viewer, Settings, Help, Tasks, and dialogs open.
-- Native File, View, and Help menu commands route to the shared renderer.
-- Opening a `.art` file uses the existing validation/import pipeline.
-- Window size persists after restart.
-- External links are handled by the intended restricted path.
-- No credentials or tokens appear in local files, logs, or project exports.
-
-Stop the development app using its normal window close action. Do not use the development process as a production distribution.
-
-### Build the Windows Installer
-
-From the same clean repository root:
-
-```powershell
-npm run desktop:dist
-```
-
-The configured electron-builder target is Windows NSIS. The expected artifact name is:
-
-```text
-ART-Setup-2.0.0.exe
-```
-
-The generated installer is normally placed in the project `dist` directory. Confirm the actual path and hash after the build:
-
-```powershell
-Get-ChildItem .\dist
-Get-FileHash .\dist\ART-Setup-2.0.0.exe -Algorithm SHA256
-```
-
-The installer metadata requests:
-
-- Product name: ART.
-- Start Menu shortcut: ART.
-- Desktop shortcut: ART.
-- User-selectable installation directory.
-- `.art` file association.
-- Application ID: `org.art.accessibility-reporting-tool`.
-
-### Installer QA Checklist
-
-Before publishing an installer:
-
-1. Install on a clean Windows test account or virtual machine.
-2. Confirm the installer identifies ART Version 2.0 accurately.
-3. Confirm installation directory selection works.
-4. Confirm Start Menu and Desktop shortcuts launch ART.
-5. Double-click a `.art` file and confirm ART opens it through validation/import.
-6. Test opening a malformed `.art` file and confirm it is rejected safely.
-7. Confirm uninstall removes the application without deleting user-created project files.
-8. Confirm user data/window state behavior is understood and documented.
-9. Test upgrade over the prior supported version and rollback/recovery procedure.
-10. Test offline launch and local report/task workflows.
-11. Test native menu keyboard access, focus behavior, dialogs, Help, Settings tabs, and screen-reader output.
-12. Test high contrast, zoom, reduced motion, magnification, and keyboard-only workflows.
-13. Check CPU, memory, startup time, crash behavior, and long-running sessions.
-14. Verify no secrets, debug endpoints, development tools, or unintended files are packaged.
-15. Sign the installer if publishing outside a controlled internal environment.
-16. Record artifact hash, build environment, version, test results, known issues, and approval.
-
-### Code Signing and Publication
-
-A production-quality Windows download requires more than `npm run desktop:dist`:
-
-1. Obtain an organization-appropriate Windows code-signing certificate.
-2. Store signing credentials in a protected build environment, never in the repository.
-3. Configure electron-builder signing through the approved secure environment.
-4. Sign and verify the installer and packaged executable.
-5. Publish SHA-256 hashes and accessible release notes.
-6. Host the installer on the official ART website or approved distribution service.
-7. Provide a stable HTTPS download link and an archive of prior supported releases.
-8. Define update metadata, update verification, rollback, and incident procedures.
-9. Test the download, signature, install, update, and uninstall flow from a clean machine.
-
-The current repository does not provide an official hosted download URL or automatic update service. Until one exists, users must obtain source from the repository and build locally, or receive an installer from an approved project maintainer through a trusted channel. Do not describe an unsigned local build as the official production installer.
-
-### How Users Can Obtain ART Today
+## How Users Can Obtain ART Today
 
 **Web/local use:**
 
@@ -394,18 +267,13 @@ The current repository does not provide an official hosted download URL or autom
 2. Fundamental local report workflows do not require an account or server.
 3. Protect browser storage and export backups because local browser storage is not encrypted enterprise storage by default.
 
-**Desktop/source build:**
+**Official production release:**
 
-1. Obtain the repository from its approved source-control location using Git clone or the repository's source archive download.
-2. Install Node.js LTS.
-3. Open PowerShell in the repository root.
-4. Run `npm install`.
-5. Run `npm run desktop:start` for a local unpackaged desktop build, or `npm run desktop:dist` to produce the Windows NSIS installer.
-6. Install the generated `dist\ART-Setup-2.0.0.exe` only after reviewing its build/test provenance.
+This is deferred until Epic 70 provides an official website, HTTPS hosting, release notes, and an update/support process. The repository itself is currently the source location, not a completed public distribution channel.
 
-**Official production download:**
+**Desktop application:**
 
-This is deferred until Epic 70 provides an official website, HTTPS hosting, signed installer, release notes, hashes, and update/support process. The repository itself is currently the source location, not a completed public installer distribution channel.
+The Electron desktop shell, its packaging configuration, and its full build/installation/signing runbook are maintained on the `desktop-app` branch and are outside the scope of this guide.
 
 ## Feedback Tracker and Repository Updates
 

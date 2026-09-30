@@ -10,7 +10,7 @@ $i18n = Read-Text 'internationalizationFramework.js'
 $settings = Read-Text 'settings.js'
 $index = Read-Text 'index.html'
 $loader = Read-Text 'loader.js'
-$guide = Read-Text 'DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md'
+$guide = Read-Text 'DEFERRED-WORK-GUIDE.md'
 $checks = @()
 $checks += [pscustomobject]@{ Name = 'Locale catalog and persistence'; Script = {
     Assert-All 'internationalizationFramework.js' $i18n @('SUPPORTED_LOCALES', 'LOCALE_PREFERENCE_KEY', 'getLocalePreference', 'updateLocalePreference', 'localStorage') 'Locale catalog or persistence is incomplete.'
@@ -26,7 +26,7 @@ $checks += [pscustomobject]@{ Name = 'Startup integration'; Script = {
     Assert-All 'loader.js' $loader @('initializeInternationalizationFramework') 'Internationalization framework is not initialized at startup.'
 } }
 $checks += [pscustomobject]@{ Name = 'Honest support documentation'; Script = {
-    Assert-All 'DEFERRED-WORK-AND-DESKTOP-READINESS-GUIDE.md' $guide @('Epic 73', 'Translation resources', 'human review', 'RTL') 'Epic 73 deferred documentation is incomplete.'
+    Assert-All 'DEFERRED-WORK-GUIDE.md' $guide @('Epic 73', 'Translation resources', 'human review', 'RTL') 'Epic 73 deferred documentation is incomplete.'
 } }
 Write-Host 'Epic 73 Verification'
 Write-Host '--------------------'
