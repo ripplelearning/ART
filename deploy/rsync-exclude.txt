@@ -1,0 +1,31 @@
+# Paths excluded from the ART web application deployment payload.
+# Anything listed here stays on GitHub and is never copied to the web server.
+
+.git/
+.github/
+.gitignore
+.vscode/
+node_modules/
+
+# Desktop (Electron) application - not served over the web
+desktop/
+
+# Collaboration server - deployed and operated separately
+collaboration-server/
+
+# Local developer tooling and verification scripts
+verify-*.ps1
+start-collaboration-server.ps1
+start-collaboration-server-and-open-health.ps1
+stop-collaboration-server.ps1
+deploy/
+
+# Packaging metadata
+package.json
+package-lock.json
+
+# Scratch / temporary files
+_rename_test.txt
+tatus
+*.log
+*.tmp
